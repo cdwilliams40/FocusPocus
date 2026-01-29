@@ -394,6 +394,15 @@ fun FocusPocusApp(
         schedules.find { it.id == activeScheduleId }
     }
 
+    // Determine which blocker is currently active (if any)
+    val activeBlockerName = remember(focusMode, activeSchedule, activeManualBlocker) {
+        when {
+            !focusMode -> null
+            activeSchedule != null -> activeSchedule.blockerName
+            else -> activeManualBlocker?.name
+        }
+    }
+
     if (showBlockerSelectionDialog) {
         BlockerSelectionDialog(
             blockerLists = blockerLists,
@@ -485,6 +494,7 @@ fun FocusPocusApp(
                     when (screen) {
                         is Screen.BlockerList -> BlockerListScreen(
                             blockerLists = blockerLists,
+                            activeBlockerName = activeBlockerName,
                             onBlockerClick = {
                                 selectedBlocker = it
                                 screen = Screen.EditBlocker
@@ -505,6 +515,7 @@ fun FocusPocusApp(
                         is Screen.EditBlocker -> selectedBlocker?.let {
                             EditBlockerScreen(
                                 blocker = it,
+                                isActive = it.name == activeBlockerName,
                                 onSaveBlocker = { blockerToSave ->
                                     onSaveBlocker(blockerToSave)
                                     screen = Screen.BlockerList
@@ -513,6 +524,7 @@ fun FocusPocusApp(
                                     onDeleteBlocker(blockerToDelete)
                                     screen = Screen.BlockerList
                                 },
+                                onBack = { screen = Screen.BlockerList },
                                 installedApps = installedApps,
                                 modifier = contentModifier
                             )
@@ -844,6 +856,7 @@ fun ScheduleEditorScreen(
 @Composable
 fun BlockerListScreen(
     blockerLists: List<Blocker>,
+    activeBlockerName: String?,
     onBlockerClick: (Blocker) -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -861,11 +874,21 @@ fun BlockerListScreen(
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn {
                 items(blockerLists) { blocker ->
+                    val isActive = blocker.name == activeBlockerName
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
-                            .clickable { onBlockerClick(blocker) },
+                            .then(
+                                if (isActive) Modifier else Modifier.clickable { onBlockerClick(blocker) }
+                            ),
+                        colors = if (isActive) {
+                            CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        } else {
+                            CardDefaults.elevatedCardColors()
+                        }
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -874,6 +897,13 @@ fun BlockerListScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(blocker.name, style = MaterialTheme.typography.titleMedium)
                                 Text(if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Protect", style = MaterialTheme.typography.bodySmall)
+                                if (isActive) {
+                                    Text(
+                                        "Currently Active",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                             Icon(Icons.Default.Lock, contentDescription = null)
                         }
@@ -986,8 +1016,10 @@ fun CreateBlockerScreen(
 @Composable
 fun EditBlockerScreen(
     blocker: Blocker,
+    isActive: Boolean,
     onSaveBlocker: (Blocker) -> Unit,
     onDeleteBlocker: (Blocker) -> Unit,
+    onBack: () -> Unit,
     installedApps: List<AppInfo>,
     modifier: Modifier = Modifier
 ) {
@@ -995,7 +1027,7 @@ fun EditBlockerScreen(
     var apps by remember { mutableStateOf(blocker.apps) }
     var showDialog by remember { mutableStateOf(false) }
 
-    if (showDialog) {
+    if (showDialog && !isActive) {
         AppSelectionDialog(
             installedApps = installedApps,
             selectedApps = apps,
@@ -1009,20 +1041,44 @@ fun EditBlockerScreen(
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text("Editing Spell: ${blocker.name}", style = MaterialTheme.typography.headlineSmall)
+
+        if (isActive) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "This spell is currently active and cannot be edited. Dispel it first to make changes.",
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,
-                onClick = { selectedMode = BlockerMode.BLACKLIST }
+                onClick = { if (!isActive) selectedMode = BlockerMode.BLACKLIST },
+                enabled = !isActive
             )
-            Text("Banish")
+            Text("Banish", color = if (isActive) Color.Gray else Color.Unspecified)
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
-                onClick = { selectedMode = BlockerMode.WHITELIST }
+                onClick = { if (!isActive) selectedMode = BlockerMode.WHITELIST },
+                enabled = !isActive
             )
-            Text("Shield")
+            Text("Shield", color = if (isActive) Color.Gray else Color.Unspecified)
         }
 
-        Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = { showDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isActive
+        ) {
             Text("Select Target Apps")
         }
 
@@ -1055,7 +1111,10 @@ fun EditBlockerScreen(
                     } else {
                         Text(appPackageName, modifier = Modifier.weight(1f))
                     }
-                    Button(onClick = { apps = apps - appPackageName }) {
+                    Button(
+                        onClick = { apps = apps - appPackageName },
+                        enabled = !isActive
+                    ) {
                         Text("Remove")
                     }
                 }
@@ -1067,21 +1126,30 @@ fun EditBlockerScreen(
                 .fillMaxWidth()
                 .padding(top = 16.dp)
         ) {
-            Button(
-                onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps)) },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                Text("Save")
-            }
-            Button(
-                onClick = { onDeleteBlocker(blocker) },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
-            ) {
-                Text("Delete")
+            if (isActive) {
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Back")
+                }
+            } else {
+                Button(
+                    onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
+                    Text("Save")
+                }
+                Button(
+                    onClick = { onDeleteBlocker(blocker) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                ) {
+                    Text("Delete")
+                }
             }
         }
     }
