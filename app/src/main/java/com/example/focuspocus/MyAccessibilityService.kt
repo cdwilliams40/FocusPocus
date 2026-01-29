@@ -26,6 +26,7 @@ class MyAccessibilityService : AccessibilityService() {
     private val CHANNEL_ID = "focus_pocus_rituals"
     private val SERVICE_CHANNEL_ID = "focus_pocus_service"
     private val FOREGROUND_NOTIFICATION_ID = 1001
+    private val TIMER_EXPIRED_NOTIFICATION_ID = 1002
 
     // Cached active blocker to avoid repeated SharedPreferences reads
     private var cachedActiveBlocker: Blocker? = null
@@ -35,6 +36,7 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
+                checkFocusTimer()
             }
         }
     }
@@ -93,6 +95,49 @@ class MyAccessibilityService : AccessibilityService() {
             .setOngoing(true)
             .build()
         startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+    }
+
+    private fun checkFocusTimer() {
+        val focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
+        if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
+            // Timer expired, disable focus mode
+            sharedPreferences.edit()
+                .putBoolean("manualFocusMode", false)
+                .remove("focusEndTime")
+                .remove("activeBlocker")
+                .apply()
+
+            // Clear cache
+            cachedActiveBlocker = null
+            cachedBlockerName = null
+
+            // Send notification that timer expired
+            sendTimerExpiredNotification()
+
+            Log.d("MyAccessibilityService", "Focus timer expired")
+        }
+    }
+
+    private fun sendTimerExpiredNotification() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.fplogo)
+            .setContentTitle("Focus Session Complete")
+            .setContentText("Your focus timer has ended.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(TIMER_EXPIRED_NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            Log.e("MyAccessibilityService", "Permission denied for notification", e)
+        }
     }
 
     private fun checkSchedules() {

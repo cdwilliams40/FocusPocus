@@ -40,7 +40,9 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,9 +66,11 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -166,6 +170,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         activeScheduleId = null
         sharedPreferences.edit()
             .remove("activeScheduleId")
+            .remove("focusEndTime")
             .putBoolean("manualFocusMode", false)
             .apply()
     }
@@ -259,6 +264,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     .remove("focusTagId")
                     .remove("activeScheduleId")
                     .remove("activeBlocker")
+                    .remove("focusEndTime")
                     .apply()
 
                 focusTagId = null
@@ -374,6 +380,10 @@ fun FocusPocusApp(
         val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
         mutableStateOf(blockerLists.find { it.name == activeBlockerName })
     }
+    var selectedDuration by remember { mutableStateOf(FocusDuration.THIRTY_MIN) }
+    var focusEndTime by remember {
+        mutableLongStateOf(sharedPreferences.getLong("focusEndTime", 0L))
+    }
 
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
         sharedPreferences.edit()
@@ -389,6 +399,19 @@ fun FocusPocusApp(
          } else {
              manualFocusMode = true
          }
+    }
+
+    // Refresh focusEndTime periodically to update countdown
+    LaunchedEffect(manualFocusMode) {
+        while (manualFocusMode) {
+            focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
+            // Check if timer expired (service will handle actual disabling)
+            if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
+                manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
+                focusEndTime = 0L
+            }
+            delay(1000L)
+        }
     }
 
     if (!isServiceEnabled) {
@@ -477,6 +500,11 @@ fun FocusPocusApp(
                         namedTags = namedTags,
                         activeBlocker = currentActiveBlocker,
                         activeSchedule = activeSchedule,
+                        selectedDuration = selectedDuration,
+                        focusEndTime = focusEndTime,
+                        onDurationSelected = { duration ->
+                            selectedDuration = duration
+                        },
                         onStartClicked = {
                             if (focusMode) {
                                 // If active schedule, don't allow stopping via this button if bound to talisman
@@ -484,12 +512,31 @@ fun FocusPocusApp(
                                      if (activeSchedule.unbindingTalismanId == null) {
                                           onDispelSchedule()
                                           manualFocusMode = false
+                                          focusEndTime = 0L
                                      }
                                 } else {
+                                    // Clear timer when dispelling
+                                    sharedPreferences.edit()
+                                        .remove("focusEndTime")
+                                        .apply()
+                                    focusEndTime = 0L
                                     manualFocusMode = false
                                 }
                             } else {
                                 if (activeManualBlocker != null) {
+                                    // Set timer if duration is not unlimited
+                                    if (selectedDuration.minutes > 0) {
+                                        val endTime = System.currentTimeMillis() + (selectedDuration.minutes * 60 * 1000)
+                                        sharedPreferences.edit()
+                                            .putLong("focusEndTime", endTime)
+                                            .apply()
+                                        focusEndTime = endTime
+                                    } else {
+                                        sharedPreferences.edit()
+                                            .remove("focusEndTime")
+                                            .apply()
+                                        focusEndTime = 0L
+                                    }
                                     manualFocusMode = true
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
@@ -1374,6 +1421,14 @@ enum class DayOfWeek {
     MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
 }
 
+enum class FocusDuration(val label: String, val minutes: Long) {
+    FIFTEEN_MIN("15 min", 15),
+    THIRTY_MIN("30 min", 30),
+    ONE_HOUR("1 hour", 60),
+    TWO_HOURS("2 hours", 120),
+    UNLIMITED("Unlimited", 0)
+}
+
 enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
@@ -1391,6 +1446,9 @@ fun Greeting(
     namedTags: List<NamedTag>,
     activeBlocker: Blocker?,
     activeSchedule: Schedule?,
+    selectedDuration: FocusDuration,
+    focusEndTime: Long,
+    onDurationSelected: (FocusDuration) -> Unit,
     onStartClicked: () -> Unit,
     onBlockerSelectorClicked: () -> Unit,
     modifier: Modifier = Modifier
@@ -1401,6 +1459,64 @@ fun Greeting(
     } else null
 
     val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
+
+    var showDurationPicker by remember { mutableStateOf(false) }
+
+    // Calculate remaining time for countdown
+    val remainingTime = if (focusEndTime > 0) {
+        val remaining = focusEndTime - System.currentTimeMillis()
+        if (remaining > 0) remaining else 0L
+    } else 0L
+
+    val remainingMinutes = (remainingTime / 60000).toInt()
+    val remainingSeconds = ((remainingTime % 60000) / 1000).toInt()
+
+    if (showDurationPicker) {
+        AlertDialog(
+            onDismissRequest = { showDurationPicker = false },
+            title = { Text("Select Duration") },
+            text = {
+                Column {
+                    FocusDuration.entries.forEach { duration ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onDurationSelected(duration)
+                                    showDurationPicker = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedDuration == duration,
+                                onClick = {
+                                    onDurationSelected(duration)
+                                    showDurationPicker = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.size(12.dp))
+                            Text(
+                                text = duration.label,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showDurationPicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
@@ -1416,7 +1532,17 @@ fun Greeting(
                 color = if (focusMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            // Show countdown when timer is active
+            if (focusMode && focusEndTime > 0 && remainingTime > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "%d:%02d remaining".format(remainingMinutes, remainingSeconds),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Spell Selector Card
             if (activeSchedule == null) {
@@ -1482,6 +1608,46 @@ fun Greeting(
                         )
                     }
                 }
+
+                // Duration Selector (only show when not in focus mode)
+                if (!focusMode) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ElevatedCard(
+                        onClick = { showDurationPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = selectedDuration.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Change duration",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
             } else {
                 // Active Schedule Card (non-clickable)
                 Card(
@@ -1524,7 +1690,7 @@ fun Greeting(
                 }
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // Wand Button
             val wandColor = when {
@@ -1599,6 +1765,17 @@ fun Greeting(
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), false, null, {_ -> }, {}, {}, {}, {}, {}, {})
+        Greeting(
+            focusMode = false,
+            activeTagId = null,
+            namedTags = emptyList(),
+            activeBlocker = null,
+            activeSchedule = null,
+            selectedDuration = FocusDuration.THIRTY_MIN,
+            focusEndTime = 0L,
+            onDurationSelected = {},
+            onStartClicked = {},
+            onBlockerSelectorClicked = {}
+        )
     }
 }
