@@ -2,4 +2,6 @@
     <string name="app_name">Focus Pocus</string>
     <string name="accessibility_service_label">Focus Pocus</string>
     <string name="accessibility_service_description">This service helps you focus by monitoring the apps you use.</string>
+    <string name="foreground_service_title">Focus Pocus Active</string>
+    <string name="foreground_service_text">Guarding your focus</string>
 </resources>

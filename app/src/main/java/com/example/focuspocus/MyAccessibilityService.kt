@@ -24,6 +24,12 @@ class MyAccessibilityService : AccessibilityService() {
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
     private val CHANNEL_ID = "focus_pocus_rituals"
+    private val SERVICE_CHANNEL_ID = "focus_pocus_service"
+    private val FOREGROUND_NOTIFICATION_ID = 1001
+
+    // Cached active blocker to avoid repeated SharedPreferences reads
+    private var cachedActiveBlocker: Blocker? = null
+    private var cachedBlockerName: String? = null
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -37,11 +43,13 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences("FocusPocus", Context.MODE_PRIVATE)
         Log.d("MyAccessibilityService", "Service connected")
-        
+
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
         registerReceiver(timeTickReceiver, filter)
-        
+
         createNotificationChannel()
+        createServiceNotificationChannel()
+        startForegroundService()
     }
     
     override fun onDestroy() {
@@ -63,6 +71,28 @@ class MyAccessibilityService : AccessibilityService() {
         val notificationManager: NotificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun createServiceNotificationChannel() {
+        val name = "Focus Service"
+        val descriptionText = "Persistent notification for Focus Pocus service"
+        val importance = NotificationManager.IMPORTANCE_LOW
+        val channel = NotificationChannel(SERVICE_CHANNEL_ID, name, importance).apply {
+            description = descriptionText
+        }
+        val notificationManager: NotificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun startForegroundService() {
+        val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
+            .setContentTitle(getString(R.string.foreground_service_title))
+            .setContentText(getString(R.string.foreground_service_text))
+            .setSmallIcon(R.mipmap.fplogo)
+            .setOngoing(true)
+            .build()
+        startForeground(FOREGROUND_NOTIFICATION_ID, notification)
     }
 
     private fun checkSchedules() {
@@ -154,27 +184,37 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+
             val focusTagId = sharedPreferences.getString("focusTagId", null)
             val manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
 
             if (focusTagId != null || manualFocusMode) {
-                val json = sharedPreferences.getString("blockerLists", null)
-                val blockerLists: List<Blocker> = if (json != null) {
-                    try {
-                        val type = object : TypeToken<List<Blocker>>() {}.type
-                        gson.fromJson(json, type)
-                    } catch (e: Exception) {
-                        Log.e("MyAccessibilityService", "Error parsing blocker lists", e)
+                val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
+
+                // Use cached blocker if available and name matches
+                val activeBlocker = if (cachedBlockerName == activeBlockerName && cachedActiveBlocker != null) {
+                    cachedActiveBlocker
+                } else {
+                    val json = sharedPreferences.getString("blockerLists", null)
+                    val blockerLists: List<Blocker> = if (json != null) {
+                        try {
+                            val type = object : TypeToken<List<Blocker>>() {}.type
+                            gson.fromJson(json, type)
+                        } catch (e: Exception) {
+                            Log.e("MyAccessibilityService", "Error parsing blocker lists", e)
+                            emptyList()
+                        }
+                    } else {
                         emptyList()
                     }
-                } else {
-                    emptyList()
+                    val blocker = blockerLists.find { it.name == activeBlockerName }
+                    // Cache the blocker
+                    cachedBlockerName = activeBlockerName
+                    cachedActiveBlocker = blocker
+                    blocker
                 }
-
-                // Always use the activeBlocker selected in the app (Home screen), regardless of how focus was triggered (Tag or Manual)
-                val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
-                val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
                 activeBlocker?.let {
                     val packageName = event.packageName?.toString()
@@ -182,7 +222,7 @@ class MyAccessibilityService : AccessibilityService() {
                         val appName = getAppName(packageName)
                         Log.d("MyAccessibilityService", "Blocking app: $appName")
                         closeApp()
-                        showOverlay(appName)
+                        showOverlay(appName, activeBlockerName)
                     }
                 }
             }
@@ -228,10 +268,11 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun showOverlay(appName: String) {
+    private fun showOverlay(appName: String, spellName: String?) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
+        intent.putExtra("spellName", spellName)
         startActivity(intent)
     }
 

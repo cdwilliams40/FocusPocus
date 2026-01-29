@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -245,6 +246,28 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             null
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+
+        // If accessibility service is not running, disable any active spells
+        if (!isServiceEnabled) {
+            val hadActiveSpell = sharedPreferences.getBoolean("manualFocusMode", false) ||
+                    sharedPreferences.getString("focusTagId", null) != null ||
+                    sharedPreferences.getString("activeScheduleId", null) != null
+
+            if (hadActiveSpell) {
+                sharedPreferences.edit()
+                    .putBoolean("manualFocusMode", false)
+                    .remove("focusTagId")
+                    .remove("activeScheduleId")
+                    .remove("activeBlocker")
+                    .apply()
+
+                focusTagId = null
+                activeScheduleId = null
+
+                Toast.makeText(this, "Spell dispelled - Accessibility service not running", Toast.LENGTH_LONG).show()
+            }
+        }
+
         // Refresh activeScheduleId in case it was set by the service while the app was in background
         activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
     }
@@ -870,7 +893,7 @@ fun BlockerListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            Text("Grimoire (Spells)", style = MaterialTheme.typography.headlineMedium)
+            Text("Spells", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn {
                 items(blockerLists) { blocker ->
@@ -1377,89 +1400,195 @@ fun Greeting(
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: "Unknown Talisman"
     } else null
 
+    val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
+
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp)
         ) {
             // Magical Status Text
             Text(
                 text = if (focusMode) "Focus Spell Active" else "Ready to Cast",
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
-                color = if (focusMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground
+                color = if (focusMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
             )
-            
-            Spacer(modifier = Modifier.height(32.dp))
 
-            // Active Spell Info
-            if (activeBlocker != null) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    modifier = Modifier.padding(16.dp)
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Spell Selector Card
+            if (activeSchedule == null) {
+                ElevatedCard(
+                    onClick = onBlockerSelectorClicked,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = if (activeBlocker != null)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                         Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Star, contentDescription = null)
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Text(text = "Spell: ${activeBlocker.name}", style = MaterialTheme.typography.titleMedium)
-                        }
-                        
-                        if (activeSchedule != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Ritual: ${activeSchedule.name}", style = MaterialTheme.typography.bodyMedium)
-                            if (boundTalismanName != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Unbind with: $boundTalismanName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = if (activeBlocker != null)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.size(16.dp))
+                            Column {
+                                Text(
+                                    text = activeBlocker?.name ?: "Select a Spell",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (activeBlocker != null)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (activeBlocker != null) {
+                                    Text(
+                                        text = if (activeBlocker.mode == BlockerMode.BLACKLIST) "Banish Mode" else "Shield Mode",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Tap to choose",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Change spell",
+                            tint = if (activeBlocker != null)
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
                     }
                 }
             } else {
-                Text("No spell selected", style = MaterialTheme.typography.bodyLarge)
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (activeSchedule == null) {
-                Button(onClick = onBlockerSelectorClicked) {
-                    Text("Select Spell")
+                // Active Schedule Card (non-clickable)
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.size(16.dp))
+                            Text(
+                                text = activeBlocker?.name ?: "Unknown Spell",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ritual: ${activeSchedule.name}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                        if (boundTalismanName != null) {
+                            Text(
+                                text = "Unbind with: $boundTalismanName",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Big Start/Stop Button
-            val buttonColor = if (focusMode) Color.Red else MaterialTheme.colorScheme.primary
-            
-            val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
-            
-            Button(
-                onClick = onStartClicked,
-                modifier = Modifier.size(120.dp),
-                shape = androidx.compose.foundation.shape.CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = if (isButtonEnabled) buttonColor else Color.Gray),
-                enabled = isButtonEnabled
-            ) {
+            // Wand Button
+            val wandColor = when {
+                !isButtonEnabled -> Color.Gray
+                focusMode -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.primary
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.compose.material3.FilledIconButton(
+                    onClick = onStartClicked,
+                    modifier = Modifier.size(100.dp),
+                    enabled = isButtonEnabled,
+                    colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                        containerColor = wandColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.Gray,
+                        disabledContentColor = Color.White.copy(alpha = 0.6f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoFixHigh,
+                        contentDescription = if (focusMode) "Dispel" else "Cast",
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
-                    text = if (focusMode) {
-                        if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) "Bound" else "Dispel"
-                    } else "Cast",
-                    style = MaterialTheme.typography.titleLarge
+                    text = when {
+                        !isButtonEnabled -> "Bound"
+                        focusMode -> "Tap to Dispel"
+                        activeBlocker != null -> "Tap to Cast"
+                        else -> "Select a spell first"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (focusMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )
             }
-            
-             activeTagId?.let {
-                Spacer(modifier = Modifier.height(16.dp))
-                // Changed text slightly to reflect simpler behavior
-                Text(text = "Triggered by Talisman: ${activeTagName ?: it}")
+
+            activeTagId?.let {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Triggered by Talisman: ${activeTagName ?: it}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
             }
-            
+
             if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
-                 Spacer(modifier = Modifier.height(16.dp))
-                 Text("Scan $boundTalismanName to dispel", color = Color.Red, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "Scan $boundTalismanName to dispel",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }
