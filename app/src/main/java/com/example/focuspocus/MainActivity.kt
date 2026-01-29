@@ -68,6 +68,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -311,11 +312,40 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 val isNamed = namedTags.any { t -> t.id == newTagId }
                 if (isNamed) {
                     if (focusTagId == null) {
+                        // Activating focus via talisman
                         focusTagId = newTagId
-                        sharedPreferences.edit().putString("focusTagId", newTagId).apply()
+
+                        // Read settings and apply timer
+                        val savedDuration = sharedPreferences.getString("selectedDuration", null)
+                        val duration = savedDuration?.let { name ->
+                            FocusDuration.entries.find { it.name == name }
+                        } ?: FocusDuration.THIRTY_MIN
+
+                        val breakEnabledSetting = sharedPreferences.getBoolean("breakEnabled", false)
+
+                        val editor = sharedPreferences.edit()
+                            .putString("focusTagId", newTagId)
+                            .putBoolean("breakUsed", false)
+                            .remove("breakEndTime")
+
+                        // Set timer if duration is not unlimited
+                        if (duration.minutes > 0) {
+                            val endTime = System.currentTimeMillis() + (duration.minutes * 60 * 1000)
+                            editor.putLong("focusEndTime", endTime)
+                        } else {
+                            editor.remove("focusEndTime")
+                        }
+
+                        editor.apply()
                     } else {
+                        // Deactivating focus via talisman
                         focusTagId = null
-                        sharedPreferences.edit().remove("focusTagId").apply()
+                        sharedPreferences.edit()
+                            .remove("focusTagId")
+                            .remove("focusEndTime")
+                            .remove("breakUsed")
+                            .remove("breakEndTime")
+                            .apply()
                     }
                 }
             }
@@ -385,7 +415,21 @@ fun FocusPocusApp(
         val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
         mutableStateOf(blockerLists.find { it.name == activeBlockerName })
     }
-    var selectedDuration by remember { mutableStateOf(FocusDuration.THIRTY_MIN) }
+    var selectedDuration by remember {
+        val savedDuration = sharedPreferences.getString("selectedDuration", null)
+        mutableStateOf(
+            savedDuration?.let { name ->
+                FocusDuration.entries.find { it.name == name }
+            } ?: FocusDuration.THIRTY_MIN
+        )
+    }
+
+    // Save selected duration when it changes
+    LaunchedEffect(selectedDuration) {
+        sharedPreferences.edit()
+            .putString("selectedDuration", selectedDuration.name)
+            .apply()
+    }
     var focusEndTime by remember {
         mutableLongStateOf(sharedPreferences.getLong("focusEndTime", 0L))
     }
@@ -398,6 +442,8 @@ fun FocusPocusApp(
     var breakEndTime by remember {
         mutableLongStateOf(sharedPreferences.getLong("breakEndTime", 0L))
     }
+    // Tick counter to force recomposition for countdown updates
+    var tickCounter by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
         sharedPreferences.edit()
@@ -415,12 +461,18 @@ fun FocusPocusApp(
          }
     }
 
-    // Refresh focusEndTime and breakEndTime periodically to update countdown
-    LaunchedEffect(manualFocusMode) {
-        while (manualFocusMode) {
+    // Refresh state and tick counter periodically to update countdown
+    val isFocusActive = focusTagId != null || manualFocusMode
+    LaunchedEffect(isFocusActive) {
+        while (isFocusActive) {
+            // Increment tick counter to force recomposition for countdown display
+            tickCounter++
+
+            // Refresh state from SharedPreferences
             focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
             breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
             breakUsed = sharedPreferences.getBoolean("breakUsed", false)
+
             // Check if timer expired (service will handle actual disabling)
             if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
                 manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
@@ -528,6 +580,7 @@ fun FocusPocusApp(
                         breakEnabled = breakEnabled,
                         breakUsed = breakUsed,
                         breakEndTime = breakEndTime,
+                        tickCounter = tickCounter,
                         onDurationSelected = { duration ->
                             selectedDuration = duration
                         },
@@ -1509,6 +1562,7 @@ fun Greeting(
     breakEnabled: Boolean,
     breakUsed: Boolean,
     breakEndTime: Long,
+    tickCounter: Int,
     onDurationSelected: (FocusDuration) -> Unit,
     onBreakEnabledChanged: (Boolean) -> Unit,
     onTakeBreak: () -> Unit,
@@ -1516,6 +1570,9 @@ fun Greeting(
     onBlockerSelectorClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Use tickCounter to ensure recomposition for countdown updates
+    @Suppress("UNUSED_VARIABLE")
+    val tick = tickCounter
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: "Unknown Talisman"
@@ -1942,6 +1999,7 @@ fun GreetingPreview() {
             breakEnabled = false,
             breakUsed = false,
             breakEndTime = 0L,
+            tickCounter = 0,
             onDurationSelected = {},
             onBreakEnabledChanged = {},
             onTakeBreak = {},
