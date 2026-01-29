@@ -27,6 +27,7 @@ class MyAccessibilityService : AccessibilityService() {
     private val SERVICE_CHANNEL_ID = "focus_pocus_service"
     private val FOREGROUND_NOTIFICATION_ID = 1001
     private val TIMER_EXPIRED_NOTIFICATION_ID = 1002
+    private val BREAK_ENDED_NOTIFICATION_ID = 1003
 
     // Cached active blocker to avoid repeated SharedPreferences reads
     private var cachedActiveBlocker: Blocker? = null
@@ -37,6 +38,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
                 checkFocusTimer()
+                checkBreakTimer()
             }
         }
     }
@@ -105,6 +107,9 @@ class MyAccessibilityService : AccessibilityService() {
                 .putBoolean("manualFocusMode", false)
                 .remove("focusEndTime")
                 .remove("activeBlocker")
+                .remove("breakEnabled")
+                .remove("breakUsed")
+                .remove("breakEndTime")
                 .apply()
 
             // Clear cache
@@ -115,6 +120,43 @@ class MyAccessibilityService : AccessibilityService() {
             sendTimerExpiredNotification()
 
             Log.d("MyAccessibilityService", "Focus timer expired")
+        }
+    }
+
+    private fun checkBreakTimer() {
+        val breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
+        if (breakEndTime > 0 && System.currentTimeMillis() >= breakEndTime) {
+            // Break ended, clear the break end time
+            sharedPreferences.edit()
+                .remove("breakEndTime")
+                .apply()
+
+            // Send notification that break ended
+            sendBreakEndedNotification()
+
+            Log.d("MyAccessibilityService", "Break ended")
+        }
+    }
+
+    private fun sendBreakEndedNotification() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 2, intent, PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.fplogo)
+            .setContentTitle("Break Over")
+            .setContentText("Your break has ended. Focus mode is active again.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(BREAK_ENDED_NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            Log.e("MyAccessibilityService", "Permission denied for notification", e)
         }
     }
 
@@ -231,6 +273,12 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
             event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+
+            // Check if on break - skip blocking during break
+            val breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
+            if (breakEndTime > 0 && System.currentTimeMillis() < breakEndTime) {
+                return // On break, don't block
+            }
 
             val focusTagId = sharedPreferences.getString("focusTagId", null)
             val manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)

@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.FreeBreakfast
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -58,6 +59,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TimePicker
@@ -265,6 +267,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     .remove("activeScheduleId")
                     .remove("activeBlocker")
                     .remove("focusEndTime")
+                    .remove("breakEnabled")
+                    .remove("breakUsed")
+                    .remove("breakEndTime")
                     .apply()
 
                 focusTagId = null
@@ -384,6 +389,15 @@ fun FocusPocusApp(
     var focusEndTime by remember {
         mutableLongStateOf(sharedPreferences.getLong("focusEndTime", 0L))
     }
+    var breakEnabled by remember {
+        mutableStateOf(sharedPreferences.getBoolean("breakEnabled", false))
+    }
+    var breakUsed by remember {
+        mutableStateOf(sharedPreferences.getBoolean("breakUsed", false))
+    }
+    var breakEndTime by remember {
+        mutableLongStateOf(sharedPreferences.getLong("breakEndTime", 0L))
+    }
 
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
         sharedPreferences.edit()
@@ -401,14 +415,23 @@ fun FocusPocusApp(
          }
     }
 
-    // Refresh focusEndTime periodically to update countdown
+    // Refresh focusEndTime and breakEndTime periodically to update countdown
     LaunchedEffect(manualFocusMode) {
         while (manualFocusMode) {
             focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
+            breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
+            breakUsed = sharedPreferences.getBoolean("breakUsed", false)
             // Check if timer expired (service will handle actual disabling)
             if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
                 manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
                 focusEndTime = 0L
+                breakEndTime = 0L
+                breakUsed = false
+                breakEnabled = false
+            }
+            // Check if break ended
+            if (breakEndTime > 0 && System.currentTimeMillis() >= breakEndTime) {
+                breakEndTime = 0L
             }
             delay(1000L)
         }
@@ -502,8 +525,28 @@ fun FocusPocusApp(
                         activeSchedule = activeSchedule,
                         selectedDuration = selectedDuration,
                         focusEndTime = focusEndTime,
+                        breakEnabled = breakEnabled,
+                        breakUsed = breakUsed,
+                        breakEndTime = breakEndTime,
                         onDurationSelected = { duration ->
                             selectedDuration = duration
+                        },
+                        onBreakEnabledChanged = { enabled ->
+                            breakEnabled = enabled
+                            sharedPreferences.edit()
+                                .putBoolean("breakEnabled", enabled)
+                                .apply()
+                        },
+                        onTakeBreak = {
+                            if (breakEnabled && !breakUsed && breakEndTime == 0L) {
+                                val endTime = System.currentTimeMillis() + (5 * 60 * 1000) // 5 minutes
+                                sharedPreferences.edit()
+                                    .putLong("breakEndTime", endTime)
+                                    .putBoolean("breakUsed", true)
+                                    .apply()
+                                breakEndTime = endTime
+                                breakUsed = true
+                            }
                         },
                         onStartClicked = {
                             if (focusMode) {
@@ -513,13 +556,22 @@ fun FocusPocusApp(
                                           onDispelSchedule()
                                           manualFocusMode = false
                                           focusEndTime = 0L
+                                          breakEndTime = 0L
+                                          breakUsed = false
+                                          breakEnabled = false
                                      }
                                 } else {
-                                    // Clear timer when dispelling
+                                    // Clear timer and break when dispelling
                                     sharedPreferences.edit()
                                         .remove("focusEndTime")
+                                        .remove("breakEnabled")
+                                        .remove("breakUsed")
+                                        .remove("breakEndTime")
                                         .apply()
                                     focusEndTime = 0L
+                                    breakEndTime = 0L
+                                    breakUsed = false
+                                    breakEnabled = false
                                     manualFocusMode = false
                                 }
                             } else {
@@ -529,14 +581,20 @@ fun FocusPocusApp(
                                         val endTime = System.currentTimeMillis() + (selectedDuration.minutes * 60 * 1000)
                                         sharedPreferences.edit()
                                             .putLong("focusEndTime", endTime)
+                                            .putBoolean("breakEnabled", breakEnabled)
+                                            .putBoolean("breakUsed", false)
                                             .apply()
                                         focusEndTime = endTime
                                     } else {
                                         sharedPreferences.edit()
                                             .remove("focusEndTime")
+                                            .putBoolean("breakEnabled", breakEnabled)
+                                            .putBoolean("breakUsed", false)
                                             .apply()
                                         focusEndTime = 0L
                                     }
+                                    breakUsed = false
+                                    breakEndTime = 0L
                                     manualFocusMode = true
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
@@ -1448,7 +1506,12 @@ fun Greeting(
     activeSchedule: Schedule?,
     selectedDuration: FocusDuration,
     focusEndTime: Long,
+    breakEnabled: Boolean,
+    breakUsed: Boolean,
+    breakEndTime: Long,
     onDurationSelected: (FocusDuration) -> Unit,
+    onBreakEnabledChanged: (Boolean) -> Unit,
+    onTakeBreak: () -> Unit,
     onStartClicked: () -> Unit,
     onBlockerSelectorClicked: () -> Unit,
     modifier: Modifier = Modifier
@@ -1462,7 +1525,7 @@ fun Greeting(
 
     var showDurationPicker by remember { mutableStateOf(false) }
 
-    // Calculate remaining time for countdown
+    // Calculate remaining time for focus countdown
     val remainingTime = if (focusEndTime > 0) {
         val remaining = focusEndTime - System.currentTimeMillis()
         if (remaining > 0) remaining else 0L
@@ -1470,6 +1533,16 @@ fun Greeting(
 
     val remainingMinutes = (remainingTime / 60000).toInt()
     val remainingSeconds = ((remainingTime % 60000) / 1000).toInt()
+
+    // Calculate remaining break time
+    val breakRemainingTime = if (breakEndTime > 0) {
+        val remaining = breakEndTime - System.currentTimeMillis()
+        if (remaining > 0) remaining else 0L
+    } else 0L
+
+    val breakRemainingMinutes = (breakRemainingTime / 60000).toInt()
+    val breakRemainingSeconds = ((breakRemainingTime % 60000) / 1000).toInt()
+    val isOnBreak = breakEndTime > 0 && breakRemainingTime > 0
 
     if (showDurationPicker) {
         AlertDialog(
@@ -1540,6 +1613,56 @@ fun Greeting(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            // Break UI during focus mode
+            if (focusMode && breakEnabled && activeSchedule == null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (isOnBreak) {
+                    // Show break countdown
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FreeBreakfast,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.size(12.dp))
+                            Text(
+                                text = "Break: %d:%02d".format(breakRemainingMinutes, breakRemainingSeconds),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                } else if (!breakUsed) {
+                    // Show take break button
+                    OutlinedButton(
+                        onClick = onTakeBreak
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FreeBreakfast,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Take 5-min Break")
+                    }
+                } else {
+                    // Break already used
+                    Text(
+                        text = "Break used",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -1644,6 +1767,49 @@ fun Greeting(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Change duration",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+
+                    // Break toggle
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.FreeBreakfast,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.size(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Allow 5-min break",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "One break per session",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = breakEnabled,
+                                onCheckedChange = onBreakEnabledChanged
                             )
                         }
                     }
@@ -1773,7 +1939,12 @@ fun GreetingPreview() {
             activeSchedule = null,
             selectedDuration = FocusDuration.THIRTY_MIN,
             focusEndTime = 0L,
+            breakEnabled = false,
+            breakUsed = false,
+            breakEndTime = 0L,
             onDurationSelected = {},
+            onBreakEnabledChanged = {},
+            onTakeBreak = {},
             onStartClicked = {},
             onBlockerSelectorClicked = {}
         )
