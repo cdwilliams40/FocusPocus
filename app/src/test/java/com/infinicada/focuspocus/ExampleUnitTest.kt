@@ -1,4 +1,4 @@
-package com.example.focuspocus
+package com.infinicada.focuspocus
 
 import org.junit.Test
 

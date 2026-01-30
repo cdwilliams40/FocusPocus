@@ -1,4 +1,4 @@
-package com.example.focuspocus
+package com.infinicada.focuspocus
 
 import android.Manifest
 import android.content.ComponentName
@@ -39,11 +39,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.FreeBreakfast
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -69,11 +66,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -85,9 +80,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import com.example.focuspocus.ui.theme.FocusPocusTheme
+import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.delay
 import java.util.UUID
 
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
@@ -111,7 +107,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         sharedPreferences = getSharedPreferences("FocusPocus", Context.MODE_PRIVATE)
         focusTagId = sharedPreferences.getString("focusTagId", null)
         activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
-        
+
         loadNamedTags()
         loadBlockerLists()
         loadInstalledApps()
@@ -173,7 +169,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         activeScheduleId = null
         sharedPreferences.edit()
             .remove("activeScheduleId")
-            .remove("focusEndTime")
             .putBoolean("manualFocusMode", false)
             .apply()
     }
@@ -254,32 +249,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             null
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
-
-        // If accessibility service is not running, disable any active spells
-        if (!isServiceEnabled) {
-            val hadActiveSpell = sharedPreferences.getBoolean("manualFocusMode", false) ||
-                    sharedPreferences.getString("focusTagId", null) != null ||
-                    sharedPreferences.getString("activeScheduleId", null) != null
-
-            if (hadActiveSpell) {
-                sharedPreferences.edit()
-                    .putBoolean("manualFocusMode", false)
-                    .remove("focusTagId")
-                    .remove("activeScheduleId")
-                    .remove("activeBlocker")
-                    .remove("focusEndTime")
-                    .remove("breakEnabled")
-                    .remove("breakUsed")
-                    .remove("breakEndTime")
-                    .apply()
-
-                focusTagId = null
-                activeScheduleId = null
-
-                Toast.makeText(this, "Spell dispelled - Accessibility service not running", Toast.LENGTH_LONG).show()
-            }
-        }
-
         // Refresh activeScheduleId in case it was set by the service while the app was in background
         activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
     }
@@ -294,7 +263,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             val newTagId = it.id.toHexString()
             runOnUiThread {
                 lastScannedTagId = newTagId
-                
+
                 // Check if an active schedule needs unbinding
                 if (activeScheduleId != null) {
                     val schedule = schedules.find { s -> s.id == activeScheduleId }
@@ -312,40 +281,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 val isNamed = namedTags.any { t -> t.id == newTagId }
                 if (isNamed) {
                     if (focusTagId == null) {
-                        // Activating focus via talisman
                         focusTagId = newTagId
-
-                        // Read settings and apply timer
-                        val savedDuration = sharedPreferences.getString("selectedDuration", null)
-                        val duration = savedDuration?.let { name ->
-                            FocusDuration.entries.find { it.name == name }
-                        } ?: FocusDuration.THIRTY_MIN
-
-                        val breakEnabledSetting = sharedPreferences.getBoolean("breakEnabled", false)
-
-                        val editor = sharedPreferences.edit()
-                            .putString("focusTagId", newTagId)
-                            .putBoolean("breakUsed", false)
-                            .remove("breakEndTime")
-
-                        // Set timer if duration is not unlimited
-                        if (duration.minutes > 0) {
-                            val endTime = System.currentTimeMillis() + (duration.minutes * 60 * 1000)
-                            editor.putLong("focusEndTime", endTime)
-                        } else {
-                            editor.remove("focusEndTime")
-                        }
-
-                        editor.apply()
+                        sharedPreferences.edit().putString("focusTagId", newTagId).apply()
                     } else {
-                        // Deactivating focus via talisman
                         focusTagId = null
-                        sharedPreferences.edit()
-                            .remove("focusTagId")
-                            .remove("focusEndTime")
-                            .remove("breakUsed")
-                            .remove("breakEndTime")
-                            .apply()
+                        sharedPreferences.edit().remove("focusTagId").apply()
                     }
                 }
             }
@@ -415,35 +355,35 @@ fun FocusPocusApp(
         val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
         mutableStateOf(blockerLists.find { it.name == activeBlockerName })
     }
-    var selectedDuration by remember {
-        val savedDuration = sharedPreferences.getString("selectedDuration", null)
-        mutableStateOf(
-            savedDuration?.let { name ->
-                FocusDuration.entries.find { it.name == name }
-            } ?: FocusDuration.THIRTY_MIN
-        )
+
+    // Break settings
+    var breakDurationMinutes by remember {
+        mutableIntStateOf(sharedPreferences.getInt("breakDurationMinutes", 5))
+    }
+    var maxBreaksPerSession by remember {
+        mutableIntStateOf(sharedPreferences.getInt("maxBreaksPerSession", 3))
     }
 
-    // Save selected duration when it changes
-    LaunchedEffect(selectedDuration) {
-        sharedPreferences.edit()
-            .putString("selectedDuration", selectedDuration.name)
-            .apply()
+    // Break state
+    var isOnBreak by remember { mutableStateOf(sharedPreferences.getBoolean("isOnBreak", false)) }
+    var breaksUsedThisSession by remember {
+        mutableIntStateOf(sharedPreferences.getInt("breaksUsedThisSession", 0))
     }
-    var focusEndTime by remember {
-        mutableLongStateOf(sharedPreferences.getLong("focusEndTime", 0L))
+    var breakTimeRemaining by remember {
+        mutableIntStateOf(sharedPreferences.getInt("breakTimeRemaining", 0))
     }
-    var breakEnabled by remember {
-        mutableStateOf(sharedPreferences.getBoolean("breakEnabled", false))
+
+    // Break countdown timer
+    LaunchedEffect(isOnBreak, breakTimeRemaining) {
+        if (isOnBreak && breakTimeRemaining > 0) {
+            delay(1000L)
+            breakTimeRemaining -= 1
+            sharedPreferences.edit().putInt("breakTimeRemaining", breakTimeRemaining).apply()
+        } else if (isOnBreak && breakTimeRemaining <= 0) {
+            isOnBreak = false
+            sharedPreferences.edit().putBoolean("isOnBreak", false).apply()
+        }
     }
-    var breakUsed by remember {
-        mutableStateOf(sharedPreferences.getBoolean("breakUsed", false))
-    }
-    var breakEndTime by remember {
-        mutableLongStateOf(sharedPreferences.getLong("breakEndTime", 0L))
-    }
-    // Tick counter to force recomposition for countdown updates
-    var tickCounter by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
         sharedPreferences.edit()
@@ -451,7 +391,21 @@ fun FocusPocusApp(
             .putString("activeBlocker", activeManualBlocker?.name)
             .apply()
     }
-    
+
+    // Reset breaks when focus mode ends
+    LaunchedEffect(manualFocusMode) {
+        if (!manualFocusMode) {
+            breaksUsedThisSession = 0
+            isOnBreak = false
+            breakTimeRemaining = 0
+            sharedPreferences.edit()
+                .putInt("breaksUsedThisSession", 0)
+                .putBoolean("isOnBreak", false)
+                .putInt("breakTimeRemaining", 0)
+                .apply()
+        }
+    }
+
     // Sync UI with external changes to activeScheduleId (e.g. from onTagDiscovered)
     LaunchedEffect(activeScheduleId) {
          if (activeScheduleId == null) {
@@ -459,34 +413,6 @@ fun FocusPocusApp(
          } else {
              manualFocusMode = true
          }
-    }
-
-    // Refresh state and tick counter periodically to update countdown
-    val isFocusActive = focusTagId != null || manualFocusMode
-    LaunchedEffect(isFocusActive) {
-        while (isFocusActive) {
-            // Increment tick counter to force recomposition for countdown display
-            tickCounter++
-
-            // Refresh state from SharedPreferences
-            focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
-            breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
-            breakUsed = sharedPreferences.getBoolean("breakUsed", false)
-
-            // Check if timer expired (service will handle actual disabling)
-            if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
-                manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
-                focusEndTime = 0L
-                breakEndTime = 0L
-                breakUsed = false
-                breakEnabled = false
-            }
-            // Check if break ended
-            if (breakEndTime > 0 && System.currentTimeMillis() >= breakEndTime) {
-                breakEndTime = 0L
-            }
-            delay(1000L)
-        }
     }
 
     if (!isServiceEnabled) {
@@ -510,18 +436,9 @@ fun FocusPocusApp(
     var screen by remember { mutableStateOf<Screen>(Screen.BlockerList) }
     var scheduleScreen by remember { mutableStateOf<ScheduleScreenRoute>(ScheduleScreenRoute.ScheduleList) }
     var selectedBlocker by remember { mutableStateOf<Blocker?>(null) }
-    
+
     val activeSchedule = remember(activeScheduleId, schedules) {
         schedules.find { it.id == activeScheduleId }
-    }
-
-    // Determine which blocker is currently active (if any)
-    val activeBlockerName = remember(focusMode, activeSchedule, activeManualBlocker) {
-        when {
-            !focusMode -> null
-            activeSchedule != null -> activeSchedule.blockerName
-            else -> activeManualBlocker?.name
-        }
     }
 
     if (showBlockerSelectionDialog) {
@@ -569,38 +486,24 @@ fun FocusPocusApp(
                     // Always rely on activeManualBlocker (selected on Home) regardless of trigger
                     val currentActiveBlocker = activeManualBlocker
 
+                    // Check if breaks are allowed for current context
+                    val breaksAllowed = if (activeSchedule != null) {
+                        activeSchedule.breaksEnabled
+                    } else {
+                        true // Manual focus mode allows breaks by default
+                    }
+
                     Greeting(
                         focusMode = focusMode,
                         activeTagId = focusTagId,
                         namedTags = namedTags,
                         activeBlocker = currentActiveBlocker,
                         activeSchedule = activeSchedule,
-                        selectedDuration = selectedDuration,
-                        focusEndTime = focusEndTime,
-                        breakEnabled = breakEnabled,
-                        breakUsed = breakUsed,
-                        breakEndTime = breakEndTime,
-                        tickCounter = tickCounter,
-                        onDurationSelected = { duration ->
-                            selectedDuration = duration
-                        },
-                        onBreakEnabledChanged = { enabled ->
-                            breakEnabled = enabled
-                            sharedPreferences.edit()
-                                .putBoolean("breakEnabled", enabled)
-                                .apply()
-                        },
-                        onTakeBreak = {
-                            if (breakEnabled && !breakUsed && breakEndTime == 0L) {
-                                val endTime = System.currentTimeMillis() + (5 * 60 * 1000) // 5 minutes
-                                sharedPreferences.edit()
-                                    .putLong("breakEndTime", endTime)
-                                    .putBoolean("breakUsed", true)
-                                    .apply()
-                                breakEndTime = endTime
-                                breakUsed = true
-                            }
-                        },
+                        isOnBreak = isOnBreak,
+                        breakTimeRemaining = breakTimeRemaining,
+                        breaksUsedThisSession = breaksUsedThisSession,
+                        maxBreaksPerSession = maxBreaksPerSession,
+                        breaksAllowed = breaksAllowed,
                         onStartClicked = {
                             if (focusMode) {
                                 // If active schedule, don't allow stopping via this button if bound to talisman
@@ -608,46 +511,12 @@ fun FocusPocusApp(
                                      if (activeSchedule.unbindingTalismanId == null) {
                                           onDispelSchedule()
                                           manualFocusMode = false
-                                          focusEndTime = 0L
-                                          breakEndTime = 0L
-                                          breakUsed = false
-                                          breakEnabled = false
                                      }
                                 } else {
-                                    // Clear timer and break when dispelling
-                                    sharedPreferences.edit()
-                                        .remove("focusEndTime")
-                                        .remove("breakEnabled")
-                                        .remove("breakUsed")
-                                        .remove("breakEndTime")
-                                        .apply()
-                                    focusEndTime = 0L
-                                    breakEndTime = 0L
-                                    breakUsed = false
-                                    breakEnabled = false
                                     manualFocusMode = false
                                 }
                             } else {
                                 if (activeManualBlocker != null) {
-                                    // Set timer if duration is not unlimited
-                                    if (selectedDuration.minutes > 0) {
-                                        val endTime = System.currentTimeMillis() + (selectedDuration.minutes * 60 * 1000)
-                                        sharedPreferences.edit()
-                                            .putLong("focusEndTime", endTime)
-                                            .putBoolean("breakEnabled", breakEnabled)
-                                            .putBoolean("breakUsed", false)
-                                            .apply()
-                                        focusEndTime = endTime
-                                    } else {
-                                        sharedPreferences.edit()
-                                            .remove("focusEndTime")
-                                            .putBoolean("breakEnabled", breakEnabled)
-                                            .putBoolean("breakUsed", false)
-                                            .apply()
-                                        focusEndTime = 0L
-                                    }
-                                    breakUsed = false
-                                    breakEndTime = 0L
                                     manualFocusMode = true
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
@@ -660,6 +529,26 @@ fun FocusPocusApp(
                             if (activeSchedule == null) {
                                 showBlockerSelectionDialog = true
                             }
+                        },
+                        onTakeBreak = {
+                            if (breaksAllowed && breaksUsedThisSession < maxBreaksPerSession && !isOnBreak) {
+                                isOnBreak = true
+                                breakTimeRemaining = breakDurationMinutes * 60
+                                breaksUsedThisSession += 1
+                                sharedPreferences.edit()
+                                    .putBoolean("isOnBreak", true)
+                                    .putInt("breakTimeRemaining", breakTimeRemaining)
+                                    .putInt("breaksUsedThisSession", breaksUsedThisSession)
+                                    .apply()
+                            }
+                        },
+                        onEndBreak = {
+                            isOnBreak = false
+                            breakTimeRemaining = 0
+                            sharedPreferences.edit()
+                                .putBoolean("isOnBreak", false)
+                                .putInt("breakTimeRemaining", 0)
+                                .apply()
                         },
                         modifier = contentModifier
                     )
@@ -675,7 +564,6 @@ fun FocusPocusApp(
                     when (screen) {
                         is Screen.BlockerList -> BlockerListScreen(
                             blockerLists = blockerLists,
-                            activeBlockerName = activeBlockerName,
                             onBlockerClick = {
                                 selectedBlocker = it
                                 screen = Screen.EditBlocker
@@ -696,7 +584,6 @@ fun FocusPocusApp(
                         is Screen.EditBlocker -> selectedBlocker?.let {
                             EditBlockerScreen(
                                 blocker = it,
-                                isActive = it.name == activeBlockerName,
                                 onSaveBlocker = { blockerToSave ->
                                     onSaveBlocker(blockerToSave)
                                     screen = Screen.BlockerList
@@ -705,7 +592,6 @@ fun FocusPocusApp(
                                     onDeleteBlocker(blockerToDelete)
                                     screen = Screen.BlockerList
                                 },
-                                onBack = { screen = Screen.BlockerList },
                                 installedApps = installedApps,
                                 modifier = contentModifier
                             )
@@ -759,7 +645,17 @@ fun FocusPocusApp(
                         onSaveTag = onSaveTag,
                         onDeleteTag = onDeleteTag,
                         modifier = contentModifier,
-                        blockerLists = blockerLists
+                        blockerLists = blockerLists,
+                        breakDurationMinutes = breakDurationMinutes,
+                        maxBreaksPerSession = maxBreaksPerSession,
+                        onBreakDurationChanged = { newDuration ->
+                            breakDurationMinutes = newDuration
+                            sharedPreferences.edit().putInt("breakDurationMinutes", newDuration).apply()
+                        },
+                        onMaxBreaksChanged = { newMax ->
+                            maxBreaksPerSession = newMax
+                            sharedPreferences.edit().putInt("maxBreaksPerSession", newMax).apply()
+                        }
                     )
                 }
             }
@@ -803,10 +699,13 @@ fun ScheduleListScreen(
                                 Text("${schedule.startTime} - ${schedule.endTime}")
                                 Text(schedule.days.joinToString { it.name.take(3) })
                                 if (schedule.unbindingTalismanId != null) {
-                                    Text("Bound to Talisman", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text("Bound to Talisman", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                                 }
                             }
-                            Button(onClick = { onDeleteSchedule(schedule) }) {
+                            Button(
+                                onClick = { onDeleteSchedule(schedule) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
                                 Text("Delete")
                             }
                         }
@@ -828,22 +727,24 @@ fun ScheduleEditorScreen(
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf(scheduleToEdit?.name ?: "") }
-    var selectedBlocker by remember { 
+    var selectedBlocker by remember {
         mutableStateOf(
             if (scheduleToEdit != null) blockerLists.find { it.name == scheduleToEdit.blockerName } else null
-        ) 
+        )
     }
     var showBlockerDialog by remember { mutableStateOf(false) }
-    
-    var selectedTalisman by remember { 
+
+    var selectedTalisman by remember {
         mutableStateOf(
              if (scheduleToEdit?.unbindingTalismanId != null) namedTags.find { it.id == scheduleToEdit.unbindingTalismanId } else null
-        ) 
+        )
     }
     var showTalismanDialog by remember { mutableStateOf(false) }
 
+    var breaksEnabled by remember { mutableStateOf(scheduleToEdit?.breaksEnabled ?: true) }
+
     var selectedDays by remember { mutableStateOf(scheduleToEdit?.days ?: emptySet<DayOfWeek>()) }
-    
+
     // Initial times
     val (startHour, startMinute) = remember(scheduleToEdit) {
          val parts = scheduleToEdit?.startTime?.split(":")
@@ -854,7 +755,7 @@ fun ScheduleEditorScreen(
          }
     }
     val startTimeState = rememberTimePickerState(initialHour = startHour, initialMinute = startMinute)
-    
+
     val (endHour, endMinute) = remember(scheduleToEdit) {
          val parts = scheduleToEdit?.endTime?.split(":")
          if (parts != null && parts.size >= 2) {
@@ -871,7 +772,7 @@ fun ScheduleEditorScreen(
     if (showBlockerDialog) {
         BlockerSelectionDialog(
             blockerLists = blockerLists,
-            onBlockerSelected = { 
+            onBlockerSelected = {
                 selectedBlocker = it
                 showBlockerDialog = false
              },
@@ -896,7 +797,7 @@ fun ScheduleEditorScreen(
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Star, contentDescription = null)
+                            Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                             Text(tag.name, modifier = Modifier.padding(start = 16.dp))
                         }
                     }
@@ -947,7 +848,7 @@ fun ScheduleEditorScreen(
     Column(modifier = modifier.padding(16.dp)) {
         Text(if (scheduleToEdit != null) "Refine Ritual" else "Concoct Ritual", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         TextField(
             value = name,
             onValueChange = { name = it },
@@ -960,19 +861,34 @@ fun ScheduleEditorScreen(
             Text(selectedBlocker?.name ?: "Select Spell to Cast")
         }
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         OutlinedButton(onClick = { showTalismanDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text(selectedTalisman?.name?.let { "Unbind with: $it" } ?: "Optional: Bind to Talisman")
         }
-        
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Breaks toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Allow Breaks")
+            Switch(
+                checked = breaksEnabled,
+                onCheckedChange = { breaksEnabled = it }
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Days Active:")
         Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-            DayOfWeek.values().forEach { day ->
+            DayOfWeek.entries.forEach { day ->
                 FilterChip(
                     selected = selectedDays.contains(day),
-                    onClick = { 
+                    onClick = {
                         selectedDays = if (selectedDays.contains(day)) {
                             selectedDays - day
                         } else {
@@ -993,9 +909,9 @@ fun ScheduleEditorScreen(
             ) {
                 Text(text = "Start: %02d:%02d".format(startTimeState.hour, startTimeState.minute))
             }
-            
+
             Spacer(modifier = Modifier.size(8.dp))
-            
+
             // End Time Picker Button
             OutlinedButton(
                 onClick = { showEndTimePicker = true },
@@ -1021,7 +937,8 @@ fun ScheduleEditorScreen(
                             days = selectedDays,
                             startTime = "%02d:%02d".format(startTimeState.hour, startTimeState.minute),
                             endTime = "%02d:%02d".format(endTimeState.hour, endTimeState.minute),
-                            unbindingTalismanId = selectedTalisman?.id
+                            unbindingTalismanId = selectedTalisman?.id,
+                            breaksEnabled = breaksEnabled
                         )
                     )
                 }
@@ -1037,7 +954,6 @@ fun ScheduleEditorScreen(
 @Composable
 fun BlockerListScreen(
     blockerLists: List<Blocker>,
-    activeBlockerName: String?,
     onBlockerClick: (Blocker) -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1051,25 +967,15 @@ fun BlockerListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            Text("Spells", style = MaterialTheme.typography.headlineMedium)
+            Text("Grimoire (Spells)", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn {
                 items(blockerLists) { blocker ->
-                    val isActive = blocker.name == activeBlockerName
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
-                            .then(
-                                if (isActive) Modifier else Modifier.clickable { onBlockerClick(blocker) }
-                            ),
-                        colors = if (isActive) {
-                            CardDefaults.elevatedCardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        } else {
-                            CardDefaults.elevatedCardColors()
-                        }
+                            .clickable { onBlockerClick(blocker) },
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -1078,15 +984,8 @@ fun BlockerListScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(blocker.name, style = MaterialTheme.typography.titleMedium)
                                 Text(if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Protect", style = MaterialTheme.typography.bodySmall)
-                                if (isActive) {
-                                    Text(
-                                        "Currently Active",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
                             }
-                            Icon(Icons.Default.Lock, contentDescription = null)
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 }
@@ -1122,7 +1021,7 @@ fun CreateBlockerScreen(
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text("Inscribe New Spell", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         TextField(
             value = name,
             onValueChange = { name = it },
@@ -1197,10 +1096,8 @@ fun CreateBlockerScreen(
 @Composable
 fun EditBlockerScreen(
     blocker: Blocker,
-    isActive: Boolean,
     onSaveBlocker: (Blocker) -> Unit,
     onDeleteBlocker: (Blocker) -> Unit,
-    onBack: () -> Unit,
     installedApps: List<AppInfo>,
     modifier: Modifier = Modifier
 ) {
@@ -1208,7 +1105,7 @@ fun EditBlockerScreen(
     var apps by remember { mutableStateOf(blocker.apps) }
     var showDialog by remember { mutableStateOf(false) }
 
-    if (showDialog && !isActive) {
+    if (showDialog) {
         AppSelectionDialog(
             installedApps = installedApps,
             selectedApps = apps,
@@ -1222,44 +1119,20 @@ fun EditBlockerScreen(
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text("Editing Spell: ${blocker.name}", style = MaterialTheme.typography.headlineSmall)
-
-        if (isActive) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "This spell is currently active and cannot be edited. Dispel it first to make changes.",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,
-                onClick = { if (!isActive) selectedMode = BlockerMode.BLACKLIST },
-                enabled = !isActive
+                onClick = { selectedMode = BlockerMode.BLACKLIST }
             )
-            Text("Banish", color = if (isActive) Color.Gray else Color.Unspecified)
+            Text("Banish (Blacklist)")
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
-                onClick = { if (!isActive) selectedMode = BlockerMode.WHITELIST },
-                enabled = !isActive
+                onClick = { selectedMode = BlockerMode.WHITELIST }
             )
-            Text("Shield", color = if (isActive) Color.Gray else Color.Unspecified)
+            Text("Shield (Whitelist)")
         }
 
-        Button(
-            onClick = { showDialog = true },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isActive
-        ) {
+        Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Select Target Apps")
         }
 
@@ -1292,10 +1165,7 @@ fun EditBlockerScreen(
                     } else {
                         Text(appPackageName, modifier = Modifier.weight(1f))
                     }
-                    Button(
-                        onClick = { apps = apps - appPackageName },
-                        enabled = !isActive
-                    ) {
+                    Button(onClick = { apps = apps - appPackageName }) {
                         Text("Remove")
                     }
                 }
@@ -1307,30 +1177,22 @@ fun EditBlockerScreen(
                 .fillMaxWidth()
                 .padding(top = 16.dp)
         ) {
-            if (isActive) {
-                Button(
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Back")
-                }
-            } else {
-                Button(
-                    onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps)) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp)
-                ) {
-                    Text("Save")
-                }
-                Button(
-                    onClick = { onDeleteBlocker(blocker) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
-                ) {
-                    Text("Delete")
-                }
+            Button(
+                onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                Text("Save")
+            }
+            Button(
+                onClick = { onDeleteBlocker(blocker) },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Delete")
             }
         }
     }
@@ -1425,7 +1287,7 @@ fun BlockerSelectionDialog(
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                         Text(
                             text = blocker.name,
                             modifier = Modifier
@@ -1452,59 +1314,102 @@ fun ProfileScreen(
     onSaveTag: (String) -> Unit,
     onDeleteTag: (NamedTag) -> Unit,
     blockerLists: List<Blocker>,
+    breakDurationMinutes: Int,
+    maxBreaksPerSession: Int,
+    onBreakDurationChanged: (Int) -> Unit,
+    onMaxBreaksChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var tagName by remember { mutableStateOf("") }
-    
-    // Removing bind spell dialog logic entirely from here as it's no longer used
 
-    Column(modifier = modifier.padding(16.dp)) {
-        Text("Your Wizard Profile", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("NFC Talismans", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                lastScannedTagId?.let {
-                    Text("Last Scanned Talisman: $it")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextField(
-                        value = tagName,
-                        onValueChange = { tagName = it },
-                        label = { Text("Talisman Name") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { onSaveTag(tagName) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Enchant Talisman")
-                    }
-                } ?: Text("Scan an NFC tag to bind it.")
-            }
+    LazyColumn(modifier = modifier.padding(16.dp)) {
+        item {
+            Text("Your Wizard Profile", style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Enchanted Items:", style = MaterialTheme.typography.titleMedium)
-        
-        LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
-            items(namedTags) { tag ->
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        // Break Settings Card
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Break Settings", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Break duration slider
+                    Text("Break Duration: $breakDurationMinutes minutes")
+                    Slider(
+                        value = breakDurationMinutes.toFloat(),
+                        onValueChange = { onBreakDurationChanged(it.toInt()) },
+                        valueRange = 1f..30f,
+                        steps = 28,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Max breaks slider
+                    Text("Breaks Per Session: $maxBreaksPerSession")
+                    Slider(
+                        value = maxBreaksPerSession.toFloat(),
+                        onValueChange = { onMaxBreaksChanged(it.toInt()) },
+                        valueRange = 1f..10f,
+                        steps = 8,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // NFC Talismans Card
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("NFC Talismans", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    lastScannedTagId?.let {
+                        Text("Last Scanned Talisman: $it")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextField(
+                            value = tagName,
+                            onValueChange = { tagName = it },
+                            label = { Text("Talisman Name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { onSaveTag(tagName) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Enchant Talisman")
+                        }
+                    } ?: Text("Scan an NFC tag to bind it.")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        item {
+            Text("Enchanted Items:", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(namedTags) { tag ->
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(tag.name, style = MaterialTheme.typography.titleMedium)
+                    }
+                    Button(
+                        onClick = { onDeleteTag(tag) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(tag.name, style = MaterialTheme.typography.titleMedium)
-                            // Removed "Bound Spell" display text
-                        }
-                        Button(onClick = { onDeleteTag(tag) }) {
-                            Text("Disenchant")
-                        }
+                        Text("Disenchant")
                     }
                 }
             }
@@ -1525,19 +1430,12 @@ data class Schedule(
     val days: Set<DayOfWeek>,
     val startTime: String, // "HH:mm"
     val endTime: String, // "HH:mm"
-    val unbindingTalismanId: String? = null
+    val unbindingTalismanId: String? = null,
+    val breaksEnabled: Boolean = true
 )
 
 enum class DayOfWeek {
     MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
-}
-
-enum class FocusDuration(val label: String, val minutes: Long) {
-    FIFTEEN_MIN("15 min", 15),
-    THIRTY_MIN("30 min", 30),
-    ONE_HOUR("1 hour", 60),
-    TWO_HOURS("2 hours", 120),
-    UNLIMITED("Unlimited", 0)
 }
 
 enum class AppDestinations(
@@ -1557,427 +1455,153 @@ fun Greeting(
     namedTags: List<NamedTag>,
     activeBlocker: Blocker?,
     activeSchedule: Schedule?,
-    selectedDuration: FocusDuration,
-    focusEndTime: Long,
-    breakEnabled: Boolean,
-    breakUsed: Boolean,
-    breakEndTime: Long,
-    tickCounter: Int,
-    onDurationSelected: (FocusDuration) -> Unit,
-    onBreakEnabledChanged: (Boolean) -> Unit,
-    onTakeBreak: () -> Unit,
+    isOnBreak: Boolean,
+    breakTimeRemaining: Int,
+    breaksUsedThisSession: Int,
+    maxBreaksPerSession: Int,
+    breaksAllowed: Boolean,
     onStartClicked: () -> Unit,
     onBlockerSelectorClicked: () -> Unit,
+    onTakeBreak: () -> Unit,
+    onEndBreak: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Use tickCounter to ensure recomposition for countdown updates
-    @Suppress("UNUSED_VARIABLE")
-    val tick = tickCounter
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: "Unknown Talisman"
     } else null
 
-    val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
-
-    var showDurationPicker by remember { mutableStateOf(false) }
-
-    // Calculate remaining time for focus countdown
-    val remainingTime = if (focusEndTime > 0) {
-        val remaining = focusEndTime - System.currentTimeMillis()
-        if (remaining > 0) remaining else 0L
-    } else 0L
-
-    val remainingMinutes = (remainingTime / 60000).toInt()
-    val remainingSeconds = ((remainingTime % 60000) / 1000).toInt()
-
-    // Calculate remaining break time
-    val breakRemainingTime = if (breakEndTime > 0) {
-        val remaining = breakEndTime - System.currentTimeMillis()
-        if (remaining > 0) remaining else 0L
-    } else 0L
-
-    val breakRemainingMinutes = (breakRemainingTime / 60000).toInt()
-    val breakRemainingSeconds = ((breakRemainingTime % 60000) / 1000).toInt()
-    val isOnBreak = breakEndTime > 0 && breakRemainingTime > 0
-
-    if (showDurationPicker) {
-        AlertDialog(
-            onDismissRequest = { showDurationPicker = false },
-            title = { Text("Select Duration") },
-            text = {
-                Column {
-                    FocusDuration.entries.forEach { duration ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onDurationSelected(duration)
-                                    showDurationPicker = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedDuration == duration,
-                                onClick = {
-                                    onDurationSelected(duration)
-                                    showDurationPicker = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.size(12.dp))
-                            Text(
-                                text = duration.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(onClick = { showDurationPicker = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(24.dp)
+            verticalArrangement = Arrangement.Center
         ) {
             // Magical Status Text
             Text(
-                text = if (focusMode) "Focus Spell Active" else "Ready to Cast",
+                text = when {
+                    isOnBreak -> "On Break"
+                    focusMode -> "Focus Spell Active"
+                    else -> "Ready to Cast"
+                },
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
-                color = if (focusMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                color = when {
+                    isOnBreak -> MaterialTheme.colorScheme.tertiary
+                    focusMode -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onBackground
+                }
             )
 
-            // Show countdown when timer is active
-            if (focusMode && focusEndTime > 0 && remainingTime > 0) {
+            // Break timer display
+            if (isOnBreak) {
                 Spacer(modifier = Modifier.height(8.dp))
+                val minutes = breakTimeRemaining / 60
+                val seconds = breakTimeRemaining % 60
                 Text(
-                    text = "%d:%02d remaining".format(remainingMinutes, remainingSeconds),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "%d:%02d remaining".format(minutes, seconds),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.tertiary
                 )
-            }
-
-            // Break UI during focus mode
-            if (focusMode && breakEnabled && activeSchedule == null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                if (isOnBreak) {
-                    // Show break countdown
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FreeBreakfast,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Spacer(modifier = Modifier.size(12.dp))
-                            Text(
-                                text = "Break: %d:%02d".format(breakRemainingMinutes, breakRemainingSeconds),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        }
-                    }
-                } else if (!breakUsed) {
-                    // Show take break button
-                    OutlinedButton(
-                        onClick = onTakeBreak
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FreeBreakfast,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("Take 5-min Break")
-                    }
-                } else {
-                    // Break already used
-                    Text(
-                        text = "Break used",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Spell Selector Card
-            if (activeSchedule == null) {
-                ElevatedCard(
-                    onClick = onBlockerSelectorClicked,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = if (activeBlocker != null)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant
-                    )
+            // Active Spell Info
+            if (activeBlocker != null) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = if (activeBlocker != null)
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.size(16.dp))
-                            Column {
-                                Text(
-                                    text = activeBlocker?.name ?: "Select a Spell",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (activeBlocker != null)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                if (activeBlocker != null) {
-                                    Text(
-                                        text = if (activeBlocker.mode == BlockerMode.BLACKLIST) "Banish Mode" else "Shield Mode",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Tap to choose",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
+                    Column(modifier = Modifier.padding(16.dp)) {
+                         Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(text = "Spell: ${activeBlocker.name}", style = MaterialTheme.typography.titleMedium)
+                        }
+
+                        if (activeSchedule != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Ritual: ${activeSchedule.name}", style = MaterialTheme.typography.bodyMedium)
+                            if (boundTalismanName != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Unbind with: $boundTalismanName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                             }
                         }
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "Change spell",
-                            tint = if (activeBlocker != null)
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                }
 
-                // Duration Selector (only show when not in focus mode)
-                if (!focusMode) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    ElevatedCard(
-                        onClick = { showDurationPicker = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Timer,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.size(12.dp))
-                                Text(
-                                    text = selectedDuration.label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Change duration",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-
-                    // Break toggle
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.FreeBreakfast,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.size(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Allow 5-min break",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "One break per session",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                            Switch(
-                                checked = breakEnabled,
-                                onCheckedChange = onBreakEnabledChanged
+                        // Break info when in focus mode
+                        if (focusMode && breaksAllowed) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Breaks: $breaksUsedThisSession / $maxBreaksPerSession used",
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
                 }
             } else {
-                // Active Schedule Card (non-clickable)
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Spacer(modifier = Modifier.size(16.dp))
-                            Text(
-                                text = activeBlocker?.name ?: "Unknown Spell",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Ritual: ${activeSchedule.name}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                        if (boundTalismanName != null) {
-                            Text(
-                                text = "Unbind with: $boundTalismanName",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
+                Text("No spell selected", style = MaterialTheme.typography.bodyLarge)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (activeSchedule == null && !focusMode) {
+                Button(onClick = onBlockerSelectorClicked) {
+                    Text("Select Spell")
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Wand Button
-            val wandColor = when {
-                !isButtonEnabled -> Color.Gray
-                focusMode -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.primary
-            }
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                androidx.compose.material3.FilledIconButton(
-                    onClick = onStartClicked,
-                    modifier = Modifier.size(100.dp),
-                    enabled = isButtonEnabled,
-                    colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                        containerColor = wandColor,
-                        contentColor = Color.White,
-                        disabledContainerColor = Color.Gray,
-                        disabledContentColor = Color.White.copy(alpha = 0.6f)
-                    )
+            // Break button when in focus mode
+            if (focusMode && breaksAllowed && !isOnBreak && breaksUsedThisSession < maxBreaksPerSession) {
+                Button(
+                    onClick = onTakeBreak,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoFixHigh,
-                        contentDescription = if (focusMode) "Dispel" else "Cast",
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Text("Take a Break", color = MaterialTheme.colorScheme.onTertiary)
                 }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            // End break early button
+            if (isOnBreak) {
+                Button(
+                    onClick = onEndBreak,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("End Break Early")
+                }
+            }
 
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Big Start/Stop Button
+            val buttonColor = if (focusMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+            val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
+
+            Button(
+                onClick = onStartClicked,
+                modifier = Modifier.size(140.dp),
+                shape = androidx.compose.foundation.shape.CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = if (isButtonEnabled) buttonColor else Color.Gray),
+                enabled = isButtonEnabled && !isOnBreak
+            ) {
                 Text(
-                    text = when {
-                        !isButtonEnabled -> "Bound"
-                        focusMode -> "Tap to Dispel"
-                        activeBlocker != null -> "Tap to Cast"
-                        else -> "Select a spell first"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (focusMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    text = if (focusMode) {
+                        if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) "Bound" else "Dispel"
+                    } else "Cast",
+                    style = MaterialTheme.typography.titleLarge
                 )
             }
 
-            activeTagId?.let {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Triggered by Talisman: ${activeTagName ?: it}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
+             activeTagId?.let {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Triggered by Talisman: ${activeTagName ?: it}")
             }
 
             if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = "Scan $boundTalismanName to dispel",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+                 Spacer(modifier = Modifier.height(16.dp))
+                 Text("Scan $boundTalismanName to dispel", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -1988,23 +1612,6 @@ fun Greeting(
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        Greeting(
-            focusMode = false,
-            activeTagId = null,
-            namedTags = emptyList(),
-            activeBlocker = null,
-            activeSchedule = null,
-            selectedDuration = FocusDuration.THIRTY_MIN,
-            focusEndTime = 0L,
-            breakEnabled = false,
-            breakUsed = false,
-            breakEndTime = 0L,
-            tickCounter = 0,
-            onDurationSelected = {},
-            onBreakEnabledChanged = {},
-            onTakeBreak = {},
-            onStartClicked = {},
-            onBlockerSelectorClicked = {}
-        )
+        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), false, null, {_ -> }, {}, {}, {}, {}, {}, {})
     }
 }

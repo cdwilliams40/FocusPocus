@@ -1,4 +1,4 @@
-package com.example.focuspocus
+package com.infinicada.focuspocus
 
 import android.accessibilityservice.AccessibilityService
 import android.app.Notification
@@ -24,21 +24,11 @@ class MyAccessibilityService : AccessibilityService() {
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
     private val CHANNEL_ID = "focus_pocus_rituals"
-    private val SERVICE_CHANNEL_ID = "focus_pocus_service"
-    private val FOREGROUND_NOTIFICATION_ID = 1001
-    private val TIMER_EXPIRED_NOTIFICATION_ID = 1002
-    private val BREAK_ENDED_NOTIFICATION_ID = 1003
-
-    // Cached active blocker to avoid repeated SharedPreferences reads
-    private var cachedActiveBlocker: Blocker? = null
-    private var cachedBlockerName: String? = null
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
-                checkFocusTimer()
-                checkBreakTimer()
             }
         }
     }
@@ -52,10 +42,8 @@ class MyAccessibilityService : AccessibilityService() {
         registerReceiver(timeTickReceiver, filter)
 
         createNotificationChannel()
-        createServiceNotificationChannel()
-        startForegroundService()
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -75,111 +63,6 @@ class MyAccessibilityService : AccessibilityService() {
         val notificationManager: NotificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun createServiceNotificationChannel() {
-        val name = "Focus Service"
-        val descriptionText = "Persistent notification for Focus Pocus service"
-        val importance = NotificationManager.IMPORTANCE_LOW
-        val channel = NotificationChannel(SERVICE_CHANNEL_ID, name, importance).apply {
-            description = descriptionText
-        }
-        val notificationManager: NotificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun startForegroundService() {
-        val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
-            .setContentTitle(getString(R.string.foreground_service_title))
-            .setContentText(getString(R.string.foreground_service_text))
-            .setSmallIcon(R.mipmap.fplogo)
-            .setOngoing(true)
-            .build()
-        startForeground(FOREGROUND_NOTIFICATION_ID, notification)
-    }
-
-    private fun checkFocusTimer() {
-        val focusEndTime = sharedPreferences.getLong("focusEndTime", 0L)
-        if (focusEndTime > 0 && System.currentTimeMillis() >= focusEndTime) {
-            // Timer expired, disable focus mode
-            sharedPreferences.edit()
-                .putBoolean("manualFocusMode", false)
-                .remove("focusEndTime")
-                .remove("activeBlocker")
-                .remove("breakEnabled")
-                .remove("breakUsed")
-                .remove("breakEndTime")
-                .apply()
-
-            // Clear cache
-            cachedActiveBlocker = null
-            cachedBlockerName = null
-
-            // Send notification that timer expired
-            sendTimerExpiredNotification()
-
-            Log.d("MyAccessibilityService", "Focus timer expired")
-        }
-    }
-
-    private fun checkBreakTimer() {
-        val breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
-        if (breakEndTime > 0 && System.currentTimeMillis() >= breakEndTime) {
-            // Break ended, clear the break end time
-            sharedPreferences.edit()
-                .remove("breakEndTime")
-                .apply()
-
-            // Send notification that break ended
-            sendBreakEndedNotification()
-
-            Log.d("MyAccessibilityService", "Break ended")
-        }
-    }
-
-    private fun sendBreakEndedNotification() {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 2, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo)
-            .setContentTitle("Break Over")
-            .setContentText("Your break has ended. Focus mode is active again.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-
-        try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(BREAK_ENDED_NOTIFICATION_ID, builder.build())
-        } catch (e: SecurityException) {
-            Log.e("MyAccessibilityService", "Permission denied for notification", e)
-        }
-    }
-
-    private fun sendTimerExpiredNotification() {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo)
-            .setContentTitle("Focus Session Complete")
-            .setContentText("Your focus timer has ended.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-
-        try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(TIMER_EXPIRED_NOTIFICATION_ID, builder.build())
-        } catch (e: SecurityException) {
-            Log.e("MyAccessibilityService", "Permission denied for notification", e)
-        }
     }
 
     private fun checkSchedules() {
@@ -260,9 +143,9 @@ class MyAccessibilityService : AccessibilityService() {
             // Since I cannot verify R class generation easily, I'll assume fplogo exists as seen in Manifest
             // But usually R class is package-specific.
             // I'll try to find a valid icon resource id.
-            // Manifest uses @mipmap/fplogo. 
+            // Manifest uses @mipmap/fplogo.
             // In code, it should be R.mipmap.fplogo.
-            
+
              val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
              notificationManager.notify(scheduleName.hashCode(), builder.build())
         } catch (e: SecurityException) {
@@ -271,43 +154,31 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-
-            // Check if on break - skip blocking during break
-            val breakEndTime = sharedPreferences.getLong("breakEndTime", 0L)
-            if (breakEndTime > 0 && System.currentTimeMillis() < breakEndTime) {
-                return // On break, don't block
-            }
-
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val focusTagId = sharedPreferences.getString("focusTagId", null)
             val manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
+            val isOnBreak = sharedPreferences.getBoolean("isOnBreak", false)
+
+            // Don't block apps during a break
+            if (isOnBreak) return
 
             if (focusTagId != null || manualFocusMode) {
-                val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
-
-                // Use cached blocker if available and name matches
-                val activeBlocker = if (cachedBlockerName == activeBlockerName && cachedActiveBlocker != null) {
-                    cachedActiveBlocker
-                } else {
-                    val json = sharedPreferences.getString("blockerLists", null)
-                    val blockerLists: List<Blocker> = if (json != null) {
-                        try {
-                            val type = object : TypeToken<List<Blocker>>() {}.type
-                            gson.fromJson(json, type)
-                        } catch (e: Exception) {
-                            Log.e("MyAccessibilityService", "Error parsing blocker lists", e)
-                            emptyList()
-                        }
-                    } else {
+                val json = sharedPreferences.getString("blockerLists", null)
+                val blockerLists: List<Blocker> = if (json != null) {
+                    try {
+                        val type = object : TypeToken<List<Blocker>>() {}.type
+                        gson.fromJson(json, type)
+                    } catch (e: Exception) {
+                        Log.e("MyAccessibilityService", "Error parsing blocker lists", e)
                         emptyList()
                     }
-                    val blocker = blockerLists.find { it.name == activeBlockerName }
-                    // Cache the blocker
-                    cachedBlockerName = activeBlockerName
-                    cachedActiveBlocker = blocker
-                    blocker
+                } else {
+                    emptyList()
                 }
+
+                // Always use the activeBlocker selected in the app (Home screen), regardless of how focus was triggered (Tag or Manual)
+                val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
+                val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
                 activeBlocker?.let {
                     val packageName = event.packageName?.toString()
@@ -315,7 +186,7 @@ class MyAccessibilityService : AccessibilityService() {
                         val appName = getAppName(packageName)
                         Log.d("MyAccessibilityService", "Blocking app: $appName")
                         closeApp()
-                        showOverlay(appName, activeBlockerName)
+                        showOverlay(appName, it.name)
                     }
                 }
             }
@@ -361,7 +232,7 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun showOverlay(appName: String, spellName: String?) {
+    private fun showOverlay(appName: String, spellName: String? = null) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)

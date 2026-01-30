@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.focuspocus"
+    namespace = "com.infinicada.focuspocus"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.focuspocus"
+        applicationId = "com.infinicada.focuspocus"
         minSdk = 24
         targetSdk = 36
         versionCode = 2

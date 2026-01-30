@@ -1,4 +1,4 @@
-package com.example.focuspocus
+package com.infinicada.focuspocus
 
 data class Blocker(val name: String, val mode: BlockerMode, val apps: List<String>)
 
