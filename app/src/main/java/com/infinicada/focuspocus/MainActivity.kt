@@ -31,8 +31,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.DateRange
@@ -47,12 +49,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -356,6 +363,19 @@ fun FocusPocusApp(
         mutableStateOf(blockerLists.find { it.name == activeBlockerName })
     }
 
+    // Focus duration settings
+    var focusDurationMinutes by remember {
+        mutableIntStateOf(sharedPreferences.getInt("focusDurationMinutes", 0)) // 0 = unlimited
+    }
+    var focusTimeRemaining by remember {
+        mutableIntStateOf(sharedPreferences.getInt("focusTimeRemaining", 0))
+    }
+
+    // Session breaks toggle (for manual focus mode)
+    var sessionBreaksEnabled by remember {
+        mutableStateOf(sharedPreferences.getBoolean("sessionBreaksEnabled", true))
+    }
+
     // Break settings
     var breakDurationMinutes by remember {
         mutableIntStateOf(sharedPreferences.getInt("breakDurationMinutes", 5))
@@ -385,6 +405,24 @@ fun FocusPocusApp(
         }
     }
 
+    // Focus session countdown timer
+    LaunchedEffect(manualFocusMode, focusTimeRemaining, isOnBreak) {
+        if (manualFocusMode && focusTimeRemaining > 0 && !isOnBreak) {
+            delay(1000L)
+            focusTimeRemaining -= 1
+            sharedPreferences.edit().putInt("focusTimeRemaining", focusTimeRemaining).apply()
+
+            // Auto-end session when timer reaches 0
+            if (focusTimeRemaining <= 0) {
+                manualFocusMode = false
+                sharedPreferences.edit()
+                    .putBoolean("manualFocusMode", false)
+                    .putInt("focusTimeRemaining", 0)
+                    .apply()
+            }
+        }
+    }
+
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
         sharedPreferences.edit()
             .putBoolean("manualFocusMode", manualFocusMode)
@@ -392,16 +430,18 @@ fun FocusPocusApp(
             .apply()
     }
 
-    // Reset breaks when focus mode ends
+    // Reset breaks and focus timer when focus mode ends
     LaunchedEffect(manualFocusMode) {
         if (!manualFocusMode) {
             breaksUsedThisSession = 0
             isOnBreak = false
             breakTimeRemaining = 0
+            focusTimeRemaining = 0
             sharedPreferences.edit()
                 .putInt("breaksUsedThisSession", 0)
                 .putBoolean("isOnBreak", false)
                 .putInt("breakTimeRemaining", 0)
+                .putInt("focusTimeRemaining", 0)
                 .apply()
         }
     }
@@ -490,7 +530,7 @@ fun FocusPocusApp(
                     val breaksAllowed = if (activeSchedule != null) {
                         activeSchedule.breaksEnabled
                     } else {
-                        true // Manual focus mode allows breaks by default
+                        sessionBreaksEnabled // Manual focus mode uses session toggle
                     }
 
                     Greeting(
@@ -499,11 +539,26 @@ fun FocusPocusApp(
                         namedTags = namedTags,
                         activeBlocker = currentActiveBlocker,
                         activeSchedule = activeSchedule,
+                        blockerLists = blockerLists,
+                        focusDurationMinutes = focusDurationMinutes,
+                        focusTimeRemaining = focusTimeRemaining,
                         isOnBreak = isOnBreak,
                         breakTimeRemaining = breakTimeRemaining,
                         breaksUsedThisSession = breaksUsedThisSession,
                         maxBreaksPerSession = maxBreaksPerSession,
                         breaksAllowed = breaksAllowed,
+                        sessionBreaksEnabled = sessionBreaksEnabled,
+                        onBlockerSelected = { blocker ->
+                            activeManualBlocker = blocker
+                        },
+                        onDurationSelected = { duration ->
+                            focusDurationMinutes = duration
+                            sharedPreferences.edit().putInt("focusDurationMinutes", duration).apply()
+                        },
+                        onSessionBreaksToggled = { enabled ->
+                            sessionBreaksEnabled = enabled
+                            sharedPreferences.edit().putBoolean("sessionBreaksEnabled", enabled).apply()
+                        },
                         onStartClicked = {
                             if (focusMode) {
                                 // If active schedule, don't allow stopping via this button if bound to talisman
@@ -517,6 +572,11 @@ fun FocusPocusApp(
                                 }
                             } else {
                                 if (activeManualBlocker != null) {
+                                    // Initialize timer when starting focus session
+                                    if (focusDurationMinutes > 0) {
+                                        focusTimeRemaining = focusDurationMinutes * 60
+                                        sharedPreferences.edit().putInt("focusTimeRemaining", focusTimeRemaining).apply()
+                                    }
                                     manualFocusMode = true
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
@@ -1377,7 +1437,13 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { onSaveTag(tagName) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                onSaveTag(tagName)
+                                tagName = ""
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text("Enchant Talisman")
                         }
                     } ?: Text("Scan an NFC tag to bind it.")
@@ -1448,6 +1514,130 @@ enum class AppDestinations(
     PROFILE("Wizard", Icons.Filled.Person),
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SpellSelectorDropdown(
+    blockerLists: List<Blocker>,
+    selectedBlocker: Blocker?,
+    enabled: Boolean,
+    onBlockerSelected: (Blocker) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedBlocker?.name ?: "Select a Spell",
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = if (selectedBlocker != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            blockerLists.forEach { blocker ->
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Column {
+                                Text(blocker.name)
+                                Text(
+                                    text = if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Shield",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onBlockerSelected(blocker)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DurationSelectorDropdown(
+    selectedDuration: Int,
+    enabled: Boolean,
+    onDurationSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val durations = listOf(
+        15 to "15 minutes",
+        25 to "25 minutes",
+        45 to "45 minutes",
+        60 to "1 hour",
+        120 to "2 hours",
+        0 to "Unlimited"
+    )
+
+    val selectedLabel = durations.find { it.first == selectedDuration }?.second ?: "Select Duration"
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text("Duration") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            durations.forEach { (minutes, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onDurationSelected(minutes)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun Greeting(
     focusMode: Boolean,
@@ -1455,11 +1645,18 @@ fun Greeting(
     namedTags: List<NamedTag>,
     activeBlocker: Blocker?,
     activeSchedule: Schedule?,
+    blockerLists: List<Blocker>,
+    focusDurationMinutes: Int,
+    focusTimeRemaining: Int,
     isOnBreak: Boolean,
     breakTimeRemaining: Int,
     breaksUsedThisSession: Int,
     maxBreaksPerSession: Int,
     breaksAllowed: Boolean,
+    sessionBreaksEnabled: Boolean,
+    onBlockerSelected: (Blocker) -> Unit,
+    onDurationSelected: (Int) -> Unit,
+    onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
     onBlockerSelectorClicked: () -> Unit,
     onTakeBreak: () -> Unit,
@@ -1474,7 +1671,8 @@ fun Greeting(
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 24.dp)
         ) {
             // Magical Status Text
             Text(
@@ -1492,45 +1690,120 @@ fun Greeting(
                 }
             )
 
-            // Break timer display
-            if (isOnBreak) {
-                Spacer(modifier = Modifier.height(8.dp))
-                val minutes = breakTimeRemaining / 60
-                val seconds = breakTimeRemaining % 60
-                Text(
-                    text = "%d:%02d remaining".format(minutes, seconds),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.tertiary
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Spell Selector Dropdown (only when not in schedule and not in focus mode)
+            if (activeSchedule == null) {
+                SpellSelectorDropdown(
+                    blockerLists = blockerLists,
+                    selectedBlocker = activeBlocker,
+                    enabled = !focusMode,
+                    onBlockerSelected = onBlockerSelected,
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Duration Selector
+                DurationSelectorDropdown(
+                    selectedDuration = focusDurationMinutes,
+                    enabled = !focusMode,
+                    onDurationSelected = onDurationSelected,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Breaks Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Allow Breaks",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Switch(
+                        checked = sessionBreaksEnabled,
+                        onCheckedChange = onSessionBreaksToggled,
+                        enabled = !focusMode
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // Session Timer Display (when active and timed)
+            if (focusMode && focusTimeRemaining > 0 && !isOnBreak) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val minutes = focusTimeRemaining / 60
+                        val seconds = focusTimeRemaining % 60
+                        Text(
+                            text = "%d:%02d".format(minutes, seconds),
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "remaining",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
-            // Active Spell Info
-            if (activeBlocker != null) {
+            // Break timer display
+            if (isOnBreak) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val minutes = breakTimeRemaining / 60
+                        val seconds = breakTimeRemaining % 60
+                        Text(
+                            text = "%d:%02d".format(minutes, seconds),
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            text = "break remaining",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
+
+            // Active Schedule Info (when controlled by schedule)
+            if (activeSchedule != null && activeBlocker != null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                         Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(text = "Spell: ${activeBlocker.name}", style = MaterialTheme.typography.titleMedium)
                         }
-
-                        if (activeSchedule != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Ritual: ${activeSchedule.name}", style = MaterialTheme.typography.bodyMedium)
+                        if (boundTalismanName != null) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Ritual: ${activeSchedule.name}", style = MaterialTheme.typography.bodyMedium)
-                            if (boundTalismanName != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Unbind with: $boundTalismanName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
-                            }
+                            Text("Unbind with: $boundTalismanName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                         }
-
-                        // Break info when in focus mode
                         if (focusMode && breaksAllowed) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -1540,16 +1813,15 @@ fun Greeting(
                         }
                     }
                 }
-            } else {
-                Text("No spell selected", style = MaterialTheme.typography.bodyLarge)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (activeSchedule == null && !focusMode) {
-                Button(onClick = onBlockerSelectorClicked) {
-                    Text("Select Spell")
-                }
+            // Break info when in focus mode (manual mode)
+            if (focusMode && activeSchedule == null && breaksAllowed) {
+                Text(
+                    "Breaks: $breaksUsedThisSession / $maxBreaksPerSession used",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
             }
 
             // Break button when in focus mode
@@ -1560,6 +1832,7 @@ fun Greeting(
                 ) {
                     Text("Take a Break", color = MaterialTheme.colorScheme.onTertiary)
                 }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // End break early button
@@ -1570,21 +1843,24 @@ fun Greeting(
                 ) {
                     Text("End Break Early")
                 }
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Big Start/Stop Button
             val buttonColor = if (focusMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-
             val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
+            val canCast = activeBlocker != null
 
             Button(
                 onClick = onStartClicked,
                 modifier = Modifier.size(140.dp),
                 shape = androidx.compose.foundation.shape.CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = if (isButtonEnabled) buttonColor else Color.Gray),
-                enabled = isButtonEnabled && !isOnBreak
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isButtonEnabled && (focusMode || canCast)) buttonColor else Color.Gray
+                ),
+                enabled = isButtonEnabled && !isOnBreak && (focusMode || canCast)
             ) {
                 Text(
                     text = if (focusMode) {
@@ -1594,14 +1870,14 @@ fun Greeting(
                 )
             }
 
-             activeTagId?.let {
+            activeTagId?.let {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = "Triggered by Talisman: ${activeTagName ?: it}")
             }
 
             if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
-                 Spacer(modifier = Modifier.height(16.dp))
-                 Text("Scan $boundTalismanName to dispel", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Scan $boundTalismanName to dispel", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
             }
         }
     }
