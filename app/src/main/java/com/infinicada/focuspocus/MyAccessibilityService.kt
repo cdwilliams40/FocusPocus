@@ -24,6 +24,7 @@ class MyAccessibilityService : AccessibilityService() {
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
     private val CHANNEL_ID = "focus_pocus_rituals"
+    private var receiverRegistered = false
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -40,16 +41,20 @@ class MyAccessibilityService : AccessibilityService() {
 
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
         registerReceiver(timeTickReceiver, filter)
+        receiverRegistered = true
 
         createNotificationChannel()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            unregisterReceiver(timeTickReceiver)
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error unregistering receiver", e)
+        if (receiverRegistered) {
+            try {
+                unregisterReceiver(timeTickReceiver)
+                receiverRegistered = false
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error unregistering receiver", e)
+            }
         }
     }
 
@@ -73,6 +78,7 @@ class MyAccessibilityService : AccessibilityService() {
             val type = object : TypeToken<List<Schedule>>() {}.type
             gson.fromJson(json, type)
         } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing schedules JSON: ${e.message}", e)
             emptyList()
         }
 
@@ -103,6 +109,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // Check if a schedule should start
+        if (currentDay == null) return
         schedules.forEach { schedule ->
             if (schedule.days.contains(currentDay)) {
                 try {
@@ -165,8 +172,13 @@ class MyAccessibilityService : AccessibilityService() {
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
+        val iconResId = try {
+            R.mipmap.fplogo_round
+        } catch (e: Exception) {
+            android.R.drawable.ic_dialog_info
+        }
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo_round)
+            .setSmallIcon(iconResId)
             .setContentTitle("Ritual Ended")
             .setContentText("$scheduleName has ended.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -175,7 +187,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify((scheduleName + "_end").hashCode(), builder.build())
+            // Use bitwise AND to ensure positive notification ID, add offset to avoid collision with start notification
+            notificationManager.notify((scheduleName.hashCode() and 0x7FFFFFFF) + 1, builder.build())
         } catch (e: SecurityException) {
             Log.e("MyAccessibilityService", "Permission denied for notification", e)
         }
@@ -187,8 +200,13 @@ class MyAccessibilityService : AccessibilityService() {
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
+        val iconResId = try {
+            R.mipmap.fplogo_round
+        } catch (e: Exception) {
+            android.R.drawable.ic_dialog_info
+        }
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo_round) // Assuming this exists or falls back to standard
+            .setSmallIcon(iconResId)
             .setContentTitle("Ritual Started")
             .setContentText("$scheduleName is now active.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -196,15 +214,9 @@ class MyAccessibilityService : AccessibilityService() {
             .setAutoCancel(true)
 
         try {
-            // Use a resource id for the icon if R.mipmap.fplogo_round works, otherwise R.mipmap.fplogo
-            // Since I cannot verify R class generation easily, I'll assume fplogo exists as seen in Manifest
-            // But usually R class is package-specific.
-            // I'll try to find a valid icon resource id.
-            // Manifest uses @mipmap/fplogo.
-            // In code, it should be R.mipmap.fplogo.
-
              val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-             notificationManager.notify(scheduleName.hashCode(), builder.build())
+             // Use bitwise AND to ensure positive notification ID
+             notificationManager.notify(scheduleName.hashCode() and 0x7FFFFFFF, builder.build())
         } catch (e: SecurityException) {
              Log.e("MyAccessibilityService", "Permission denied for notification", e)
         }

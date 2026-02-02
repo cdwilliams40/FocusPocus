@@ -169,8 +169,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun loadSchedules() {
         val json = sharedPreferences.getString("schedules", null)
         if (json != null) {
-            val type = object : TypeToken<List<Schedule>>() {}.type
-            schedules = gson.fromJson(json, type)
+            try {
+                val type = object : TypeToken<List<Schedule>>() {}.type
+                schedules = gson.fromJson(json, type)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error parsing schedules JSON: ${e.message}", e)
+                schedules = emptyList()
+            }
         }
     }
 
@@ -216,8 +221,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun loadBlockerLists() {
         val json = sharedPreferences.getString("blockerLists", null)
         if (json != null) {
-            val type = object : TypeToken<List<Blocker>>() {}.type
-            blockerLists = gson.fromJson(json, type)
+            try {
+                val type = object : TypeToken<List<Blocker>>() {}.type
+                blockerLists = gson.fromJson(json, type)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error parsing blocker lists JSON: ${e.message}", e)
+                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+            }
         } else {
             blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
         }
@@ -240,34 +250,38 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun loadFocusPresets() {
         val json = sharedPreferences.getString("focusPresets", null)
         if (json != null) {
-            val type = object : TypeToken<List<FocusPreset>>() {}.type
-            focusPresets = gson.fromJson(json, type)
-        } else {
-            // Default presets on first load
-            focusPresets = listOf(
-                FocusPreset(
-                    name = "Deep Work",
-                    blockerName = "Default",
-                    durationMinutes = 240,
-                    breaksEnabled = true
-                ),
-                FocusPreset(
-                    name = "Quick Focus",
-                    blockerName = "Default",
-                    durationMinutes = 25,
-                    breaksEnabled = true
-                ),
-                FocusPreset(
-                    name = "Sleep Mode",
-                    blockerName = "Default",
-                    durationMinutes = 480,
-                    breaksEnabled = false
-                )
-            )
-            // Save defaults
-            val defaultJson = gson.toJson(focusPresets)
-            sharedPreferences.edit().putString("focusPresets", defaultJson).apply()
+            try {
+                val type = object : TypeToken<List<FocusPreset>>() {}.type
+                focusPresets = gson.fromJson(json, type)
+                return
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error parsing focus presets JSON: ${e.message}", e)
+            }
         }
+        // Default presets on first load or parse error
+        focusPresets = listOf(
+            FocusPreset(
+                name = "Deep Work",
+                blockerName = "Default",
+                durationMinutes = 240,
+                breaksEnabled = true
+            ),
+            FocusPreset(
+                name = "Quick Focus",
+                blockerName = "Default",
+                durationMinutes = 25,
+                breaksEnabled = true
+            ),
+            FocusPreset(
+                name = "Sleep Mode",
+                blockerName = "Default",
+                durationMinutes = 480,
+                breaksEnabled = false
+            )
+        )
+        // Save defaults
+        val defaultJson = gson.toJson(focusPresets)
+        sharedPreferences.edit().putString("focusPresets", defaultJson).apply()
     }
 
     private fun saveFocusPreset(preset: FocusPreset) {
@@ -287,8 +301,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun loadNamedTags() {
         val json = sharedPreferences.getString("namedTags", null)
         if (json != null) {
-            val type = object : TypeToken<List<NamedTag>>() {}.type
-            namedTags = gson.fromJson(json, type)
+            try {
+                val type = object : TypeToken<List<NamedTag>>() {}.type
+                namedTags = gson.fromJson(json, type)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error parsing named tags JSON: ${e.message}", e)
+                namedTags = emptyList()
+            }
         }
     }
 
@@ -329,7 +348,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
     override fun onTagDiscovered(tag: Tag?) {
         tag?.let {
-            val newTagId = it.id.toHexString()
+            val tagIdBytes = it.id
+            if (tagIdBytes == null || tagIdBytes.isEmpty()) {
+                Log.w("MainActivity", "NFC tag has empty or null ID")
+                return@let
+            }
+            val newTagId = tagIdBytes.toHexString()
             runOnUiThread {
                 lastScannedTagId = newTagId
 
