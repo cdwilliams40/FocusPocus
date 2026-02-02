@@ -8,6 +8,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+enum class ThemeMode {
+    LIGHT, DARK, SYSTEM
+}
+
 private val DarkColorScheme = darkColorScheme(
     primary = GlowingPurple,
     onPrimary = OnDarkPrimary,
@@ -65,11 +69,16 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun FocusPocusTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     // Disable dynamic color to use our mystical theme
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(

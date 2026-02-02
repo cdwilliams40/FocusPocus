@@ -21,6 +21,11 @@ import java.util.Calendar
 
 class MyAccessibilityService : AccessibilityService() {
 
+    companion object {
+        const val ACTION_BREAK_ENDED = "com.infinicada.focuspocus.ACTION_BREAK_ENDED"
+        const val ACTION_FOCUS_SESSION_ENDED = "com.infinicada.focuspocus.ACTION_FOCUS_SESSION_ENDED"
+    }
+
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
     private val CHANNEL_ID = "focus_pocus_rituals"
