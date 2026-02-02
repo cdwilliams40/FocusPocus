@@ -81,6 +81,28 @@ class MyAccessibilityService : AccessibilityService() {
         val currentMinute = now.get(Calendar.MINUTE)
         val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
 
+        // Check if an active schedule has ended
+        val activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
+        if (activeScheduleId != null) {
+            val activeSchedule = schedules.find { it.id == activeScheduleId }
+            if (activeSchedule != null) {
+                try {
+                    val endParts = activeSchedule.endTime.split(":")
+                    if (endParts.size == 2) {
+                        val endHour = endParts[0].toInt()
+                        val endMinute = endParts[1].toInt()
+
+                        if (endHour == currentHour && endMinute == currentMinute) {
+                            deactivateSchedule(activeSchedule)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("MyAccessibilityService", "Error parsing schedule end time", e)
+                }
+            }
+        }
+
+        // Check if a schedule should start
         schedules.forEach { schedule ->
             if (schedule.days.contains(currentDay)) {
                 try {
@@ -122,6 +144,41 @@ class MyAccessibilityService : AccessibilityService() {
             .apply()
 
         sendNotification(schedule.name)
+    }
+
+    private fun deactivateSchedule(schedule: Schedule) {
+        // Deactivate Focus Mode
+        sharedPreferences.edit()
+            .putBoolean("manualFocusMode", false)
+            .remove("activeBlocker")
+            .remove("activeScheduleId")
+            .remove("focusTagId")
+            .putBoolean("isOnBreak", false)
+            .apply()
+
+        sendEndNotification(schedule.name)
+    }
+
+    private fun sendEndNotification(scheduleName: String) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.fplogo_round)
+            .setContentTitle("Ritual Ended")
+            .setContentText("$scheduleName has ended.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify((scheduleName + "_end").hashCode(), builder.build())
+        } catch (e: SecurityException) {
+            Log.e("MyAccessibilityService", "Permission denied for notification", e)
+        }
     }
 
     private fun sendNotification(scheduleName: String) {
