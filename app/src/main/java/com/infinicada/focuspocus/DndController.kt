@@ -23,11 +23,11 @@ object DndController {
             return
         }
 
-        val sharedPreferences = context.getSharedPreferences("FocusPocus", Context.MODE_PRIVATE)
-        val manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
-        val activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
-        val muteEnabled = sharedPreferences.getBoolean("muteBlockedNotifications", true)
-        val isOnBreak = sharedPreferences.getBoolean("isOnBreak", false)
+        val sharedPreferences = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        val muteEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)
+        val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
 
         val focusModeActive = manualFocusMode || activeScheduleId != null
         val shouldEnableDnd = focusModeActive && muteEnabled && !isOnBreak

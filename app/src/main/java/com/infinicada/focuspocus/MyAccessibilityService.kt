@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.os.Build
 import android.content.pm.ApplicationInfo
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
@@ -31,6 +32,10 @@ class MyAccessibilityService : AccessibilityService() {
     private val CHANNEL_ID = "focus_pocus_rituals"
     private var receiverRegistered = false
 
+    // Cache for parsed schedules to avoid re-parsing JSON every minute
+    private var cachedSchedulesJson: String? = null
+    private var cachedSchedules: List<Schedule> = emptyList()
+
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
@@ -41,11 +46,15 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        sharedPreferences = getSharedPreferences("FocusPocus", Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         Log.d("MyAccessibilityService", "Service connected")
 
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
-        registerReceiver(timeTickReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(timeTickReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(timeTickReceiver, filter)
+        }
         receiverRegistered = true
 
         createNotificationChannel()
@@ -76,16 +85,36 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun checkSchedules() {
-        val json = sharedPreferences.getString("schedules", null)
-        if (json == null) return
-
-        val schedules: List<Schedule> = try {
-            val type = object : TypeToken<List<Schedule>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing schedules JSON: ${e.message}", e)
-            emptyList()
+        val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null)
+        if (json == null) {
+            // Clear cache if schedules were deleted
+            if (cachedSchedulesJson != null) {
+                cachedSchedulesJson = null
+                cachedSchedules = emptyList()
+            }
+            return
         }
+
+        // Use cached schedules if JSON hasn't changed
+        val schedules: List<Schedule> = if (json == cachedSchedulesJson) {
+            cachedSchedules
+        } else {
+            try {
+                val type = object : TypeToken<List<Schedule>>() {}.type
+                val parsed: List<Schedule> = gson.fromJson(json, type)
+                // Update cache
+                cachedSchedulesJson = json
+                cachedSchedules = parsed
+                parsed
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error parsing schedules JSON: ${e.message}", e)
+                cachedSchedulesJson = null
+                cachedSchedules = emptyList()
+                emptyList()
+            }
+        }
+
+        if (schedules.isEmpty()) return
 
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
@@ -93,7 +122,7 @@ class MyAccessibilityService : AccessibilityService() {
         val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
 
         // Check if an active schedule has ended
-        val activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
+        val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         if (activeScheduleId != null) {
             val activeSchedule = schedules.find { it.id == activeScheduleId }
             if (activeSchedule != null) {
@@ -150,28 +179,37 @@ class MyAccessibilityService : AccessibilityService() {
     private fun activateSchedule(schedule: Schedule) {
         // Activate Focus Mode
         sharedPreferences.edit()
-            .putBoolean("manualFocusMode", true)
-            .putString("activeBlocker", schedule.blockerName)
-            .putString("activeScheduleId", schedule.id)
+            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
+            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, schedule.blockerName)
+            .putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, schedule.id)
             .apply()
 
-        sendNotification(schedule.name)
+        sendNotification(schedule.name, schedule.id)
     }
 
     private fun deactivateSchedule(schedule: Schedule) {
         // Deactivate Focus Mode
         sharedPreferences.edit()
-            .putBoolean("manualFocusMode", false)
-            .remove("activeBlocker")
-            .remove("activeScheduleId")
-            .remove("focusTagId")
-            .putBoolean("isOnBreak", false)
+            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
+            .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
+            .remove(Constants.PrefsKeys.FOCUS_TAG_ID)
+            .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
             .apply()
 
-        sendEndNotification(schedule.name)
+        sendEndNotification(schedule.name, schedule.id)
     }
 
-    private fun sendEndNotification(scheduleName: String) {
+    /**
+     * Generate a stable notification ID from a schedule ID.
+     * Uses absolute value to ensure positive ID, with separate ranges for start (even) and end (odd) notifications.
+     */
+    private fun getNotificationId(scheduleId: String, isEndNotification: Boolean): Int {
+        val baseId = (scheduleId.hashCode() and 0x7FFFFFFF) / 2 * 2  // Make it even
+        return if (isEndNotification) baseId + 1 else baseId
+    }
+
+    private fun sendEndNotification(scheduleName: String, scheduleId: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -192,14 +230,13 @@ class MyAccessibilityService : AccessibilityService() {
 
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            // Use bitwise AND to ensure positive notification ID, add offset to avoid collision with start notification
-            notificationManager.notify((scheduleName.hashCode() and 0x7FFFFFFF) + 1, builder.build())
+            notificationManager.notify(getNotificationId(scheduleId, isEndNotification = true), builder.build())
         } catch (e: SecurityException) {
             Log.e("MyAccessibilityService", "Permission denied for notification", e)
         }
     }
 
-    private fun sendNotification(scheduleName: String) {
+    private fun sendNotification(scheduleName: String, scheduleId: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -219,25 +256,24 @@ class MyAccessibilityService : AccessibilityService() {
             .setAutoCancel(true)
 
         try {
-             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-             // Use bitwise AND to ensure positive notification ID
-             notificationManager.notify(scheduleName.hashCode() and 0x7FFFFFFF, builder.build())
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(getNotificationId(scheduleId, isEndNotification = false), builder.build())
         } catch (e: SecurityException) {
-             Log.e("MyAccessibilityService", "Permission denied for notification", e)
+            Log.e("MyAccessibilityService", "Permission denied for notification", e)
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val focusTagId = sharedPreferences.getString("focusTagId", null)
-            val manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
-            val isOnBreak = sharedPreferences.getBoolean("isOnBreak", false)
+            val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
+            val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
 
             // Don't block apps during a break
             if (isOnBreak) return
 
             if (focusTagId != null || manualFocusMode) {
-                val json = sharedPreferences.getString("blockerLists", null)
+                val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
                 val blockerLists: List<Blocker> = if (json != null) {
                     try {
                         val type = object : TypeToken<List<Blocker>>() {}.type
@@ -251,7 +287,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
 
                 // Always use the activeBlocker selected in the app (Home screen), regardless of how focus was triggered (Tag or Manual)
-                val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
+                val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
                 val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
                 activeBlocker?.let {

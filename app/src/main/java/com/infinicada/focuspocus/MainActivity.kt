@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Build
@@ -117,10 +116,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
-        sharedPreferences = getSharedPreferences("FocusPocus", Context.MODE_PRIVATE)
-        focusTagId = sharedPreferences.getString("focusTagId", null)
-        activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
-        themeMode = ThemeMode.valueOf(sharedPreferences.getString("themeMode", ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
+        sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
+        activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        themeMode = ThemeMode.valueOf(sharedPreferences.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
 
         loadNamedTags()
         loadBlockerLists()
@@ -150,7 +149,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     themeMode = themeMode,
                     onThemeModeChanged = { newMode ->
                         themeMode = newMode
-                        sharedPreferences.edit().putString("themeMode", newMode.name).apply()
+                        sharedPreferences.edit().putString(Constants.PrefsKeys.THEME_MODE, newMode.name).apply()
                     },
                     onSaveTag = { name -> saveNamedTag(name) },
                     onDeleteTag = { tag -> deleteNamedTag(tag) },
@@ -168,7 +167,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun loadSchedules() {
-        val json = sharedPreferences.getString("schedules", null)
+        val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null)
         if (json != null) {
             try {
                 val type = object : TypeToken<List<Schedule>>() {}.type
@@ -176,6 +175,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing schedules JSON: ${e.message}", e)
                 schedules = emptyList()
+                // Clear corrupted data and notify user
+                sharedPreferences.edit().remove(Constants.PrefsKeys.SCHEDULES).apply()
+                Toast.makeText(this, "Ritual data was corrupted and has been reset", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -183,22 +185,22 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun saveSchedule(newSchedule: Schedule) {
         val updatedSchedules = schedules.filterNot { it.id == newSchedule.id } + newSchedule
         val json = gson.toJson(updatedSchedules)
-        sharedPreferences.edit().putString("schedules", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.SCHEDULES, json).apply()
         schedules = updatedSchedules
     }
 
     private fun deleteSchedule(scheduleToDelete: Schedule) {
         val updatedSchedules = schedules.filterNot { it.id == scheduleToDelete.id }
         val json = gson.toJson(updatedSchedules)
-        sharedPreferences.edit().putString("schedules", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.SCHEDULES, json).apply()
         schedules = updatedSchedules
     }
 
     private fun dispelSchedule() {
         activeScheduleId = null
         sharedPreferences.edit()
-            .remove("activeScheduleId")
-            .putBoolean("manualFocusMode", false)
+            .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
+            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
             .apply()
     }
 
@@ -212,15 +214,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             .map {
                 AppInfo(
                     name = it.loadLabel(pm).toString(),
-                    packageName = it.packageName,
-                    icon = it.loadIcon(pm)
+                    packageName = it.packageName
                 )
             }
             .sortedBy { it.name.lowercase() }
     }
 
     private fun loadBlockerLists() {
-        val json = sharedPreferences.getString("blockerLists", null)
+        val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
         if (json != null) {
             try {
                 val type = object : TypeToken<List<Blocker>>() {}.type
@@ -228,6 +229,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing blocker lists JSON: ${e.message}", e)
                 blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+                // Clear corrupted data and notify user
+                sharedPreferences.edit().remove(Constants.PrefsKeys.BLOCKER_LISTS).apply()
+                Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
             }
         } else {
             blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
@@ -237,19 +241,19 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun saveBlocker(newBlocker: Blocker) {
         val updatedBlockers = blockerLists.filterNot { it.name == newBlocker.name } + newBlocker
         val json = gson.toJson(updatedBlockers)
-        sharedPreferences.edit().putString("blockerLists", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCKER_LISTS, json).apply()
         blockerLists = updatedBlockers
     }
 
     private fun deleteBlocker(blockerToDelete: Blocker) {
         val updatedBlockers = blockerLists.filterNot { it.name == blockerToDelete.name }
         val json = gson.toJson(updatedBlockers)
-        sharedPreferences.edit().putString("blockerLists", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCKER_LISTS, json).apply()
         blockerLists = updatedBlockers
     }
 
     private fun loadFocusPresets() {
-        val json = sharedPreferences.getString("focusPresets", null)
+        val json = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_PRESETS, null)
         if (json != null) {
             try {
                 val type = object : TypeToken<List<FocusPreset>>() {}.type
@@ -257,6 +261,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 return
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing focus presets JSON: ${e.message}", e)
+                // Clear corrupted data and notify user
+                sharedPreferences.edit().remove(Constants.PrefsKeys.FOCUS_PRESETS).apply()
+                Toast.makeText(this, "Quick Spell data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
             }
         }
         // Default presets on first load or parse error
@@ -282,25 +289,25 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         // Save defaults
         val defaultJson = gson.toJson(focusPresets)
-        sharedPreferences.edit().putString("focusPresets", defaultJson).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, defaultJson).apply()
     }
 
     private fun saveFocusPreset(preset: FocusPreset) {
         val updatedPresets = focusPresets.filterNot { it.id == preset.id } + preset
         val json = gson.toJson(updatedPresets)
-        sharedPreferences.edit().putString("focusPresets", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, json).apply()
         focusPresets = updatedPresets
     }
 
     private fun deleteFocusPreset(preset: FocusPreset) {
         val updatedPresets = focusPresets.filterNot { it.id == preset.id }
         val json = gson.toJson(updatedPresets)
-        sharedPreferences.edit().putString("focusPresets", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, json).apply()
         focusPresets = updatedPresets
     }
 
     private fun loadNamedTags() {
-        val json = sharedPreferences.getString("namedTags", null)
+        val json = sharedPreferences.getString(Constants.PrefsKeys.NAMED_TAGS, null)
         if (json != null) {
             try {
                 val type = object : TypeToken<List<NamedTag>>() {}.type
@@ -308,6 +315,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing named tags JSON: ${e.message}", e)
                 namedTags = emptyList()
+                // Clear corrupted data and notify user
+                sharedPreferences.edit().remove(Constants.PrefsKeys.NAMED_TAGS).apply()
+                Toast.makeText(this, "Talisman data was corrupted and has been reset", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -317,7 +327,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             val newTag = NamedTag(it, name)
             val updatedTags = namedTags.filterNot { t -> t.id == newTag.id } + newTag
             val json = gson.toJson(updatedTags)
-            sharedPreferences.edit().putString("namedTags", json).apply()
+            sharedPreferences.edit().putString(Constants.PrefsKeys.NAMED_TAGS, json).apply()
             namedTags = updatedTags
         }
     }
@@ -325,7 +335,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun deleteNamedTag(tagToDelete: NamedTag) {
         val updatedTags = namedTags.filterNot { it.id == tagToDelete.id }
         val json = gson.toJson(updatedTags)
-        sharedPreferences.edit().putString("namedTags", json).apply()
+        sharedPreferences.edit().putString(Constants.PrefsKeys.NAMED_TAGS, json).apply()
         namedTags = updatedTags
     }
 
@@ -339,7 +349,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         // Refresh activeScheduleId in case it was set by the service while the app was in background
-        activeScheduleId = sharedPreferences.getString("activeScheduleId", null)
+        activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
     }
 
     override fun onPause() {
@@ -375,12 +385,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 // Check if a preset is bound to this talisman
                 val boundPreset = focusPresets.find { p -> p.talismanId == newTagId }
                 if (boundPreset != null) {
-                    val isManualFocusActive = sharedPreferences.getBoolean("manualFocusMode", false)
+                    val isManualFocusActive = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
                     if (isManualFocusActive) {
                         // Turn off focus mode
                         sharedPreferences.edit()
-                            .putBoolean("manualFocusMode", false)
-                            .putInt("focusTimeRemaining", 0)
+                            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
                             .apply()
                         nfcTriggerCount++
                         Toast.makeText(this, "${boundPreset.name} Dispelled!", Toast.LENGTH_SHORT).show()
@@ -390,11 +400,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         if (blocker != null) {
                             val focusTimeRemaining = if (boundPreset.durationMinutes > 0) boundPreset.durationMinutes * 60 else 0
                             sharedPreferences.edit()
-                                .putBoolean("manualFocusMode", true)
-                                .putString("activeBlocker", blocker.name)
-                                .putInt("focusDurationMinutes", boundPreset.durationMinutes)
-                                .putInt("focusTimeRemaining", focusTimeRemaining)
-                                .putBoolean("sessionBreaksEnabled", boundPreset.breaksEnabled)
+                                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
+                                .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blocker.name)
+                                .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, boundPreset.durationMinutes)
+                                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
+                                .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, boundPreset.breaksEnabled)
                                 .apply()
                             nfcTriggerCount++
                             Toast.makeText(this, "${boundPreset.name} Cast!", Toast.LENGTH_SHORT).show()
@@ -409,10 +419,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 if (isNamed) {
                     if (focusTagId == null) {
                         focusTagId = newTagId
-                        sharedPreferences.edit().putString("focusTagId", newTagId).apply()
+                        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_TAG_ID, newTagId).apply()
                     } else {
                         focusTagId = null
-                        sharedPreferences.edit().remove("focusTagId").apply()
+                        sharedPreferences.edit().remove(Constants.PrefsKeys.FOCUS_TAG_ID).apply()
                     }
                 }
             }
@@ -479,27 +489,27 @@ fun FocusPocusApp(
 ) {
     var currentDestination by remember { mutableStateOf(AppDestinations.HOME) }
     val context = LocalContext.current
-    val sharedPreferences = remember { context.getSharedPreferences("FocusPocus", Context.MODE_PRIVATE) }
+    val sharedPreferences = remember { context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE) }
 
     var manualFocusMode by remember {
-        mutableStateOf(sharedPreferences.getBoolean("manualFocusMode", false))
+        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false))
     }
     var activeManualBlocker by remember {
-        val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
+        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
         mutableStateOf(blockerLists.find { it.name == activeBlockerName })
     }
 
     // Focus duration settings
     var focusDurationMinutes by remember {
-        mutableIntStateOf(sharedPreferences.getInt("focusDurationMinutes", 0)) // 0 = unlimited
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)) // 0 = unlimited
     }
     var focusTimeRemaining by remember {
-        mutableIntStateOf(sharedPreferences.getInt("focusTimeRemaining", 0))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0))
     }
 
     // Session breaks toggle (for manual focus mode)
     var sessionBreaksEnabled by remember {
-        mutableStateOf(sharedPreferences.getBoolean("sessionBreaksEnabled", true))
+        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true))
     }
 
     // Selected preset ID (null when "Custom" or no preset matches)
@@ -507,7 +517,7 @@ fun FocusPocusApp(
 
     // Notification muting settings
     var muteBlockedNotifications by remember {
-        mutableStateOf(sharedPreferences.getBoolean("muteBlockedNotifications", true))
+        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true))
     }
     val notificationManager = remember { context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
     var isNotificationListenerEnabled by remember {
@@ -516,19 +526,19 @@ fun FocusPocusApp(
 
     // Break settings
     var breakDurationMinutes by remember {
-        mutableIntStateOf(sharedPreferences.getInt("breakDurationMinutes", 5))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5))
     }
     var maxBreaksPerSession by remember {
-        mutableIntStateOf(sharedPreferences.getInt("maxBreaksPerSession", 3))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3))
     }
 
     // Break state
-    var isOnBreak by remember { mutableStateOf(sharedPreferences.getBoolean("isOnBreak", false)) }
+    var isOnBreak by remember { mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) }
     var breaksUsedThisSession by remember {
-        mutableIntStateOf(sharedPreferences.getInt("breaksUsedThisSession", 0))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0))
     }
     var breakTimeRemaining by remember {
-        mutableIntStateOf(sharedPreferences.getInt("breakTimeRemaining", 0))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0))
     }
 
     // Break countdown timer
@@ -536,10 +546,10 @@ fun FocusPocusApp(
         if (isOnBreak && breakTimeRemaining > 0) {
             delay(1000L)
             breakTimeRemaining -= 1
-            sharedPreferences.edit().putInt("breakTimeRemaining", breakTimeRemaining).apply()
+            sharedPreferences.edit().putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining).apply()
         } else if (isOnBreak && breakTimeRemaining <= 0) {
             isOnBreak = false
-            sharedPreferences.edit().putBoolean("isOnBreak", false).apply()
+            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false).apply()
             // Notify accessibility service that break ended
             context.sendBroadcast(Intent(MyAccessibilityService.ACTION_BREAK_ENDED).setPackage(context.packageName))
             // Update DND state (re-enable muting after break)
@@ -552,14 +562,14 @@ fun FocusPocusApp(
         if (manualFocusMode && focusTimeRemaining > 0 && !isOnBreak) {
             delay(1000L)
             focusTimeRemaining -= 1
-            sharedPreferences.edit().putInt("focusTimeRemaining", focusTimeRemaining).apply()
+            sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining).apply()
 
             // Auto-end session when timer reaches 0
             if (focusTimeRemaining <= 0) {
                 manualFocusMode = false
                 sharedPreferences.edit()
-                    .putBoolean("manualFocusMode", false)
-                    .putInt("focusTimeRemaining", 0)
+                    .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
                     .apply()
                 // Notify accessibility service that session ended
                 context.sendBroadcast(Intent(MyAccessibilityService.ACTION_FOCUS_SESSION_ENDED).setPackage(context.packageName))
@@ -567,35 +577,35 @@ fun FocusPocusApp(
         }
     }
 
+    // Consolidated effect for focus mode state changes
+    // Combines state persistence and cleanup to avoid race conditions
     LaunchedEffect(manualFocusMode, activeManualBlocker) {
-        sharedPreferences.edit()
-            .putBoolean("manualFocusMode", manualFocusMode)
-            .putString("activeBlocker", activeManualBlocker?.name)
-            .apply()
-        // Update DND state when focus mode changes
-        DndController.updateDndState(context)
-    }
+        val editor = sharedPreferences.edit()
+            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, manualFocusMode)
+            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeManualBlocker?.name)
 
-    // Reset breaks and focus timer when focus mode ends
-    LaunchedEffect(manualFocusMode) {
+        // Reset breaks and focus timer when focus mode ends
         if (!manualFocusMode) {
             breaksUsedThisSession = 0
             isOnBreak = false
             breakTimeRemaining = 0
             focusTimeRemaining = 0
-            sharedPreferences.edit()
-                .putInt("breaksUsedThisSession", 0)
-                .putBoolean("isOnBreak", false)
-                .putInt("breakTimeRemaining", 0)
-                .putInt("focusTimeRemaining", 0)
-                .apply()
+            editor
+                .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
+                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
         }
+
+        editor.apply()
+        // Update DND state when focus mode changes
+        DndController.updateDndState(context)
     }
 
     // Sync UI with external changes to activeScheduleId (e.g. from onTagDiscovered)
     LaunchedEffect(activeScheduleId) {
          if (activeScheduleId == null) {
-              manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
+              manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
          } else {
              manualFocusMode = true
          }
@@ -604,12 +614,12 @@ fun FocusPocusApp(
     // Sync UI with NFC preset activation
     LaunchedEffect(nfcTriggerCount) {
         if (nfcTriggerCount > 0) {
-            manualFocusMode = sharedPreferences.getBoolean("manualFocusMode", false)
-            val activeBlockerName = sharedPreferences.getString("activeBlocker", null)
+            manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
             activeManualBlocker = blockerLists.find { it.name == activeBlockerName }
-            focusDurationMinutes = sharedPreferences.getInt("focusDurationMinutes", 0)
-            focusTimeRemaining = sharedPreferences.getInt("focusTimeRemaining", 0)
-            sessionBreaksEnabled = sharedPreferences.getBoolean("sessionBreaksEnabled", true)
+            focusDurationMinutes = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
+            focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+            sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
         }
     }
 
@@ -712,9 +722,9 @@ fun FocusPocusApp(
                             selectedPresetId = preset.id
                             activeManualBlocker = blockerLists.find { it.name == preset.blockerName }
                             focusDurationMinutes = preset.durationMinutes
-                            sharedPreferences.edit().putInt("focusDurationMinutes", preset.durationMinutes).apply()
+                            sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes).apply()
                             sessionBreaksEnabled = preset.breaksEnabled
-                            sharedPreferences.edit().putBoolean("sessionBreaksEnabled", preset.breaksEnabled).apply()
+                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled).apply()
                         },
                         onBlockerSelected = { blocker ->
                             activeManualBlocker = blocker
@@ -722,12 +732,12 @@ fun FocusPocusApp(
                         },
                         onDurationSelected = { duration ->
                             focusDurationMinutes = duration
-                            sharedPreferences.edit().putInt("focusDurationMinutes", duration).apply()
+                            sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, duration).apply()
                             selectedPresetId = null // Custom selection
                         },
                         onSessionBreaksToggled = { enabled ->
                             sessionBreaksEnabled = enabled
-                            sharedPreferences.edit().putBoolean("sessionBreaksEnabled", enabled).apply()
+                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, enabled).apply()
                             selectedPresetId = null // Custom selection
                         },
                         onStartClicked = {
@@ -746,7 +756,7 @@ fun FocusPocusApp(
                                     // Initialize timer when starting focus session
                                     if (focusDurationMinutes > 0) {
                                         focusTimeRemaining = focusDurationMinutes * 60
-                                        sharedPreferences.edit().putInt("focusTimeRemaining", focusTimeRemaining).apply()
+                                        sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining).apply()
                                     }
                                     manualFocusMode = true
                                 } else {
@@ -767,9 +777,9 @@ fun FocusPocusApp(
                                 breakTimeRemaining = breakDurationMinutes * 60
                                 breaksUsedThisSession += 1
                                 sharedPreferences.edit()
-                                    .putBoolean("isOnBreak", true)
-                                    .putInt("breakTimeRemaining", breakTimeRemaining)
-                                    .putInt("breaksUsedThisSession", breaksUsedThisSession)
+                                    .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+                                    .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
+                                    .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsedThisSession)
                                     .apply()
                                 // Update DND state (disable muting during break)
                                 DndController.updateDndState(context)
@@ -779,8 +789,8 @@ fun FocusPocusApp(
                             isOnBreak = false
                             breakTimeRemaining = 0
                             sharedPreferences.edit()
-                                .putBoolean("isOnBreak", false)
-                                .putInt("breakTimeRemaining", 0)
+                                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
                                 .apply()
                             // Notify accessibility service that break ended
                             context.sendBroadcast(Intent(MyAccessibilityService.ACTION_BREAK_ENDED).setPackage(context.packageName))
@@ -894,11 +904,11 @@ fun FocusPocusApp(
                         maxBreaksPerSession = maxBreaksPerSession,
                         onBreakDurationChanged = { newDuration ->
                             breakDurationMinutes = newDuration
-                            sharedPreferences.edit().putInt("breakDurationMinutes", newDuration).apply()
+                            sharedPreferences.edit().putInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, newDuration).apply()
                         },
                         onMaxBreaksChanged = { newMax ->
                             maxBreaksPerSession = newMax
-                            sharedPreferences.edit().putInt("maxBreaksPerSession", newMax).apply()
+                            sharedPreferences.edit().putInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, newMax).apply()
                         },
                         themeMode = themeMode,
                         onThemeModeChanged = onThemeModeChanged,
@@ -906,7 +916,7 @@ fun FocusPocusApp(
                         isNotificationListenerEnabled = isNotificationListenerEnabled,
                         onMuteNotificationsChanged = { enabled ->
                             muteBlockedNotifications = enabled
-                            sharedPreferences.edit().putBoolean("muteBlockedNotifications", enabled).apply()
+                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, enabled).apply()
                             DndController.updateDndState(context)
                         },
                         onOpenNotificationSettings = {
@@ -1025,6 +1035,12 @@ fun ScheduleEditorScreen(
 
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
+
+    // Validate that start time is before end time
+    val startTimeMinutes = startTimeState.hour * 60 + startTimeState.minute
+    val endTimeMinutes = endTimeState.hour * 60 + endTimeState.minute
+    val isTimeValid = startTimeMinutes < endTimeMinutes
+    val timeValidationError = if (!isTimeValid) "End time must be after start time" else null
 
     if (showBlockerDialog) {
         BlockerSelectionDialog(
@@ -1177,6 +1193,17 @@ fun ScheduleEditorScreen(
                 Text(text = "End: %02d:%02d".format(endTimeState.hour, endTimeState.minute))
             }
         }
+
+        // Show time validation error
+        if (timeValidationError != null) {
+            Text(
+                text = timeValidationError,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Row {
@@ -1199,7 +1226,7 @@ fun ScheduleEditorScreen(
                         )
                     )
                 }
-            }, enabled = name.isNotBlank() && selectedBlocker != null && selectedDays.isNotEmpty()) {
+            }, enabled = name.isNotBlank() && selectedBlocker != null && selectedDays.isNotEmpty() && isTimeValid) {
                 Text("Save Ritual")
             }
         }
@@ -1472,8 +1499,8 @@ fun CreateBlockerScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Image(
-                                bitmap = appInfo.icon.toBitmap().asImageBitmap(),
+                            AppIcon(
+                                packageName = appInfo.packageName,
                                 contentDescription = appInfo.name,
                                 modifier = Modifier.size(40.dp)
                             )
@@ -1563,8 +1590,8 @@ fun EditBlockerScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Image(
-                                bitmap = appInfo.icon.toBitmap().asImageBitmap(),
+                            AppIcon(
+                                packageName = appInfo.packageName,
                                 contentDescription = appInfo.name,
                                 modifier = Modifier.size(40.dp)
                             )
@@ -1636,8 +1663,8 @@ fun AppSelectionDialog(
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            bitmap = app.icon.toBitmap().asImageBitmap(),
+                        AppIcon(
+                            packageName = app.packageName,
                             contentDescription = app.name,
                             modifier = Modifier.size(40.dp)
                         )
@@ -1918,9 +1945,31 @@ fun ProfileScreen(
 
 data class AppInfo(
     val name: String,
-    val packageName: String,
-    val icon: Drawable
+    val packageName: String
 )
+
+/**
+ * Composable that loads an app icon lazily to avoid memory issues
+ * when dealing with large lists of installed apps.
+ */
+@Composable
+fun AppIcon(packageName: String, contentDescription: String?, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val icon = remember(packageName) {
+        try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    icon?.let {
+        Image(
+            bitmap = it.toBitmap().asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier
+        )
+    }
+}
 
 data class Schedule(
     val id: String = UUID.randomUUID().toString(),
