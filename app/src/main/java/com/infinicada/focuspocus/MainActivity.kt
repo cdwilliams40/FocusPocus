@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -202,6 +203,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
             .apply()
+        DndController.updateDndState(this)
     }
 
     private fun loadInstalledApps() {
@@ -550,8 +552,6 @@ fun FocusPocusApp(
         } else if (isOnBreak && breakTimeRemaining <= 0) {
             isOnBreak = false
             sharedPreferences.edit().putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false).apply()
-            // Notify accessibility service that break ended
-            context.sendBroadcast(Intent(MyAccessibilityService.ACTION_BREAK_ENDED).setPackage(context.packageName))
             // Update DND state (re-enable muting after break)
             DndController.updateDndState(context)
         }
@@ -571,8 +571,6 @@ fun FocusPocusApp(
                     .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
                     .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
                     .apply()
-                // Notify accessibility service that session ended
-                context.sendBroadcast(Intent(MyAccessibilityService.ACTION_FOCUS_SESSION_ENDED).setPackage(context.packageName))
             }
         }
     }
@@ -701,6 +699,18 @@ fun FocusPocusApp(
                         sessionBreaksEnabled // Manual focus mode uses session toggle
                     }
 
+                    // Use schedule-specific break settings when a schedule is active
+                    val effectiveBreakDuration = if (activeSchedule != null) {
+                        activeSchedule.breakDurationMinutes
+                    } else {
+                        breakDurationMinutes
+                    }
+                    val effectiveMaxBreaks = if (activeSchedule != null) {
+                        activeSchedule.maxBreaksPerSession
+                    } else {
+                        maxBreaksPerSession
+                    }
+
                     Greeting(
                         focusMode = focusMode,
                         activeTagId = focusTagId,
@@ -715,7 +725,7 @@ fun FocusPocusApp(
                         isOnBreak = isOnBreak,
                         breakTimeRemaining = breakTimeRemaining,
                         breaksUsedThisSession = breaksUsedThisSession,
-                        maxBreaksPerSession = maxBreaksPerSession,
+                        maxBreaksPerSession = effectiveMaxBreaks,
                         breaksAllowed = breaksAllowed,
                         sessionBreaksEnabled = sessionBreaksEnabled,
                         onPresetSelected = { preset ->
@@ -772,9 +782,9 @@ fun FocusPocusApp(
                             }
                         },
                         onTakeBreak = {
-                            if (breaksAllowed && breaksUsedThisSession < maxBreaksPerSession && !isOnBreak) {
+                            if (breaksAllowed && breaksUsedThisSession < effectiveMaxBreaks && !isOnBreak) {
                                 isOnBreak = true
-                                breakTimeRemaining = breakDurationMinutes * 60
+                                breakTimeRemaining = effectiveBreakDuration * 60
                                 breaksUsedThisSession += 1
                                 sharedPreferences.edit()
                                     .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
@@ -792,8 +802,6 @@ fun FocusPocusApp(
                                 .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
                                 .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
                                 .apply()
-                            // Notify accessibility service that break ended
-                            context.sendBroadcast(Intent(MyAccessibilityService.ACTION_BREAK_ENDED).setPackage(context.packageName))
                             // Update DND state (re-enable muting after break)
                             DndController.updateDndState(context)
                         },
@@ -862,6 +870,7 @@ fun FocusPocusApp(
                             onScheduleClick = { schedule -> scheduleScreen = ScheduleScreenRoute.EditSchedule(schedule) },
                             onCreateClick = { scheduleScreen = ScheduleScreenRoute.CreateSchedule },
                             onDeleteSchedule = onDeleteSchedule,
+                            activeScheduleId = activeScheduleId,
                             modifier = contentModifier
                         )
                         is ScheduleScreenRoute.CreateSchedule -> ScheduleEditorScreen(
@@ -922,7 +931,16 @@ fun FocusPocusApp(
                         onOpenNotificationSettings = {
                             val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                             context.startActivity(intent)
-                        }
+                        },
+                        focusMode = focusMode
+                    )
+                }
+
+                AppDestinations.INSIGHTS -> {
+                    UsageStatsScreen(
+                        blockerLists = blockerLists,
+                        installedApps = installedApps,
+                        modifier = contentModifier
                     )
                 }
             }
@@ -936,6 +954,7 @@ fun ScheduleListScreen(
     onScheduleClick: (Schedule) -> Unit,
     onCreateClick: () -> Unit,
     onDeleteSchedule: (Schedule) -> Unit,
+    activeScheduleId: String? = null,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -951,26 +970,68 @@ fun ScheduleListScreen(
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn {
                 items(schedules) { schedule ->
+                    val isActive = schedule.id == activeScheduleId
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
-                            .clickable { onScheduleClick(schedule) },
+                            .then(
+                                if (isActive) Modifier else Modifier.clickable { onScheduleClick(schedule) }
+                            ),
+                        colors = if (isActive) {
+                            CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        } else {
+                            CardDefaults.elevatedCardColors()
+                        }
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(schedule.name, style = MaterialTheme.typography.titleMedium)
-                                Text("${schedule.startTime} - ${schedule.endTime}")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(schedule.name, style = MaterialTheme.typography.titleMedium)
+                                    if (isActive) {
+                                        Text(
+                                            "Active",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                val isOvernight = run {
+                                    val startParts = schedule.startTime.split(":")
+                                    val endParts = schedule.endTime.split(":")
+                                    if (startParts.size == 2 && endParts.size == 2) {
+                                        val startMins = startParts[0].toIntOrNull()?.times(60)?.plus(startParts[1].toIntOrNull() ?: 0) ?: 0
+                                        val endMins = endParts[0].toIntOrNull()?.times(60)?.plus(endParts[1].toIntOrNull() ?: 0) ?: 0
+                                        endMins <= startMins
+                                    } else false
+                                }
+                                Text(
+                                    if (isOvernight) "${schedule.startTime} - ${schedule.endTime} (overnight)"
+                                    else "${schedule.startTime} - ${schedule.endTime}"
+                                )
                                 Text(schedule.days.joinToString { it.name.take(3) })
                                 if (schedule.unbindingTalismanId != null) {
                                     Text("Bound to Talisman", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                                 }
+                                if (isActive) {
+                                    Text(
+                                        "Cannot edit while active",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                             Button(
                                 onClick = { onDeleteSchedule(schedule) },
+                                enabled = !isActive,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
                                 Text("Delete")
@@ -1009,6 +1070,8 @@ fun ScheduleEditorScreen(
     var showTalismanDialog by remember { mutableStateOf(false) }
 
     var breaksEnabled by remember { mutableStateOf(scheduleToEdit?.breaksEnabled ?: true) }
+    var breakDurationMinutes by remember { mutableIntStateOf(scheduleToEdit?.breakDurationMinutes ?: 5) }
+    var maxBreaksPerSession by remember { mutableIntStateOf(scheduleToEdit?.maxBreaksPerSession ?: 3) }
 
     var selectedDays by remember { mutableStateOf(scheduleToEdit?.days ?: emptySet<DayOfWeek>()) }
 
@@ -1036,11 +1099,12 @@ fun ScheduleEditorScreen(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
-    // Validate that start time is before end time
+    // Validate times - allow overnight schedules (end time before start time)
     val startTimeMinutes = startTimeState.hour * 60 + startTimeState.minute
     val endTimeMinutes = endTimeState.hour * 60 + endTimeState.minute
-    val isTimeValid = startTimeMinutes < endTimeMinutes
-    val timeValidationError = if (!isTimeValid) "End time must be after start time" else null
+    val isOvernightSchedule = endTimeMinutes <= startTimeMinutes
+    val isTimeValid = startTimeMinutes != endTimeMinutes  // Only invalid if times are identical
+    val timeValidationError = if (!isTimeValid) "Start and end times cannot be the same" else null
 
     if (showBlockerDialog) {
         BlockerSelectionDialog(
@@ -1154,6 +1218,34 @@ fun ScheduleEditorScreen(
             )
         }
 
+        // Break settings (only shown when breaks are enabled)
+        if (breaksEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("Break Duration: $breakDurationMinutes minutes", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = breakDurationMinutes.toFloat(),
+                        onValueChange = { breakDurationMinutes = it.toInt() },
+                        valueRange = 1f..30f,
+                        steps = 28,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Breaks Per Session: $maxBreaksPerSession", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = maxBreaksPerSession.toFloat(),
+                        onValueChange = { maxBreaksPerSession = it.toInt() },
+                        valueRange = 1f..10f,
+                        steps = 8,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Days Active:")
@@ -1190,7 +1282,12 @@ fun ScheduleEditorScreen(
                 onClick = { showEndTimePicker = true },
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = "End: %02d:%02d".format(endTimeState.hour, endTimeState.minute))
+                val endTimeText = if (isOvernightSchedule) {
+                    "End: %02d:%02d (next day)".format(endTimeState.hour, endTimeState.minute)
+                } else {
+                    "End: %02d:%02d".format(endTimeState.hour, endTimeState.minute)
+                }
+                Text(text = endTimeText)
             }
         }
 
@@ -1222,7 +1319,9 @@ fun ScheduleEditorScreen(
                             startTime = "%02d:%02d".format(startTimeState.hour, startTimeState.minute),
                             endTime = "%02d:%02d".format(endTimeState.hour, endTimeState.minute),
                             unbindingTalismanId = selectedTalisman?.id,
-                            breaksEnabled = breaksEnabled
+                            breaksEnabled = breaksEnabled,
+                            breakDurationMinutes = breakDurationMinutes,
+                            maxBreaksPerSession = maxBreaksPerSession
                         )
                     )
                 }
@@ -1758,6 +1857,7 @@ fun ProfileScreen(
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    focusMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var tagName by remember { mutableStateOf("") }
@@ -1855,25 +1955,42 @@ fun ProfileScreen(
                     Text("Break Settings", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    if (focusMode) {
+                        Text(
+                            "Cannot change break settings while a spell is active",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     // Break duration slider
-                    Text("Break Duration: $breakDurationMinutes minutes")
+                    Text(
+                        "Break Duration: $breakDurationMinutes minutes",
+                        color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                    )
                     Slider(
                         value = breakDurationMinutes.toFloat(),
                         onValueChange = { onBreakDurationChanged(it.toInt()) },
                         valueRange = 1f..30f,
                         steps = 28,
+                        enabled = !focusMode,
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Max breaks slider
-                    Text("Breaks Per Session: $maxBreaksPerSession")
+                    Text(
+                        "Breaks Per Session: $maxBreaksPerSession",
+                        color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                    )
                     Slider(
                         value = maxBreaksPerSession.toFloat(),
                         onValueChange = { onMaxBreaksChanged(it.toInt()) },
                         valueRange = 1f..10f,
                         steps = 8,
+                        enabled = !focusMode,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1971,6 +2088,245 @@ fun AppIcon(packageName: String, contentDescription: String?, modifier: Modifier
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UsageStatsScreen(
+    blockerLists: List<Blocker>,
+    installedApps: List<AppInfo>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
+    var selectedTab by remember { mutableStateOf("Today") }
+    var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
+    var filterExpanded by remember { mutableStateOf(false) }
+
+    val usageStats = remember(hasPermission, selectedTab) {
+        if (hasPermission) {
+            if (selectedTab == "Today") {
+                UsageStatsHelper.getTodayUsage(context)
+            } else {
+                UsageStatsHelper.getWeeklyUsage(context)
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    val filteredStats = remember(usageStats, selectedBlockerFilter) {
+        if (selectedBlockerFilter == null) {
+            usageStats
+        } else {
+            val blockedPackages = selectedBlockerFilter!!.apps.toSet()
+            usageStats.filter { it.packageName in blockedPackages }
+        }
+    }
+
+    val totalScreenTime = remember(filteredStats) {
+        filteredStats.sumOf { it.totalTimeInForeground }
+    }
+
+    LaunchedEffect(Unit) {
+        hasPermission = UsageStatsHelper.hasUsageStatsPermission(context)
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text("Usage Insights", style = MaterialTheme.typography.headlineMedium)
+        }
+
+        if (!hasPermission) {
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "Usage Access Required",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            "To view your app usage statistics, please grant usage access permission.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Button(
+                            onClick = {
+                                UsageStatsHelper.openUsageAccessSettings(context)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Grant Usage Access")
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            if (selectedTab == "Today") "Today's Screen Time" else "Weekly Screen Time",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            UsageStatsHelper.formatDuration(totalScreenTime),
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        if (selectedBlockerFilter != null) {
+                            Text(
+                                "Filtered by: ${selectedBlockerFilter!!.name}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedTab == "Today",
+                        onClick = { selectedTab = "Today" },
+                        label = { Text("Today") }
+                    )
+                    FilterChip(
+                        selected = selectedTab == "This Week",
+                        onClick = { selectedTab = "This Week" },
+                        label = { Text("This Week") }
+                    )
+                }
+            }
+
+            item {
+                ExposedDropdownMenuBox(
+                    expanded = filterExpanded,
+                    onExpandedChange = { filterExpanded = !filterExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedBlockerFilter?.name ?: "All Apps",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Filter by Enchantment") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = filterExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = filterExpanded,
+                        onDismissRequest = { filterExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Apps") },
+                            onClick = {
+                                selectedBlockerFilter = null
+                                filterExpanded = false
+                            }
+                        )
+                        blockerLists.forEach { blocker ->
+                            DropdownMenuItem(
+                                text = { Text(blocker.name) },
+                                onClick = {
+                                    selectedBlockerFilter = blocker
+                                    filterExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    "App Usage",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (filteredStats.isEmpty()) {
+                item {
+                    Text(
+                        "No usage data available for this period.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(filteredStats) { appUsage ->
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            AppIcon(
+                                packageName = appUsage.packageName,
+                                contentDescription = appUsage.appName,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    appUsage.appName,
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    appUsage.packageName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                UsageStatsHelper.formatDuration(appUsage.totalTimeInForeground),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 data class Schedule(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -1979,7 +2335,9 @@ data class Schedule(
     val startTime: String, // "HH:mm"
     val endTime: String, // "HH:mm"
     val unbindingTalismanId: String? = null,
-    val breaksEnabled: Boolean = true
+    val breaksEnabled: Boolean = true,
+    val breakDurationMinutes: Int = 5,
+    val maxBreaksPerSession: Int = 3
 )
 
 data class FocusPreset(
@@ -2002,6 +2360,7 @@ enum class AppDestinations(
     HOME("Focus", Icons.Filled.AutoFixHigh),
     BLOCK("Spells", Icons.Filled.Lock),
     SCHEDULE("Rituals", Icons.Filled.DateRange),
+    INSIGHTS("Insights", Icons.Filled.Insights),
     PROFILE("Wizard", Icons.Filled.Person),
 }
 
