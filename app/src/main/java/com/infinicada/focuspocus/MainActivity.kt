@@ -2126,8 +2126,17 @@ fun UsageStatsScreen(
         filteredStats.sumOf { it.totalTimeInForeground }
     }
 
-    LaunchedEffect(Unit) {
-        hasPermission = UsageStatsHelper.hasUsageStatsPermission(context)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasPermission = UsageStatsHelper.hasUsageStatsPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LazyColumn(
