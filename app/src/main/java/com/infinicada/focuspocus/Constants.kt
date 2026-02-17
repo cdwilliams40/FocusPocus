@@ -23,13 +23,53 @@ object Constants {
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"
         const val MAX_BREAKS_PER_SESSION = "maxBreaksPerSession"
         const val THEME_MODE = "themeMode"
+        const val HIDE_STOP_BUTTON = "hideStopButton"
+
+        // Emergency break keys
+        const val LAST_EMERGENCY_BREAK_MILLIS = "lastEmergencyBreakMillis"
+        const val EMERGENCY_BREAK_CADENCE_WEEKS = "emergencyBreakCadenceWeeks"
+
+        // Session history keys
+        const val FOCUS_SESSIONS = "focusSessions"
+        const val LONGEST_STREAK = "longestStreak"
+        const val SESSION_START_TIME = "sessionStartTime"
 
         // Data storage keys
         const val NAMED_TAGS = "namedTags"
         const val BLOCKER_LISTS = "blockerLists"
         const val SCHEDULES = "schedules"
         const val FOCUS_PRESETS = "focusPresets"
+
+        // NFC lock mode
+        const val NFC_LOCK_MODE = "nfcLockMode"
+
+        // Notification blocking
+        const val BLOCK_APP_NOTIFICATIONS = "blockAppNotifications"
+
+        // Per-app time limits
+        const val APP_TIME_LIMITS = "appTimeLimits"
+
+        // Block events for statistics
+        const val BLOCK_EVENTS = "blockEvents"
+
+        // Auto triggers (Wi-Fi / Bluetooth)
+        const val AUTO_TRIGGERS = "autoTriggers"
+
+        // Onboarding
+        const val ONBOARDING_COMPLETED = "onboardingCompleted"
+        const val ONBOARDING_VERSION = "onboardingVersion"
     }
+
+    // List size limits
+    const val MAX_NAMED_TAGS = 100
+    const val MAX_BLOCKERS = 50
+    const val MAX_SCHEDULES = 50
+    const val MAX_PRESETS = 100
+    const val MAX_APPS_PER_BLOCKER = 500
+    const val MAX_WEBSITES_PER_BLOCKER = 100
+    const val MAX_AUTO_TRIGGERS = 50
+    const val MAX_BLOCK_EVENTS = 1000
+    const val MAX_APP_TIME_LIMITS = 100
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
