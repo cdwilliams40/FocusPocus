@@ -1,15 +1,35 @@
+## Gradle
+.gradle/
+/build/
+/captures/
+
+## Local config — never commit
+local.properties
+keystore.properties
+
+## Signing keys — never commit
+*.jks
+*.keystore
+
+## Android Studio / IntelliJ
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
+/.idea/caches/
+/.idea/libraries/
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+.externalNativeBuild/
+.cxx/
+
+## OS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+Thumbs.db
+
+## Built outputs
+*.apk
+*.aab
+
+## Claude Code
+.claude/
