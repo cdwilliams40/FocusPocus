@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -30,7 +31,6 @@ class WifiTriggerService : Service() {
 
     private val gson = Gson()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var lastActivatedTriggerId: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -131,58 +131,38 @@ class WifiTriggerService : Service() {
             val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
             if (!isManualFocusActive) {
                 activatePreset(prefs, matchedTrigger.presetId)
-                lastActivatedTriggerId = matchedTrigger.id
+                // Persist the trigger ID so we can still handle disconnect after a service restart
+                prefs.edit().putString(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID, matchedTrigger.id).apply()
+                incrementServicesTriggerCount(prefs)
             }
         }
     }
 
     private fun onWifiDisconnected() {
-        if (lastActivatedTriggerId != null) {
-            val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-            val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-            if (isManualFocusActive) {
-                recordSession(prefs)
-                prefs.edit()
-                    .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                    .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                    .apply()
-                DndController.updateDndState(this)
-            }
-            lastActivatedTriggerId = null
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        // Read from prefs so this works correctly even after a service restart
+        val lastTriggerId = prefs.getString(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID, null)
+            ?: return
+
+        val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        if (isManualFocusActive) {
+            SessionRecorder.record(prefs, gson)
+            prefs.edit()
+                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                .remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID)
+                .apply()
+            incrementServicesTriggerCount(prefs)
+            DndController.updateDndState(this)
+        } else {
+            // Focus was stopped by another means; just clear the stored trigger
+            prefs.edit().remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID).apply()
         }
+
+        Log.d(TAG, "Wi-Fi disconnected; cleared trigger $lastTriggerId")
     }
 
-    private fun recordSession(prefs: android.content.SharedPreferences) {
-        val startTime = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime == 0L) return
-        val endTime = System.currentTimeMillis()
-        val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return
-        val blockerName = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
-        val breaksUsed = prefs.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-        val session = FocusSession(
-            startTimeMillis = startTime,
-            endTimeMillis = endTime,
-            durationMinutes = durationMin,
-            blockerName = blockerName,
-            breaksUsed = breaksUsed
-        )
-        val json = prefs.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        val sessions: MutableList<FocusSession> = if (json != null) {
-            try {
-                val type = object : TypeToken<MutableList<FocusSession>>() {}.type
-                gson.fromJson(json, type)
-            } catch (_: Exception) { mutableListOf() }
-        } else mutableListOf()
-        sessions.add(session)
-        val pruned = if (sessions.size > 500) sessions.drop(sessions.size - 500) else sessions
-        prefs.edit()
-            .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
-            .remove(Constants.PrefsKeys.SESSION_START_TIME)
-            .apply()
-    }
-
-    private fun activatePreset(prefs: android.content.SharedPreferences, presetId: String) {
+    private fun activatePreset(prefs: SharedPreferences, presetId: String) {
         val presetsJson = prefs.getString(Constants.PrefsKeys.FOCUS_PRESETS, null) ?: return
         val presets: List<FocusPreset> = try {
             val type = object : TypeToken<List<FocusPreset>>() {}.type
@@ -214,7 +194,7 @@ class WifiTriggerService : Service() {
         DndController.updateDndState(this)
     }
 
-    private fun loadTriggers(prefs: android.content.SharedPreferences): List<AutoTrigger> {
+    private fun loadTriggers(prefs: SharedPreferences): List<AutoTrigger> {
         val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null) ?: return emptyList()
         return try {
             val type = object : TypeToken<List<AutoTrigger>>() {}.type
@@ -222,5 +202,10 @@ class WifiTriggerService : Service() {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    private fun incrementServicesTriggerCount(prefs: SharedPreferences) {
+        val current = prefs.getInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, 0)
+        prefs.edit().putInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, current + 1).apply()
     }
 }

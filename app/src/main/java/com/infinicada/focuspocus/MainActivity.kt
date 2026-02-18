@@ -63,7 +63,11 @@ import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
@@ -85,8 +89,19 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var qrTriggerCount by mutableStateOf(0)
     private var autoTriggers by mutableStateOf<List<AutoTrigger>>(emptyList())
     private var appTimeLimits by mutableStateOf<Map<String, Int>>(emptyMap())
+    // Incremented whenever a background service (WiFi/BT) changes focus state, so the
+    // composable knows to re-sync its state from SharedPreferences.
+    private var servicesTriggerCount by mutableStateOf(0)
 
     private lateinit var scanLauncher: ActivityResultLauncher<ScanOptions>
+
+    // Watches SERVICES_TRIGGER_COUNT written by WifiTriggerService / BluetoothTriggerReceiver.
+    // Registered in onResume / unregistered in onPause to avoid leaks.
+    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == Constants.PrefsKeys.SERVICES_TRIGGER_COUNT) {
+            servicesTriggerCount++
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,11 +128,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         loadAutoTriggers()
         loadAppTimeLimits()
 
-        // Load installed apps on a background thread to avoid blocking the UI
-        Thread {
+        // Load installed apps off the main thread; lifecycleScope cancels automatically on destroy
+        lifecycleScope.launch(Dispatchers.IO) {
             val apps = loadInstalledApps()
-            runOnUiThread { installedApps = apps }
-        }.start()
+            withContext(Dispatchers.Main) { installedApps = apps }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -138,6 +153,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     activeScheduleId = activeScheduleId,
                     nfcTriggerCount = nfcTriggerCount,
+                    servicesTriggerCount = servicesTriggerCount,
                     themeMode = themeMode,
                     onThemeModeChanged = { newMode ->
                         themeMode = newMode
@@ -425,40 +441,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         namedTags = updatedTags
     }
 
-    private fun recordSessionFromActivity(blockerName: String) {
-        val startTime = sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime == 0L) return
-        val endTime = System.currentTimeMillis()
-        val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return
-        val breaksUsed = sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-        val session = FocusSession(
-            startTimeMillis = startTime,
-            endTimeMillis = endTime,
-            durationMinutes = durationMin,
-            blockerName = blockerName,
-            breaksUsed = breaksUsed
-        )
-        val json = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        val sessions: MutableList<FocusSession> = if (json != null) {
-            try {
-                val type = object : TypeToken<MutableList<FocusSession>>() {}.type
-                gson.fromJson(json, type)
-            } catch (e: Exception) { mutableListOf() }
-        } else mutableListOf()
-        sessions.add(session)
-        val pruned = if (sessions.size > 500) sessions.drop(sessions.size - 500) else sessions
-        val newStreak = calculateCurrentStreak(pruned)
-        val currentLongest = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
-        val editor = sharedPreferences.edit()
-            .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
-            .remove(Constants.PrefsKeys.SESSION_START_TIME)
-        if (newStreak > currentLongest) {
-            editor.putInt(Constants.PrefsKeys.LONGEST_STREAK, newStreak)
-        }
-        editor.apply()
-    }
-
     /**
      * Shared preset toggle logic used by both NFC talisman and QR code scanning.
      * Returns true if the trigger count should be incremented.
@@ -504,7 +486,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
             PresetAction.TOGGLE, null -> {
                 if (isManualFocusActive) {
-                    recordSessionFromActivity(preset.blockerName)
+                    SessionRecorder.record(sharedPreferences, gson)
                     sharedPreferences.edit()
                         .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
                         .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
@@ -618,11 +600,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        // Start observing service-triggered focus changes while the Activity is visible
+        sharedPreferences.registerOnSharedPreferenceChangeListener(prefChangeListener)
     }
 
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
     }
 
     override fun onTagDiscovered(tag: Tag?) {
@@ -641,7 +626,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     val schedule = schedules.find { s -> s.id == activeScheduleId }
                     if (schedule != null && schedule.unbindingTalismanId != null) {
                          if (schedule.unbindingTalismanId == newTagId) {
-                             recordSessionFromActivity(schedule.blockerName)
+                             SessionRecorder.record(sharedPreferences, gson)
                              dispelSchedule()
                              Toast.makeText(this, "Ritual Dispelled!", Toast.LENGTH_SHORT).show()
                          } else {
@@ -732,6 +717,7 @@ fun FocusPocusApp(
     onDeleteFocusPreset: (FocusPreset) -> Unit,
     onScanQrCode: () -> Unit = {},
     qrTriggerCount: Int = 0,
+    servicesTriggerCount: Int = 0,
     autoTriggers: List<AutoTrigger> = emptyList(),
     onSaveAutoTrigger: (AutoTrigger) -> Unit = {},
     onDeleteAutoTrigger: (AutoTrigger) -> Unit = {},
@@ -829,33 +815,13 @@ fun FocusPocusApp(
     }
     val currentStreak = remember(focusSessions) { calculateCurrentStreak(focusSessions) }
 
-    // Helper to record a completed session
+    // Helper to record a completed session and immediately update composable state
     fun recordSession(blockerName: String, breaksUsed: Int) {
-        val startTime = sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime == 0L) return
-        val endTime = System.currentTimeMillis()
-        val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return  // Don't record trivially short sessions
-        val session = FocusSession(
-            startTimeMillis = startTime,
-            endTimeMillis = endTime,
-            durationMinutes = durationMin,
-            blockerName = blockerName,
-            breaksUsed = breaksUsed
-        )
-        val updated = (focusSessions + session).let {
-            if (it.size > 500) it.drop(it.size - 500) else it
+        val updated = SessionRecorder.record(sharedPreferences, gson)
+        if (updated.isNotEmpty()) {
+            focusSessions = updated
+            longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
         }
-        focusSessions = updated
-        val newStreak = calculateCurrentStreak(updated)
-        if (newStreak > longestStreak) {
-            longestStreak = newStreak
-            sharedPreferences.edit().putInt(Constants.PrefsKeys.LONGEST_STREAK, newStreak).apply()
-        }
-        sharedPreferences.edit()
-            .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(updated))
-            .remove(Constants.PrefsKeys.SESSION_START_TIME)
-            .apply()
     }
 
     // Break settings
@@ -975,6 +941,11 @@ fun FocusPocusApp(
     // Sync UI with QR code activation
     LaunchedEffect(qrTriggerCount) {
         if (qrTriggerCount > 0) { syncFromPrefs() }
+    }
+
+    // Sync UI when a background service (WiFi/BT trigger) changes focus state
+    LaunchedEffect(servicesTriggerCount) {
+        if (servicesTriggerCount > 0) { syncFromPrefs() }
     }
 
     // Onboarding screen

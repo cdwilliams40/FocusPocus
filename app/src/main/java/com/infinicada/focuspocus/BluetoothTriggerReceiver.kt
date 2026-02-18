@@ -15,7 +15,6 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
     }
 
     private val gson = Gson()
-    private var lastActivatedTriggerId: String? = null
 
     override fun onReceive(context: Context, intent: Intent) {
         val device = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -38,28 +37,37 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                     val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
                     if (!isManualFocusActive) {
                         activatePreset(context, prefs, matchedTrigger.presetId)
-                        lastActivatedTriggerId = matchedTrigger.id
+                        // Persist trigger ID in prefs so a receiver re-instantiation doesn't
+                        // lose track of which trigger activated focus
+                        prefs.edit()
+                            .putString(Constants.PrefsKeys.LAST_BT_TRIGGER_ID, matchedTrigger.id)
+                            .apply()
+                        incrementServicesTriggerCount(prefs)
                     }
                 }
             }
             BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                if (lastActivatedTriggerId != null) {
-                    val deviceAddress = device.address ?: return
-                    val matchedTrigger = triggers.find {
-                        it.identifier.equals(deviceAddress, ignoreCase = true)
+                val lastTriggerId = prefs.getString(Constants.PrefsKeys.LAST_BT_TRIGGER_ID, null)
+                    ?: return
+                val deviceAddress = device.address ?: return
+                val matchedTrigger = triggers.find {
+                    it.identifier.equals(deviceAddress, ignoreCase = true)
+                }
+                if (matchedTrigger != null && matchedTrigger.id == lastTriggerId) {
+                    val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    if (isManualFocusActive) {
+                        SessionRecorder.record(prefs, gson)
+                        prefs.edit()
+                            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                            .remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID)
+                            .apply()
+                        DndController.updateDndState(context)
+                        incrementServicesTriggerCount(prefs)
+                    } else {
+                        prefs.edit().remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID).apply()
                     }
-                    if (matchedTrigger != null && matchedTrigger.id == lastActivatedTriggerId) {
-                        val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                        if (isManualFocusActive) {
-                            recordSession(context, prefs)
-                            prefs.edit()
-                                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                                .apply()
-                            DndController.updateDndState(context)
-                        }
-                        lastActivatedTriggerId = null
-                    }
+                    Log.d(TAG, "Bluetooth disconnected; cleared trigger $lastTriggerId")
                 }
             }
         }
@@ -97,36 +105,6 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
         DndController.updateDndState(context)
     }
 
-    private fun recordSession(context: Context, prefs: android.content.SharedPreferences) {
-        val startTime = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime == 0L) return
-        val endTime = System.currentTimeMillis()
-        val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return
-        val blockerName = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
-        val breaksUsed = prefs.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-        val session = FocusSession(
-            startTimeMillis = startTime,
-            endTimeMillis = endTime,
-            durationMinutes = durationMin,
-            blockerName = blockerName,
-            breaksUsed = breaksUsed
-        )
-        val json = prefs.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        val sessions: MutableList<FocusSession> = if (json != null) {
-            try {
-                val type = object : TypeToken<MutableList<FocusSession>>() {}.type
-                gson.fromJson(json, type)
-            } catch (_: Exception) { mutableListOf() }
-        } else mutableListOf()
-        sessions.add(session)
-        val pruned = if (sessions.size > 500) sessions.drop(sessions.size - 500) else sessions
-        prefs.edit()
-            .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
-            .remove(Constants.PrefsKeys.SESSION_START_TIME)
-            .apply()
-    }
-
     private fun loadTriggers(prefs: android.content.SharedPreferences): List<AutoTrigger> {
         val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null) ?: return emptyList()
         return try {
@@ -135,5 +113,10 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    private fun incrementServicesTriggerCount(prefs: android.content.SharedPreferences) {
+        val current = prefs.getInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, 0)
+        prefs.edit().putInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, current + 1).apply()
     }
 }

@@ -55,6 +55,13 @@ object Constants {
         // Auto triggers (Wi-Fi / Bluetooth)
         const val AUTO_TRIGGERS = "autoTriggers"
 
+        // Persisted last-activated trigger IDs (survive service restart)
+        const val LAST_WIFI_TRIGGER_ID = "lastWifiTriggerId"
+        const val LAST_BT_TRIGGER_ID = "lastBtTriggerId"
+
+        // Incremented by background services when focus state changes; observed by the UI
+        const val SERVICES_TRIGGER_COUNT = "servicesTriggerCount"
+
         // Onboarding
         const val ONBOARDING_COMPLETED = "onboardingCompleted"
         const val ONBOARDING_VERSION = "onboardingVersion"

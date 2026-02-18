@@ -20,8 +20,6 @@ val ArcaneGoldLight = Color(0xFFFFFF52)
 val ArcaneGoldDark = Color(0xFFC7A600)
 
 // Semantic Colors
-val SpellSuccess = Color(0xFF00C853)      // Emerald Green - successful spell
-val SpellWarning = Color(0xFFFFB300)       // Amber - caution/bound state
 val SpellError = Color(0xFFD32F2F)         // Crimson - stop/danger/dispel
 
 // Dark Theme Colors

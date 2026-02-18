@@ -47,7 +47,6 @@ import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.Schedule
-import com.infinicada.focuspocus.formatDuration
 
 @Composable
 fun Greeting(

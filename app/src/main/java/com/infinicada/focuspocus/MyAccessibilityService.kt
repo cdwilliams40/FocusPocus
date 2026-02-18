@@ -24,9 +24,6 @@ import java.util.Calendar
 class MyAccessibilityService : AccessibilityService() {
 
     companion object {
-        const val ACTION_BREAK_ENDED = "com.infinicada.focuspocus.ACTION_BREAK_ENDED"
-        const val ACTION_FOCUS_SESSION_ENDED = "com.infinicada.focuspocus.ACTION_FOCUS_SESSION_ENDED"
-
         private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
         private const val MAX_TREE_DEPTH = 10
 
