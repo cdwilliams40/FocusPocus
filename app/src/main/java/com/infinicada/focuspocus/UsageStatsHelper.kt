@@ -101,19 +101,12 @@ object UsageStatsHelper {
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_BEST, startTime, endTime
         )
-        val pm = context.packageManager
         return stats
             .filter { it.totalTimeInForeground > 0 }
             .groupBy { it.packageName }
             .map { (packageName, usageList) ->
                 val totalTime = usageList.sumOf { it.totalTimeInForeground }
-                val appName = try {
-                    pm.getApplicationLabel(
-                        pm.getApplicationInfo(packageName, 0)
-                    ).toString()
-                } catch (_: Exception) {
-                    packageName
-                }
+                val appName = AppUtils.getAppName(context, packageName)
                 AppUsage(
                     packageName = packageName,
                     appName = appName,
