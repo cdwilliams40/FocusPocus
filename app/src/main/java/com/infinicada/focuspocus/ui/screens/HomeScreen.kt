@@ -288,7 +288,7 @@ fun Greeting(
 
             // Emergency break button
             var showEmergencyConfirm by remember { mutableStateOf(false) }
-            if (focusMode && breaksAllowed && !isOnBreak && breaksUsedThisSession >= maxBreaksPerSession) {
+            if (focusMode && !isOnBreak && (!breaksAllowed || breaksUsedThisSession >= maxBreaksPerSession)) {
                 if (emergencyBreakAvailable) {
                     Button(
                         onClick = { showEmergencyConfirm = true },
