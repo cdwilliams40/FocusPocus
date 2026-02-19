@@ -63,4 +63,26 @@ object AppTimeLimitManager {
             .sumOf { it.totalTimeInForeground }
         return (totalForegroundMs / 1000 / 60).toInt()
     }
+
+    fun getAllUsedMinutesToday(context: Context): Map<String, Int> {
+        if (!UsageStatsHelper.hasUsageStatsPermission(context)) return emptyMap()
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_BEST,
+            calendar.timeInMillis,
+            System.currentTimeMillis()
+        ) ?: return emptyMap()
+
+        return stats
+            .groupBy { it.packageName }
+            .mapValues { (_, usageList) ->
+                (usageList.sumOf { it.totalTimeInForeground } / 1000 / 60).toInt()
+            }
+    }
 }

@@ -145,6 +145,10 @@ fun UsageStatsScreen(
         filteredStats.sumOf { it.totalTimeInForeground }
     }
 
+    val allUsedMinutes = remember(appTimeLimits, hasPermission) {
+        AppTimeLimitManager.getAllUsedMinutesToday(context)
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -387,9 +391,7 @@ fun UsageStatsScreen(
             val limitEntries = appTimeLimits.entries.toList()
             items(limitEntries) { (pkg, limit) ->
                 val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                val usedMinutes = remember(pkg) {
-                    AppTimeLimitManager.getUsedMinutesToday(context, pkg)
-                }
+                val usedMinutes = allUsedMinutes[pkg] ?: 0
                 val progress = (usedMinutes.toFloat() / limit).coerceIn(0f, 1f)
 
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
