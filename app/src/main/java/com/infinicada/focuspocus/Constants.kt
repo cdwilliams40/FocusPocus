@@ -80,4 +80,6 @@ object Constants {
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
+    const val WIFI_TRIGGER_CHANNEL_ID = "wifi_trigger_channel"
+    const val WIFI_TRIGGER_NOTIFICATION_ID = 9001
 }
