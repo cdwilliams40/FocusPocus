@@ -51,7 +51,6 @@ import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.wifi.WifiManager
 import android.os.Build
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Delete
@@ -61,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.infinicada.focuspocus.AutoTrigger
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.NetworkUtils
 import com.infinicada.focuspocus.DayOfWeek
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
@@ -311,10 +311,8 @@ fun AddWifiTriggerDialog(
     val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var ssid by remember {
-        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        @Suppress("DEPRECATION")
-        val currentSsid = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"") ?: ""
-        mutableStateOf(if (currentSsid == "<unknown ssid>") "" else currentSsid)
+        val currentSsid = NetworkUtils.getLegacyWifiSsid(context) ?: ""
+        mutableStateOf(currentSsid)
     }
     var selectedPreset by remember { mutableStateOf(focusPresets.firstOrNull()) }
     var presetDropdownExpanded by remember { mutableStateOf(false) }
