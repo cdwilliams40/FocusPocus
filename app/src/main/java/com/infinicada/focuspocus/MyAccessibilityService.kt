@@ -549,21 +549,50 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun findUrlInNodeTree(node: AccessibilityNodeInfo, depth: Int): String? {
-        if (depth > MAX_TREE_DEPTH) return null
+    private data class NodeState(val node: AccessibilityNodeInfo, var nextChildIndex: Int, val depth: Int)
 
-        val text = node.text?.toString()
-        if (text != null && node.isEditable && looksLikeUrl(text)) {
-            return text
-        }
+    private fun findUrlInNodeTree(rootNode: AccessibilityNodeInfo, initialDepth: Int): String? {
+        val stack = java.util.ArrayDeque<NodeState>()
+        stack.push(NodeState(rootNode, 0, initialDepth))
 
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            try {
-                val result = findUrlInNodeTree(child, depth + 1)
-                if (result != null) return result
-            } finally {
-                child.recycle()
+        while (stack.isNotEmpty()) {
+            val state = stack.peek() ?: break
+            val node = state.node
+            val depth = state.depth
+
+            // Check node itself (only once, when nextChildIndex == 0)
+            if (state.nextChildIndex == 0) {
+                if (depth > MAX_TREE_DEPTH) {
+                    stack.pop()
+                    if (node != rootNode) node.recycle()
+                    continue
+                }
+
+                val text = node.text?.toString()
+                if (text != null && node.isEditable && looksLikeUrl(text)) {
+                    val result = text
+                    // Cleanup stack: recycle all nodes except rootNode
+                    while (stack.isNotEmpty()) {
+                        val s = stack.pop()
+                        if (s.node != rootNode) s.node.recycle()
+                    }
+                    return result
+                }
+            }
+
+            // Get next child
+            if (state.nextChildIndex < node.childCount) {
+                val i = state.nextChildIndex
+                state.nextChildIndex++
+
+                val child = node.getChild(i)
+                if (child != null) {
+                    stack.push(NodeState(child, 0, depth + 1))
+                }
+            } else {
+                // Done with this node
+                stack.pop()
+                if (node != rootNode) node.recycle()
             }
         }
         return null
