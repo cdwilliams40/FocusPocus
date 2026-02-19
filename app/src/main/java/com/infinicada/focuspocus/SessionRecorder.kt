@@ -20,6 +20,7 @@ object SessionRecorder {
      * @return The updated session list, or an empty list if nothing was recorded
      *         (e.g. session was too short or start time was missing).
      */
+    @Synchronized
     fun record(prefs: SharedPreferences, gson: Gson): List<FocusSession> {
         val startTime = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
         if (startTime == 0L) return emptyList()

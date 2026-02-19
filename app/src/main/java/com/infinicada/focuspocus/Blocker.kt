@@ -3,7 +3,7 @@ package com.infinicada.focuspocus
 data class Blocker(
     val name: String,
     val mode: BlockerMode,
-    val apps: List<String>,
+    val apps: Set<String>,
     val websites: List<String>? = null
 )
 
