@@ -298,22 +298,22 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         // Default presets on first load or parse error
         focusPresets = listOf(
             FocusPreset(
-                name = "Deep Work",
-                blockerName = "Default",
-                durationMinutes = 240,
-                breaksEnabled = true
+                name = Constants.Defaults.FocusPresets.DEEP_WORK_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.DEEP_WORK_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.DEEP_WORK_BREAKS
             ),
             FocusPreset(
-                name = "Quick Focus",
-                blockerName = "Default",
-                durationMinutes = 25,
-                breaksEnabled = true
+                name = Constants.Defaults.FocusPresets.QUICK_FOCUS_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.QUICK_FOCUS_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.QUICK_FOCUS_BREAKS
             ),
             FocusPreset(
-                name = "Sleep Mode",
-                blockerName = "Default",
-                durationMinutes = 480,
-                breaksEnabled = false
+                name = Constants.Defaults.FocusPresets.SLEEP_MODE_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.SLEEP_MODE_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.SLEEP_MODE_BREAKS
             )
         )
         val defaultJson = gson.toJson(focusPresets)
@@ -1441,6 +1441,37 @@ fun formatDuration(minutes: Int): String {
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
+        FocusPocusApp(
+            focusTagId = null,
+            lastScannedTagId = null,
+            namedTags = emptyList(),
+            blockerLists = emptyList(),
+            installedApps = emptyList(),
+            schedules = emptyList(),
+            focusPresets = emptyList(),
+            isServiceEnabled = false,
+            activeScheduleId = null,
+            nfcTriggerCount = 0,
+            themeMode = ThemeMode.SYSTEM,
+            onThemeModeChanged = {},
+            onSaveTag = {},
+            onDeleteTag = {},
+            onSaveBlocker = {},
+            onDeleteBlocker = {},
+            onSaveSchedule = {},
+            onDeleteSchedule = {},
+            onDispelSchedule = {},
+            onSaveFocusPreset = {},
+            onDeleteFocusPreset = {},
+            onScanQrCode = {},
+            qrTriggerCount = 0,
+            servicesTriggerCount = 0,
+            autoTriggers = emptyList(),
+            onSaveAutoTrigger = {},
+            onDeleteAutoTrigger = {},
+            appTimeLimits = emptyMap(),
+            onSaveAppTimeLimit = { _, _ -> },
+            onDeleteAppTimeLimit = {}
+        )
     }
 }
