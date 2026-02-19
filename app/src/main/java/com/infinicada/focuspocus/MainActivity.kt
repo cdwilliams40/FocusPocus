@@ -1441,6 +1441,38 @@ fun formatDuration(minutes: Int): String {
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
+        FocusPocusApp(
+            focusTagId = null,
+            lastScannedTagId = null,
+            namedTags = emptyList(),
+            blockerLists = emptyList(),
+            installedApps = emptyList(),
+            schedules = emptyList(),
+            focusPresets = emptyList(),
+            isServiceEnabled = false,
+            activeScheduleId = null,
+            nfcTriggerCount = 0,
+            themeMode = ThemeMode.SYSTEM,
+            onThemeModeChanged = {},
+            onSaveTag = {_ -> },
+            onDeleteTag = {},
+            onSaveBlocker = {},
+            onDeleteBlocker = {},
+            onSaveSchedule = {},
+            onDeleteSchedule = {},
+            onDispelSchedule = {},
+            onSaveFocusPreset = {},
+            onDeleteFocusPreset = {},
+            onScanQrCode = {},
+            qrTriggerCount = 0,
+            servicesTriggerCount = 0,
+            autoTriggers = emptyList(),
+            onSaveAutoTrigger = {},
+            onDeleteAutoTrigger = {},
+            appTimeLimits = emptyMap(),
+            onSaveAppTimeLimit = { _, _ -> },
+            onDeleteAppTimeLimit = {}
+        )
         FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
     }
 }
