@@ -67,6 +67,24 @@ object Constants {
         const val ONBOARDING_VERSION = "onboardingVersion"
     }
 
+    object Defaults {
+        object FocusPresets {
+            const val DEEP_WORK_NAME = "Deep Work"
+            const val DEEP_WORK_DURATION = 240
+            const val DEEP_WORK_BREAKS = true
+
+            const val QUICK_FOCUS_NAME = "Quick Focus"
+            const val QUICK_FOCUS_DURATION = 25
+            const val QUICK_FOCUS_BREAKS = true
+
+            const val SLEEP_MODE_NAME = "Sleep Mode"
+            const val SLEEP_MODE_DURATION = 480
+            const val SLEEP_MODE_BREAKS = false
+
+            const val DEFAULT_BLOCKER_NAME = "Default"
+        }
+    }
+
     // List size limits
     const val MAX_NAMED_TAGS = 100
     const val MAX_BLOCKERS = 50
