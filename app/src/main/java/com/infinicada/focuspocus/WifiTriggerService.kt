@@ -25,8 +25,6 @@ class WifiTriggerService : Service() {
 
     companion object {
         private const val TAG = "WifiTriggerService"
-        private const val CHANNEL_ID = "wifi_trigger_channel"
-        private const val NOTIFICATION_ID = 9001
     }
 
     private val gson = Gson()
@@ -35,7 +33,7 @@ class WifiTriggerService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForeground(Constants.WIFI_TRIGGER_NOTIFICATION_ID, buildNotification())
         registerNetworkCallback()
     }
 
@@ -55,7 +53,7 @@ class WifiTriggerService : Service() {
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
+            Constants.WIFI_TRIGGER_CHANNEL_ID,
             "Wi-Fi Triggers",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
@@ -68,7 +66,7 @@ class WifiTriggerService : Service() {
     private fun buildNotification(): Notification {
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, Constants.WIFI_TRIGGER_CHANNEL_ID)
             .setSmallIcon(R.mipmap.fplogo_round)
             .setContentTitle("Focus Pocus")
             .setContentText("Monitoring Wi-Fi for auto-triggers")

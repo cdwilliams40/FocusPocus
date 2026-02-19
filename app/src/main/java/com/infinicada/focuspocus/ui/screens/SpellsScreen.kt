@@ -385,7 +385,7 @@ fun CreateBlockerScreen(
         )
 
         Button(
-            onClick = { onSaveBlocker(Blocker(name.trim(), selectedMode, apps, websites)) },
+            onClick = { onSaveBlocker(Blocker(name.trim(), selectedMode, apps.toSet(), websites)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp),
@@ -405,7 +405,7 @@ fun EditBlockerScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedMode by remember { mutableStateOf(blocker.mode) }
-    var apps by remember { mutableStateOf(blocker.apps) }
+    var apps by remember { mutableStateOf(blocker.apps.toList()) }
     var websites by remember { mutableStateOf(blocker.websites.orEmpty()) }
     var showDialog by remember { mutableStateOf(false) }
 
@@ -460,7 +460,7 @@ fun EditBlockerScreen(
                 .padding(top = 16.dp)
         ) {
             Button(
-                onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps, websites = websites)) },
+                onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps.toSet(), websites = websites)) },
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp)

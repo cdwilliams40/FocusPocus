@@ -250,12 +250,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 blockerLists = gson.fromJson(json, type)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing blocker lists JSON: ${e.message}", e)
-                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
                 sharedPreferences.edit().remove(Constants.PrefsKeys.BLOCKER_LISTS).apply()
                 Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
             }
         } else {
-            blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+            blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
         }
     }
 
@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             return
         }
         val capped = newBlocker.copy(
-            apps = newBlocker.apps.take(Constants.MAX_APPS_PER_BLOCKER),
+            apps = newBlocker.apps.take(Constants.MAX_APPS_PER_BLOCKER).toSet(),
             websites = newBlocker.websites?.take(Constants.MAX_WEBSITES_PER_BLOCKER)
         )
         val updatedBlockers = blockerLists.filterNot { it.name == capped.name } + capped
@@ -298,22 +298,22 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         // Default presets on first load or parse error
         focusPresets = listOf(
             FocusPreset(
-                name = "Deep Work",
-                blockerName = "Default",
-                durationMinutes = 240,
-                breaksEnabled = true
+                name = Constants.Defaults.FocusPresets.DEEP_WORK_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.DEEP_WORK_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.DEEP_WORK_BREAKS
             ),
             FocusPreset(
-                name = "Quick Focus",
-                blockerName = "Default",
-                durationMinutes = 25,
-                breaksEnabled = true
+                name = Constants.Defaults.FocusPresets.QUICK_FOCUS_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.QUICK_FOCUS_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.QUICK_FOCUS_BREAKS
             ),
             FocusPreset(
-                name = "Sleep Mode",
-                blockerName = "Default",
-                durationMinutes = 480,
-                breaksEnabled = false
+                name = Constants.Defaults.FocusPresets.SLEEP_MODE_NAME,
+                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                durationMinutes = Constants.Defaults.FocusPresets.SLEEP_MODE_DURATION,
+                breaksEnabled = Constants.Defaults.FocusPresets.SLEEP_MODE_BREAKS
             )
         )
         val defaultJson = gson.toJson(focusPresets)
@@ -1390,43 +1390,6 @@ enum class AppDestinations(
     PROFILE("Wizard", Icons.Filled.Person),
 }
 
-fun calculateCurrentStreak(sessions: List<FocusSession>): Int {
-    if (sessions.isEmpty()) return 0
-    val cal = Calendar.getInstance()
-    val today = Triple(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
-
-    // Group sessions by calendar day
-    val daysWithSessions = sessions.map { session ->
-        val c = Calendar.getInstance().apply { timeInMillis = session.endTimeMillis }
-        Triple(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH))
-    }.toSet()
-
-    var streak = 0
-    val checkCal = Calendar.getInstance()
-
-    // Check if today has a session; if not, start from yesterday
-    if (today in daysWithSessions) {
-        streak = 1
-        checkCal.add(Calendar.DAY_OF_YEAR, -1)
-    } else {
-        checkCal.add(Calendar.DAY_OF_YEAR, -1)
-        val yesterday = Triple(checkCal.get(Calendar.YEAR), checkCal.get(Calendar.MONTH), checkCal.get(Calendar.DAY_OF_MONTH))
-        if (yesterday !in daysWithSessions) return 0
-    }
-
-    // Count consecutive days backwards
-    while (true) {
-        val day = Triple(checkCal.get(Calendar.YEAR), checkCal.get(Calendar.MONTH), checkCal.get(Calendar.DAY_OF_MONTH))
-        if (day in daysWithSessions) {
-            streak++
-            checkCal.add(Calendar.DAY_OF_YEAR, -1)
-        } else {
-            break
-        }
-    }
-    return streak
-}
-
 fun formatDuration(minutes: Int): String {
     return when {
         minutes == 0 -> "Unlimited"
@@ -1441,6 +1404,38 @@ fun formatDuration(minutes: Int): String {
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
+        FocusPocusApp(
+            focusTagId = null,
+            lastScannedTagId = null,
+            namedTags = emptyList(),
+            blockerLists = emptyList(),
+            installedApps = emptyList(),
+            schedules = emptyList(),
+            focusPresets = emptyList(),
+            isServiceEnabled = false,
+            activeScheduleId = null,
+            nfcTriggerCount = 0,
+            themeMode = ThemeMode.SYSTEM,
+            onThemeModeChanged = {},
+            onSaveTag = {},
+            onSaveTag = {_ -> },
+            onDeleteTag = {},
+            onSaveBlocker = {},
+            onDeleteBlocker = {},
+            onSaveSchedule = {},
+            onDeleteSchedule = {},
+            onDispelSchedule = {},
+            onSaveFocusPreset = {},
+            onDeleteFocusPreset = {},
+            onScanQrCode = {},
+            qrTriggerCount = 0,
+            servicesTriggerCount = 0,
+            autoTriggers = emptyList(),
+            onSaveAutoTrigger = {},
+            onDeleteAutoTrigger = {},
+            appTimeLimits = emptyMap(),
+            onSaveAppTimeLimit = { _, _ -> },
+            onDeleteAppTimeLimit = {}
+        )
     }
 }

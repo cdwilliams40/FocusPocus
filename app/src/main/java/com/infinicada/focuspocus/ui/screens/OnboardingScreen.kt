@@ -333,7 +333,7 @@ private fun CreateBlockerStep(
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = {
-                    onSaveBlocker(Blocker(blockerName.trim(), BlockerMode.BLACKLIST, selectedApps))
+                    onSaveBlocker(Blocker(blockerName.trim(), BlockerMode.BLACKLIST, selectedApps.toSet()))
                     blockerName = ""
                     selectedApps = emptyList()
                 },
