@@ -1441,6 +1441,6 @@ fun formatDuration(minutes: Int): String {
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
+        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
     }
 }
