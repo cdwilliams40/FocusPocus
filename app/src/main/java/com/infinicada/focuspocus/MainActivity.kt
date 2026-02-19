@@ -1418,7 +1418,6 @@ fun GreetingPreview() {
             themeMode = ThemeMode.SYSTEM,
             onThemeModeChanged = {},
             onSaveTag = {},
-            onSaveTag = {_ -> },
             onDeleteTag = {},
             onSaveBlocker = {},
             onDeleteBlocker = {},
