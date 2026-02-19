@@ -283,39 +283,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun deactivateSchedule(schedule: Schedule) {
         // Record completed session
-        val startTime = sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime > 0) {
-            val endTime = System.currentTimeMillis()
-            val durationMin = ((endTime - startTime) / 60000).toInt()
-            if (durationMin >= 1) {
-                val breaksUsed = sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-                val session = FocusSession(
-                    startTimeMillis = startTime,
-                    endTimeMillis = endTime,
-                    durationMinutes = durationMin,
-                    blockerName = schedule.blockerName,
-                    breaksUsed = breaksUsed
-                )
-                val json = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-                val sessions: MutableList<FocusSession> = if (json != null) {
-                    try {
-                        val type = object : TypeToken<MutableList<FocusSession>>() {}.type
-                        gson.fromJson(json, type)
-                    } catch (e: Exception) { mutableListOf() }
-                } else mutableListOf()
-                sessions.add(session)
-                val pruned = if (sessions.size > 500) sessions.drop(sessions.size - 500) else sessions
-                val newStreak = calculateCurrentStreak(pruned)
-                val currentLongest = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
-                val editor = sharedPreferences.edit()
-                    .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
-                    .remove(Constants.PrefsKeys.SESSION_START_TIME)
-                if (newStreak > currentLongest) {
-                    editor.putInt(Constants.PrefsKeys.LONGEST_STREAK, newStreak)
-                }
-                editor.apply()
-            }
-        }
+        SessionRecorder.record(sharedPreferences, gson)
 
         sharedPreferences.edit()
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
