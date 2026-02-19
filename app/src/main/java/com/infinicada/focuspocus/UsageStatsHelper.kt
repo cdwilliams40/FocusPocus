@@ -57,6 +57,27 @@ object UsageStatsHelper {
         return queryUsageStats(context, calendar.timeInMillis, System.currentTimeMillis())
     }
 
+    fun getPackageUsageToday(context: Context, packageName: String): Long {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+
+        val usageStatsManager =
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_BEST, startTime, endTime
+        )
+
+        return stats
+            ?.filter { it.packageName == packageName }
+            ?.sumOf { it.totalTimeInForeground } ?: 0L
+    }
+
     fun openUsageAccessSettings(context: Context) {
         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -80,19 +101,12 @@ object UsageStatsHelper {
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_BEST, startTime, endTime
         )
-        val pm = context.packageManager
         return stats
             .filter { it.totalTimeInForeground > 0 }
             .groupBy { it.packageName }
             .map { (packageName, usageList) ->
                 val totalTime = usageList.sumOf { it.totalTimeInForeground }
-                val appName = try {
-                    pm.getApplicationLabel(
-                        pm.getApplicationInfo(packageName, 0)
-                    ).toString()
-                } catch (_: Exception) {
-                    packageName
-                }
+                val appName = AppUtils.getAppName(context, packageName)
                 AppUsage(
                     packageName = packageName,
                     appName = appName,
