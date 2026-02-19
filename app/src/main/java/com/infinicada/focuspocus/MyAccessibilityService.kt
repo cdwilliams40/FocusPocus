@@ -353,7 +353,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // NFC lock mode: block settings apps when focus is active (regardless of break)
         if (focusActive && nfcLockMode && packageName in SETTINGS_PACKAGES) {
-            val appName = getAppName(packageName)
+            val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             closeApp()
             showOverlay(appName, "Talisman Lock")
@@ -374,7 +374,7 @@ class MyAccessibilityService : AccessibilityService() {
 
             activeBlocker?.let {
                 if (shouldBlockApp(packageName, it)) {
-                    val appName = getAppName(packageName)
+                    val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     recordBlockEvent(packageName, it.name)
                     closeApp()
@@ -392,7 +392,7 @@ class MyAccessibilityService : AccessibilityService() {
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
         if (AppTimeLimitManager.isOverLimit(this, packageName, limit)) {
-            val appName = getAppName(packageName)
+            val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
@@ -616,15 +616,6 @@ class MyAccessibilityService : AccessibilityService() {
         return when (blocker.mode) {
             BlockerMode.BLACKLIST -> blocker.apps.contains(packageName)
             BlockerMode.WHITELIST -> !blocker.apps.contains(packageName)
-        }
-    }
-
-    private fun getAppName(packageName: String): String {
-        return try {
-            val appInfo: ApplicationInfo = packageManager.getApplicationInfo(packageName, 0)
-            packageManager.getApplicationLabel(appInfo).toString()
-        } catch (e: Exception) {
-            packageName
         }
     }
 
