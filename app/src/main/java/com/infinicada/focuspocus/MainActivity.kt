@@ -250,12 +250,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 blockerLists = gson.fromJson(json, type)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error parsing blocker lists JSON: ${e.message}", e)
-                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
                 sharedPreferences.edit().remove(Constants.PrefsKeys.BLOCKER_LISTS).apply()
                 Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
             }
         } else {
-            blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, listOf("com.google.android.youtube")))
+            blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
         }
     }
 
@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             return
         }
         val capped = newBlocker.copy(
-            apps = newBlocker.apps.take(Constants.MAX_APPS_PER_BLOCKER),
+            apps = newBlocker.apps.take(Constants.MAX_APPS_PER_BLOCKER).toSet(),
             websites = newBlocker.websites?.take(Constants.MAX_WEBSITES_PER_BLOCKER)
         )
         val updatedBlockers = blockerLists.filterNot { it.name == capped.name } + capped
@@ -1441,6 +1441,6 @@ fun formatDuration(minutes: Int): String {
 @Composable
 fun GreetingPreview() {
     FocusPocusTheme {
-        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
+        FocusPocusApp(null, null, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), false, null, 0, ThemeMode.SYSTEM, {}, {_ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}, 0, 0, emptyList(), {}, {}, emptyMap(), { _, _ -> }, {})
     }
 }
