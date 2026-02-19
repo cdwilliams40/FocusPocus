@@ -596,16 +596,26 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    private var cachedLauncherPackageName: String? = null
+
     private fun isLauncher(packageName: String): Boolean {
-        val intent = Intent(Intent.ACTION_MAIN)
-        intent.addCategory(Intent.CATEGORY_HOME)
-        val resolveInfo = packageManager.resolveActivity(intent, 0)
-        return resolveInfo != null && resolveInfo.activityInfo.packageName == packageName
+        if (cachedLauncherPackageName == null) {
+            val intent = Intent(Intent.ACTION_MAIN)
+            intent.addCategory(Intent.CATEGORY_HOME)
+            val resolveInfo = packageManager.resolveActivity(intent, 0)
+            cachedLauncherPackageName = resolveInfo?.activityInfo?.packageName
+        }
+        return cachedLauncherPackageName == packageName
     }
 
+    private var cachedInputMethodPackageNames: Set<String>? = null
+
     private fun isInputMethod(packageName: String): Boolean {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        return imm.enabledInputMethodList.any { it.packageName == packageName }
+        if (cachedInputMethodPackageNames == null) {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            cachedInputMethodPackageNames = imm.enabledInputMethodList.map { it.packageName }.toSet()
+        }
+        return cachedInputMethodPackageNames?.contains(packageName) == true
     }
 
     private fun isSystemUI(packageName: String): Boolean {
