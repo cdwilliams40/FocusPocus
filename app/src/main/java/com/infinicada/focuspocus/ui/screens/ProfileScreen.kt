@@ -221,11 +221,11 @@ fun ProfileScreen(
 
                     // Emergency break cadence
                     Text(
-                        "Emergency Break Cooldown: $emergencyBreakCadenceWeeks weeks",
+                        "Emergency Stop Cooldown: $emergencyBreakCadenceWeeks weeks",
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        "One special break per cooldown period when all regular breaks are used",
+                        "One emergency stop per cooldown period when you need to end a session early",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

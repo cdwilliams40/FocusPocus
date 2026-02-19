@@ -1157,17 +1157,25 @@ fun FocusPocusApp(
                             DndController.updateDndState(context)
                         },
                         onScanQrCode = onScanQrCode,
-                        onEmergencyBreak = {
-                            isOnBreak = true
-                            breakTimeRemaining = effectiveBreakDuration * 60
-                            // Don't increment breaksUsedThisSession for emergency breaks
+                        onEmergencyStop = {
+                            val blockerName = if (activeSchedule != null) activeSchedule.blockerName else activeManualBlocker?.name ?: "Unknown"
+                            recordSession(blockerName, breaksUsedThisSession)
                             lastEmergencyBreakMillis = System.currentTimeMillis()
+                            manualFocusMode = false
+                            // activeScheduleId is a parameter and cannot be reassigned. calling onDispelSchedule() instead.
+                            isOnBreak = false
+                            breakTimeRemaining = 0
+                            focusTimeRemaining = 0
+                            breaksUsedThisSession = 0
                             sharedPreferences.edit()
-                                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
-                                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
                                 .putLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, lastEmergencyBreakMillis)
+                                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                                .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
                                 .apply()
-                            DndController.updateDndState(context)
+                            onDispelSchedule()
+                            Toast.makeText(context, "Emergency Stop activated", Toast.LENGTH_SHORT).show()
                         },
                         modifier = contentModifier
                     )
