@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.UsageStatsHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -120,15 +123,20 @@ fun UsageStatsScreen(
             .take(5)
     }
 
-    val usageStats = remember(hasPermission, selectedTab) {
+    var usageStats by remember { mutableStateOf<List<com.infinicada.focuspocus.AppUsage>>(emptyList()) }
+
+    LaunchedEffect(hasPermission, selectedTab) {
         if (hasPermission) {
-            if (selectedTab == "Today") {
-                UsageStatsHelper.getTodayUsage(context)
-            } else {
-                UsageStatsHelper.getWeeklyUsage(context)
+            val stats = withContext(Dispatchers.IO) {
+                if (selectedTab == "Today") {
+                    UsageStatsHelper.getTodayUsage(context)
+                } else {
+                    UsageStatsHelper.getWeeklyUsage(context)
+                }
             }
+            usageStats = stats
         } else {
-            emptyList()
+            usageStats = emptyList()
         }
     }
 
@@ -143,6 +151,10 @@ fun UsageStatsScreen(
 
     val totalScreenTime = remember(filteredStats) {
         filteredStats.sumOf { it.totalTimeInForeground }
+    }
+
+    val allUsedMinutes = remember(appTimeLimits, hasPermission) {
+        AppTimeLimitManager.getAllUsedMinutesToday(context)
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -387,9 +399,7 @@ fun UsageStatsScreen(
             val limitEntries = appTimeLimits.entries.toList()
             items(limitEntries) { (pkg, limit) ->
                 val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                val usedMinutes = remember(pkg) {
-                    AppTimeLimitManager.getUsedMinutesToday(context, pkg)
-                }
+                val usedMinutes = allUsedMinutes[pkg] ?: 0
                 val progress = (usedMinutes.toFloat() / limit).coerceIn(0f, 1f)
 
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
