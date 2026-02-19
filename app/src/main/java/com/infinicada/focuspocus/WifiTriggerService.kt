@@ -171,13 +171,7 @@ class WifiTriggerService : Service() {
         }
         val preset = presets.find { it.id == presetId } ?: return
 
-        val blockersJson = prefs.getString(Constants.PrefsKeys.BLOCKER_LISTS, null) ?: return
-        val blockers: List<Blocker> = try {
-            val type = object : TypeToken<List<Blocker>>() {}.type
-            gson.fromJson(blockersJson, type)
-        } catch (e: Exception) { return }
-
-        val blocker = blockers.find { it.name == preset.blockerName } ?: return
+        val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
 
         val focusTimeRemaining = if (preset.durationMinutes > 0) preset.durationMinutes * 60 else 0
         prefs.edit()

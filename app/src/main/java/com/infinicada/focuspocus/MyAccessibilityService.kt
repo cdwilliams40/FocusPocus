@@ -76,10 +76,6 @@ class MyAccessibilityService : AccessibilityService() {
     private var cachedSchedulesJson: String? = null
     private var cachedSchedules: List<Schedule> = emptyList()
 
-    // Cache for parsed blocker lists to avoid re-parsing JSON on every accessibility event
-    private var cachedBlockerListsJson: String? = null
-    private var cachedBlockerLists: List<Blocker> = emptyList()
-
     // Debounce for website blocking to prevent rapid re-triggering
     private var lastWebsiteBlockTime: Long = 0
 
@@ -368,7 +364,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (focusActive) {
-            val blockerLists = getCachedBlockerLists()
+            val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
             val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
             val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
@@ -465,7 +461,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (focusTagId == null && !manualFocusMode) return
 
         val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: return
-        val blockerLists = getCachedBlockerLists()
+        val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
         val activeBlocker = blockerLists.find { it.name == activeBlockerName } ?: return
 
         val blockedWebsites = activeBlocker.websites.orEmpty()
@@ -594,35 +590,6 @@ class MyAccessibilityService : AccessibilityService() {
         val nav = navigatedDomain.lowercase()
         val blocked = blockedDomain.lowercase()
         return nav == blocked || nav.endsWith(".$blocked")
-    }
-
-    /**
-     * Returns cached blocker lists, re-parsing only when the underlying JSON has changed.
-     */
-    private fun getCachedBlockerLists(): List<Blocker> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
-        if (json == null) {
-            if (cachedBlockerListsJson != null) {
-                cachedBlockerListsJson = null
-                cachedBlockerLists = emptyList()
-            }
-            return emptyList()
-        }
-        if (json == cachedBlockerListsJson) {
-            return cachedBlockerLists
-        }
-        return try {
-            val type = object : TypeToken<List<Blocker>>() {}.type
-            val parsed: List<Blocker> = gson.fromJson(json, type)
-            cachedBlockerListsJson = json
-            cachedBlockerLists = parsed
-            parsed
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing blocker lists", e)
-            cachedBlockerListsJson = null
-            cachedBlockerLists = emptyList()
-            emptyList()
-        }
     }
 
     private var cachedLauncherPackageName: String? = null

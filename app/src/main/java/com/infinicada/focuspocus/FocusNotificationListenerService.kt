@@ -4,14 +4,8 @@ import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 class FocusNotificationListenerService : NotificationListenerService() {
-
-    private val gson = Gson()
-    private var cachedBlockerListsJson: String? = null
-    private var cachedBlockerLists: List<Blocker> = emptyList()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
@@ -27,7 +21,7 @@ class FocusNotificationListenerService : NotificationListenerService() {
         if (!focusActive || isOnBreak) return
 
         val activeBlockerName = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: return
-        val blocker = getCachedBlocker(prefs, activeBlockerName) ?: return
+        val blocker = BlockerRepository.getBlocker(prefs, activeBlockerName) ?: return
         val pkg = sbn.packageName
 
         // Never cancel our own notifications or Android system notifications
@@ -40,24 +34,6 @@ class FocusNotificationListenerService : NotificationListenerService() {
                 Log.e("FocusNotifListener", "Error cancelling notification", e)
             }
         }
-    }
-
-    private fun getCachedBlocker(prefs: android.content.SharedPreferences, blockerName: String): Blocker? {
-        val json = prefs.getString(Constants.PrefsKeys.BLOCKER_LISTS, null) ?: return null
-        val blockers: List<Blocker> = if (json == cachedBlockerListsJson) {
-            cachedBlockerLists
-        } else {
-            try {
-                val type = object : TypeToken<List<Blocker>>() {}.type
-                val parsed: List<Blocker> = gson.fromJson(json, type)
-                cachedBlockerListsJson = json
-                cachedBlockerLists = parsed
-                parsed
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-        return blockers.find { it.name == blockerName }
     }
 
     private fun shouldBlockApp(packageName: String, blocker: Blocker): Boolean {
