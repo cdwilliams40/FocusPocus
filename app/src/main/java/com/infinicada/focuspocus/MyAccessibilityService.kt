@@ -472,7 +472,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (now - lastWebsiteBlockTime < WEBSITE_BLOCK_DEBOUNCE_MS) return
 
         val url = extractUrlFromBrowser(packageName, event) ?: return
-        val domain = extractDomain(url) ?: return
+        val domain = UrlUtils.extractDomain(url) ?: return
 
         val matchedDomain = blockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
@@ -495,7 +495,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val text = nodes[0].text?.toString()
                     nodes.forEach { it.recycle() }
                     rootNode.recycle()
-                    if (text != null && looksLikeUrl(text)) return text
+                    if (text != null && UrlUtils.looksLikeUrl(text)) return text
                     return null
                 }
             } catch (e: Exception) {
@@ -533,7 +533,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
 
                 val text = node.text?.toString()
-                if (text != null && node.isEditable && looksLikeUrl(text)) {
+                if (text != null && node.isEditable && UrlUtils.looksLikeUrl(text)) {
                     val result = text
                     // Cleanup stack: recycle all nodes except rootNode
                     while (stack.isNotEmpty()) {
@@ -560,29 +560,6 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
         return null
-    }
-
-    private fun looksLikeUrl(text: String): Boolean {
-        val trimmed = text.trim()
-        if (trimmed.contains(' ') || !trimmed.contains('.')) return false
-        // Must look like a domain (has at least one dot and some chars around it)
-        val dotIndex = trimmed.indexOf('.')
-        return dotIndex > 0 && dotIndex < trimmed.length - 1
-    }
-
-    private fun extractDomain(urlText: String): String? {
-        var text = urlText.trim().lowercase()
-        // Strip protocol
-        if (text.startsWith("https://")) text = text.removePrefix("https://")
-        else if (text.startsWith("http://")) text = text.removePrefix("http://")
-        // Strip path, query, fragment
-        text = text.split('/')[0]
-        text = text.split('?')[0]
-        text = text.split('#')[0]
-        // Strip port
-        text = text.split(':')[0]
-        if (text.isEmpty() || !text.contains('.')) return null
-        return text
     }
 
     private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {
