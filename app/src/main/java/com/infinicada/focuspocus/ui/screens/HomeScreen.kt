@@ -79,7 +79,7 @@ fun Greeting(
     onBlockerSelectorClicked: () -> Unit,
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
-    onEmergencyBreak: () -> Unit = {},
+    onEmergencyStop: () -> Unit = {},
     onScanQrCode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -286,7 +286,7 @@ fun Greeting(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Emergency break button
+            // Emergency stop button
             var showEmergencyConfirm by remember { mutableStateOf(false) }
             if (focusMode && !isOnBreak && (!breaksAllowed || breaksUsedThisSession >= maxBreaksPerSession)) {
                 if (emergencyBreakAvailable) {
@@ -294,12 +294,12 @@ fun Greeting(
                         onClick = { showEmergencyConfirm = true },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text("Emergency Break", color = MaterialTheme.colorScheme.onError)
+                        Text("Emergency Stop", color = MaterialTheme.colorScheme.onError)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 } else {
                     Text(
-                        "Emergency break available in $emergencyBreakDaysRemaining day${if (emergencyBreakDaysRemaining != 1) "s" else ""}",
+                        "Emergency stop available in $emergencyBreakDaysRemaining day${if (emergencyBreakDaysRemaining != 1) "s" else ""}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -310,17 +310,17 @@ fun Greeting(
             if (showEmergencyConfirm) {
                 AlertDialog(
                     onDismissRequest = { showEmergencyConfirm = false },
-                    title = { Text("Emergency Break") },
-                    text = { Text("This uses your emergency break. You won't get another for several weeks. Are you sure?") },
+                    title = { Text("Emergency Stop") },
+                    text = { Text("This uses your emergency stop to end the session immediately. You won't get another for several weeks. Are you sure?") },
                     confirmButton = {
                         Button(
                             onClick = {
                                 showEmergencyConfirm = false
-                                onEmergencyBreak()
+                                onEmergencyStop()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Use Emergency Break")
+                            Text("Use Emergency Stop")
                         }
                     },
                     dismissButton = {
