@@ -87,6 +87,8 @@ class MyAccessibilityService : AccessibilityService() {
     private var pendingBlockEvents = mutableListOf<BlockEvent>()
     private var lastBlockEventWriteTime: Long = 0
 
+    private val timeLimitChecker by lazy { TimeLimitChecker(this) }
+
     // Settings packages to block in NFC lock mode
     private val SETTINGS_PACKAGES = setOf(
         "com.android.settings",
@@ -387,7 +389,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun checkTimeLimitAndBlock(packageName: String) {
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
-        if (AppTimeLimitManager.isOverLimit(this, packageName, limit)) {
+        if (timeLimitChecker.shouldBlock(packageName, limit)) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             recordBlockEvent(packageName, "Time Limit")
