@@ -13,7 +13,7 @@ object AppTimeLimitManager {
         val json = prefs.getString(Constants.PrefsKeys.APP_TIME_LIMITS, null) ?: return emptyMap()
         return try {
             val type = object : TypeToken<Map<String, Int>>() {}.type
-            gson.fromJson(json, type)
+            gson.fromJson(json, type) ?: emptyMap()
         } catch (e: Exception) {
             emptyMap()
         }
