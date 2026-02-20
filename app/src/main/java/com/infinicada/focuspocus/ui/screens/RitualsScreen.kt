@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.infinicada.focuspocus.AutoTrigger
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.NetworkUtils
 import com.infinicada.focuspocus.DayOfWeek
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
@@ -311,7 +312,8 @@ fun AddWifiTriggerDialog(
     val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var ssid by remember {
-        mutableStateOf(NetworkUtils.getLegacyWifiSsid(context) ?: "")
+        val currentSsid = NetworkUtils.getLegacyWifiSsid(context) ?: ""
+        mutableStateOf(currentSsid)
     }
     var selectedPreset by remember { mutableStateOf(focusPresets.firstOrNull()) }
     var presetDropdownExpanded by remember { mutableStateOf(false) }

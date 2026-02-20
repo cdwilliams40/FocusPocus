@@ -10,6 +10,8 @@ object NetworkUtils {
 
     /**
      * Extracts SSID from NetworkCapabilities (Android Q+).
+     * @param capabilities The NetworkCapabilities object from ConnectivityManager.
+     * @return The SSID without quotes, or null if not available or unknown.
      */
     fun getSsidFromCapabilities(capabilities: NetworkCapabilities): String? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -23,6 +25,10 @@ object NetworkUtils {
 
     /**
      * Gets the current Wi-Fi SSID using WifiManager (Deprecated in newer Android versions).
+     * This method suppresses the deprecation warning as it is intended for use on older Android versions
+     * or as a fallback where NetworkCapabilities are not available.
+     * @param context The application context.
+     * @return The SSID without quotes, or null if not available or unknown.
      */
     fun getLegacyWifiSsid(context: Context): String? {
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
@@ -31,6 +37,9 @@ object NetworkUtils {
         return normalizeSsid(info?.ssid)
     }
 
+    /**
+     * Helper to normalize SSID by removing quotes and checking for unknown values.
+     */
     private fun normalizeSsid(ssid: String?): String? {
         if (ssid != null && ssid != "<unknown ssid>") {
             return ssid.removeSurrounding("\"")
