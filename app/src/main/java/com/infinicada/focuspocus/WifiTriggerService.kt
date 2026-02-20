@@ -126,7 +126,7 @@ class WifiTriggerService : Service() {
 
         val matchedTrigger = triggers.find { it.identifier.equals(ssid, ignoreCase = true) }
         if (matchedTrigger != null) {
-            val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            val isManualFocusActive = SessionManager.isSessionActive(prefs)
             if (!isManualFocusActive) {
                 activatePreset(prefs, matchedTrigger.presetId)
                 // Persist the trigger ID so we can still handle disconnect after a service restart
@@ -142,16 +142,10 @@ class WifiTriggerService : Service() {
         val lastTriggerId = prefs.getString(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID, null)
             ?: return
 
-        val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val isManualFocusActive = SessionManager.isSessionActive(prefs)
         if (isManualFocusActive) {
-            SessionRecorder.record(prefs, gson)
-            prefs.edit()
-                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                .remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID)
-                .apply()
+            SessionManager.stopSession(this, prefs, gson)
             incrementServicesTriggerCount(prefs)
-            DndController.updateDndState(this)
         } else {
             // Focus was stopped by another means; just clear the stored trigger
             prefs.edit().remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID).apply()
@@ -173,15 +167,12 @@ class WifiTriggerService : Service() {
 
         val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
 
-        val focusTimeRemaining = if (preset.durationMinutes > 0) preset.durationMinutes * 60 else 0
-        prefs.edit()
-            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blocker.name)
-            .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes)
-            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-            .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled)
-            .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
-            .apply()
+        SessionManager.startSession(
+            sharedPreferences = prefs,
+            blockerName = blocker.name,
+            durationMinutes = preset.durationMinutes,
+            breaksEnabled = preset.breaksEnabled
+        )
 
         DndController.updateDndState(this)
     }

@@ -34,7 +34,7 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                     it.identifier.equals(deviceAddress, ignoreCase = true)
                 }
                 if (matchedTrigger != null) {
-                    val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (!isManualFocusActive) {
                         activatePreset(context, prefs, matchedTrigger.presetId)
                         // Persist trigger ID in prefs so a receiver re-instantiation doesn't
@@ -54,15 +54,9 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                     it.identifier.equals(deviceAddress, ignoreCase = true)
                 }
                 if (matchedTrigger != null && matchedTrigger.id == lastTriggerId) {
-                    val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (isManualFocusActive) {
-                        SessionRecorder.record(prefs, gson)
-                        prefs.edit()
-                            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                            .remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID)
-                            .apply()
-                        DndController.updateDndState(context)
+                        SessionManager.stopSession(context, prefs, gson)
                         incrementServicesTriggerCount(prefs)
                     } else {
                         prefs.edit().remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID).apply()
@@ -86,15 +80,12 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
 
         val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
 
-        val focusTimeRemaining = if (preset.durationMinutes > 0) preset.durationMinutes * 60 else 0
-        prefs.edit()
-            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blocker.name)
-            .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes)
-            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-            .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled)
-            .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
-            .apply()
+        SessionManager.startSession(
+            sharedPreferences = prefs,
+            blockerName = blocker.name,
+            durationMinutes = preset.durationMinutes,
+            breaksEnabled = preset.breaksEnabled
+        )
 
         DndController.updateDndState(context)
     }

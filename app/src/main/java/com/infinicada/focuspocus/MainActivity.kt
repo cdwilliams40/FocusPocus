@@ -220,11 +220,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
     private fun dispelSchedule() {
         activeScheduleId = null
-        sharedPreferences.edit()
-            .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
-            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-            .apply()
-        DndController.updateDndState(this)
+        SessionManager.stopSession(this, sharedPreferences, gson)
     }
 
     private fun loadInstalledApps(): List<AppInfo> {
@@ -446,7 +442,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
      * Returns true if the trigger count should be incremented.
      */
     private fun togglePreset(preset: FocusPreset): Boolean {
-        val isManualFocusActive = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val isManualFocusActive = SessionManager.isSessionActive(sharedPreferences)
 
         val tempDuration = preset.tempDurationMinutes ?: 30
 
@@ -454,15 +450,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             PresetAction.TEMP_ENABLE -> {
                 val blocker = blockerLists.find { it.name == preset.blockerName }
                 if (blocker != null) {
-                    val focusTimeRemaining = tempDuration * 60
-                    sharedPreferences.edit()
-                        .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-                        .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blocker.name)
-                        .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, tempDuration)
-                        .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-                        .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled)
-                        .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
-                        .apply()
+                    SessionManager.startSession(
+                        sharedPreferences = sharedPreferences,
+                        blockerName = blocker.name,
+                        durationMinutes = tempDuration,
+                        breaksEnabled = preset.breaksEnabled
+                    )
                     Toast.makeText(this, "${preset.name} Cast for $tempDuration min!", Toast.LENGTH_SHORT).show()
                     return true
                 } else {
@@ -486,25 +479,18 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
             PresetAction.TOGGLE, null -> {
                 if (isManualFocusActive) {
-                    SessionRecorder.record(sharedPreferences, gson)
-                    sharedPreferences.edit()
-                        .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                        .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                        .apply()
+                    SessionManager.stopSession(this, sharedPreferences, gson)
                     Toast.makeText(this, "${preset.name} Dispelled!", Toast.LENGTH_SHORT).show()
                     return true
                 } else {
                     val blocker = blockerLists.find { it.name == preset.blockerName }
                     if (blocker != null) {
-                        val focusTimeRemaining = if (preset.durationMinutes > 0) preset.durationMinutes * 60 else 0
-                        sharedPreferences.edit()
-                            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-                            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blocker.name)
-                            .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes)
-                            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-                            .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled)
-                            .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
-                            .apply()
+                        SessionManager.startSession(
+                            sharedPreferences = sharedPreferences,
+                            blockerName = blocker.name,
+                            durationMinutes = preset.durationMinutes,
+                            breaksEnabled = preset.breaksEnabled
+                        )
                         Toast.makeText(this, "${preset.name} Cast!", Toast.LENGTH_SHORT).show()
                         return true
                     } else {
@@ -626,7 +612,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     val schedule = schedules.find { s -> s.id == activeScheduleId }
                     if (schedule != null && schedule.unbindingTalismanId != null) {
                          if (schedule.unbindingTalismanId == newTagId) {
-                             SessionRecorder.record(sharedPreferences, gson)
                              dispelSchedule()
                              Toast.makeText(this, "Ritual Dispelled!", Toast.LENGTH_SHORT).show()
                          } else {
@@ -824,6 +809,35 @@ fun FocusPocusApp(
         }
     }
 
+    // Shared logic to re-read all prefs after an external trigger (NFC or QR)
+    fun syncFromPrefs() {
+        manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+        activeManualBlocker = blockerLists.find { it.name == activeBlockerName }
+        focusDurationMinutes = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
+        focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+        sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
+        // Re-read session history so Insights screen stays current
+        val sessionsJson = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
+        focusSessions = if (sessionsJson != null) {
+            try {
+                val type = object : TypeToken<List<FocusSession>>() {}.type
+                gson.fromJson(sessionsJson, type)
+            } catch (e: Exception) { emptyList() }
+        } else emptyList()
+        longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
+
+        // Re-read block events
+        val blockEventsJson = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
+        blockEvents = if (blockEventsJson != null) {
+            try {
+                val type = object : TypeToken<List<BlockEvent>>() {}.type
+                gson.fromJson(blockEventsJson, type)
+            } catch (e: Exception) { emptyList() }
+        } else emptyList()
+    }
+
+
     // Break settings
     var breakDurationMinutes by remember {
         mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5))
@@ -863,13 +877,9 @@ fun FocusPocusApp(
 
             if (focusTimeRemaining <= 0) {
                 // Record session on timer auto-stop
-                val blockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
-                recordSession(blockerName, breaksUsedThisSession)
+                SessionManager.stopSession(context, sharedPreferences, gson)
+                syncFromPrefs()
                 manualFocusMode = false
-                sharedPreferences.edit()
-                    .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                    .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                    .apply()
             }
         }
     }
@@ -903,34 +913,6 @@ fun FocusPocusApp(
          } else {
              manualFocusMode = true
          }
-    }
-
-    // Shared logic to re-read all prefs after an external trigger (NFC or QR)
-    fun syncFromPrefs() {
-        manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        activeManualBlocker = blockerLists.find { it.name == activeBlockerName }
-        focusDurationMinutes = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
-        focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-        sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
-        // Re-read session history so Insights screen stays current
-        val sessionsJson = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        focusSessions = if (sessionsJson != null) {
-            try {
-                val type = object : TypeToken<List<FocusSession>>() {}.type
-                gson.fromJson(sessionsJson, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
-        longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
-
-        // Re-read block events
-        val blockEventsJson = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
-        blockEvents = if (blockEventsJson != null) {
-            try {
-                val type = object : TypeToken<List<BlockEvent>>() {}.type
-                gson.fromJson(blockEventsJson, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
     }
 
     // Sync UI with NFC preset activation
@@ -1103,24 +1085,23 @@ fun FocusPocusApp(
                             if (focusMode) {
                                 if (activeSchedule != null) {
                                      if (activeSchedule.unbindingTalismanId == null) {
-                                          // Record session before stopping
-                                          recordSession(activeSchedule.blockerName, breaksUsedThisSession)
                                           onDispelSchedule()
+                                          syncFromPrefs()
                                           manualFocusMode = false
                                      }
                                 } else {
-                                    // Record session before stopping
-                                    activeManualBlocker?.let { recordSession(it.name, breaksUsedThisSession) }
+                                    SessionManager.stopSession(context, sharedPreferences, gson)
+                                    syncFromPrefs()
                                     manualFocusMode = false
                                 }
                             } else {
                                 if (activeManualBlocker != null) {
-                                    if (focusDurationMinutes > 0) {
-                                        focusTimeRemaining = focusDurationMinutes * 60
-                                        sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining).apply()
-                                    }
-                                    // Record session start time
-                                    sharedPreferences.edit().putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis()).apply()
+                                    SessionManager.startSession(
+                                        sharedPreferences = sharedPreferences,
+                                        blockerName = activeManualBlocker!!.name,
+                                        durationMinutes = focusDurationMinutes,
+                                        breaksEnabled = sessionBreaksEnabled
+                                    )
                                     manualFocusMode = true
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
@@ -1158,23 +1139,15 @@ fun FocusPocusApp(
                         },
                         onScanQrCode = onScanQrCode,
                         onEmergencyStop = {
-                            val blockerName = if (activeSchedule != null) activeSchedule.blockerName else activeManualBlocker?.name ?: "Unknown"
-                            recordSession(blockerName, breaksUsedThisSession)
                             lastEmergencyBreakMillis = System.currentTimeMillis()
                             manualFocusMode = false
                             // activeScheduleId is a parameter and cannot be reassigned. calling onDispelSchedule() instead.
-                            isOnBreak = false
-                            breakTimeRemaining = 0
-                            focusTimeRemaining = 0
-                            breaksUsedThisSession = 0
+
                             sharedPreferences.edit()
                                 .putLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, lastEmergencyBreakMillis)
-                                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-                                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
-                                .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
                                 .apply()
                             onDispelSchedule()
+                            syncFromPrefs()
                             Toast.makeText(context, "Emergency Stop activated", Toast.LENGTH_SHORT).show()
                         },
                         modifier = contentModifier
