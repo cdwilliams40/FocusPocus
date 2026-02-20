@@ -27,25 +27,6 @@ class MyAccessibilityService : AccessibilityService() {
         private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
         private const val MAX_TREE_DEPTH = 10
 
-        private val BROWSER_PACKAGES = setOf(
-            "com.android.chrome",
-            "com.chrome.beta",
-            "com.chrome.dev",
-            "com.chrome.canary",
-            "org.mozilla.firefox",
-            "org.mozilla.firefox_beta",
-            "org.mozilla.fenix",
-            "com.microsoft.emmx",
-            "com.opera.browser",
-            "com.opera.mini.native",
-            "com.brave.browser",
-            "com.duckduckgo.mobile.android",
-            "com.sec.android.app.sbrowser",
-            "com.vivaldi.browser",
-            "com.kiwibrowser.browser",
-            "org.chromium.chrome"
-        )
-
         private val BROWSER_URL_BAR_IDS = mapOf(
             "com.android.chrome" to "com.android.chrome:id/url_bar",
             "com.chrome.beta" to "com.chrome.beta:id/url_bar",
@@ -68,9 +49,22 @@ class MyAccessibilityService : AccessibilityService() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
+    private var browserPackages: Set<String> = emptySet()
     private var receiverRegistered = false
     private var btReceiverRegistered = false
     private val bluetoothTriggerReceiver = BluetoothTriggerReceiver()
+
+    private var packageReceiverRegistered = false
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            updateBrowserPackages()
+        }
+    }
+
+    private fun updateBrowserPackages() {
+        browserPackages = BrowserDetector(this).getBrowserPackages()
+        Log.d("MyAccessibilityService", "Updated browser packages: $browserPackages")
+    }
 
     // Cache for parsed schedules to avoid re-parsing JSON every minute
     private var cachedSchedulesJson: String? = null
@@ -133,6 +127,20 @@ class MyAccessibilityService : AccessibilityService() {
         }
         btReceiverRegistered = true
 
+        updateBrowserPackages()
+        val packageFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(packageReceiver, packageFilter)
+        }
+        packageReceiverRegistered = true
+
         createNotificationChannel()
     }
 
@@ -152,6 +160,14 @@ class MyAccessibilityService : AccessibilityService() {
                 btReceiverRegistered = false
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error unregistering BT receiver", e)
+            }
+        }
+        if (packageReceiverRegistered) {
+            try {
+                unregisterReceiver(packageReceiver)
+                packageReceiverRegistered = false
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error unregistering package receiver", e)
             }
         }
         // Flush pending block events
@@ -453,7 +469,7 @@ class MyAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
 
         // Fast O(1) check — discard events from non-browser apps immediately
-        if (packageName !in BROWSER_PACKAGES) return
+        if (packageName !in browserPackages) return
 
         val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
