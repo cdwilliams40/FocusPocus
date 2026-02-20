@@ -1055,7 +1055,7 @@ fun FocusPocusApp(
                                         durationMinutes = focusDurationMinutes,
                                         breaksEnabled = sessionBreaksEnabled
                                     )
-                                    manualFocusMode = true
+                                    syncFromPrefs()
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
                                         showBlockerSelectionDialog = true
