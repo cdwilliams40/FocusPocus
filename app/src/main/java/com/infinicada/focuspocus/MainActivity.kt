@@ -775,24 +775,20 @@ fun FocusPocusApp(
         focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
         sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
         // Re-read session history so Insights screen stays current
-        val sessionsJson = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        focusSessions = if (sessionsJson != null) {
-            try {
-                val type = object : TypeToken<List<FocusSession>>() {}.type
-                gson.fromJson(sessionsJson, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
+        val sessionsType = object : TypeToken<List<FocusSession>>() {}.type
+        focusSessions = PrefsHelper.load<List<FocusSession>>(
+            sharedPreferences, gson, Constants.PrefsKeys.FOCUS_SESSIONS, sessionsType
+        ) ?: emptyList()
         longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
 
         // Re-read block events
-        val blockEventsJson = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
-        blockEvents = if (blockEventsJson != null) {
-            try {
-                val type = object : TypeToken<List<BlockEvent>>() {}.type
-                gson.fromJson(blockEventsJson, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
+        val eventsType = object : TypeToken<List<BlockEvent>>() {}.type
+        blockEvents = PrefsHelper.load<List<BlockEvent>>(
+            sharedPreferences, gson, Constants.PrefsKeys.BLOCK_EVENTS, eventsType
+        ) ?: emptyList()
     }
+
+
 
 
     // Break settings
@@ -870,28 +866,6 @@ fun FocusPocusApp(
          } else {
              manualFocusMode = true
          }
-    }
-
-    // Shared logic to re-read all prefs after an external trigger (NFC or QR)
-    fun syncFromPrefs() {
-        manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        activeManualBlocker = blockerLists.find { it.name == activeBlockerName }
-        focusDurationMinutes = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
-        focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-        sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
-        // Re-read session history so Insights screen stays current
-        val sessionsType = object : TypeToken<List<FocusSession>>() {}.type
-        focusSessions = PrefsHelper.load<List<FocusSession>>(
-            sharedPreferences, gson, Constants.PrefsKeys.FOCUS_SESSIONS, sessionsType
-        ) ?: emptyList()
-        longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
-
-        // Re-read block events
-        val eventsType = object : TypeToken<List<BlockEvent>>() {}.type
-        blockEvents = PrefsHelper.load<List<BlockEvent>>(
-            sharedPreferences, gson, Constants.PrefsKeys.BLOCK_EVENTS, eventsType
-        ) ?: emptyList()
     }
 
     // Sync UI with NFC preset activation

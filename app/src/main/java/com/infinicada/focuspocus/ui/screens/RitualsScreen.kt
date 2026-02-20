@@ -61,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.infinicada.focuspocus.AutoTrigger
 import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.NetworkUtils
 import com.infinicada.focuspocus.DayOfWeek
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
