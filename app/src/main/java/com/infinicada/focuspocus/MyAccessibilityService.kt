@@ -280,12 +280,12 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun activateSchedule(schedule: Schedule) {
-        sharedPreferences.edit()
-            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, schedule.blockerName)
-            .putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, schedule.id)
-            .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
-            .apply()
+        SessionManager.startSession(
+            sharedPreferences = sharedPreferences,
+            blockerName = schedule.blockerName,
+            scheduleId = schedule.id,
+            breaksEnabled = schedule.breaksEnabled
+        )
 
         sendRitualNotification(
             title = "Ritual Started",
@@ -296,16 +296,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun deactivateSchedule(schedule: Schedule) {
-        // Record completed session
-        SessionRecorder.record(sharedPreferences, gson)
-
-        sharedPreferences.edit()
-            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-            .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
-            .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
-            .remove(Constants.PrefsKeys.FOCUS_TAG_ID)
-            .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-            .apply()
+        SessionManager.stopSession(this, sharedPreferences, gson)
 
         sendRitualNotification(
             title = "Ritual Ended",

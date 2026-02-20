@@ -34,7 +34,7 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                     it.identifier.equals(deviceAddress, ignoreCase = true)
                 }
                 if (matchedTrigger != null) {
-                    val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (!isManualFocusActive) {
                         AutoTriggerHelper.activatePreset(context, prefs, matchedTrigger.presetId)
                         // Persist trigger ID in prefs so a receiver re-instantiation doesn't
@@ -54,7 +54,7 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                     it.identifier.equals(deviceAddress, ignoreCase = true)
                 }
                 if (matchedTrigger != null && matchedTrigger.id == lastTriggerId) {
-                    val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (isManualFocusActive) {
                         SessionRecorder.record(prefs, gson)
                         prefs.edit()

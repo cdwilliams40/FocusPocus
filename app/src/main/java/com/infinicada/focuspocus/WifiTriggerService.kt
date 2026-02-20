@@ -110,7 +110,7 @@ class WifiTriggerService : Service() {
 
         val matchedTrigger = triggers.find { it.identifier.equals(ssid, ignoreCase = true) }
         if (matchedTrigger != null) {
-            val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            val isManualFocusActive = SessionManager.isSessionActive(prefs)
             if (!isManualFocusActive) {
                 AutoTriggerHelper.activatePreset(this, prefs, matchedTrigger.presetId)
                 // Persist the trigger ID so we can still handle disconnect after a service restart
@@ -126,7 +126,7 @@ class WifiTriggerService : Service() {
         val lastTriggerId = prefs.getString(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID, null)
             ?: return
 
-        val isManualFocusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val isManualFocusActive = SessionManager.isSessionActive(prefs)
         if (isManualFocusActive) {
             SessionRecorder.record(prefs, gson)
             prefs.edit()

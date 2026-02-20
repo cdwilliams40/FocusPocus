@@ -15,7 +15,9 @@ object AppTimeLimitManager {
             val type = object : TypeToken<Map<String, Int>>() {}.type
             gson.fromJson(json, type) ?: emptyMap()
         } catch (e: Exception) {
-            emptyMap()
+            val empty = emptyMap<String, Int>()
+            saveTimeLimits(prefs, gson, empty)
+            empty
         }
     }
 
