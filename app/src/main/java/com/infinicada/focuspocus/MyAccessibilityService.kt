@@ -27,25 +27,6 @@ class MyAccessibilityService : AccessibilityService() {
         private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
         private const val MAX_TREE_DEPTH = 10
 
-        private val BROWSER_PACKAGES = setOf(
-            "com.android.chrome",
-            "com.chrome.beta",
-            "com.chrome.dev",
-            "com.chrome.canary",
-            "org.mozilla.firefox",
-            "org.mozilla.firefox_beta",
-            "org.mozilla.fenix",
-            "com.microsoft.emmx",
-            "com.opera.browser",
-            "com.opera.mini.native",
-            "com.brave.browser",
-            "com.duckduckgo.mobile.android",
-            "com.sec.android.app.sbrowser",
-            "com.vivaldi.browser",
-            "com.kiwibrowser.browser",
-            "org.chromium.chrome"
-        )
-
         private val BROWSER_URL_BAR_IDS = mapOf(
             "com.android.chrome" to "com.android.chrome:id/url_bar",
             "com.chrome.beta" to "com.chrome.beta:id/url_bar",
@@ -68,9 +49,22 @@ class MyAccessibilityService : AccessibilityService() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
+    private var browserPackages: Set<String> = emptySet()
     private var receiverRegistered = false
     private var btReceiverRegistered = false
     private val bluetoothTriggerReceiver = BluetoothTriggerReceiver()
+
+    private var packageReceiverRegistered = false
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            updateBrowserPackages()
+        }
+    }
+
+    private fun updateBrowserPackages() {
+        browserPackages = BrowserDetector(this).getBrowserPackages()
+        Log.d("MyAccessibilityService", "Updated browser packages: $browserPackages")
+    }
 
     // Cache for parsed schedules to avoid re-parsing JSON every minute
     private var cachedSchedulesJson: String? = null
@@ -86,6 +80,8 @@ class MyAccessibilityService : AccessibilityService() {
     // Block event recording
     private var pendingBlockEvents = mutableListOf<BlockEvent>()
     private var lastBlockEventWriteTime: Long = 0
+
+    private val timeLimitChecker by lazy { TimeLimitChecker(this) }
 
     // Settings packages to block in NFC lock mode
     private val SETTINGS_PACKAGES = setOf(
@@ -131,6 +127,20 @@ class MyAccessibilityService : AccessibilityService() {
         }
         btReceiverRegistered = true
 
+        updateBrowserPackages()
+        val packageFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(packageReceiver, packageFilter)
+        }
+        packageReceiverRegistered = true
+
         createNotificationChannel()
     }
 
@@ -150,6 +160,14 @@ class MyAccessibilityService : AccessibilityService() {
                 btReceiverRegistered = false
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error unregistering BT receiver", e)
+            }
+        }
+        if (packageReceiverRegistered) {
+            try {
+                unregisterReceiver(packageReceiver)
+                packageReceiverRegistered = false
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error unregistering package receiver", e)
             }
         }
         // Flush pending block events
@@ -378,7 +396,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun checkTimeLimitAndBlock(packageName: String) {
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
-        if (AppTimeLimitManager.isOverLimit(this, packageName, limit)) {
+        if (timeLimitChecker.shouldBlock(packageName, limit)) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             recordBlockEvent(packageName, "Time Limit")
@@ -442,7 +460,7 @@ class MyAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
 
         // Fast O(1) check — discard events from non-browser apps immediately
-        if (packageName !in BROWSER_PACKAGES) return
+        if (packageName !in browserPackages) return
 
         val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
@@ -463,7 +481,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (now - lastWebsiteBlockTime < WEBSITE_BLOCK_DEBOUNCE_MS) return
 
         val url = extractUrlFromBrowser(packageName, event) ?: return
-        val domain = extractDomain(url) ?: return
+        val domain = UrlUtils.extractDomain(url) ?: return
 
         val matchedDomain = blockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
@@ -486,7 +504,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val text = nodes[0].text?.toString()
                     nodes.forEach { it.recycle() }
                     rootNode.recycle()
-                    if (text != null && looksLikeUrl(text)) return text
+                    if (text != null && UrlUtils.looksLikeUrl(text)) return text
                     return null
                 }
             } catch (e: Exception) {
@@ -524,7 +542,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
 
                 val text = node.text?.toString()
-                if (text != null && node.isEditable && looksLikeUrl(text)) {
+                if (text != null && node.isEditable && UrlUtils.looksLikeUrl(text)) {
                     val result = text
                     // Cleanup stack: recycle all nodes except rootNode
                     while (stack.isNotEmpty()) {
@@ -551,29 +569,6 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
         return null
-    }
-
-    private fun looksLikeUrl(text: String): Boolean {
-        val trimmed = text.trim()
-        if (trimmed.contains(' ') || !trimmed.contains('.')) return false
-        // Must look like a domain (has at least one dot and some chars around it)
-        val dotIndex = trimmed.indexOf('.')
-        return dotIndex > 0 && dotIndex < trimmed.length - 1
-    }
-
-    private fun extractDomain(urlText: String): String? {
-        var text = urlText.trim().lowercase()
-        // Strip protocol
-        if (text.startsWith("https://")) text = text.removePrefix("https://")
-        else if (text.startsWith("http://")) text = text.removePrefix("http://")
-        // Strip path, query, fragment
-        text = text.split('/')[0]
-        text = text.split('?')[0]
-        text = text.split('#')[0]
-        // Strip port
-        text = text.split(':')[0]
-        if (text.isEmpty() || !text.contains('.')) return null
-        return text
     }
 
     private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {

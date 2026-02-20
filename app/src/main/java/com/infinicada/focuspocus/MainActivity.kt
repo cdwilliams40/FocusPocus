@@ -185,18 +185,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun loadSchedules() {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<Schedule>>() {}.type
-                schedules = gson.fromJson(json, type)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing schedules JSON: ${e.message}", e)
-                schedules = emptyList()
-                sharedPreferences.edit().remove(Constants.PrefsKeys.SCHEDULES).apply()
-                Toast.makeText(this, "Ritual data was corrupted and has been reset", Toast.LENGTH_LONG).show()
-            }
-        }
+        val type = object : TypeToken<List<Schedule>>() {}.type
+        schedules = PrefsHelper.load<List<Schedule>>(
+            sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, type
+        ) {
+            Toast.makeText(this, "Ritual data was corrupted and has been reset", Toast.LENGTH_LONG).show()
+        } ?: emptyList()
     }
 
     private fun saveSchedule(newSchedule: Schedule) {
@@ -206,15 +200,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             return
         }
         val updatedSchedules = schedules.filterNot { it.id == newSchedule.id } + newSchedule
-        val json = gson.toJson(updatedSchedules)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.SCHEDULES, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, updatedSchedules)
         schedules = updatedSchedules
     }
 
     private fun deleteSchedule(scheduleToDelete: Schedule) {
         val updatedSchedules = schedules.filterNot { it.id == scheduleToDelete.id }
-        val json = gson.toJson(updatedSchedules)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.SCHEDULES, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, updatedSchedules)
         schedules = updatedSchedules
     }
 
@@ -239,20 +231,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun loadBlockerLists() {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<Blocker>>() {}.type
-                blockerLists = gson.fromJson(json, type)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing blocker lists JSON: ${e.message}", e)
-                blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
-                sharedPreferences.edit().remove(Constants.PrefsKeys.BLOCKER_LISTS).apply()
-                Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
-            }
-        } else {
-            blockerLists = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
-        }
+        val type = object : TypeToken<List<Blocker>>() {}.type
+        blockerLists = PrefsHelper.load<List<Blocker>>(
+            sharedPreferences, gson, Constants.PrefsKeys.BLOCKER_LISTS, type
+        ) {
+            Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
+        } ?: listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
     }
 
     private fun saveBlocker(newBlocker: Blocker) {
@@ -266,54 +250,47 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             websites = newBlocker.websites?.take(Constants.MAX_WEBSITES_PER_BLOCKER)
         )
         val updatedBlockers = blockerLists.filterNot { it.name == capped.name } + capped
-        val json = gson.toJson(updatedBlockers)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCKER_LISTS, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.BLOCKER_LISTS, updatedBlockers)
         blockerLists = updatedBlockers
     }
 
     private fun deleteBlocker(blockerToDelete: Blocker) {
         val updatedBlockers = blockerLists.filterNot { it.name == blockerToDelete.name }
-        val json = gson.toJson(updatedBlockers)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCKER_LISTS, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.BLOCKER_LISTS, updatedBlockers)
         blockerLists = updatedBlockers
     }
 
     private fun loadFocusPresets() {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_PRESETS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<FocusPreset>>() {}.type
-                focusPresets = gson.fromJson(json, type)
-                return
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing focus presets JSON: ${e.message}", e)
-                sharedPreferences.edit().remove(Constants.PrefsKeys.FOCUS_PRESETS).apply()
-                Toast.makeText(this, "Quick Spell data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
-            }
-        }
-        // Default presets on first load or parse error
-        focusPresets = listOf(
-            FocusPreset(
-                name = Constants.Defaults.FocusPresets.DEEP_WORK_NAME,
-                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
-                durationMinutes = Constants.Defaults.FocusPresets.DEEP_WORK_DURATION,
-                breaksEnabled = Constants.Defaults.FocusPresets.DEEP_WORK_BREAKS
-            ),
-            FocusPreset(
-                name = Constants.Defaults.FocusPresets.QUICK_FOCUS_NAME,
-                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
-                durationMinutes = Constants.Defaults.FocusPresets.QUICK_FOCUS_DURATION,
-                breaksEnabled = Constants.Defaults.FocusPresets.QUICK_FOCUS_BREAKS
-            ),
-            FocusPreset(
-                name = Constants.Defaults.FocusPresets.SLEEP_MODE_NAME,
-                blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
-                durationMinutes = Constants.Defaults.FocusPresets.SLEEP_MODE_DURATION,
-                breaksEnabled = Constants.Defaults.FocusPresets.SLEEP_MODE_BREAKS
+        val type = object : TypeToken<List<FocusPreset>>() {}.type
+        focusPresets = PrefsHelper.load<List<FocusPreset>>(
+            sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, type
+        ) {
+            Toast.makeText(this, "Quick Spell data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
+        } ?: run {
+            val defaults = listOf(
+                FocusPreset(
+                    name = Constants.Defaults.FocusPresets.DEEP_WORK_NAME,
+                    blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                    durationMinutes = Constants.Defaults.FocusPresets.DEEP_WORK_DURATION,
+                    breaksEnabled = Constants.Defaults.FocusPresets.DEEP_WORK_BREAKS
+                ),
+                FocusPreset(
+                    name = Constants.Defaults.FocusPresets.QUICK_FOCUS_NAME,
+                    blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                    durationMinutes = Constants.Defaults.FocusPresets.QUICK_FOCUS_DURATION,
+                    breaksEnabled = Constants.Defaults.FocusPresets.QUICK_FOCUS_BREAKS
+                ),
+                FocusPreset(
+                    name = Constants.Defaults.FocusPresets.SLEEP_MODE_NAME,
+                    blockerName = Constants.Defaults.FocusPresets.DEFAULT_BLOCKER_NAME,
+                    durationMinutes = Constants.Defaults.FocusPresets.SLEEP_MODE_DURATION,
+                    breaksEnabled = Constants.Defaults.FocusPresets.SLEEP_MODE_BREAKS
+                )
             )
-        )
-        val defaultJson = gson.toJson(focusPresets)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, defaultJson).apply()
+            val defaultJson = gson.toJson(defaults)
+            sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, defaultJson).apply()
+            defaults
+        }
     }
 
     private fun saveFocusPreset(preset: FocusPreset) {
@@ -323,30 +300,21 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             return
         }
         val updatedPresets = focusPresets.filterNot { it.id == preset.id } + preset
-        val json = gson.toJson(updatedPresets)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, updatedPresets)
         focusPresets = updatedPresets
     }
 
     private fun deleteFocusPreset(preset: FocusPreset) {
         val updatedPresets = focusPresets.filterNot { it.id == preset.id }
-        val json = gson.toJson(updatedPresets)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.FOCUS_PRESETS, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, updatedPresets)
         focusPresets = updatedPresets
     }
 
     private fun loadAutoTriggers() {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<AutoTrigger>>() {}.type
-                autoTriggers = gson.fromJson(json, type)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing auto triggers JSON: ${e.message}", e)
-                autoTriggers = emptyList()
-                sharedPreferences.edit().remove(Constants.PrefsKeys.AUTO_TRIGGERS).apply()
-            }
-        }
+        val type = object : TypeToken<List<AutoTrigger>>() {}.type
+        autoTriggers = PrefsHelper.load<List<AutoTrigger>>(
+            sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, type
+        ) ?: emptyList()
     }
 
     private fun saveAutoTrigger(trigger: AutoTrigger) {
@@ -356,14 +324,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             return
         }
         val updated = autoTriggers.filterNot { it.id == trigger.id } + trigger
-        sharedPreferences.edit().putString(Constants.PrefsKeys.AUTO_TRIGGERS, gson.toJson(updated)).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, updated)
         autoTriggers = updated
         updateWifiTriggerService()
     }
 
     private fun deleteAutoTrigger(trigger: AutoTrigger) {
         val updated = autoTriggers.filterNot { it.id == trigger.id }
-        sharedPreferences.edit().putString(Constants.PrefsKeys.AUTO_TRIGGERS, gson.toJson(updated)).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, updated)
         autoTriggers = updated
         updateWifiTriggerService()
     }
@@ -401,18 +369,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun loadNamedTags() {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.NAMED_TAGS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<NamedTag>>() {}.type
-                namedTags = gson.fromJson(json, type)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing named tags JSON: ${e.message}", e)
-                namedTags = emptyList()
-                sharedPreferences.edit().remove(Constants.PrefsKeys.NAMED_TAGS).apply()
-                Toast.makeText(this, "Talisman data was corrupted and has been reset", Toast.LENGTH_LONG).show()
-            }
-        }
+        val type = object : TypeToken<List<NamedTag>>() {}.type
+        namedTags = PrefsHelper.load<List<NamedTag>>(
+            sharedPreferences, gson, Constants.PrefsKeys.NAMED_TAGS, type
+        ) {
+            Toast.makeText(this, "Talisman data was corrupted and has been reset", Toast.LENGTH_LONG).show()
+        } ?: emptyList()
     }
 
     private fun saveNamedTag(name: String) {
@@ -424,16 +386,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 return
             }
             val updatedTags = namedTags.filterNot { t -> t.id == newTag.id } + newTag
-            val json = gson.toJson(updatedTags)
-            sharedPreferences.edit().putString(Constants.PrefsKeys.NAMED_TAGS, json).apply()
+            PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.NAMED_TAGS, updatedTags)
             namedTags = updatedTags
         }
     }
 
     private fun deleteNamedTag(tagToDelete: NamedTag) {
         val updatedTags = namedTags.filterNot { it.id == tagToDelete.id }
-        val json = gson.toJson(updatedTags)
-        sharedPreferences.edit().putString(Constants.PrefsKeys.NAMED_TAGS, json).apply()
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.NAMED_TAGS, updatedTags)
         namedTags = updatedTags
     }
 
@@ -758,16 +718,17 @@ fun FocusPocusApp(
         mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false))
     }
 
+    // Session history
+    val gson = remember { Gson() }
+
     // Block events for enhanced statistics
     var blockEvents by remember {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
-        val events: List<BlockEvent> = if (json != null) {
-            try {
-                val type = object : TypeToken<List<BlockEvent>>() {}.type
-                Gson().fromJson(json, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
-        mutableStateOf(events)
+        val type = object : TypeToken<List<BlockEvent>>() {}.type
+        mutableStateOf(
+            PrefsHelper.load<List<BlockEvent>>(
+                sharedPreferences, gson, Constants.PrefsKeys.BLOCK_EVENTS, type
+            ) ?: emptyList()
+        )
     }
 
     // Onboarding
@@ -783,17 +744,13 @@ fun FocusPocusApp(
         mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, 2))
     }
 
-    // Session history
-    val gson = remember { Gson() }
     var focusSessions by remember {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
-        val sessions: List<FocusSession> = if (json != null) {
-            try {
-                val type = object : TypeToken<List<FocusSession>>() {}.type
-                gson.fromJson(json, type)
-            } catch (e: Exception) { emptyList() }
-        } else emptyList()
-        mutableStateOf(sessions)
+        val type = object : TypeToken<List<FocusSession>>() {}.type
+        mutableStateOf(
+            PrefsHelper.load<List<FocusSession>>(
+                sharedPreferences, gson, Constants.PrefsKeys.FOCUS_SESSIONS, type
+            ) ?: emptyList()
+        )
     }
     var longestStreak by remember {
         mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0))
@@ -913,6 +870,28 @@ fun FocusPocusApp(
          } else {
              manualFocusMode = true
          }
+    }
+
+    // Shared logic to re-read all prefs after an external trigger (NFC or QR)
+    fun syncFromPrefs() {
+        manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+        activeManualBlocker = blockerLists.find { it.name == activeBlockerName }
+        focusDurationMinutes = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
+        focusTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+        sessionBreaksEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
+        // Re-read session history so Insights screen stays current
+        val sessionsType = object : TypeToken<List<FocusSession>>() {}.type
+        focusSessions = PrefsHelper.load<List<FocusSession>>(
+            sharedPreferences, gson, Constants.PrefsKeys.FOCUS_SESSIONS, sessionsType
+        ) ?: emptyList()
+        longestStreak = sharedPreferences.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
+
+        // Re-read block events
+        val eventsType = object : TypeToken<List<BlockEvent>>() {}.type
+        blockEvents = PrefsHelper.load<List<BlockEvent>>(
+            sharedPreferences, gson, Constants.PrefsKeys.BLOCK_EVENTS, eventsType
+        ) ?: emptyList()
     }
 
     // Sync UI with NFC preset activation

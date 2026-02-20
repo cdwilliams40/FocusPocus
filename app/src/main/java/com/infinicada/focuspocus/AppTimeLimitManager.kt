@@ -3,7 +3,6 @@ package com.infinicada.focuspocus
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.SharedPreferences
-import android.app.usage.UsageStats
 import java.util.Calendar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -14,7 +13,7 @@ object AppTimeLimitManager {
         val json = prefs.getString(Constants.PrefsKeys.APP_TIME_LIMITS, null) ?: return emptyMap()
         return try {
             val type = object : TypeToken<Map<String, Int>>() {}.type
-            gson.fromJson(json, type)
+            gson.fromJson(json, type) ?: emptyMap()
         } catch (e: Exception) {
             val empty = emptyMap<String, Int>()
             saveTimeLimits(prefs, gson, empty)
@@ -23,7 +22,7 @@ object AppTimeLimitManager {
     }
 
     fun saveTimeLimits(prefs: SharedPreferences, gson: Gson, limits: Map<String, Int>) {
-        prefs.edit().putString(Constants.PrefsKeys.APP_TIME_LIMITS, gson.toJson(limits)).apply()
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.APP_TIME_LIMITS, limits)
     }
 
     fun isOverLimit(context: Context, packageName: String, limitMinutes: Int): Boolean {

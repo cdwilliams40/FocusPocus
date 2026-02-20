@@ -25,7 +25,7 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
         } ?: return
 
         val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        val triggers = loadTriggers(prefs).filter { it.type == TriggerType.BLUETOOTH && it.enabled }
+        val triggers = AutoTriggerHelper.loadTriggers(prefs).filter { it.type == TriggerType.BLUETOOTH && it.enabled }
 
         when (intent.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> {
@@ -36,13 +36,13 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                 if (matchedTrigger != null) {
                     val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (!isManualFocusActive) {
-                        activatePreset(context, prefs, matchedTrigger.presetId)
+                        AutoTriggerHelper.activatePreset(context, prefs, matchedTrigger.presetId)
                         // Persist trigger ID in prefs so a receiver re-instantiation doesn't
                         // lose track of which trigger activated focus
                         prefs.edit()
                             .putString(Constants.PrefsKeys.LAST_BT_TRIGGER_ID, matchedTrigger.id)
                             .apply()
-                        incrementServicesTriggerCount(prefs)
+                        AutoTriggerHelper.incrementServicesTriggerCount(prefs)
                     }
                 }
             }
@@ -56,8 +56,14 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                 if (matchedTrigger != null && matchedTrigger.id == lastTriggerId) {
                     val isManualFocusActive = SessionManager.isSessionActive(prefs)
                     if (isManualFocusActive) {
-                        SessionManager.stopSession(context, prefs, gson)
-                        incrementServicesTriggerCount(prefs)
+                        SessionRecorder.record(prefs, gson)
+                        prefs.edit()
+                            .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                            .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                            .remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID)
+                            .apply()
+                        DndController.updateDndState(context)
+                        AutoTriggerHelper.incrementServicesTriggerCount(prefs)
                     } else {
                         prefs.edit().remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID).apply()
                     }
@@ -65,43 +71,5 @@ class BluetoothTriggerReceiver : BroadcastReceiver() {
                 }
             }
         }
-    }
-
-    private fun activatePreset(context: Context, prefs: android.content.SharedPreferences, presetId: String) {
-        val presetsJson = prefs.getString(Constants.PrefsKeys.FOCUS_PRESETS, null) ?: return
-        val presets: List<FocusPreset> = try {
-            val type = object : TypeToken<List<FocusPreset>>() {}.type
-            gson.fromJson(presetsJson, type)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing presets", e)
-            return
-        }
-        val preset = presets.find { it.id == presetId } ?: return
-
-        val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
-
-        SessionManager.startSession(
-            sharedPreferences = prefs,
-            blockerName = blocker.name,
-            durationMinutes = preset.durationMinutes,
-            breaksEnabled = preset.breaksEnabled
-        )
-
-        DndController.updateDndState(context)
-    }
-
-    private fun loadTriggers(prefs: android.content.SharedPreferences): List<AutoTrigger> {
-        val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<AutoTrigger>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun incrementServicesTriggerCount(prefs: android.content.SharedPreferences) {
-        val current = prefs.getInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, 0)
-        prefs.edit().putInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, current + 1).apply()
     }
 }

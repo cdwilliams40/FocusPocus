@@ -12,8 +12,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.net.wifi.WifiInfo
-import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -99,39 +97,25 @@ class WifiTriggerService : Service() {
     }
 
     private fun extractSsid(capabilities: NetworkCapabilities): String? {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val transportInfo = capabilities.transportInfo
-            if (transportInfo is WifiInfo) {
-                val ssid = transportInfo.ssid
-                if (ssid != null && ssid != "<unknown ssid>") {
-                    return ssid.removeSurrounding("\"")
-                }
-            }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            NetworkUtils.getSsidFromCapabilities(capabilities)
         } else {
-            @Suppress("DEPRECATION")
-            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val info = wifiManager.connectionInfo
-            val ssid = info?.ssid
-            if (ssid != null && ssid != "<unknown ssid>") {
-                return ssid.removeSurrounding("\"")
-            }
+            NetworkUtils.getLegacyWifiSsid(applicationContext)
         }
-        return null
     }
 
     private fun onWifiConnected(ssid: String) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        val triggers = loadTriggers(prefs).filter { it.type == TriggerType.WIFI && it.enabled }
+        val triggers = AutoTriggerHelper.loadTriggers(prefs).filter { it.type == TriggerType.WIFI && it.enabled }
 
         val matchedTrigger = triggers.find { it.identifier.equals(ssid, ignoreCase = true) }
         if (matchedTrigger != null) {
             val isManualFocusActive = SessionManager.isSessionActive(prefs)
             if (!isManualFocusActive) {
-                activatePreset(prefs, matchedTrigger.presetId)
+                AutoTriggerHelper.activatePreset(this, prefs, matchedTrigger.presetId)
                 // Persist the trigger ID so we can still handle disconnect after a service restart
                 prefs.edit().putString(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID, matchedTrigger.id).apply()
-                incrementServicesTriggerCount(prefs)
+                AutoTriggerHelper.incrementServicesTriggerCount(prefs)
             }
         }
     }
@@ -144,51 +128,19 @@ class WifiTriggerService : Service() {
 
         val isManualFocusActive = SessionManager.isSessionActive(prefs)
         if (isManualFocusActive) {
-            SessionManager.stopSession(this, prefs, gson)
-            incrementServicesTriggerCount(prefs)
+            SessionRecorder.record(prefs, gson)
+            prefs.edit()
+                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                .remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID)
+                .apply()
+            AutoTriggerHelper.incrementServicesTriggerCount(prefs)
+            DndController.updateDndState(this)
         } else {
             // Focus was stopped by another means; just clear the stored trigger
             prefs.edit().remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID).apply()
         }
 
         Log.d(TAG, "Wi-Fi disconnected; cleared trigger $lastTriggerId")
-    }
-
-    private fun activatePreset(prefs: SharedPreferences, presetId: String) {
-        val presetsJson = prefs.getString(Constants.PrefsKeys.FOCUS_PRESETS, null) ?: return
-        val presets: List<FocusPreset> = try {
-            val type = object : TypeToken<List<FocusPreset>>() {}.type
-            gson.fromJson(presetsJson, type)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing presets", e)
-            return
-        }
-        val preset = presets.find { it.id == presetId } ?: return
-
-        val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
-
-        SessionManager.startSession(
-            sharedPreferences = prefs,
-            blockerName = blocker.name,
-            durationMinutes = preset.durationMinutes,
-            breaksEnabled = preset.breaksEnabled
-        )
-
-        DndController.updateDndState(this)
-    }
-
-    private fun loadTriggers(prefs: SharedPreferences): List<AutoTrigger> {
-        val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<AutoTrigger>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun incrementServicesTriggerCount(prefs: SharedPreferences) {
-        val current = prefs.getInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, 0)
-        prefs.edit().putInt(Constants.PrefsKeys.SERVICES_TRIGGER_COUNT, current + 1).apply()
     }
 }
