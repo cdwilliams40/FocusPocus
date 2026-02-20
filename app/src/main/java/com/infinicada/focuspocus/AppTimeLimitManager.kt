@@ -20,7 +20,7 @@ object AppTimeLimitManager {
     }
 
     fun saveTimeLimits(prefs: SharedPreferences, gson: Gson, limits: Map<String, Int>) {
-        prefs.edit().putString(Constants.PrefsKeys.APP_TIME_LIMITS, gson.toJson(limits)).apply()
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.APP_TIME_LIMITS, limits)
     }
 
     fun isOverLimit(context: Context, packageName: String, limitMinutes: Int): Boolean {
