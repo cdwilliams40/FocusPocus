@@ -12,8 +12,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.net.wifi.WifiInfo
-import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -99,25 +97,11 @@ class WifiTriggerService : Service() {
     }
 
     private fun extractSsid(capabilities: NetworkCapabilities): String? {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val transportInfo = capabilities.transportInfo
-            if (transportInfo is WifiInfo) {
-                val ssid = transportInfo.ssid
-                if (ssid != null && ssid != "<unknown ssid>") {
-                    return ssid.removeSurrounding("\"")
-                }
-            }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            NetworkUtils.getSsidFromCapabilities(capabilities)
         } else {
-            @Suppress("DEPRECATION")
-            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val info = wifiManager.connectionInfo
-            val ssid = info?.ssid
-            if (ssid != null && ssid != "<unknown ssid>") {
-                return ssid.removeSurrounding("\"")
-            }
+            NetworkUtils.getLegacyWifiSsid(applicationContext)
         }
-        return null
     }
 
     private fun onWifiConnected(ssid: String) {
