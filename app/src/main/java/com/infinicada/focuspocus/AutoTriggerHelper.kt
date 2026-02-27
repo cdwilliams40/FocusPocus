@@ -2,23 +2,18 @@ package com.infinicada.focuspocus
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 object AutoTriggerHelper {
-    private const val TAG = "AutoTriggerHelper"
     private val gson = Gson()
 
     fun activatePreset(context: Context, prefs: SharedPreferences, presetId: String) {
-        val presetsJson = prefs.getString(Constants.PrefsKeys.FOCUS_PRESETS, null) ?: return
-        val presets: List<FocusPreset> = try {
-            val type = object : TypeToken<List<FocusPreset>>() {}.type
-            gson.fromJson(presetsJson, type)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing presets", e)
-            return
-        }
+        val type = object : TypeToken<List<FocusPreset>>() {}.type
+        val presets = PrefsHelper.load<List<FocusPreset>>(
+            prefs, gson, Constants.PrefsKeys.FOCUS_PRESETS, type
+        ) ?: return
+
         val preset = presets.find { it.id == presetId } ?: return
 
         val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
@@ -37,13 +32,10 @@ object AutoTriggerHelper {
     }
 
     fun loadTriggers(prefs: SharedPreferences): List<AutoTrigger> {
-        val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<AutoTrigger>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val type = object : TypeToken<List<AutoTrigger>>() {}.type
+        return PrefsHelper.load<List<AutoTrigger>>(
+            prefs, gson, Constants.PrefsKeys.AUTO_TRIGGERS, type
+        ) ?: emptyList()
     }
 
     fun incrementServicesTriggerCount(prefs: SharedPreferences) {
