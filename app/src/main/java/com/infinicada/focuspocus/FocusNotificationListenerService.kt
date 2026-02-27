@@ -27,7 +27,7 @@ class FocusNotificationListenerService : NotificationListenerService() {
         // Never cancel our own notifications or Android system notifications
         if (pkg == packageName || pkg == "android" || pkg == "com.android.systemui") return
 
-        if (shouldBlockApp(pkg, blocker)) {
+        if (blocker.shouldBlock(pkg)) {
             try {
                 cancelNotification(sbn.key)
             } catch (e: Exception) {
@@ -36,10 +36,4 @@ class FocusNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    private fun shouldBlockApp(packageName: String, blocker: Blocker): Boolean {
-        return when (blocker.mode) {
-            BlockerMode.BLACKLIST -> blocker.apps.contains(packageName)
-            BlockerMode.WHITELIST -> !blocker.apps.contains(packageName)
-        }
-    }
 }
