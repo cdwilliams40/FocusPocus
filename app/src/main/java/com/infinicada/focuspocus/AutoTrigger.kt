@@ -1,9 +1,7 @@
 package com.infinicada.focuspocus
 
-import java.util.UUID
-
 data class AutoTrigger(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val type: TriggerType,
     val identifier: String,
