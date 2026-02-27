@@ -14,7 +14,7 @@ class BlockerPerformanceTest {
 
         // Warmup
         repeat(1000) {
-            shouldBlockApp("com.example.app1", blocker)
+            blocker.shouldBlock("com.example.app1")
         }
 
         val time = measureNanoTime {
@@ -24,17 +24,11 @@ class BlockerPerformanceTest {
                 } else {
                     "com.example.nonexistent$i" // Miss
                 }
-                shouldBlockApp(packageName, blocker)
+                blocker.shouldBlock(packageName)
             }
         }
 
         println("Time taken for $lookupCount lookups: ${time / 1_000_000} ms")
     }
 
-    private fun shouldBlockApp(packageName: String, blocker: Blocker): Boolean {
-        return when (blocker.mode) {
-            BlockerMode.BLACKLIST -> blocker.apps.contains(packageName)
-            BlockerMode.WHITELIST -> !blocker.apps.contains(packageName)
-        }
-    }
 }

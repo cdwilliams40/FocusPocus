@@ -41,4 +41,16 @@ class UsageStatsHelperTest {
         // 25h 5m = (25 * 60 + 5) minutes = 1505 minutes
         assertEquals("25h 5m", UsageStatsHelper.formatDuration(1505 * 60 * 1000L))
     }
+
+    @Test
+    fun formatDuration_minutesAndSeconds_ignoresSeconds() {
+        // 1m 30s = 90000ms. Should format to "1m" as seconds are ignored/truncated
+        assertEquals("1m", UsageStatsHelper.formatDuration(90000))
+    }
+
+    @Test
+    fun formatDuration_hoursAndSeconds_ignoresSeconds() {
+        // 1h 0m 30s = 3600000 + 30000 = 3630000ms. Should format to "1h 0m"
+        assertEquals("1h 0m", UsageStatsHelper.formatDuration(3630000))
+    }
 }
