@@ -45,6 +45,10 @@ class FakeSharedPreferences : SharedPreferences {
         map[key] = value
     }
 
+    fun putBoolean(key: String, value: Boolean) {
+        map[key] = value
+    }
+
     inner class FakeEditor(private val prefs: FakeSharedPreferences) : SharedPreferences.Editor {
         private val changes = mutableMapOf<String, Any?>()
         private val removals = mutableListOf<String>()
