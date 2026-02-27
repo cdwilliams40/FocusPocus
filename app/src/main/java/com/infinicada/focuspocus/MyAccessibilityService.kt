@@ -23,7 +23,6 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
-        private const val MAX_TREE_DEPTH = 10
 
         private val BROWSER_URL_BAR_IDS = mapOf(
             "com.android.chrome" to "com.android.chrome:id/url_bar",
@@ -514,59 +513,10 @@ class MyAccessibilityService : AccessibilityService() {
         // Fallback: walk the node tree looking for URL-like text
         val rootNode = rootInActiveWindow ?: return null
         try {
-            return findUrlInNodeTree(rootNode, 0)
+            return AccessibilityTraverser.findUrlInNodeTree(rootNode, 0)
         } finally {
             rootNode.recycle()
         }
-    }
-
-    private data class NodeState(val node: AccessibilityNodeInfo, var nextChildIndex: Int, val depth: Int)
-
-    private fun findUrlInNodeTree(rootNode: AccessibilityNodeInfo, initialDepth: Int): String? {
-        val stack = java.util.ArrayDeque<NodeState>()
-        stack.push(NodeState(rootNode, 0, initialDepth))
-
-        while (stack.isNotEmpty()) {
-            val state = stack.peek() ?: break
-            val node = state.node
-            val depth = state.depth
-
-            // Check node itself (only once, when nextChildIndex == 0)
-            if (state.nextChildIndex == 0) {
-                if (depth > MAX_TREE_DEPTH) {
-                    stack.pop()
-                    if (node != rootNode) node.recycle()
-                    continue
-                }
-
-                val text = node.text?.toString()
-                if (text != null && node.isEditable && UrlUtils.looksLikeUrl(text)) {
-                    val result = text
-                    // Cleanup stack: recycle all nodes except rootNode
-                    while (stack.isNotEmpty()) {
-                        val s = stack.pop()
-                        if (s.node != rootNode) s.node.recycle()
-                    }
-                    return result
-                }
-            }
-
-            // Get next child
-            if (state.nextChildIndex < node.childCount) {
-                val i = state.nextChildIndex
-                state.nextChildIndex++
-
-                val child = node.getChild(i)
-                if (child != null) {
-                    stack.push(NodeState(child, 0, depth + 1))
-                }
-            } else {
-                // Done with this node
-                stack.pop()
-                if (node != rootNode) node.recycle()
-            }
-        }
-        return null
     }
 
     private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {
