@@ -2,7 +2,6 @@ package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 /**
  * Shared utility for recording completed focus sessions to SharedPreferences.
@@ -43,8 +42,9 @@ object SessionRecorder {
         val json = prefs.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)
         val sessions: MutableList<FocusSession> = if (json != null) {
             try {
-                val type = object : TypeToken<MutableList<FocusSession>>() {}.type
-                gson.fromJson(json, type)
+                // Use Array deserialization to avoid TypeToken
+                val array = gson.fromJson(json, Array<FocusSession>::class.java)
+                array?.toMutableList() ?: mutableListOf()
             } catch (_: Exception) { mutableListOf() }
         } else mutableListOf()
 
