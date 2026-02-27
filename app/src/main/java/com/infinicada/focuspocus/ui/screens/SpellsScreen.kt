@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.infinicada.focuspocus.AppInfo
@@ -351,6 +352,13 @@ fun CreateBlockerScreen(
             value = name,
             onValueChange = { if (it.length <= 100) name = it },
             label = { Text("Enchantment Name") },
+            supportingText = {
+                Text(
+                    text = "${name.length}/100",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End
+                )
+            },
             modifier = Modifier.fillMaxWidth()
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -754,6 +762,13 @@ fun PresetEditorDialog(
                     value = name,
                     onValueChange = { if (it.length <= 100) name = it },
                     label = { Text("Name") },
+                    supportingText = {
+                        Text(
+                            text = "${name.length}/100",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
