@@ -376,7 +376,7 @@ class MyAccessibilityService : AccessibilityService() {
             val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
             activeBlocker?.let {
-                if (shouldBlockApp(packageName, it)) {
+                if (it.shouldBlock(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     recordBlockEvent(packageName, it.name)
@@ -600,13 +600,6 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun isSystemUI(packageName: String): Boolean {
         return packageName == "com.android.systemui" || packageName == "android"
-    }
-
-    private fun shouldBlockApp(packageName: String, blocker: Blocker): Boolean {
-        return when (blocker.mode) {
-            BlockerMode.BLACKLIST -> blocker.apps.contains(packageName)
-            BlockerMode.WHITELIST -> !blocker.apps.contains(packageName)
-        }
     }
 
     private fun closeApp() {
