@@ -205,7 +205,7 @@ class MyAccessibilityService : AccessibilityService() {
                 cachedSchedules = parsed
                 parsed
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing schedules JSON")
+                Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
                 cachedSchedulesJson = null
                 cachedSchedules = emptyList()
                 emptyList()
@@ -236,7 +236,7 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("MyAccessibilityService", "Error parsing schedule end time")
+                    Log.e("MyAccessibilityService", "Error parsing schedule end time", e)
                 }
             }
         }
@@ -257,7 +257,7 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("MyAccessibilityService", "Error parsing schedule time")
+                    Log.e("MyAccessibilityService", "Error parsing schedule time", e)
                 }
             }
         }

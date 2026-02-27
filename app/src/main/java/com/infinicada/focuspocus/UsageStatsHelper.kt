@@ -101,7 +101,7 @@ object UsageStatsHelper {
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_BEST, startTime, endTime
         )
-        return stats
+        return (stats ?: emptyList())
             .filter { it.totalTimeInForeground > 0 }
             .groupBy { it.packageName }
             .map { (packageName, usageList) ->
