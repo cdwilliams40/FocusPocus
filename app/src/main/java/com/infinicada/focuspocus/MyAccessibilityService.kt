@@ -484,7 +484,7 @@ class MyAccessibilityService : AccessibilityService() {
         val matchedDomain = blockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
             lastWebsiteBlockTime = now
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking website: $domain (matched $matchedDomain)")
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
             recordBlockEvent(matchedDomain, activeBlocker.name)
             closeApp()
             showOverlay(matchedDomain, activeBlocker.name)
