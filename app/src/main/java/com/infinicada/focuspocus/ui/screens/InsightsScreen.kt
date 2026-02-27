@@ -58,12 +58,12 @@ import java.util.Locale
 fun UsageStatsScreen(
     blockerLists: List<Blocker>,
     installedApps: List<AppInfo>,
+    modifier: Modifier = Modifier,
     focusSessions: List<FocusSession> = emptyList(),
     currentStreak: Int = 0,
     longestStreak: Int = 0,
     blockEvents: List<BlockEvent> = emptyList(),
-    appTimeLimits: Map<String, Int> = emptyMap(),
-    modifier: Modifier = Modifier
+    appTimeLimits: Map<String, Int> = emptyMap()
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
