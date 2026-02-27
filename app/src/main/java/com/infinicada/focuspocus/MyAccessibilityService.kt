@@ -571,9 +571,23 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {
         if (blockedDomain.length > 255 || navigatedDomain.length > 2048) return false
-        val nav = navigatedDomain.lowercase()
-        val blocked = blockedDomain.lowercase()
-        return nav == blocked || nav.endsWith(".$blocked")
+
+        val navLen = navigatedDomain.length
+        val blockedLen = blockedDomain.length
+
+        if (navLen < blockedLen) return false
+
+        if (navLen == blockedLen) {
+            return navigatedDomain.regionMatches(0, blockedDomain, 0, blockedLen, ignoreCase = true)
+        }
+
+        // navLen > blockedLen
+        // Check for ending with ".$blockedDomain"
+        val offset = navLen - blockedLen
+        // The character before the match must be a dot
+        if (navigatedDomain[offset - 1] != '.') return false
+
+        return navigatedDomain.regionMatches(offset, blockedDomain, 0, blockedLen, ignoreCase = true)
     }
 
     private var cachedLauncherPackageName: String? = null
