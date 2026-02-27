@@ -7,13 +7,13 @@ import com.google.gson.reflect.TypeToken
 
 object AutoTriggerHelper {
     private val gson = Gson()
+    private var cachedPresetsJson: String? = null
+    private var cachedPresets: List<FocusPreset> = emptyList()
+    private var cachedTriggersJson: String? = null
+    private var cachedTriggers: List<AutoTrigger> = emptyList()
 
     fun activatePreset(context: Context, prefs: SharedPreferences, presetId: String) {
-        val type = object : TypeToken<List<FocusPreset>>() {}.type
-        val presets = PrefsHelper.load<List<FocusPreset>>(
-            prefs, gson, Constants.PrefsKeys.FOCUS_PRESETS, type
-        ) ?: return
-
+        val presets = getPresets(prefs)
         val preset = presets.find { it.id == presetId } ?: return
 
         val blocker = BlockerRepository.getBlocker(prefs, preset.blockerName) ?: return
@@ -31,11 +31,60 @@ object AutoTriggerHelper {
         DndController.updateDndState(context)
     }
 
+    private fun getPresets(prefs: SharedPreferences): List<FocusPreset> {
+        val json = prefs.getString(Constants.PrefsKeys.FOCUS_PRESETS, null)
+
+        synchronized(this) {
+            if (json == null) {
+                cachedPresetsJson = null
+                cachedPresets = emptyList()
+                return emptyList()
+            }
+
+            if (json == cachedPresetsJson) {
+                return cachedPresets
+            }
+
+            return try {
+                val type = object : TypeToken<List<FocusPreset>>() {}.type
+                val parsed: List<FocusPreset> = gson.fromJson(json, type)
+                cachedPresetsJson = json
+                cachedPresets = parsed
+                parsed
+            } catch (e: Exception) {
+                cachedPresetsJson = null
+                cachedPresets = emptyList()
+                emptyList()
+            }
+        }
+    }
+
     fun loadTriggers(prefs: SharedPreferences): List<AutoTrigger> {
-        val type = object : TypeToken<List<AutoTrigger>>() {}.type
-        return PrefsHelper.load<List<AutoTrigger>>(
-            prefs, gson, Constants.PrefsKeys.AUTO_TRIGGERS, type
-        ) ?: emptyList()
+        val json = prefs.getString(Constants.PrefsKeys.AUTO_TRIGGERS, null)
+
+        synchronized(this) {
+            if (json == null) {
+                cachedTriggersJson = null
+                cachedTriggers = emptyList()
+                return emptyList()
+            }
+
+            if (json == cachedTriggersJson) {
+                return cachedTriggers
+            }
+
+            return try {
+                val type = object : TypeToken<List<AutoTrigger>>() {}.type
+                val parsed: List<AutoTrigger> = gson.fromJson(json, type)
+                cachedTriggersJson = json
+                cachedTriggers = parsed
+                parsed
+            } catch (e: Exception) {
+                cachedTriggersJson = null
+                cachedTriggers = emptyList()
+                emptyList()
+            }
+        }
     }
 
     fun incrementServicesTriggerCount(prefs: SharedPreferences) {
