@@ -9,21 +9,25 @@ android {
 
     defaultConfig {
         applicationId = "com.infinicada.focuspocus"
-        minSdk = 24
+        minSdk = 29
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.8.3"
+        versionCode = 12
+        versionName = "0.8.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
