@@ -87,21 +87,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var themeMode by mutableStateOf(ThemeMode.SYSTEM)
     private var nfcTriggerCount by mutableStateOf(0)
     private var qrTriggerCount by mutableStateOf(0)
-    private var autoTriggers by mutableStateOf<List<AutoTrigger>>(emptyList())
     private var appTimeLimits by mutableStateOf<Map<String, Int>>(emptyMap())
-    // Incremented whenever a background service (WiFi/BT) changes focus state, so the
-    // composable knows to re-sync its state from SharedPreferences.
-    private var servicesTriggerCount by mutableStateOf(0)
 
     private lateinit var scanLauncher: ActivityResultLauncher<ScanOptions>
-
-    // Watches SERVICES_TRIGGER_COUNT written by WifiTriggerService / BluetoothTriggerReceiver.
-    // Registered in onResume / unregistered in onPause to avoid leaks.
-    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == Constants.PrefsKeys.SERVICES_TRIGGER_COUNT) {
-            servicesTriggerCount++
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,7 +113,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         loadBlockerLists()
         loadSchedules()
         loadFocusPresets()
-        loadAutoTriggers()
         loadAppTimeLimits()
 
         // Load installed apps off the main thread; lifecycleScope cancels automatically on destroy
@@ -153,7 +140,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     activeScheduleId = activeScheduleId,
                     nfcTriggerCount = nfcTriggerCount,
-                    servicesTriggerCount = servicesTriggerCount,
                     themeMode = themeMode,
                     onThemeModeChanged = { newMode ->
                         themeMode = newMode
@@ -170,9 +156,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     onDeleteFocusPreset = { preset -> deleteFocusPreset(preset) },
                     onScanQrCode = { launchQrScanner() },
                     qrTriggerCount = qrTriggerCount,
-                    autoTriggers = autoTriggers,
-                    onSaveAutoTrigger = { trigger -> saveAutoTrigger(trigger) },
-                    onDeleteAutoTrigger = { trigger -> deleteAutoTrigger(trigger) },
                     appTimeLimits = appTimeLimits,
                     onSaveAppTimeLimit = { pkg, limit -> saveAppTimeLimit(pkg, limit) },
                     onDeleteAppTimeLimit = { pkg -> deleteAppTimeLimit(pkg) },
@@ -308,42 +291,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val updatedPresets = focusPresets.filterNot { it.id == preset.id }
         PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, updatedPresets)
         focusPresets = updatedPresets
-    }
-
-    private fun loadAutoTriggers() {
-        val type = object : TypeToken<List<AutoTrigger>>() {}.type
-        autoTriggers = PrefsHelper.load<List<AutoTrigger>>(
-            sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, type
-        ) ?: emptyList()
-    }
-
-    private fun saveAutoTrigger(trigger: AutoTrigger) {
-        val isUpdate = autoTriggers.any { it.id == trigger.id }
-        if (!isUpdate && autoTriggers.size >= Constants.MAX_AUTO_TRIGGERS) {
-            Toast.makeText(this, "Maximum of ${Constants.MAX_AUTO_TRIGGERS} auto triggers reached", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val updated = autoTriggers.filterNot { it.id == trigger.id } + trigger
-        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, updated)
-        autoTriggers = updated
-        updateWifiTriggerService()
-    }
-
-    private fun deleteAutoTrigger(trigger: AutoTrigger) {
-        val updated = autoTriggers.filterNot { it.id == trigger.id }
-        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.AUTO_TRIGGERS, updated)
-        autoTriggers = updated
-        updateWifiTriggerService()
-    }
-
-    private fun updateWifiTriggerService() {
-        val hasWifiTriggers = autoTriggers.any { it.type == TriggerType.WIFI && it.enabled }
-        val intent = Intent(this, WifiTriggerService::class.java)
-        if (hasWifiTriggers) {
-            androidx.core.content.ContextCompat.startForegroundService(this, intent)
-        } else {
-            stopService(intent)
-        }
     }
 
     private fun loadAppTimeLimits() {
@@ -546,14 +493,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
-        // Start observing service-triggered focus changes while the Activity is visible
-        sharedPreferences.registerOnSharedPreferenceChangeListener(prefChangeListener)
     }
 
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
-        sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
     }
 
     override fun onTagDiscovered(tag: Tag?) {
@@ -662,10 +606,6 @@ fun FocusPocusApp(
     onDeleteFocusPreset: (FocusPreset) -> Unit,
     onScanQrCode: () -> Unit = {},
     qrTriggerCount: Int = 0,
-    servicesTriggerCount: Int = 0,
-    autoTriggers: List<AutoTrigger> = emptyList(),
-    onSaveAutoTrigger: (AutoTrigger) -> Unit = {},
-    onDeleteAutoTrigger: (AutoTrigger) -> Unit = {},
     appTimeLimits: Map<String, Int> = emptyMap(),
     onSaveAppTimeLimit: (String, Int) -> Unit = { _, _ -> },
     onDeleteAppTimeLimit: (String) -> Unit = {},
@@ -876,11 +816,6 @@ fun FocusPocusApp(
     // Sync UI with QR code activation
     LaunchedEffect(qrTriggerCount) {
         if (qrTriggerCount > 0) { syncFromPrefs() }
-    }
-
-    // Sync UI when a background service (WiFi/BT trigger) changes focus state
-    LaunchedEffect(servicesTriggerCount) {
-        if (servicesTriggerCount > 0) { syncFromPrefs() }
     }
 
     // Onboarding screen
@@ -1174,10 +1109,6 @@ fun FocusPocusApp(
                             onCreateClick = { scheduleScreen = ScheduleScreenRoute.CreateSchedule },
                             onDeleteSchedule = onDeleteSchedule,
                             activeScheduleId = activeScheduleId,
-                            autoTriggers = autoTriggers,
-                            focusPresets = focusPresets,
-                            onSaveAutoTrigger = onSaveAutoTrigger,
-                            onDeleteAutoTrigger = onDeleteAutoTrigger,
                             modifier = contentModifier
                         )
                         is ScheduleScreenRoute.CreateSchedule -> ScheduleEditorScreen(
@@ -1362,10 +1293,6 @@ fun GreetingPreview() {
             onDeleteFocusPreset = {},
             onScanQrCode = {},
             qrTriggerCount = 0,
-            servicesTriggerCount = 0,
-            autoTriggers = emptyList(),
-            onSaveAutoTrigger = {},
-            onDeleteAutoTrigger = {},
             appTimeLimits = emptyMap(),
             onSaveAppTimeLimit = { _, _ -> },
             onDeleteAppTimeLimit = {}
