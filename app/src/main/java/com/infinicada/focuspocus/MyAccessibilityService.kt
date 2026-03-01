@@ -23,6 +23,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
+        private const val APP_BLOCK_DEBOUNCE_MS = 2000L
 
         private val BROWSER_URL_BAR_IDS = mapOf(
             "com.android.chrome" to "com.android.chrome:id/url_bar",
@@ -69,6 +70,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     // Debounce for website blocking to prevent rapid re-triggering
     private var lastWebsiteBlockTime: Long = 0
+
+    // Debounce for app blocking to prevent rapid re-triggering
+    private var lastAppBlockTime: Long = 0
 
     // Cache for time limits
     private var cachedTimeLimitsJson: String? = null
@@ -347,6 +351,10 @@ class MyAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
 
+        // Debounce — prevent rapid re-triggering when Android fires multiple events
+        val now = System.currentTimeMillis()
+        if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
+
         val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
@@ -357,6 +365,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (focusActive && nfcLockMode && packageName in SETTINGS_PACKAGES) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
+            lastAppBlockTime = now
             closeApp()
             showOverlay(appName, "Talisman Lock")
             return
@@ -378,6 +387,7 @@ class MyAccessibilityService : AccessibilityService() {
                 if (it.shouldBlock(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
+                    lastAppBlockTime = now
                     recordBlockEvent(packageName, it.name)
                     closeApp()
                     showOverlay(appName, it.name)
@@ -396,6 +406,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (timeLimitChecker.shouldBlock(packageName, limit)) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
+            lastAppBlockTime = System.currentTimeMillis()
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
             showOverlay(appName, "Daily Time Limit Reached")

@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -50,13 +51,31 @@ class OverlayActivity : ComponentActivity() {
         val appName = intent.getStringExtra("appName") ?: "App"
         val spellName = intent.getStringExtra("spellName")
 
+        renderOverlay(appName, spellName)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
+    private fun closeAndGoHome() {
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(homeIntent)
+        finishAndRemoveTask()
+    }
+
+    private fun renderOverlay(appName: String, spellName: String?) {
         setContent {
             FocusPocusTheme {
                 OverlayScreen(
                     appName = appName,
                     spellName = spellName,
                     delaySeconds = CLOSE_DELAY_SECONDS,
-                    onClose = { finish() }
+                    onClose = { closeAndGoHome() }
                 )
             }
         }
