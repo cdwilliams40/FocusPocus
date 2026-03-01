@@ -52,8 +52,6 @@ object SessionManager {
             .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
             .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
             .remove(Constants.PrefsKeys.SESSION_START_TIME)
-            .remove(Constants.PrefsKeys.LAST_BT_TRIGGER_ID)
-            .remove(Constants.PrefsKeys.LAST_WIFI_TRIGGER_ID)
             .apply()
 
         DndController.updateDndState(context)

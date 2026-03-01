@@ -49,8 +49,6 @@ class MyAccessibilityService : AccessibilityService() {
     private val gson = Gson()
     private var browserPackages: Set<String> = emptySet()
     private var receiverRegistered = false
-    private var btReceiverRegistered = false
-    private val bluetoothTriggerReceiver = BluetoothTriggerReceiver()
 
     private var packageReceiverRegistered = false
     private val packageReceiver = object : BroadcastReceiver() {
@@ -114,20 +112,6 @@ class MyAccessibilityService : AccessibilityService() {
         }
         receiverRegistered = true
 
-        // Register Bluetooth trigger receiver
-        // Must use RECEIVER_EXPORTED because BT ACL broadcasts come from com.android.bluetooth
-        // (a separate UID from system_server), so RECEIVER_NOT_EXPORTED would block them on API 33+
-        val btFilter = IntentFilter().apply {
-            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED)
-            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(bluetoothTriggerReceiver, btFilter, Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(bluetoothTriggerReceiver, btFilter)
-        }
-        btReceiverRegistered = true
-
         updateBrowserPackages()
         val packageFilter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -153,14 +137,6 @@ class MyAccessibilityService : AccessibilityService() {
                 receiverRegistered = false
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error unregistering receiver", e)
-            }
-        }
-        if (btReceiverRegistered) {
-            try {
-                unregisterReceiver(bluetoothTriggerReceiver)
-                btReceiverRegistered = false
-            } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error unregistering BT receiver", e)
             }
         }
         if (packageReceiverRegistered) {

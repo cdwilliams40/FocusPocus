@@ -5,8 +5,6 @@ import com.google.gson.Gson
 
 /**
  * Shared utility for recording completed focus sessions to SharedPreferences.
- * Replaces the duplicated recordSession() logic that previously existed in
- * WifiTriggerService, BluetoothTriggerReceiver, and MainActivity.
  */
 object SessionRecorder {
 
