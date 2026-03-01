@@ -89,6 +89,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var qrTriggerCount by mutableStateOf(0)
     private var appTimeLimits by mutableStateOf<Map<String, Int>>(emptyMap())
 
+    // Deep link confirmation state
+    private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
+    private var showDeepLinkConfirmation by mutableStateOf(false)
+
     private lateinit var scanLauncher: ActivityResultLauncher<ScanOptions>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,6 +165,38 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     onDeleteAppTimeLimit = { pkg -> deleteAppTimeLimit(pkg) },
                     modifier = Modifier
                 )
+
+                // Deep link confirmation dialog (CSRF protection)
+                if (showDeepLinkConfirmation) {
+                    val preset = pendingDeepLinkPreset
+                    if (preset != null) {
+                        val isActive = SessionManager.isSessionActive(sharedPreferences)
+                        val actionDescription = when (preset.action ?: PresetAction.TOGGLE) {
+                            PresetAction.TEMP_ENABLE -> "activate \"${preset.name}\" for ${preset.tempDurationMinutes ?: 30} minutes"
+                            PresetAction.TEMP_DISABLE -> if (isActive) "start a ${preset.tempDurationMinutes ?: 30} minute break" else "pause focus (no active session)"
+                            PresetAction.TOGGLE -> if (isActive) "dispel \"${preset.name}\"" else "cast \"${preset.name}\""
+                        }
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { dismissDeepLinkConfirmation() },
+                            title = { androidx.compose.material3.Text("Confirm Action") },
+                            text = {
+                                androidx.compose.material3.Text(
+                                    "An external link is requesting to $actionDescription. Allow this?"
+                                )
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.Button(onClick = { confirmDeepLinkAction() }) {
+                                    androidx.compose.material3.Text("Allow")
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.OutlinedButton(onClick = { dismissDeepLinkConfirmation() }) {
+                                    androidx.compose.material3.Text("Deny")
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -462,11 +498,37 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         if (data.scheme == "focuspocus") {
             val id = data.pathSegments.firstOrNull() ?: return
             if (!validIdPattern.matches(id)) return
-            when (data.host) {
-                "preset" -> handleQrResult("focuspocus://preset/$id")
-                "talisman" -> handleQrResult("focuspocus://talisman/$id")
+
+            // Resolve the preset that would be affected
+            val preset: FocusPreset? = when (data.host) {
+                "preset" -> focusPresets.find { it.id == id }
+                "talisman" -> {
+                    val talisman = namedTags.find { it.id == id }
+                    if (talisman != null) focusPresets.find { it.talismanId == id } else null
+                }
+                else -> null
+            }
+
+            if (preset != null) {
+                // Show confirmation instead of acting immediately (CSRF protection)
+                pendingDeepLinkPreset = preset
+                showDeepLinkConfirmation = true
             }
         }
+    }
+
+    fun confirmDeepLinkAction() {
+        pendingDeepLinkPreset?.let { preset ->
+            if (togglePreset(preset)) {
+                qrTriggerCount++
+            }
+        }
+        dismissDeepLinkConfirmation()
+    }
+
+    fun dismissDeepLinkConfirmation() {
+        pendingDeepLinkPreset = null
+        showDeepLinkConfirmation = false
     }
 
     fun launchQrScanner() {

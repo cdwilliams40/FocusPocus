@@ -5,17 +5,29 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preserve line numbers for meaningful stack traces
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Gson ---
+# Keep Gson's own internals
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep all data classes serialized/deserialized with Gson.
+# R8 can strip or rename fields that Gson accesses via reflection.
+-keep class com.infinicada.focuspocus.Blocker { *; }
+-keep class com.infinicada.focuspocus.BlockerMode { *; }
+-keep class com.infinicada.focuspocus.BlockEvent { *; }
+-keep class com.infinicada.focuspocus.FocusSession { *; }
+-keep class com.infinicada.focuspocus.NamedTag { *; }
+-keep class com.infinicada.focuspocus.Schedule { *; }
+-keep class com.infinicada.focuspocus.FocusPreset { *; }
+-keep class com.infinicada.focuspocus.DayOfWeek { *; }
+-keep class com.infinicada.focuspocus.PresetAction { *; }
+
+# --- ZXing (QR code library) ---
+-keep class com.google.zxing.** { *; }
+-keep class com.journeyapps.** { *; }
