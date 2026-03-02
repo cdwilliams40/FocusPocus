@@ -24,13 +24,20 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,20 +51,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
-import com.infinicada.focuspocus.ui.screens.ProfileScreen
+import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
+import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleListScreen
+import com.infinicada.focuspocus.ui.screens.SettingsScreen
+import com.infinicada.focuspocus.ui.screens.SpellbookScreen
+import com.infinicada.focuspocus.ui.screens.TalismansScreen
+import com.infinicada.focuspocus.ui.screens.TimeLimitsScreen
 import com.infinicada.focuspocus.ui.screens.UsageStatsScreen
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.ThemeMode
@@ -630,16 +636,28 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 }
 
-sealed class Screen {
-    object BlockerList : Screen()
-    object CreateBlocker : Screen()
-    object EditBlocker : Screen()
+sealed class SpellbookRoute {
+    object Overview : SpellbookRoute()
+    // Enchantments
+    object EnchantmentsList : SpellbookRoute()
+    object CreateEnchantment : SpellbookRoute()
+    object EditEnchantment : SpellbookRoute()
+    // Quick Spells
+    object QuickSpellsList : SpellbookRoute()
+    object CreateQuickSpell : SpellbookRoute()
+    data class EditQuickSpell(val preset: FocusPreset) : SpellbookRoute()
+    // Rituals
+    object RitualsList : SpellbookRoute()
+    object CreateRitual : SpellbookRoute()
+    data class EditRitual(val schedule: Schedule) : SpellbookRoute()
+    // Talismans & Time Limits
+    object Talismans : SpellbookRoute()
+    object TimeLimits : SpellbookRoute()
 }
 
-sealed class ScheduleScreenRoute {
-    object ScheduleList : ScheduleScreenRoute()
-    object CreateSchedule : ScheduleScreenRoute()
-    data class EditSchedule(val schedule: Schedule) : ScheduleScreenRoute()
+sealed class TopLevelRoute {
+    object Main : TopLevelRoute()
+    object Settings : TopLevelRoute()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -918,9 +936,9 @@ fun FocusPocusApp(
 
     var showBlockerSelectionDialog by remember { mutableStateOf(false) }
     val focusMode = focusTagId != null || manualFocusMode
-    var screen by remember { mutableStateOf<Screen>(Screen.BlockerList) }
-    var scheduleScreen by remember { mutableStateOf<ScheduleScreenRoute>(ScheduleScreenRoute.ScheduleList) }
+    var spellbookRoute by remember { mutableStateOf<SpellbookRoute>(SpellbookRoute.Overview) }
     var selectedBlocker by remember { mutableStateOf<Blocker?>(null) }
+    var topLevelRoute by remember { mutableStateOf<TopLevelRoute>(TopLevelRoute.Main) }
 
     val activeSchedule = remember(activeScheduleId, schedules) {
         schedules.find { it.id == activeScheduleId }
@@ -939,6 +957,70 @@ fun FocusPocusApp(
         )
     }
 
+    // Settings screen (shown above the tab layout)
+    if (topLevelRoute is TopLevelRoute.Settings) {
+        LaunchedEffect(Unit) {
+            isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
+        }
+        SettingsScreen(
+            themeMode = themeMode,
+            onThemeModeChanged = onThemeModeChanged,
+            breakDurationMinutes = breakDurationMinutes,
+            maxBreaksPerSession = maxBreaksPerSession,
+            onBreakDurationChanged = { newDuration ->
+                breakDurationMinutes = newDuration
+                sharedPreferences.edit().putInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, newDuration).apply()
+            },
+            onMaxBreaksChanged = { newMax ->
+                maxBreaksPerSession = newMax
+                sharedPreferences.edit().putInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, newMax).apply()
+            },
+            emergencyBreakCadenceWeeks = emergencyBreakCadenceWeeks,
+            onEmergencyBreakCadenceChanged = { newCadence ->
+                emergencyBreakCadenceWeeks = newCadence
+                sharedPreferences.edit().putInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, newCadence).apply()
+            },
+            hideStopButton = hideStopButton,
+            onHideStopButtonChanged = { enabled ->
+                hideStopButton = enabled
+                sharedPreferences.edit().putBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, enabled).apply()
+            },
+            muteNotifications = muteBlockedNotifications,
+            isNotificationListenerEnabled = isNotificationListenerEnabled,
+            onMuteNotificationsChanged = { enabled ->
+                muteBlockedNotifications = enabled
+                sharedPreferences.edit().putBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, enabled).apply()
+                DndController.updateDndState(context)
+            },
+            onOpenNotificationSettings = {
+                val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                context.startActivity(intent)
+            },
+            nfcLockMode = nfcLockMode,
+            onNfcLockModeChanged = { enabled ->
+                nfcLockMode = enabled
+                sharedPreferences.edit().putBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, enabled).apply()
+            },
+            namedTags = namedTags,
+            focusMode = focusMode,
+            onNavigateBack = { topLevelRoute = TopLevelRoute.Main },
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    // Back handler for spellbook sub-routes
+    if (spellbookRoute !is SpellbookRoute.Overview && currentDestination == AppDestinations.SPELLBOOK) {
+        BackHandler {
+            spellbookRoute = when (spellbookRoute) {
+                is SpellbookRoute.CreateEnchantment, is SpellbookRoute.EditEnchantment -> SpellbookRoute.EnchantmentsList
+                is SpellbookRoute.CreateQuickSpell, is SpellbookRoute.EditQuickSpell -> SpellbookRoute.QuickSpellsList
+                is SpellbookRoute.CreateRitual, is SpellbookRoute.EditRitual -> SpellbookRoute.RitualsList
+                else -> SpellbookRoute.Overview
+            }
+        }
+    }
+
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             AppDestinations.entries.forEach {
@@ -951,13 +1033,29 @@ fun FocusPocusApp(
                     },
                     label = { Text(it.label) },
                     selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    onClick = {
+                        currentDestination = it
+                        if (it == AppDestinations.SPELLBOOK) {
+                            spellbookRoute = SpellbookRoute.Overview
+                        }
+                    }
                 )
             }
         }
     ) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
+            topBar = {
+                @OptIn(ExperimentalMaterial3Api::class)
+                TopAppBar(
+                    title = { Text(currentDestination.label) },
+                    actions = {
+                        IconButton(onClick = { topLevelRoute = TopLevelRoute.Settings }) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        }
+                    }
+                )
+            }
         ) { innerPadding ->
             val contentModifier = Modifier.padding(innerPadding)
             when (currentDestination) {
@@ -1091,7 +1189,6 @@ fun FocusPocusApp(
                         onEmergencyStop = {
                             lastEmergencyBreakMillis = System.currentTimeMillis()
                             manualFocusMode = false
-                            // activeScheduleId is a parameter and cannot be reassigned. calling onDispelSchedule() instead.
 
                             sharedPreferences.edit()
                                 .putLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, lastEmergencyBreakMillis)
@@ -1104,154 +1201,149 @@ fun FocusPocusApp(
                     )
                 }
 
-                AppDestinations.BLOCK -> {
-                    if (screen != Screen.BlockerList) {
-                        BackHandler {
-                            screen = Screen.BlockerList
-                        }
-                    }
-
-                    val activeBlockerName = if (focusMode) {
-                        activeSchedule?.blockerName ?: activeManualBlocker?.name
-                    } else null
-
-                    when (screen) {
-                        is Screen.BlockerList -> BlockerListScreen(
+                AppDestinations.SPELLBOOK -> {
+                    when (val currentRoute = spellbookRoute) {
+                        is SpellbookRoute.Overview -> SpellbookScreen(
                             blockerLists = blockerLists,
                             focusPresets = focusPresets,
+                            schedules = schedules,
                             namedTags = namedTags,
-                            activeBlockerName = activeBlockerName,
-                            onBlockerClick = {
-                                selectedBlocker = it
-                                screen = Screen.EditBlocker
-                            },
-                            onCreateClick = {
-                                screen = Screen.CreateBlocker
-                            },
-                            onSaveFocusPreset = onSaveFocusPreset,
-                            onDeleteFocusPreset = onDeleteFocusPreset,
+                            appTimeLimits = appTimeLimits,
+                            installedApps = installedApps,
+                            onNavigateToEnchantments = { spellbookRoute = SpellbookRoute.EnchantmentsList },
+                            onNavigateToQuickSpells = { spellbookRoute = SpellbookRoute.QuickSpellsList },
+                            onNavigateToRituals = { spellbookRoute = SpellbookRoute.RitualsList },
+                            onNavigateToTalismans = { spellbookRoute = SpellbookRoute.Talismans },
+                            onNavigateToTimeLimits = { spellbookRoute = SpellbookRoute.TimeLimits },
                             modifier = contentModifier
                         )
-                        is Screen.CreateBlocker -> CreateBlockerScreen(
+
+                        // Enchantments
+                        is SpellbookRoute.EnchantmentsList -> {
+                            val activeBlockerName = if (focusMode) {
+                                activeSchedule?.blockerName ?: activeManualBlocker?.name
+                            } else null
+                            BlockerListScreen(
+                                blockerLists = blockerLists,
+                                activeBlockerName = activeBlockerName,
+                                onBlockerClick = {
+                                    selectedBlocker = it
+                                    spellbookRoute = SpellbookRoute.EditEnchantment
+                                },
+                                onCreateClick = { spellbookRoute = SpellbookRoute.CreateEnchantment },
+                                modifier = contentModifier
+                            )
+                        }
+                        is SpellbookRoute.CreateEnchantment -> CreateBlockerScreen(
                             onSaveBlocker = {
                                 onSaveBlocker(it)
-                                screen = Screen.BlockerList
+                                spellbookRoute = SpellbookRoute.EnchantmentsList
                             },
                             installedApps = installedApps,
                             modifier = contentModifier
                         )
-                        is Screen.EditBlocker -> selectedBlocker?.let {
+                        is SpellbookRoute.EditEnchantment -> selectedBlocker?.let {
                             EditBlockerScreen(
                                 blocker = it,
                                 onSaveBlocker = { blockerToSave ->
                                     onSaveBlocker(blockerToSave)
-                                    screen = Screen.BlockerList
+                                    spellbookRoute = SpellbookRoute.EnchantmentsList
                                 },
                                 onDeleteBlocker = { blockerToDelete ->
                                     onDeleteBlocker(blockerToDelete)
-                                    screen = Screen.BlockerList
+                                    spellbookRoute = SpellbookRoute.EnchantmentsList
                                 },
                                 installedApps = installedApps,
                                 modifier = contentModifier
                             )
                         }
-                    }
-                }
 
-                AppDestinations.SCHEDULE -> {
-                    if (scheduleScreen != ScheduleScreenRoute.ScheduleList) {
-                        BackHandler {
-                            scheduleScreen = ScheduleScreenRoute.ScheduleList
-                        }
-                    }
-                    when(val currentScreen = scheduleScreen) {
-                        is ScheduleScreenRoute.ScheduleList -> ScheduleListScreen(
+                        // Quick Spells
+                        is SpellbookRoute.QuickSpellsList -> QuickSpellsListScreen(
+                            focusPresets = focusPresets,
+                            blockerLists = blockerLists,
+                            namedTags = namedTags,
+                            onEditPreset = { preset -> spellbookRoute = SpellbookRoute.EditQuickSpell(preset) },
+                            onCreatePreset = { spellbookRoute = SpellbookRoute.CreateQuickSpell },
+                            onDeleteFocusPreset = onDeleteFocusPreset,
+                            onNavigateBack = { spellbookRoute = SpellbookRoute.Overview },
+                            modifier = contentModifier
+                        )
+                        is SpellbookRoute.CreateQuickSpell -> QuickSpellEditorScreen(
+                            presetToEdit = null,
+                            blockerLists = blockerLists,
+                            namedTags = namedTags,
+                            onSave = { preset ->
+                                onSaveFocusPreset(preset)
+                                spellbookRoute = SpellbookRoute.QuickSpellsList
+                            },
+                            onCancel = { spellbookRoute = SpellbookRoute.QuickSpellsList },
+                            modifier = contentModifier
+                        )
+                        is SpellbookRoute.EditQuickSpell -> QuickSpellEditorScreen(
+                            presetToEdit = currentRoute.preset,
+                            blockerLists = blockerLists,
+                            namedTags = namedTags,
+                            onSave = { preset ->
+                                onSaveFocusPreset(preset)
+                                spellbookRoute = SpellbookRoute.QuickSpellsList
+                            },
+                            onCancel = { spellbookRoute = SpellbookRoute.QuickSpellsList },
+                            modifier = contentModifier
+                        )
+
+                        // Rituals
+                        is SpellbookRoute.RitualsList -> ScheduleListScreen(
                             schedules = schedules,
-                            onScheduleClick = { schedule -> scheduleScreen = ScheduleScreenRoute.EditSchedule(schedule) },
-                            onCreateClick = { scheduleScreen = ScheduleScreenRoute.CreateSchedule },
+                            onScheduleClick = { schedule -> spellbookRoute = SpellbookRoute.EditRitual(schedule) },
+                            onCreateClick = { spellbookRoute = SpellbookRoute.CreateRitual },
                             onDeleteSchedule = onDeleteSchedule,
                             activeScheduleId = activeScheduleId,
                             modifier = contentModifier
                         )
-                        is ScheduleScreenRoute.CreateSchedule -> ScheduleEditorScreen(
+                        is SpellbookRoute.CreateRitual -> ScheduleEditorScreen(
                             scheduleToEdit = null,
                             blockerLists = blockerLists,
                             namedTags = namedTags,
                             onSaveSchedule = {
                                 onSaveSchedule(it)
-                                scheduleScreen = ScheduleScreenRoute.ScheduleList
+                                spellbookRoute = SpellbookRoute.RitualsList
                             },
-                            onCancel = { scheduleScreen = ScheduleScreenRoute.ScheduleList },
+                            onCancel = { spellbookRoute = SpellbookRoute.RitualsList },
                             modifier = contentModifier
                         )
-                        is ScheduleScreenRoute.EditSchedule -> ScheduleEditorScreen(
-                            scheduleToEdit = currentScreen.schedule,
+                        is SpellbookRoute.EditRitual -> ScheduleEditorScreen(
+                            scheduleToEdit = currentRoute.schedule,
                             blockerLists = blockerLists,
                             namedTags = namedTags,
                             onSaveSchedule = {
                                 onSaveSchedule(it)
-                                scheduleScreen = ScheduleScreenRoute.ScheduleList
+                                spellbookRoute = SpellbookRoute.RitualsList
                             },
-                            onCancel = { scheduleScreen = ScheduleScreenRoute.ScheduleList },
+                            onCancel = { spellbookRoute = SpellbookRoute.RitualsList },
+                            modifier = contentModifier
+                        )
+
+                        // Talismans
+                        is SpellbookRoute.Talismans -> TalismansScreen(
+                            lastScannedTagId = lastScannedTagId,
+                            namedTags = namedTags,
+                            onSaveTag = onSaveTag,
+                            onDeleteTag = onDeleteTag,
+                            onNavigateBack = { spellbookRoute = SpellbookRoute.Overview },
+                            modifier = contentModifier
+                        )
+
+                        // Time Limits
+                        is SpellbookRoute.TimeLimits -> TimeLimitsScreen(
+                            installedApps = installedApps,
+                            appTimeLimits = appTimeLimits,
+                            onSaveAppTimeLimit = onSaveAppTimeLimit,
+                            onDeleteAppTimeLimit = onDeleteAppTimeLimit,
+                            onNavigateBack = { spellbookRoute = SpellbookRoute.Overview },
                             modifier = contentModifier
                         )
                     }
-                }
-
-                AppDestinations.PROFILE -> {
-                    LaunchedEffect(Unit) {
-                        isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
-                    }
-                    ProfileScreen(
-                        lastScannedTagId = lastScannedTagId,
-                        namedTags = namedTags,
-                        onSaveTag = onSaveTag,
-                        onDeleteTag = onDeleteTag,
-                        modifier = contentModifier,
-                        breakDurationMinutes = breakDurationMinutes,
-                        maxBreaksPerSession = maxBreaksPerSession,
-                        onBreakDurationChanged = { newDuration ->
-                            breakDurationMinutes = newDuration
-                            sharedPreferences.edit().putInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, newDuration).apply()
-                        },
-                        onMaxBreaksChanged = { newMax ->
-                            maxBreaksPerSession = newMax
-                            sharedPreferences.edit().putInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, newMax).apply()
-                        },
-                        themeMode = themeMode,
-                        onThemeModeChanged = onThemeModeChanged,
-                        muteNotifications = muteBlockedNotifications,
-                        isNotificationListenerEnabled = isNotificationListenerEnabled,
-                        onMuteNotificationsChanged = { enabled ->
-                            muteBlockedNotifications = enabled
-                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, enabled).apply()
-                            DndController.updateDndState(context)
-                        },
-                        onOpenNotificationSettings = {
-                            val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                            context.startActivity(intent)
-                        },
-                        focusMode = focusMode,
-                        hideStopButton = hideStopButton,
-                        onHideStopButtonChanged = { enabled ->
-                            hideStopButton = enabled
-                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, enabled).apply()
-                        },
-                        emergencyBreakCadenceWeeks = emergencyBreakCadenceWeeks,
-                        onEmergencyBreakCadenceChanged = { newCadence ->
-                            emergencyBreakCadenceWeeks = newCadence
-                            sharedPreferences.edit().putInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, newCadence).apply()
-                        },
-                        nfcLockMode = nfcLockMode,
-                        onNfcLockModeChanged = { enabled ->
-                            nfcLockMode = enabled
-                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, enabled).apply()
-                        },
-                        installedApps = installedApps,
-                        appTimeLimits = appTimeLimits,
-                        onSaveAppTimeLimit = onSaveAppTimeLimit,
-                        onDeleteAppTimeLimit = onDeleteAppTimeLimit
-                    )
                 }
 
                 AppDestinations.INSIGHTS -> {
@@ -1311,10 +1403,8 @@ enum class AppDestinations(
     val icon: ImageVector,
 ) {
     HOME("Focus", Icons.Filled.AutoFixHigh),
-    BLOCK("Spells", Icons.Filled.Lock),
-    SCHEDULE("Rituals", Icons.Filled.DateRange),
+    SPELLBOOK("Spellbook", Icons.Filled.MenuBook),
     INSIGHTS("Insights", Icons.Filled.Insights),
-    PROFILE("Wizard", Icons.Filled.Person),
 }
 
 fun formatDuration(minutes: Int): String {
