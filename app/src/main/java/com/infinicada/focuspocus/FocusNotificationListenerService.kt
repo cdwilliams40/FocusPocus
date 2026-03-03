@@ -35,13 +35,4 @@ class FocusNotificationListenerService : NotificationListenerService() {
             }
         }
     }
-
-    companion object {
-        internal fun shouldBlockApp(packageName: String, blocker: Blocker): Boolean {
-            return when (blocker.mode) {
-                BlockerMode.BLACKLIST -> blocker.apps.contains(packageName)
-                BlockerMode.WHITELIST -> !blocker.apps.contains(packageName)
-            }
-        }
-    }
 }

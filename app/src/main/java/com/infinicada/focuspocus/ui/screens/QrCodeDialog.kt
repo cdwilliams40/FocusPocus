@@ -11,7 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.R
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 
@@ -41,13 +43,13 @@ fun QrCodeDialog(
         text = {
             Image(
                 bitmap = qrBitmap.asImageBitmap(),
-                contentDescription = "QR Code",
+                contentDescription = stringResource(R.string.qr_code_content_desc),
                 modifier = Modifier.size(256.dp)
             )
         },
         confirmButton = {
             Button(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.action_done))
             }
         }
     )

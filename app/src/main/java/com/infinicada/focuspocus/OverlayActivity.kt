@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
@@ -120,21 +121,21 @@ fun OverlayScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Focus Pocus",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 if (spellName != null) {
                     Text(
-                        text = "Spell: $spellName",
+                        text = stringResource(R.string.overlay_spell_name, spellName),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.tertiary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 Text(
-                    text = "$appName is blocked!",
+                    text = stringResource(R.string.overlay_app_blocked, appName),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
@@ -148,7 +149,7 @@ fun OverlayScreen(
                     )
                 ) {
                     Text(
-                        text = if (isCloseEnabled) "Close" else "Wait ${remainingSeconds}s..."
+                        text = if (isCloseEnabled) stringResource(R.string.overlay_close) else stringResource(R.string.overlay_wait, remainingSeconds)
                     )
                 }
             }
