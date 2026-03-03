@@ -27,8 +27,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,10 +60,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 }
             )
@@ -77,7 +79,7 @@ fun SettingsScreen(
             // Appearance Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ThemeMode.entries.forEach { mode ->
@@ -94,9 +96,9 @@ fun SettingsScreen(
                             )
                             Text(
                                 text = when (mode) {
-                                    ThemeMode.LIGHT -> "Light"
-                                    ThemeMode.DARK -> "Dark"
-                                    ThemeMode.SYSTEM -> "Match System"
+                                    ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                                    ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+                                    ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
                                 },
                                 modifier = Modifier.padding(start = 8.dp)
                             )
@@ -109,12 +111,12 @@ fun SettingsScreen(
             // Focus Behavior Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Focus Behavior", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_focus_behavior), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (focusMode) {
                         Text(
-                            "Cannot change while a spell is active",
+                            stringResource(R.string.settings_cannot_change_active),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -122,7 +124,7 @@ fun SettingsScreen(
                     }
 
                     Text(
-                        "Default Break Duration: $breakDurationMinutes minutes",
+                        stringResource(R.string.settings_break_duration, breakDurationMinutes),
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Slider(
@@ -137,7 +139,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        "Default Breaks Per Session: $maxBreaksPerSession",
+                        stringResource(R.string.settings_breaks_per_session, maxBreaksPerSession),
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Slider(
@@ -152,11 +154,11 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        "Emergency Stop Cooldown: $emergencyBreakCadenceWeeks weeks",
+                        stringResource(R.string.settings_emergency_cooldown, emergencyBreakCadenceWeeks),
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        "One emergency stop per cooldown period when you need to end a session early",
+                        stringResource(R.string.settings_emergency_cooldown_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -177,9 +179,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Hide Stop Button")
+                            Text(stringResource(R.string.settings_hide_stop_button))
                             Text(
-                                "Hides Dispel button during timed focus sessions",
+                                stringResource(R.string.settings_hide_stop_button_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -197,7 +199,7 @@ fun SettingsScreen(
             // Notifications Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Notifications", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_notifications), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -206,9 +208,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Mute During Focus")
+                            Text(stringResource(R.string.settings_mute_during_focus))
                             Text(
-                                "Silence notifications while focusing",
+                                stringResource(R.string.settings_mute_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -226,10 +228,10 @@ fun SettingsScreen(
                             onClick = onOpenNotificationSettings,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Grant Notification Access")
+                            Text(stringResource(R.string.settings_grant_notification))
                         }
                         Text(
-                            "Required to mute notifications during focus sessions",
+                            stringResource(R.string.settings_notification_required),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -241,7 +243,7 @@ fun SettingsScreen(
             // Security Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Security", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_security), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -250,9 +252,9 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Talisman Lock Mode")
+                            Text(stringResource(R.string.settings_talisman_lock))
                             Text(
-                                "Require NFC talisman or QR code to stop focus sessions",
+                                stringResource(R.string.settings_talisman_lock_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -266,7 +268,7 @@ fun SettingsScreen(
 
                     if (namedTags.isEmpty()) {
                         Text(
-                            "Add a talisman first to enable lock mode",
+                            stringResource(R.string.settings_add_talisman_first),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )

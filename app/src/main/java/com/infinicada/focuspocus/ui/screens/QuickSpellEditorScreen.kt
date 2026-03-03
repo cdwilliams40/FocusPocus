@@ -33,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
@@ -76,29 +78,29 @@ fun QuickSpellEditorScreen(
     var tempDurationDropdownExpanded by remember { mutableStateOf(false) }
 
     val durations = listOf(
-        15 to "15 minutes",
-        25 to "25 minutes",
-        45 to "45 minutes",
-        60 to "1 hour",
-        120 to "2 hours",
-        240 to "4 hours",
-        480 to "8 hours",
-        0 to "Unlimited"
+        15 to stringResource(R.string.duration_15_min),
+        25 to stringResource(R.string.duration_25_min),
+        45 to stringResource(R.string.duration_45_min),
+        60 to stringResource(R.string.duration_1_hour),
+        120 to stringResource(R.string.duration_2_hours),
+        240 to stringResource(R.string.duration_4_hours),
+        480 to stringResource(R.string.duration_8_hours),
+        0 to stringResource(R.string.duration_unlimited)
     )
 
     val actionLabels = mapOf(
-        PresetAction.TOGGLE to "Toggle",
-        PresetAction.TEMP_ENABLE to "Temporary Enable",
-        PresetAction.TEMP_DISABLE to "Temporary Disable"
+        PresetAction.TOGGLE to stringResource(R.string.quick_spell_editor_action_toggle),
+        PresetAction.TEMP_ENABLE to stringResource(R.string.quick_spell_editor_action_temp_enable),
+        PresetAction.TEMP_DISABLE to stringResource(R.string.quick_spell_editor_action_temp_disable)
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (presetToEdit != null) "Edit Quick Spell" else "Create Quick Spell") },
+                title = { Text(if (presetToEdit != null) stringResource(R.string.quick_spell_editor_edit_title) else stringResource(R.string.quick_spell_editor_create_title)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 }
             )
@@ -115,7 +117,7 @@ fun QuickSpellEditorScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { if (it.length <= 100) name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.quick_spell_editor_name_label)) },
                 supportingText = {
                     Text(
                         text = "${name.length}/100",
@@ -134,10 +136,10 @@ fun QuickSpellEditorScreen(
                 onExpandedChange = { blockerDropdownExpanded = !blockerDropdownExpanded }
             ) {
                 OutlinedTextField(
-                    value = selectedBlocker?.name ?: "Select Enchantment",
+                    value = selectedBlocker?.name ?: stringResource(R.string.quick_spell_editor_select_enchantment),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Enchantment") },
+                    label = { Text(stringResource(R.string.quick_spell_editor_enchantment_label)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = blockerDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -166,10 +168,10 @@ fun QuickSpellEditorScreen(
                 onExpandedChange = { durationDropdownExpanded = !durationDropdownExpanded }
             ) {
                 OutlinedTextField(
-                    value = durations.find { it.first == selectedDuration }?.second ?: "Select Duration",
+                    value = durations.find { it.first == selectedDuration }?.second ?: stringResource(R.string.duration_select),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Duration") },
+                    label = { Text(stringResource(R.string.duration_label)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = durationDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -198,10 +200,10 @@ fun QuickSpellEditorScreen(
                 onExpandedChange = { talismanDropdownExpanded = !talismanDropdownExpanded }
             ) {
                 OutlinedTextField(
-                    value = selectedTalisman?.name ?: "None (tap to select)",
+                    value = selectedTalisman?.name ?: stringResource(R.string.quick_spell_editor_none_talisman),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Bind to Talisman") },
+                    label = { Text(stringResource(R.string.quick_spell_editor_bind_talisman)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = talismanDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -211,7 +213,7 @@ fun QuickSpellEditorScreen(
                     onDismissRequest = { talismanDropdownExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("None") },
+                        text = { Text(stringResource(R.string.label_none)) },
                         onClick = {
                             selectedTalisman = null
                             talismanDropdownExpanded = false
@@ -237,10 +239,10 @@ fun QuickSpellEditorScreen(
                 onExpandedChange = { actionDropdownExpanded = !actionDropdownExpanded }
             ) {
                 OutlinedTextField(
-                    value = actionLabels[selectedAction] ?: "Toggle",
+                    value = actionLabels[selectedAction] ?: stringResource(R.string.quick_spell_editor_action_toggle),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Action Type") },
+                    label = { Text(stringResource(R.string.quick_spell_editor_action_type)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = actionDropdownExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -265,18 +267,18 @@ fun QuickSpellEditorScreen(
             if (selectedAction != PresetAction.TOGGLE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val tempDurations = listOf(
-                    5 to "5 min", 10 to "10 min", 15 to "15 min",
-                    30 to "30 min", 60 to "1 hour", 120 to "2 hours"
+                    5 to stringResource(R.string.duration_5_min), 10 to stringResource(R.string.duration_10_min), 15 to stringResource(R.string.duration_15_min),
+                    30 to stringResource(R.string.duration_30_min), 60 to stringResource(R.string.duration_1_hour), 120 to stringResource(R.string.duration_2_hours)
                 )
                 ExposedDropdownMenuBox(
                     expanded = tempDurationDropdownExpanded,
                     onExpandedChange = { tempDurationDropdownExpanded = !tempDurationDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = tempDurations.find { it.first == tempDurationMinutes }?.second ?: "$tempDurationMinutes min",
+                        value = tempDurations.find { it.first == tempDurationMinutes }?.second ?: stringResource(R.string.format_duration_minutes, tempDurationMinutes),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Temp Duration") },
+                        label = { Text(stringResource(R.string.quick_spell_editor_temp_duration)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tempDurationDropdownExpanded) },
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                         modifier = Modifier.menuAnchor().fillMaxWidth()
@@ -306,7 +308,7 @@ fun QuickSpellEditorScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Allow Breaks")
+                Text(stringResource(R.string.quick_spell_editor_allow_breaks))
                 Switch(
                     checked = breaksEnabled,
                     onCheckedChange = { breaksEnabled = it }
@@ -324,7 +326,7 @@ fun QuickSpellEditorScreen(
                     onClick = onCancel,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
                 Button(
                     onClick = {
@@ -346,7 +348,7 @@ fun QuickSpellEditorScreen(
                     enabled = name.isNotBlank() && selectedBlocker != null,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             }
         }

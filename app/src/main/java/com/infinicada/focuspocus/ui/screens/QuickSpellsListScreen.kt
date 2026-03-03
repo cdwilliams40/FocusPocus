@@ -34,7 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
@@ -55,10 +57,11 @@ fun QuickSpellsListScreen(
 ) {
     var showQrPreset by remember { mutableStateOf<FocusPreset?>(null) }
 
-    if (showQrPreset != null) {
+    val qrPreset = showQrPreset
+    if (qrPreset != null) {
         QrCodeDialog(
-            content = "focuspocus://preset/${showQrPreset!!.id}",
-            title = "QR Code: ${showQrPreset!!.name}",
+            content = "focuspocus://preset/${qrPreset.id}",
+            title = stringResource(R.string.quick_spells_qr_title, qrPreset.name),
             onDismiss = { showQrPreset = null }
         )
     }
@@ -66,17 +69,17 @@ fun QuickSpellsListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Quick Spells") },
+                title = { Text(stringResource(R.string.quick_spells_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreatePreset) {
-                Icon(Icons.Default.Add, contentDescription = "Create quick spell")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.quick_spells_create_content_desc))
             }
         },
         modifier = modifier
@@ -88,7 +91,7 @@ fun QuickSpellsListScreen(
         ) {
             item {
                 Text(
-                    "Preset focus configurations for quick access",
+                    stringResource(R.string.quick_spells_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -102,7 +105,7 @@ fun QuickSpellsListScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            "No quick spells yet. Tap + to create your first one!",
+                            stringResource(R.string.quick_spells_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp)
@@ -130,25 +133,25 @@ fun QuickSpellsListScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(preset.name, style = MaterialTheme.typography.titleSmall)
                             val actionLabel = when (preset.action ?: PresetAction.TOGGLE) {
-                                PresetAction.TEMP_ENABLE -> " - Temp Enable ${preset.tempDurationMinutes ?: 30}m"
-                                PresetAction.TEMP_DISABLE -> " - Temp Disable ${preset.tempDurationMinutes ?: 30}m"
+                                PresetAction.TEMP_ENABLE -> " - " + stringResource(R.string.quick_spells_temp_enable, preset.tempDurationMinutes ?: 30)
+                                PresetAction.TEMP_DISABLE -> " - " + stringResource(R.string.quick_spells_temp_disable, preset.tempDurationMinutes ?: 30)
                                 else -> ""
                             }
                             Text(
-                                "${blocker?.name ?: preset.blockerName} - $durationText${if (preset.breaksEnabled) " - Breaks" else ""}$actionLabel",
+                                "${blocker?.name ?: preset.blockerName} - $durationText${if (preset.breaksEnabled) stringResource(R.string.spellbook_breaks_suffix) else ""}$actionLabel",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (blocker == null) {
                                 Text(
-                                    "Enchantment missing - please edit",
+                                    stringResource(R.string.quick_spells_enchantment_missing),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
                             if (talisman != null) {
                                 Text(
-                                    "Bound to: ${talisman.name}",
+                                    stringResource(R.string.quick_spells_bound_to, talisman.name),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
@@ -159,19 +162,19 @@ fun QuickSpellsListScreen(
                                 onClick = { showQrPreset = preset },
                                 modifier = Modifier.padding(end = 8.dp)
                             ) {
-                                Text("QR")
+                                Text(stringResource(R.string.action_qr))
                             }
                             OutlinedButton(
                                 onClick = { onEditPreset(preset) },
                                 modifier = Modifier.padding(end = 8.dp)
                             ) {
-                                Text("Edit")
+                                Text(stringResource(R.string.action_edit))
                             }
                             Button(
                                 onClick = { onDeleteFocusPreset(preset) },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Text("Delete")
+                                Text(stringResource(R.string.action_delete))
                             }
                         }
                     }

@@ -31,8 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,10 +49,11 @@ fun TalismansScreen(
     var tagName by remember { mutableStateOf("") }
     var showQrTalisman by remember { mutableStateOf<NamedTag?>(null) }
 
-    if (showQrTalisman != null) {
+    val qrTalisman = showQrTalisman
+    if (qrTalisman != null) {
         QrCodeDialog(
-            content = "focuspocus://talisman/${showQrTalisman!!.id}",
-            title = "QR Code: ${showQrTalisman!!.name}",
+            content = "focuspocus://talisman/${qrTalisman.id}",
+            title = stringResource(R.string.talismans_qr_title, qrTalisman.name),
             onDismiss = { showQrTalisman = null }
         )
     }
@@ -58,10 +61,10 @@ fun TalismansScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Talismans") },
+                title = { Text(stringResource(R.string.talismans_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 }
             )
@@ -77,15 +80,15 @@ fun TalismansScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Bind New Talisman", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.talismans_bind_new), style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         lastScannedTagId?.let {
-                            Text("Last Scanned Talisman: $it")
+                            Text(stringResource(R.string.talismans_last_scanned, it))
                             Spacer(modifier = Modifier.height(8.dp))
                             TextField(
                                 value = tagName,
                                 onValueChange = { if (it.length <= 100) tagName = it },
-                                label = { Text("Talisman Name") },
+                                label = { Text(stringResource(R.string.talismans_name_label)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -97,10 +100,10 @@ fun TalismansScreen(
                                 enabled = tagName.isNotBlank(),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Enchant Talisman")
+                                Text(stringResource(R.string.talismans_enchant))
                             }
                         } ?: Text(
-                            "Scan an NFC tag to bind it as a talisman.",
+                            stringResource(R.string.talismans_scan_nfc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -112,7 +115,7 @@ fun TalismansScreen(
             // Enchanted Items Header
             if (namedTags.isNotEmpty()) {
                 item {
-                    Text("Enchanted Items", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.talismans_enchanted_items), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
@@ -137,13 +140,13 @@ fun TalismansScreen(
                             onClick = { showQrTalisman = tag },
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
-                            Text("QR")
+                            Text(stringResource(R.string.action_qr))
                         }
                         Button(
                             onClick = { onDeleteTag(tag) },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Disenchant")
+                            Text(stringResource(R.string.talismans_disenchant))
                         }
                     }
                 }
@@ -152,7 +155,7 @@ fun TalismansScreen(
             if (namedTags.isEmpty()) {
                 item {
                     Text(
-                        "No talismans bound yet.",
+                        stringResource(R.string.talismans_none_bound),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

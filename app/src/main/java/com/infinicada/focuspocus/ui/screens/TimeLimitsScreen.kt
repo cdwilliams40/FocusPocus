@@ -37,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
@@ -71,10 +73,10 @@ fun TimeLimitsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("App Time Limits") },
+                title = { Text(stringResource(R.string.time_limits_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 }
             )
@@ -88,7 +90,7 @@ fun TimeLimitsScreen(
         ) {
             item {
                 Text(
-                    "Set daily time quotas per app. Apps are blocked when their limit is reached, even outside focus mode.",
+                    stringResource(R.string.time_limits_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,10 +103,10 @@ fun TimeLimitsScreen(
                         onClick = { UsageStatsHelper.openUsageAccessSettings(context) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Grant Usage Access")
+                        Text(stringResource(R.string.time_limits_grant_usage))
                     }
                     Text(
-                        "Required for time limit tracking",
+                        stringResource(R.string.time_limits_required),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -131,7 +133,7 @@ fun TimeLimitsScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(appName, style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    "$usedMinutes / $limit min today",
+                                    stringResource(R.string.time_limits_used_today, usedMinutes, limit),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant
@@ -150,7 +152,7 @@ fun TimeLimitsScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.padding(start = 8.dp)
                             ) {
-                                Text("Remove")
+                                Text(stringResource(R.string.action_remove))
                             }
                         }
                     }
@@ -162,7 +164,7 @@ fun TimeLimitsScreen(
                         onClick = { showAddDialog = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Add Time Limit")
+                        Text(stringResource(R.string.time_limits_add))
                     }
                 }
             }
@@ -185,13 +187,19 @@ fun AddTimeLimitDialog(
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
 
     val limitOptions = listOf(
-        5 to "5 min", 10 to "10 min", 15 to "15 min", 30 to "30 min",
-        60 to "1 hour", 120 to "2 hours", 240 to "4 hours", 480 to "8 hours"
+        5 to stringResource(R.string.duration_5_min),
+        10 to stringResource(R.string.duration_10_min),
+        15 to stringResource(R.string.duration_15_min),
+        30 to stringResource(R.string.duration_30_min),
+        60 to stringResource(R.string.duration_1_hour),
+        120 to stringResource(R.string.duration_2_hours),
+        240 to stringResource(R.string.duration_4_hours),
+        480 to stringResource(R.string.duration_8_hours)
     )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add App Time Limit") },
+        title = { Text(stringResource(R.string.time_limits_add_dialog_title)) },
         text = {
             Column {
                 ExposedDropdownMenuBox(
@@ -199,10 +207,10 @@ fun AddTimeLimitDialog(
                     onExpandedChange = { appDropdownExpanded = !appDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedApp?.name ?: "Select App",
+                        value = selectedApp?.name ?: stringResource(R.string.time_limits_select_app),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("App") },
+                        label = { Text(stringResource(R.string.time_limits_app_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = appDropdownExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
@@ -224,7 +232,7 @@ fun AddTimeLimitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Daily Limit: ${limitOptions.find { it.first == limitMinutes }?.second ?: "$limitMinutes min"}")
+                Text(stringResource(R.string.time_limits_daily_limit, limitOptions.find { it.first == limitMinutes }?.second ?: stringResource(R.string.format_duration_minutes, limitMinutes)))
                 Slider(
                     value = limitMinutes.toFloat(),
                     onValueChange = { limitMinutes = it.toInt() },
@@ -239,11 +247,11 @@ fun AddTimeLimitDialog(
                 onClick = { selectedApp?.let { onSave(it.packageName, limitMinutes) } },
                 enabled = selectedApp != null
             ) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+            OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
