@@ -203,19 +203,22 @@ class MyAccessibilityService : AccessibilityService() {
         val currentMinute = now.get(Calendar.MINUTE)
         val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
 
-        // Check if an active schedule has ended
+        // Check if an active schedule has ended (handles missed end times and overnight schedules)
         val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         if (activeScheduleId != null) {
             val activeSchedule = schedules.find { it.id == activeScheduleId }
             if (activeSchedule != null) {
                 try {
                     val endParts = activeSchedule.endTime.split(":")
-                    if (endParts.size == 2) {
+                    val startParts = activeSchedule.startTime.split(":")
+                    if (endParts.size == 2 && startParts.size == 2) {
                         val endHour = endParts[0].toIntOrNull() ?: -1
                         val endMinute = endParts[1].toIntOrNull() ?: -1
-                        if (endHour !in 0..23 || endMinute !in 0..59) {
-                            Log.e("MyAccessibilityService", "Invalid schedule end time: ${activeSchedule.endTime}")
-                        } else if (endHour == currentHour && endMinute == currentMinute) {
+                        val startHour = startParts[0].toIntOrNull() ?: -1
+                        val startMinute = startParts[1].toIntOrNull() ?: -1
+                        if (endHour !in 0..23 || endMinute !in 0..59 || startHour !in 0..23 || startMinute !in 0..59) {
+                            Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.startTime}-${activeSchedule.endTime}")
+                        } else if (shouldDeactivateSchedule(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)) {
                             deactivateSchedule(activeSchedule)
                         }
                     }
@@ -258,6 +261,30 @@ class MyAccessibilityService : AccessibilityService() {
             Calendar.SATURDAY -> DayOfWeek.SATURDAY
             Calendar.SUNDAY -> DayOfWeek.SUNDAY
             else -> null
+        }
+    }
+
+    /**
+     * Determines if the schedule should deactivate at the current time.
+     * Handles both same-day schedules (start < end) and overnight schedules (start > end).
+     * Uses "at or past" logic so missed end times are caught on service restart.
+     */
+    internal fun shouldDeactivateSchedule(
+        currentHour: Int, currentMinute: Int,
+        startHour: Int, startMinute: Int,
+        endHour: Int, endMinute: Int
+    ): Boolean {
+        val currentMins = currentHour * 60 + currentMinute
+        val startMins = startHour * 60 + startMinute
+        val endMins = endHour * 60 + endMinute
+
+        return if (endMins > startMins) {
+            // Same-day schedule: deactivate at or past end time
+            currentMins >= endMins
+        } else {
+            // Overnight schedule: deactivate when past end time AND before start time
+            // (i.e., in the "morning after" window, not the "active evening" window)
+            currentMins >= endMins && currentMins < startMins
         }
     }
 
