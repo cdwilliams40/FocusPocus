@@ -857,11 +857,15 @@ fun FocusPocusApp(
         }
     }
 
-    // Consolidated effect for focus mode state changes
-    LaunchedEffect(manualFocusMode, activeManualBlocker) {
+    // Consolidated effect for focus mode state changes.
+    // Skip writing ACTIVE_BLOCKER when a schedule is active — the schedule owns that pref.
+    LaunchedEffect(manualFocusMode, activeManualBlocker, activeScheduleId) {
         val editor = sharedPreferences.edit()
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, manualFocusMode)
-            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeManualBlocker?.name)
+
+        if (activeScheduleId == null) {
+            editor.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeManualBlocker?.name)
+        }
 
         if (!manualFocusMode) {
             breaksUsedThisSession = 0

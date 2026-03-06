@@ -152,15 +152,19 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun createNotificationChannel() {
-        val name = "Rituals"
-        val descriptionText = "Notifications for scheduled rituals"
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-        val channel = NotificationChannel(Constants.RITUALS_CHANNEL_ID, name, importance).apply {
-            description = descriptionText
+        try {
+            val name = "Rituals"
+            val descriptionText = "Notifications for scheduled rituals"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(Constants.RITUALS_CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Failed to create notification channel", e)
         }
-        val notificationManager: NotificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
     }
 
     private fun checkSchedules() {
@@ -221,8 +225,9 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Check if a schedule should start
+        // Check if a schedule should start (skip if one is already active)
         if (currentDay == null) return
+        if (activeScheduleId != null) return
         schedules.forEach { schedule ->
             if (schedule.days.contains(currentDay)) {
                 try {
@@ -257,6 +262,13 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun activateSchedule(schedule: Schedule) {
+        // Validate that the schedule's blocker still exists
+        val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
+        if (blockerLists.none { it.name == schedule.blockerName }) {
+            Log.e("MyAccessibilityService", "Schedule '${schedule.name}' references missing blocker '${schedule.blockerName}', skipping activation")
+            return
+        }
+
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
             blockerName = schedule.blockerName,
@@ -307,10 +319,14 @@ class MyAccessibilityService : AccessibilityService() {
             .setAutoCancel(true)
 
         try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            if (notificationManager == null) {
+                Log.e("MyAccessibilityService", "NotificationManager unavailable")
+                return
+            }
             notificationManager.notify(getNotificationId(scheduleId, isEndNotification), builder.build())
-        } catch (e: SecurityException) {
-            Log.e("MyAccessibilityService", "Permission denied for notification", e)
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Failed to send ritual notification", e)
         }
     }
 
@@ -543,7 +559,8 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun isInputMethod(packageName: String): Boolean {
         if (cachedInputMethodPackageNames == null) {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                ?: return false
             cachedInputMethodPackageNames = imm.enabledInputMethodList.map { it.packageName }.toSet()
         }
         return cachedInputMethodPackageNames?.contains(packageName) == true
