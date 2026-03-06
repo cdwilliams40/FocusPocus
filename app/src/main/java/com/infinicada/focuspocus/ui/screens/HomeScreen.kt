@@ -40,12 +40,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.Schedule
 
 @Composable
@@ -85,7 +88,7 @@ fun Greeting(
 ) {
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
-        namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: "Unknown Talisman"
+        namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
     } else null
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -97,9 +100,9 @@ fun Greeting(
             // Magical Status Text
             Text(
                 text = when {
-                    isOnBreak -> "On Break"
-                    focusMode -> "Focus Spell Active"
-                    else -> "Ready to Cast"
+                    isOnBreak -> stringResource(R.string.home_status_on_break)
+                    focusMode -> stringResource(R.string.home_status_active)
+                    else -> stringResource(R.string.home_status_ready)
                 },
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
@@ -118,7 +121,7 @@ fun Greeting(
             }
             if (activeSchedule == null && !focusMode && validPresets.isNotEmpty()) {
                 Text(
-                    text = "Quick Spells",
+                    text = stringResource(R.string.home_quick_spells),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -161,7 +164,7 @@ fun Greeting(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Allow Breaks",
+                        text = stringResource(R.string.home_allow_breaks),
                         style = MaterialTheme.typography.labelMedium
                     )
                     Switch(
@@ -192,7 +195,7 @@ fun Greeting(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "remaining",
+                            text = stringResource(R.string.home_remaining),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -218,7 +221,7 @@ fun Greeting(
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Text(
-                            text = "break remaining",
+                            text = stringResource(R.string.home_break_remaining),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -236,18 +239,18 @@ fun Greeting(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                             Spacer(modifier = Modifier.size(8.dp))
-                            Text(text = "Enchantment: ${activeBlocker.name}", style = MaterialTheme.typography.titleMedium)
+                            Text(text = stringResource(R.string.home_enchantment_name, activeBlocker.name), style = MaterialTheme.typography.titleMedium)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Ritual: ${activeSchedule.name}", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.home_ritual_name, activeSchedule.name), style = MaterialTheme.typography.bodyMedium)
                         if (boundTalismanName != null) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Unbind with: $boundTalismanName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                            Text(stringResource(R.string.home_unbind_with, boundTalismanName), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                         }
                         if (focusMode && breaksAllowed) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Breaks: $breaksUsedThisSession / $maxBreaksPerSession used",
+                                stringResource(R.string.home_breaks_used, breaksUsedThisSession, maxBreaksPerSession),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -258,7 +261,7 @@ fun Greeting(
             // Break info when in focus mode (manual mode)
             if (focusMode && activeSchedule == null && breaksAllowed) {
                 Text(
-                    "Breaks: $breaksUsedThisSession / $maxBreaksPerSession used",
+                    stringResource(R.string.home_breaks_used, breaksUsedThisSession, maxBreaksPerSession),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -270,7 +273,7 @@ fun Greeting(
                     onClick = onTakeBreak,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
                 ) {
-                    Text("Take a Break", color = MaterialTheme.colorScheme.onTertiary)
+                    Text(stringResource(R.string.home_take_break), color = MaterialTheme.colorScheme.onTertiary)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -281,7 +284,7 @@ fun Greeting(
                     onClick = onEndBreak,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("End Break Early")
+                    Text(stringResource(R.string.home_end_break_early))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -294,12 +297,12 @@ fun Greeting(
                         onClick = { showEmergencyConfirm = true },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text("Emergency Stop", color = MaterialTheme.colorScheme.onError)
+                        Text(stringResource(R.string.home_emergency_stop), color = MaterialTheme.colorScheme.onError)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 } else {
                     Text(
-                        "Emergency stop available in $emergencyBreakDaysRemaining day${if (emergencyBreakDaysRemaining != 1) "s" else ""}",
+                        pluralStringResource(R.plurals.home_emergency_stop_days_remaining, emergencyBreakDaysRemaining, emergencyBreakDaysRemaining),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -310,8 +313,8 @@ fun Greeting(
             if (showEmergencyConfirm) {
                 AlertDialog(
                     onDismissRequest = { showEmergencyConfirm = false },
-                    title = { Text("Emergency Stop") },
-                    text = { Text("This uses your emergency stop to end the session immediately. You won't get another for several weeks. Are you sure?") },
+                    title = { Text(stringResource(R.string.home_emergency_stop)) },
+                    text = { Text(stringResource(R.string.home_emergency_stop_confirm_text)) },
                     confirmButton = {
                         Button(
                             onClick = {
@@ -320,12 +323,12 @@ fun Greeting(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Text("Use Emergency Stop")
+                            Text(stringResource(R.string.home_use_emergency_stop))
                         }
                     },
                     dismissButton = {
                         OutlinedButton(onClick = { showEmergencyConfirm = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.action_cancel))
                         }
                     }
                 )
@@ -334,7 +337,7 @@ fun Greeting(
             // Streak display
             if (currentStreak > 0) {
                 Text(
-                    "$currentStreak day streak",
+                    stringResource(R.string.home_day_streak, currentStreak),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.tertiary
                 )
@@ -371,14 +374,14 @@ fun Greeting(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.AutoFixHigh,
-                            contentDescription = if (focusMode) "Dispel spell" else "Cast spell",
+                            contentDescription = if (focusMode) stringResource(R.string.home_dispel_content_desc) else stringResource(R.string.home_cast_content_desc),
                             modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (focusMode) {
-                                if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) "Bound" else "Dispel"
-                            } else "Cast",
+                                if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) stringResource(R.string.home_button_bound) else stringResource(R.string.home_button_dispel)
+                            } else stringResource(R.string.home_button_cast),
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
@@ -389,25 +392,25 @@ fun Greeting(
             if (!focusMode) {
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedButton(onClick = onScanQrCode) {
-                    Text("Scan QR Code")
+                    Text(stringResource(R.string.home_scan_qr_code))
                 }
             }
 
             activeTagId?.let {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Triggered by Talisman: ${activeTagName ?: it}")
+                Text(text = stringResource(R.string.home_triggered_by_talisman, activeTagName ?: it))
             }
 
             if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Scan $boundTalismanName to dispel", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.home_scan_to_dispel, boundTalismanName ?: ""), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
             }
 
             // NFC lock mode indicator
             if (focusMode && nfcLockMode && activeSchedule?.unbindingTalismanId == null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Scan your talisman to dispel",
+                    stringResource(R.string.home_scan_talisman_to_dispel),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -417,7 +420,7 @@ fun Greeting(
             if (focusMode && nfcLockMode) {
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(onClick = onScanQrCode) {
-                    Text("Scan QR Code")
+                    Text(stringResource(R.string.home_scan_qr_code))
                 }
             }
         }
@@ -441,7 +444,7 @@ fun SpellSelectorDropdown(
         modifier = modifier
     ) {
         OutlinedTextField(
-            value = selectedBlocker?.name ?: "Select Enchantment",
+            value = selectedBlocker?.name ?: stringResource(R.string.home_select_enchantment),
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
@@ -476,7 +479,7 @@ fun SpellSelectorDropdown(
                             Column {
                                 Text(blocker.name)
                                 Text(
-                                    text = if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Shield",
+                                    text = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -504,15 +507,15 @@ fun DurationSelectorDropdown(
     var expanded by remember { mutableStateOf(false) }
 
     val durations = listOf(
-        15 to "15 minutes",
-        25 to "25 minutes",
-        45 to "45 minutes",
-        60 to "1 hour",
-        120 to "2 hours",
-        0 to "Unlimited"
+        15 to stringResource(R.string.duration_15_min),
+        25 to stringResource(R.string.duration_25_min),
+        45 to stringResource(R.string.duration_45_min),
+        60 to stringResource(R.string.duration_1_hour),
+        120 to stringResource(R.string.duration_2_hours),
+        0 to stringResource(R.string.duration_unlimited)
     )
 
-    val selectedLabel = durations.find { it.first == selectedDuration }?.second ?: "Select Duration"
+    val selectedLabel = durations.find { it.first == selectedDuration }?.second ?: stringResource(R.string.duration_select)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -524,7 +527,7 @@ fun DurationSelectorDropdown(
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
-            label = { Text("Duration") },
+            label = { Text(stringResource(R.string.duration_label)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
@@ -579,7 +582,7 @@ fun PresetChipRow(
         FilterChip(
             selected = selectedPresetId == null,
             onClick = { /* Custom is selected by modifying any setting */ },
-            label = { Text("Custom") },
+            label = { Text(stringResource(R.string.label_custom)) },
             colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                 selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer

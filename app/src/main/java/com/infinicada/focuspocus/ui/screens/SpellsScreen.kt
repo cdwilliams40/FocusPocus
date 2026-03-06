@@ -43,12 +43,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.infinicada.focuspocus.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
+import com.infinicada.focuspocus.R
 
 @Composable
 fun BlockerListScreen(
@@ -62,16 +65,16 @@ fun BlockerListScreen(
         modifier = modifier,
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateClick) {
-                Icon(Icons.Default.Add, contentDescription = "Create new enchantment")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.spells_create_content_desc))
             }
         }
     ) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).padding(16.dp)) {
             item {
-                Text("Enchantments", style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(R.string.spells_title), style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Banish distracting apps or shield only the ones you need. Each enchantment defines which apps are blocked during focus.",
+                    stringResource(R.string.spells_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -85,7 +88,7 @@ fun BlockerListScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            "No enchantments yet. Tap the + button to create your first one!",
+                            stringResource(R.string.spells_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp)
@@ -123,22 +126,25 @@ fun BlockerListScreen(
                                 Text(blocker.name, style = MaterialTheme.typography.titleMedium)
                                 if (isActive) {
                                     Text(
-                                        "Active",
+                                        stringResource(R.string.label_active),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
+                            val modeLabel = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
+                            val appCount = blocker.apps.size
+                            val siteCount = blocker.websites.orEmpty().size
+                            val appCountStr = if (appCount > 0) pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount) else ""
+                            val siteCountStr = if (siteCount > 0) pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
                             Text(
                                 buildString {
-                                    append(if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Shield")
-                                    val appCount = blocker.apps.size
-                                    val siteCount = blocker.websites.orEmpty().size
+                                    append(modeLabel)
                                     if (appCount > 0 || siteCount > 0) {
                                         append(" - ")
                                         val parts = mutableListOf<String>()
-                                        if (appCount > 0) parts.add("$appCount app${if (appCount != 1) "s" else ""}")
-                                        if (siteCount > 0) parts.add("$siteCount site${if (siteCount != 1) "s" else ""}")
+                                        if (appCount > 0) parts.add(appCountStr)
+                                        if (siteCount > 0) parts.add(siteCountStr)
                                         append(parts.joinToString(", "))
                                     }
                                 },
@@ -146,7 +152,7 @@ fun BlockerListScreen(
                             )
                             if (isActive) {
                                 Text(
-                                    "Cannot edit while active",
+                                    stringResource(R.string.spells_cannot_edit_active),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
@@ -185,13 +191,13 @@ fun CreateBlockerScreen(
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        Text("Create Enchantment", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.spells_create_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
             value = name,
             onValueChange = { if (it.length <= 100) name = it },
-            label = { Text("Enchantment Name") },
+            label = { Text(stringResource(R.string.spells_enchantment_name_label)) },
             supportingText = {
                 Text(
                     text = "${name.length}/100",
@@ -206,16 +212,16 @@ fun CreateBlockerScreen(
                 selected = selectedMode == BlockerMode.BLACKLIST,
                 onClick = { selectedMode = BlockerMode.BLACKLIST }
             )
-            Text("Banish (Blacklist)")
+            Text(stringResource(R.string.label_banish_blacklist))
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
                 onClick = { selectedMode = BlockerMode.WHITELIST }
             )
-            Text("Shield (Whitelist)")
+            Text(stringResource(R.string.label_shield_whitelist))
         }
 
         Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Select Target Apps")
+            Text(stringResource(R.string.spells_select_target_apps))
         }
 
         AppListColumn(
@@ -239,7 +245,7 @@ fun CreateBlockerScreen(
                 .padding(top = 16.dp),
             enabled = name.isNotBlank()
         ) {
-            Text("Save Enchantment")
+            Text(stringResource(R.string.spells_save_enchantment))
         }
     }
 }
@@ -270,22 +276,22 @@ fun EditBlockerScreen(
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        Text("Edit Enchantment: ${blocker.name}", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.spells_edit_title, blocker.name), style = MaterialTheme.typography.headlineSmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,
                 onClick = { selectedMode = BlockerMode.BLACKLIST }
             )
-            Text("Banish (Blacklist)")
+            Text(stringResource(R.string.label_banish_blacklist))
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
                 onClick = { selectedMode = BlockerMode.WHITELIST }
             )
-            Text("Shield (Whitelist)")
+            Text(stringResource(R.string.label_shield_whitelist))
         }
 
         Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Select Target Apps")
+            Text(stringResource(R.string.spells_select_target_apps))
         }
 
         AppListColumn(
@@ -313,7 +319,7 @@ fun EditBlockerScreen(
                     .weight(1f)
                     .padding(end = 8.dp)
             ) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
             Button(
                 onClick = { onDeleteBlocker(blocker) },
@@ -322,7 +328,7 @@ fun EditBlockerScreen(
                     .padding(start = 8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Delete")
+                Text(stringResource(R.string.action_delete))
             }
         }
     }
@@ -337,7 +343,7 @@ fun WebsiteListSection(
     var input by remember { mutableStateOf("") }
 
     Column(modifier = modifier.padding(top = 16.dp)) {
-        Text("Blocked Websites", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.spells_blocked_websites), style = MaterialTheme.typography.titleSmall)
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -346,7 +352,7 @@ fun WebsiteListSection(
             OutlinedTextField(
                 value = input,
                 onValueChange = { if (it.length <= 255) input = it },
-                label = { Text("e.g. youtube.com") },
+                label = { Text(stringResource(R.string.spells_website_hint)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
@@ -361,7 +367,7 @@ fun WebsiteListSection(
                 enabled = input.isNotBlank(),
                 modifier = Modifier.padding(start = 8.dp)
             ) {
-                Text("Add")
+                Text(stringResource(R.string.action_add))
             }
         }
         websites.forEach { site ->
@@ -374,7 +380,7 @@ fun WebsiteListSection(
             ) {
                 Text(site, modifier = Modifier.weight(1f))
                 IconButton(onClick = { onWebsitesChanged(websites - site) }) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove $site")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.spells_remove_site, site))
                 }
             }
         }
@@ -436,7 +442,7 @@ fun AppListColumn(
                     Text(appPackageName, modifier = Modifier.weight(1f))
                 }
                 Button(onClick = { onRemoveApp(appPackageName) }) {
-                    Text("Remove")
+                    Text(stringResource(R.string.action_remove))
                 }
             }
         }
@@ -454,7 +460,7 @@ fun AppSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Select Apps") },
+        title = { Text(stringResource(R.string.spells_select_apps_title)) },
         text = {
             LazyColumn {
                 items(installedApps) { app ->
@@ -498,12 +504,12 @@ fun AppSelectionDialog(
         },
         confirmButton = {
             Button(onClick = { onSave(currentSelections.toList()) }) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             Button(onClick = onDismissRequest) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -517,7 +523,7 @@ fun BlockerSelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Select Enchantment") },
+        title = { Text(stringResource(R.string.spells_select_enchantment_title)) },
         text = {
             LazyColumn {
                 items(blockerLists) { blocker ->
@@ -542,7 +548,7 @@ fun BlockerSelectionDialog(
         },
         confirmButton = {
             Button(onClick = { onDismissRequest() }) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

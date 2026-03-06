@@ -1,0 +1,363 @@
+<resources>
+    <!-- App-level -->
+    <string name="app_name">Focus Pocus</string>
+    <string name="accessibility_service_label">Focus Pocus</string>
+    <string name="accessibility_service_description">Ce service vous aide à rester concentré en surveillant les applications que vous utilisez.</string>
+    <string name="foreground_service_title">Focus Pocus actif</string>
+    <string name="foreground_service_text">Veille sur votre concentration</string>
+
+    <!-- Navigation -->
+    <string name="nav_focus">Concentration</string>
+    <string name="nav_spellbook">Grimoire</string>
+    <string name="nav_insights">Statistiques</string>
+    <string name="nav_back">Retour</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Enregistrer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_remove">Retirer</string>
+    <string name="action_edit">Modifier</string>
+    <string name="action_add">Ajouter</string>
+    <string name="action_ok">OK</string>
+    <string name="action_done">Terminé</string>
+    <string name="action_back">Retour</string>
+    <string name="action_next">Suivant</string>
+    <string name="action_skip">Passer</string>
+    <string name="action_see_all">Tout voir</string>
+    <string name="action_manage">Gérer</string>
+    <string name="action_qr">QR</string>
+
+    <!-- Common terms -->
+    <string name="label_active">Actif</string>
+    <string name="label_custom">Personnalisé</string>
+    <string name="label_none">Aucun</string>
+    <string name="label_banish">Bannir</string>
+    <string name="label_shield">Bouclier</string>
+    <string name="label_banish_blacklist">Bannir (Liste noire)</string>
+    <string name="label_shield_whitelist">Bouclier (Liste blanche)</string>
+    <string name="label_unknown_talisman">Talisman inconnu</string>
+
+    <!-- Duration labels -->
+    <string name="duration_15_min">15 minutes</string>
+    <string name="duration_25_min">25 minutes</string>
+    <string name="duration_45_min">45 minutes</string>
+    <string name="duration_1_hour">1 heure</string>
+    <string name="duration_2_hours">2 heures</string>
+    <string name="duration_4_hours">4 heures</string>
+    <string name="duration_8_hours">8 heures</string>
+    <string name="duration_unlimited">Illimité</string>
+    <string name="duration_select">Choisir la durée</string>
+    <string name="duration_label">Durée</string>
+    <string name="duration_5_min">5 min</string>
+    <string name="duration_10_min">10 min</string>
+    <string name="duration_30_min">30 min</string>
+
+    <!-- formatDuration function strings -->
+    <string name="format_duration_unlimited">Illimité</string>
+    <string name="format_duration_minutes">%d min</string>
+    <string name="format_duration_hours_minutes">%1$dh %2$dm</string>
+    <plurals name="format_duration_hours">
+        <item quantity="one">%d heure</item>
+        <item quantity="other">%d heures</item>
+    </plurals>
+
+    <!-- HomeScreen -->
+    <string name="home_status_on_break">En pause</string>
+    <string name="home_status_active">Sort de concentration actif</string>
+    <string name="home_status_ready">Prêt à lancer</string>
+    <string name="home_quick_spells">Sorts rapides</string>
+    <string name="home_select_enchantment">Choisir un enchantement</string>
+    <string name="home_allow_breaks">Autoriser les pauses</string>
+    <string name="home_remaining">restant</string>
+    <string name="home_break_remaining">pause restante</string>
+    <string name="home_enchantment_name">Enchantement : %s</string>
+    <string name="home_ritual_name">Rituel : %s</string>
+    <string name="home_unbind_with">Délier avec : %s</string>
+    <string name="home_breaks_used">Pauses : %1$d / %2$d utilisées</string>
+    <string name="home_take_break">Prendre une pause</string>
+    <string name="home_end_break_early">Terminer la pause</string>
+    <string name="home_emergency_stop">Arrêt d\'urgence</string>
+    <string name="home_emergency_stop_confirm_text">Ceci utilise votre arrêt d\'urgence pour mettre fin à la session immédiatement. Vous n\'en aurez pas d\'autre pendant plusieurs semaines. Êtes-vous sûr ?</string>
+    <string name="home_use_emergency_stop">Utiliser l\'arrêt d\'urgence</string>
+    <plurals name="home_emergency_stop_days_remaining">
+        <item quantity="one">Arrêt d\'urgence disponible dans %d jour</item>
+        <item quantity="other">Arrêt d\'urgence disponible dans %d jours</item>
+    </plurals>
+    <string name="home_day_streak">Série de %d jours</string>
+    <string name="home_dispel_content_desc">Dissiper le sort</string>
+    <string name="home_cast_content_desc">Lancer le sort</string>
+    <string name="home_button_bound">Lié</string>
+    <string name="home_button_dispel">Dissiper</string>
+    <string name="home_button_cast">Lancer</string>
+    <string name="home_scan_qr_code">Scanner un code QR</string>
+    <string name="home_triggered_by_talisman">Déclenché par le talisman : %s</string>
+    <string name="home_scan_to_dispel">Scanner %s pour dissiper</string>
+    <string name="home_scan_talisman_to_dispel">Scannez votre talisman pour dissiper</string>
+
+    <!-- SpellbookScreen -->
+    <string name="spellbook_title">Grimoire</string>
+    <string name="spellbook_enchantments">Enchantements</string>
+    <string name="spellbook_quick_spells">Sorts rapides</string>
+    <string name="spellbook_rituals">Rituels</string>
+    <string name="spellbook_talismans">Talismans</string>
+    <string name="spellbook_time_limits">Limites de temps</string>
+    <string name="spellbook_no_enchantments">Aucun enchantement. Créez-en un pour définir les applications à bloquer.</string>
+    <string name="spellbook_no_quick_spells">Aucun sort rapide. Créez des préréglages pour des sessions de concentration en un clic.</string>
+    <string name="spellbook_no_rituals">Aucun rituel. Planifiez des sessions de concentration automatiques.</string>
+    <string name="spellbook_no_talismans">Aucun talisman lié. Scannez une puce NFC pour commencer.</string>
+    <string name="spellbook_no_time_limits">Aucune limite de temps définie. Restreignez l\'utilisation quotidienne même hors concentration.</string>
+    <string name="spellbook_more_count">+%d de plus</string>
+    <string name="spellbook_app_time_limit">%1$s - %2$d min/jour</string>
+    <string name="spellbook_breaks_suffix"> - Pauses</string>
+
+    <!-- Plurals for spellbook counts -->
+    <plurals name="spellbook_app_count">
+        <item quantity="one">%d application</item>
+        <item quantity="other">%d applications</item>
+    </plurals>
+    <plurals name="spellbook_site_count">
+        <item quantity="one">%d site</item>
+        <item quantity="other">%d sites</item>
+    </plurals>
+
+    <!-- SpellsScreen (Enchantments) -->
+    <string name="spells_title">Enchantements</string>
+    <string name="spells_description">Bannissez les applications distrayantes ou protégez uniquement celles dont vous avez besoin. Chaque enchantement définit les applications bloquées pendant la concentration.</string>
+    <string name="spells_empty">Aucun enchantement. Appuyez sur + pour créer le premier !</string>
+    <string name="spells_create_content_desc">Créer un nouvel enchantement</string>
+    <string name="spells_cannot_edit_active">Modification impossible pendant l\'activation</string>
+    <string name="spells_create_title">Créer un enchantement</string>
+    <string name="spells_edit_title">Modifier l\'enchantement : %s</string>
+    <string name="spells_enchantment_name_label">Nom de l\'enchantement</string>
+    <string name="spells_select_target_apps">Sélectionner les applications cibles</string>
+    <string name="spells_save_enchantment">Enregistrer l\'enchantement</string>
+    <string name="spells_char_count">%1$d/%2$d</string>
+    <string name="spells_blocked_websites">Sites web bloqués</string>
+    <string name="spells_website_hint">ex. youtube.com</string>
+    <string name="spells_remove_site">Retirer %s</string>
+    <string name="spells_select_apps_title">Sélectionner les applications</string>
+    <string name="spells_select_enchantment_title">Sélectionner un enchantement</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">Paramètres</string>
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_theme_system">Suivre le système</string>
+    <string name="settings_focus_behavior">Comportement de concentration</string>
+    <string name="settings_cannot_change_active">Modification impossible pendant un sort actif</string>
+    <string name="settings_break_duration">Durée de pause par défaut : %d minutes</string>
+    <string name="settings_breaks_per_session">Pauses par session par défaut : %d</string>
+    <string name="settings_emergency_cooldown">Délai d\'arrêt d\'urgence : %d semaines</string>
+    <string name="settings_emergency_cooldown_desc">Un arrêt d\'urgence par période de délai lorsque vous devez terminer une session plus tôt</string>
+    <string name="settings_hide_stop_button">Masquer le bouton d\'arrêt</string>
+    <string name="settings_hide_stop_button_desc">Masque le bouton Dissiper pendant les sessions de concentration minutées</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_mute_during_focus">Muet pendant la concentration</string>
+    <string name="settings_mute_desc">Désactiver les notifications pendant la concentration</string>
+    <string name="settings_grant_notification">Accorder l\'accès aux notifications</string>
+    <string name="settings_notification_required">Requis pour désactiver les notifications pendant les sessions de concentration</string>
+    <string name="settings_security">Sécurité</string>
+    <string name="settings_talisman_lock">Mode verrouillage par talisman</string>
+    <string name="settings_talisman_lock_desc">Exiger un talisman NFC ou un code QR pour arrêter les sessions</string>
+    <string name="settings_add_talisman_first">Ajoutez d\'abord un talisman pour activer le mode verrouillage</string>
+
+    <!-- InsightsScreen -->
+    <string name="insights_title">Statistiques d\'utilisation</string>
+    <string name="insights_today">Aujourd\'hui</string>
+    <string name="insights_this_week">Cette semaine</string>
+    <string name="insights_this_month">Ce mois-ci</string>
+    <string name="insights_all_time">Depuis toujours</string>
+    <string name="insights_focus_streaks">Séries de concentration</string>
+    <string name="insights_current">Actuelle</string>
+    <string name="insights_best">Meilleure</string>
+    <string name="insights_total">Total</string>
+    <string name="insights_focus_stats">Statistiques de concentration</string>
+    <string name="insights_total_focus">Concentration totale</string>
+    <string name="insights_avg_session">Session moyenne</string>
+    <string name="insights_sessions">Sessions</string>
+    <string name="insights_blocking_stats">Statistiques de blocage</string>
+    <string name="insights_total_blocks">%d blocages au total</string>
+    <string name="insights_most_blocked">Les plus bloqués</string>
+    <string name="insights_time_limit_status">État des limites de temps</string>
+    <string name="insights_time_used">%1$d / %2$d min</string>
+    <string name="insights_session_history">Historique des sessions</string>
+    <string name="insights_session_duration">%d min</string>
+    <plurals name="insights_session_breaks">
+        <item quantity="one">%d pause</item>
+        <item quantity="other">%d pauses</item>
+    </plurals>
+    <string name="insights_usage_access_required">Accès à l\'utilisation requis</string>
+    <string name="insights_usage_access_desc">Pour consulter vos statistiques d\'utilisation, veuillez accorder l\'autorisation d\'accès.</string>
+    <string name="insights_grant_usage_access">Accorder l\'accès à l\'utilisation</string>
+    <string name="insights_today_screen_time">Temps d\'écran aujourd\'hui</string>
+    <string name="insights_screen_time">Temps d\'écran</string>
+    <string name="insights_filtered_by">Filtré par : %s</string>
+    <string name="insights_all_apps">Toutes les applications</string>
+    <string name="insights_filter_by_enchantment">Filtrer par enchantement</string>
+    <string name="insights_app_usage">Utilisation des applications</string>
+    <string name="insights_no_usage_data">Aucune donnée d\'utilisation disponible pour cette période.</string>
+    <string name="insights_hours_minutes">%1$dh %2$dm</string>
+    <string name="insights_minutes_only">%dm</string>
+
+    <!-- OnboardingScreen -->
+    <string name="onboarding_step_of">Étape %1$d sur %2$d</string>
+    <string name="onboarding_start_focusing">Commencer à se concentrer</string>
+    <string name="onboarding_welcome_title">Bienvenue sur Focus Pocus</string>
+    <string name="onboarding_welcome_desc">Votre compagnon magique de concentration. Configurons quelques éléments pour vous aider à rester concentré et productif.</string>
+    <string name="onboarding_accessibility_title">Accorder la vue magique</string>
+    <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour détecter quand vous ouvrez des applications distrayantes et vous guider doucement vers votre concentration.</string>
+    <string name="onboarding_accessibility_enabled">Accessibilité activée</string>
+    <string name="onboarding_enable_accessibility">Activer le service d\'accessibilité</string>
+    <string name="onboarding_create_enchantment_title">Créez votre premier enchantement</string>
+    <string name="onboarding_create_enchantment_desc">Sélectionnez les applications à bloquer pendant les sessions de concentration.</string>
+    <string name="onboarding_enchantment_created">Enchantement créé ! Vous pouvez en créer d\'autres plus tard.</string>
+    <string name="onboarding_select_apps">Sélectionner les applications à bloquer (%d sélectionnées)</string>
+    <string name="onboarding_create_enchantment">Créer l\'enchantement</string>
+    <string name="onboarding_notification_title">Accès aux notifications</string>
+    <string name="onboarding_notification_desc">Accordez l\'accès aux notifications pour bloquer les notifications des applications distrayantes et activer le mode Ne pas déranger pendant la concentration.</string>
+    <string name="onboarding_notification_granted">Accès aux notifications accordé</string>
+    <string name="onboarding_grant_notification">Accorder l\'accès aux notifications</string>
+    <string name="onboarding_usage_title">Statistiques d\'utilisation</string>
+    <string name="onboarding_usage_desc">Accordez l\'accès à l\'utilisation pour voir les statistiques et activer les limites de temps par application.</string>
+    <string name="onboarding_usage_granted">Accès à l\'utilisation accordé</string>
+    <string name="onboarding_grant_usage">Accorder l\'accès à l\'utilisation</string>
+    <string name="onboarding_done_title">Vous êtes prêt !</string>
+    <string name="onboarding_done_desc">Focus Pocus est prêt à vous aider à vous concentrer. Vous pouvez toujours ajuster les paramètres, ajouter des talismans et créer des enchantements depuis l\'onglet Grimoire.</string>
+
+    <!-- RitualsScreen -->
+    <string name="rituals_title">Rituels planifiés</string>
+    <string name="rituals_create_content_desc">Créer un nouveau rituel</string>
+    <string name="rituals_overnight_suffix"> (nuit)</string>
+    <string name="rituals_bound_to_talisman">Lié à un talisman</string>
+    <string name="rituals_cannot_edit_active">Modification impossible pendant l\'activation</string>
+    <string name="rituals_concoct">Concocter un rituel</string>
+    <string name="rituals_refine">Affiner le rituel</string>
+    <string name="rituals_name_label">Nom du rituel</string>
+    <string name="rituals_select_enchantment">Sélectionner un enchantement</string>
+    <string name="rituals_unbind_with">Délier avec : %s</string>
+    <string name="rituals_bind_optional">Optionnel : Lier à un talisman</string>
+    <string name="rituals_select_unbinding_talisman">Sélectionner le talisman de déliaison</string>
+    <string name="rituals_none_unbind">Aucun (Délier librement)</string>
+    <string name="rituals_allow_breaks">Autoriser les pauses</string>
+    <string name="rituals_break_duration">Durée de pause : %d minutes</string>
+    <string name="rituals_breaks_per_session">Pauses par session : %d</string>
+    <string name="rituals_days_active">Jours actifs :</string>
+    <string name="rituals_start_time">Début : %s</string>
+    <string name="rituals_end_time">Fin : %s</string>
+    <string name="rituals_end_time_next_day">Fin : %1$s (lendemain)</string>
+    <string name="rituals_time_same_error">Les heures de début et de fin ne peuvent pas être identiques</string>
+    <string name="rituals_save">Enregistrer le rituel</string>
+
+    <!-- TalismansScreen -->
+    <string name="talismans_title">Talismans</string>
+    <string name="talismans_bind_new">Lier un nouveau talisman</string>
+    <string name="talismans_last_scanned">Dernier talisman scanné : %s</string>
+    <string name="talismans_name_label">Nom du talisman</string>
+    <string name="talismans_enchant">Enchanter le talisman</string>
+    <string name="talismans_scan_nfc">Scannez une puce NFC pour la lier en tant que talisman.</string>
+    <string name="talismans_enchanted_items">Objets enchantés</string>
+    <string name="talismans_disenchant">Désenchanter</string>
+    <string name="talismans_none_bound">Aucun talisman lié.</string>
+    <string name="talismans_qr_title">Code QR : %s</string>
+
+    <!-- QuickSpellsListScreen -->
+    <string name="quick_spells_title">Sorts rapides</string>
+    <string name="quick_spells_create_content_desc">Créer un sort rapide</string>
+    <string name="quick_spells_subtitle">Configurations de concentration préréglées pour un accès rapide</string>
+    <string name="quick_spells_empty">Aucun sort rapide. Appuyez sur + pour créer le premier !</string>
+    <string name="quick_spells_enchantment_missing">Enchantement manquant - veuillez modifier</string>
+    <string name="quick_spells_bound_to">Lié à : %s</string>
+    <string name="quick_spells_qr_title">Code QR : %s</string>
+    <string name="quick_spells_temp_enable">Activer temporairement %dm</string>
+    <string name="quick_spells_temp_disable">Désactiver temporairement %dm</string>
+
+    <!-- QuickSpellEditorScreen -->
+    <string name="quick_spell_editor_create_title">Créer un sort rapide</string>
+    <string name="quick_spell_editor_edit_title">Modifier le sort rapide</string>
+    <string name="quick_spell_editor_name_label">Nom</string>
+    <string name="quick_spell_editor_enchantment_label">Enchantement</string>
+    <string name="quick_spell_editor_select_enchantment">Sélectionner un enchantement</string>
+    <string name="quick_spell_editor_bind_talisman">Lier à un talisman</string>
+    <string name="quick_spell_editor_none_talisman">Aucun (appuyez pour sélectionner)</string>
+    <string name="quick_spell_editor_action_type">Type d\'action</string>
+    <string name="quick_spell_editor_action_toggle">Basculer</string>
+    <string name="quick_spell_editor_action_temp_enable">Activation temporaire</string>
+    <string name="quick_spell_editor_action_temp_disable">Désactivation temporaire</string>
+    <string name="quick_spell_editor_temp_duration">Durée temporaire</string>
+    <string name="quick_spell_editor_allow_breaks">Autoriser les pauses</string>
+
+    <!-- TimeLimitsScreen -->
+    <string name="time_limits_title">Limites de temps par application</string>
+    <string name="time_limits_description">Définissez des quotas quotidiens par application. Les applications sont bloquées lorsque leur limite est atteinte, même hors mode concentration.</string>
+    <string name="time_limits_grant_usage">Accorder l\'accès à l\'utilisation</string>
+    <string name="time_limits_required">Requis pour le suivi des limites de temps</string>
+    <string name="time_limits_used_today">%1$d / %2$d min aujourd\'hui</string>
+    <string name="time_limits_add">Ajouter une limite de temps</string>
+    <string name="time_limits_add_dialog_title">Ajouter une limite de temps</string>
+    <string name="time_limits_select_app">Sélectionner une application</string>
+    <string name="time_limits_app_label">Application</string>
+    <string name="time_limits_daily_limit">Limite quotidienne : %s</string>
+
+    <!-- QrCodeDialog -->
+    <string name="qr_code_content_desc">Code QR</string>
+
+    <!-- OverlayActivity -->
+    <string name="overlay_spell_name">Sort : %s</string>
+    <string name="overlay_app_blocked">%s est bloqué !</string>
+    <string name="overlay_close">Fermer</string>
+    <string name="overlay_wait">Attendez %ds\u2026</string>
+
+    <!-- MyAccessibilityService -->
+    <string name="rituals_channel_name">Rituels</string>
+    <string name="rituals_channel_description">Notifications pour les rituels planifiés</string>
+    <string name="ritual_started_title">Rituel commencé</string>
+    <string name="ritual_started_message">%s est maintenant actif.</string>
+    <string name="ritual_ended_title">Rituel terminé</string>
+    <string name="ritual_ended_message">%s est terminé.</string>
+
+    <!-- MyAccessibilityService overlay strings -->
+    <string name="service_talisman_lock">Verrouillage par talisman</string>
+    <string name="service_daily_time_limit">Limite de temps quotidienne atteinte</string>
+
+    <!-- MainActivity navigation and dialogs -->
+    <string name="main_settings_content_desc">Paramètres</string>
+    <string name="main_accessibility_title">Accorder la vue magique</string>
+    <string name="main_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour détecter quand vous ouvrez des applications distrayantes et vous guider vers votre concentration. Sans cet enchantement, vos sorts ne peuvent pas vous protéger de la tentation.</string>
+    <string name="main_accessibility_go_to_settings">Aller aux paramètres</string>
+    <string name="main_deep_link_confirm_title">Confirmer l\'action</string>
+    <string name="main_deep_link_action_temp_enable">activer « %1$s » pendant %2$d minutes</string>
+    <string name="main_deep_link_action_temp_disable">démarrer une pause de %d minutes</string>
+    <string name="main_deep_link_action_temp_disable_inactive">mettre en pause la concentration (aucune session active)</string>
+    <string name="main_deep_link_action_dispel">dissiper « %s »</string>
+    <string name="main_deep_link_action_cast">lancer « %s »</string>
+    <string name="main_deep_link_confirm_message">Un lien externe demande à %s. Autoriser ?</string>
+    <string name="main_deep_link_allow">Autoriser</string>
+    <string name="main_deep_link_deny">Refuser</string>
+
+    <!-- Toast messages -->
+    <string name="toast_data_corrupted_rituals">Les données de rituels étaient corrompues et ont été réinitialisées</string>
+    <string name="toast_max_rituals">Maximum de %d rituels atteint</string>
+    <string name="toast_data_corrupted_enchantments">Les données d\'enchantements étaient corrompues - valeurs par défaut restaurées</string>
+    <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
+    <string name="toast_data_corrupted_quick_spells">Les données de sorts rapides étaient corrompues - valeurs par défaut restaurées</string>
+    <string name="toast_max_quick_spells">Maximum de %d sorts rapides atteint</string>
+    <string name="toast_max_time_limits">Maximum de %d limites de temps atteint</string>
+    <string name="toast_data_corrupted_talismans">Les données de talismans étaient corrompues et ont été réinitialisées</string>
+    <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
+    <string name="toast_preset_cast_timed">%1$s lancé pour %2$d min !</string>
+    <string name="toast_enchantment_missing">Enchantement manquant pour %s</string>
+    <string name="toast_temp_break">Pause temporaire de %d min !</string>
+    <string name="toast_no_active_focus">Aucune concentration active à suspendre</string>
+    <string name="toast_preset_dispelled">%s dissipé !</string>
+    <string name="toast_preset_cast">%s lancé !</string>
+    <string name="toast_invalid_qr">Code QR invalide</string>
+    <string name="toast_quick_spell_not_found">Sort rapide introuvable</string>
+    <string name="toast_talisman_not_found">Talisman introuvable</string>
+    <string name="toast_no_quick_spell_bound">Aucun sort rapide lié à %s</string>
+    <string name="toast_ritual_dispelled">Rituel dissipé !</string>
+    <string name="toast_wrong_talisman">Mauvais talisman !</string>
+    <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
+    <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
+</resources>

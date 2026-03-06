@@ -277,8 +277,8 @@ class MyAccessibilityService : AccessibilityService() {
         )
 
         sendRitualNotification(
-            title = "Ritual Started",
-            message = "${schedule.name} is now active.",
+            title = getString(R.string.ritual_started_title),
+            message = getString(R.string.ritual_started_message, schedule.name),
             scheduleId = schedule.id,
             isEndNotification = false
         )
@@ -288,8 +288,8 @@ class MyAccessibilityService : AccessibilityService() {
         SessionManager.stopSession(this, sharedPreferences, gson)
 
         sendRitualNotification(
-            title = "Ritual Ended",
-            message = "${schedule.name} has ended.",
+            title = getString(R.string.ritual_ended_title),
+            message = getString(R.string.ritual_ended_message, schedule.name),
             scheduleId = schedule.id,
             isEndNotification = true
         )
@@ -359,7 +359,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             lastAppBlockTime = now
             closeApp()
-            showOverlay(appName, "Talisman Lock")
+            showOverlay(appName, getString(R.string.service_talisman_lock))
             return
         }
 
@@ -401,7 +401,7 @@ class MyAccessibilityService : AccessibilityService() {
             lastAppBlockTime = System.currentTimeMillis()
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
-            showOverlay(appName, "Daily Time Limit Reached")
+            showOverlay(appName, getString(R.string.service_daily_time_limit))
         }
     }
 
@@ -498,19 +498,20 @@ class MyAccessibilityService : AccessibilityService() {
         val viewId = BROWSER_URL_BAR_IDS[packageName]
         if (viewId != null) {
             val rootNode = rootInActiveWindow ?: return null
+            var nodes: List<AccessibilityNodeInfo>? = null
             try {
-                val nodes = rootNode.findAccessibilityNodeInfosByViewId(viewId)
+                nodes = rootNode.findAccessibilityNodeInfosByViewId(viewId)
                 if (nodes != null && nodes.isNotEmpty()) {
                     val text = nodes[0].text?.toString()
-                    nodes.forEach { it.recycle() }
-                    rootNode.recycle()
                     if (text != null && UrlUtils.looksLikeUrl(text)) return text
                     return null
                 }
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error finding URL bar by ID", e)
+            } finally {
+                nodes?.forEach { it.recycle() }
+                rootNode.recycle()
             }
-            rootNode.recycle()
         }
 
         // Fallback: walk the node tree looking for URL-like text

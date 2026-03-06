@@ -48,9 +48,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import com.infinicada.focuspocus.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.UsageStatsHelper
@@ -106,7 +108,7 @@ fun OnboardingScreen(
         )
 
         Text(
-            "Step ${currentStep + 1} of $totalSteps",
+            stringResource(R.string.onboarding_step_of, currentStep + 1, totalSteps),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -150,7 +152,7 @@ fun OnboardingScreen(
         ) {
             if (currentStep > 0) {
                 OutlinedButton(onClick = { currentStep-- }) {
-                    Text("Back")
+                    Text(stringResource(R.string.action_back))
                 }
             } else {
                 Spacer(modifier = Modifier.size(1.dp))
@@ -166,14 +168,14 @@ fun OnboardingScreen(
                     onClick = { currentStep++ },
                     enabled = canProceed
                 ) {
-                    Text(if (currentStep == 1 && !accessibilityEnabled) "Skip" else "Next")
+                    Text(if (currentStep == 1 && !accessibilityEnabled) stringResource(R.string.action_skip) else stringResource(R.string.action_next))
                 }
             } else {
                 Button(
                     onClick = onComplete,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Start Focusing")
+                    Text(stringResource(R.string.onboarding_start_focusing))
                 }
             }
         }
@@ -195,13 +197,13 @@ private fun WelcomeStep() {
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            "Welcome to Focus Pocus",
+            stringResource(R.string.onboarding_welcome_title),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            "Your magical focus companion. Let's set up a few things to help you stay focused and productive.",
+            stringResource(R.string.onboarding_welcome_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -220,13 +222,13 @@ private fun AccessibilityStep(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Grant Magical Sight",
+            stringResource(R.string.onboarding_accessibility_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus.",
+            stringResource(R.string.onboarding_accessibility_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -243,14 +245,14 @@ private fun AccessibilityStep(
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Text(
-                        "  Accessibility enabled",
+                        stringResource(R.string.onboarding_accessibility_enabled),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
         } else {
             Button(onClick = onEnable) {
-                Text("Enable Accessibility Service")
+                Text(stringResource(R.string.onboarding_enable_accessibility))
             }
         }
     }
@@ -284,13 +286,13 @@ private fun CreateBlockerStep(
     ) {
         item {
             Text(
-                "Create Your First Enchantment",
+                stringResource(R.string.onboarding_create_enchantment_title),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Select the apps you want to block during focus sessions.",
+                stringResource(R.string.onboarding_create_enchantment_desc),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -310,7 +312,7 @@ private fun CreateBlockerStep(
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Text(
-                            "  Enchantment created! You can create more later.",
+                            stringResource(R.string.onboarding_enchantment_created),
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
@@ -323,12 +325,12 @@ private fun CreateBlockerStep(
             TextField(
                 value = blockerName,
                 onValueChange = { if (it.length <= 100) blockerName = it },
-                label = { Text("Enchantment Name") },
+                label = { Text(stringResource(R.string.spells_enchantment_name_label)) },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(onClick = { showAppDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Select Apps to Block (${selectedApps.size} selected)")
+                Text(stringResource(R.string.onboarding_select_apps, selectedApps.size))
             }
             Spacer(modifier = Modifier.height(12.dp))
             Button(
@@ -340,7 +342,7 @@ private fun CreateBlockerStep(
                 enabled = blockerName.isNotBlank() && selectedApps.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Create Enchantment")
+                Text(stringResource(R.string.onboarding_create_enchantment))
             }
         }
     }
@@ -357,13 +359,13 @@ private fun NotificationStep(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Notification Access",
+            stringResource(R.string.onboarding_notification_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Grant notification access to block notifications from distracting apps and enable Do Not Disturb during focus.",
+            stringResource(R.string.onboarding_notification_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -379,12 +381,12 @@ private fun NotificationStep(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("  Notification access granted", color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.onboarding_notification_granted), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         } else {
             Button(onClick = onGrant) {
-                Text("Grant Notification Access")
+                Text(stringResource(R.string.onboarding_grant_notification))
             }
         }
     }
@@ -401,13 +403,13 @@ private fun UsageStatsStep(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            "Usage Statistics",
+            stringResource(R.string.onboarding_usage_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Grant usage access to see app usage insights and enable per-app time limits.",
+            stringResource(R.string.onboarding_usage_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -423,12 +425,12 @@ private fun UsageStatsStep(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text("  Usage access granted", color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.onboarding_usage_granted), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         } else {
             Button(onClick = onGrant) {
-                Text("Grant Usage Access")
+                Text(stringResource(R.string.onboarding_grant_usage))
             }
         }
     }
@@ -449,13 +451,13 @@ private fun DoneStep() {
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            "You're All Set!",
+            stringResource(R.string.onboarding_done_title),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            "Focus Pocus is ready to help you focus. You can always adjust settings, add talismans, and create more enchantments from the Wizard tab.",
+            stringResource(R.string.onboarding_done_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant

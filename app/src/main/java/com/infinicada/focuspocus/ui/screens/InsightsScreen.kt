@@ -30,16 +30,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.BlockEvent
@@ -67,12 +71,17 @@ fun UsageStatsScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
-    var selectedTab by remember { mutableStateOf("Today") }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
     var filterExpanded by remember { mutableStateOf(false) }
 
     // Time range filtering
-    val timeRanges = listOf("Today", "This Week", "This Month", "All Time")
+    val timeRangeLabels = listOf(
+        stringResource(R.string.insights_today),
+        stringResource(R.string.insights_this_week),
+        stringResource(R.string.insights_this_month),
+        stringResource(R.string.insights_all_time)
+    )
 
     val now = System.currentTimeMillis()
     val todayStart = remember {
@@ -93,11 +102,11 @@ fun UsageStatsScreen(
         }.timeInMillis
     }
 
-    val rangeStart = when (selectedTab) {
-        "Today" -> todayStart
-        "This Week" -> weekStart
-        "This Month" -> monthStart
-        else -> 0L
+    val rangeStart = when (selectedTabIndex) {
+        0 -> todayStart  // Today
+        1 -> weekStart   // This Week
+        2 -> monthStart  // This Month
+        else -> 0L       // All Time
     }
 
     val filteredSessions = remember(focusSessions, rangeStart) {
@@ -125,10 +134,10 @@ fun UsageStatsScreen(
 
     var usageStats by remember { mutableStateOf<List<com.infinicada.focuspocus.AppUsage>>(emptyList()) }
 
-    LaunchedEffect(hasPermission, selectedTab) {
+    LaunchedEffect(hasPermission, selectedTabIndex) {
         if (hasPermission) {
             val stats = withContext(Dispatchers.IO) {
-                if (selectedTab == "Today") {
+                if (selectedTabIndex == 0) {
                     UsageStatsHelper.getTodayUsage(context)
                 } else {
                     UsageStatsHelper.getWeeklyUsage(context)
@@ -141,10 +150,11 @@ fun UsageStatsScreen(
     }
 
     val filteredStats = remember(usageStats, selectedBlockerFilter) {
-        if (selectedBlockerFilter == null) {
+        val currentFilter = selectedBlockerFilter
+        if (currentFilter == null) {
             usageStats
         } else {
-            val blockedPackages = selectedBlockerFilter!!.apps.toSet()
+            val blockedPackages = currentFilter.apps.toSet()
             usageStats.filter { it.packageName in blockedPackages }
         }
     }
@@ -177,7 +187,7 @@ fun UsageStatsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Text("Usage Insights", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.insights_title), style = MaterialTheme.typography.headlineMedium)
         }
 
         // Time range tabs
@@ -188,11 +198,11 @@ fun UsageStatsScreen(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                timeRanges.forEach { range ->
+                timeRangeLabels.forEachIndexed { index, label ->
                     FilterChip(
-                        selected = selectedTab == range,
-                        onClick = { selectedTab = range },
-                        label = { Text(range) }
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        label = { Text(label) }
                     )
                 }
             }
@@ -213,7 +223,7 @@ fun UsageStatsScreen(
                             .padding(16.dp)
                     ) {
                         Text(
-                            "Focus Streaks",
+                            stringResource(R.string.insights_focus_streaks),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -229,7 +239,7 @@ fun UsageStatsScreen(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Text(
-                                    "Current",
+                                    stringResource(R.string.insights_current),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
@@ -241,7 +251,7 @@ fun UsageStatsScreen(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Text(
-                                    "Best",
+                                    stringResource(R.string.insights_best),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
@@ -253,7 +263,7 @@ fun UsageStatsScreen(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Text(
-                                    "Total",
+                                    stringResource(R.string.insights_total),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
@@ -279,7 +289,7 @@ fun UsageStatsScreen(
                             .padding(16.dp)
                     ) {
                         Text(
-                            "Focus Stats",
+                            stringResource(R.string.insights_focus_stats),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -292,24 +302,24 @@ fun UsageStatsScreen(
                                 val hours = totalFocusMinutes / 60
                                 val mins = totalFocusMinutes % 60
                                 Text(
-                                    if (hours > 0) "${hours}h ${mins}m" else "${mins}m",
+                                    if (hours > 0) stringResource(R.string.insights_hours_minutes, hours, mins) else stringResource(R.string.insights_minutes_only, mins),
                                     style = MaterialTheme.typography.headlineSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    "Total Focus",
+                                    stringResource(R.string.insights_total_focus),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    "${avgSessionLength}m",
+                                    stringResource(R.string.insights_minutes_only, avgSessionLength),
                                     style = MaterialTheme.typography.headlineSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    "Avg Session",
+                                    stringResource(R.string.insights_avg_session),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -321,7 +331,7 @@ fun UsageStatsScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    "Sessions",
+                                    stringResource(R.string.insights_sessions),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -347,20 +357,20 @@ fun UsageStatsScreen(
                             .padding(16.dp)
                     ) {
                         Text(
-                            "Blocking Stats",
+                            stringResource(R.string.insights_blocking_stats),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "$totalBlocks total blocks",
+                            stringResource(R.string.insights_total_blocks, totalBlocks),
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         if (topBlockedApps.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                "Most Blocked",
+                                stringResource(R.string.insights_most_blocked),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -394,7 +404,7 @@ fun UsageStatsScreen(
         // App Time Limit Status
         if (appTimeLimits.isNotEmpty() && hasPermission) {
             item {
-                Text("Time Limit Status", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.insights_time_limit_status), style = MaterialTheme.typography.titleMedium)
             }
             val limitEntries = appTimeLimits.entries.toList()
             items(limitEntries) { (pkg, limit) ->
@@ -421,7 +431,7 @@ fun UsageStatsScreen(
                         ) {
                             Text(appName, style = MaterialTheme.typography.titleSmall)
                             Text(
-                                "$usedMinutes / $limit min",
+                                stringResource(R.string.insights_time_used, usedMinutes, limit),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                         else MaterialTheme.colorScheme.onSurfaceVariant
@@ -441,7 +451,7 @@ fun UsageStatsScreen(
         // Session History
         if (filteredSessions.isNotEmpty()) {
             item {
-                Text("Session History", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.insights_session_history), style = MaterialTheme.typography.titleMedium)
             }
 
             val sortedSessions = filteredSessions.sortedByDescending { it.endTimeMillis }
@@ -469,13 +479,13 @@ fun UsageStatsScreen(
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                "${session.durationMinutes} min",
+                                stringResource(R.string.insights_session_duration, session.durationMinutes),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             if (session.breaksUsed > 0) {
                                 Text(
-                                    "${session.breaksUsed} break${if (session.breaksUsed != 1) "s" else ""}",
+                                    pluralStringResource(R.plurals.insights_session_breaks, session.breaksUsed, session.breaksUsed),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -499,12 +509,12 @@ fun UsageStatsScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Usage Access Required",
+                            stringResource(R.string.insights_usage_access_required),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            "To view your app usage statistics, please grant usage access permission.",
+                            stringResource(R.string.insights_usage_access_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -516,7 +526,7 @@ fun UsageStatsScreen(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Grant Usage Access")
+                            Text(stringResource(R.string.insights_grant_usage_access))
                         }
                     }
                 }
@@ -536,7 +546,7 @@ fun UsageStatsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            if (selectedTab == "Today") "Today's Screen Time" else "Screen Time",
+                            if (selectedTabIndex == 0) stringResource(R.string.insights_today_screen_time) else stringResource(R.string.insights_screen_time),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -546,9 +556,10 @@ fun UsageStatsScreen(
                             style = MaterialTheme.typography.displayMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        if (selectedBlockerFilter != null) {
+                        val filter = selectedBlockerFilter
+                        if (filter != null) {
                             Text(
-                                "Filtered by: ${selectedBlockerFilter!!.name}",
+                                stringResource(R.string.insights_filtered_by, filter.name),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
@@ -564,10 +575,10 @@ fun UsageStatsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = selectedBlockerFilter?.name ?: "All Apps",
+                        value = selectedBlockerFilter?.name ?: stringResource(R.string.insights_all_apps),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Filter by Enchantment") },
+                        label = { Text(stringResource(R.string.insights_filter_by_enchantment)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = filterExpanded) },
                         modifier = Modifier
                             .menuAnchor()
@@ -578,7 +589,7 @@ fun UsageStatsScreen(
                         onDismissRequest = { filterExpanded = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("All Apps") },
+                            text = { Text(stringResource(R.string.insights_all_apps)) },
                             onClick = {
                                 selectedBlockerFilter = null
                                 filterExpanded = false
@@ -599,7 +610,7 @@ fun UsageStatsScreen(
 
             item {
                 Text(
-                    "App Usage",
+                    stringResource(R.string.insights_app_usage),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -607,7 +618,7 @@ fun UsageStatsScreen(
             if (filteredStats.isEmpty()) {
                 item {
                     Text(
-                        "No usage data available for this period.",
+                        stringResource(R.string.insights_no_usage_data),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

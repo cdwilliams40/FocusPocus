@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.AppInfo
 import com.infinicada.focuspocus.Blocker
@@ -35,6 +37,7 @@ import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.Schedule
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.formatDuration
 
 @Composable
@@ -57,35 +60,37 @@ fun SpellbookScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text("Spellbook", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.spellbook_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         // Enchantments Section
         SpellbookSectionCard(
-            title = "Enchantments",
+            title = stringResource(R.string.spellbook_enchantments),
             icon = Icons.Filled.Lock,
             count = blockerLists.size,
             onSeeAll = onNavigateToEnchantments
         ) {
             if (blockerLists.isEmpty()) {
                 Text(
-                    "No enchantments yet. Create one to define which apps to block.",
+                    stringResource(R.string.spellbook_no_enchantments),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 blockerLists.take(3).forEach { blocker ->
-                    val mode = if (blocker.mode == BlockerMode.BLACKLIST) "Banish" else "Shield"
+                    val mode = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
                     val appCount = blocker.apps.size
                     val siteCount = blocker.websites.orEmpty().size
+                    val appText = pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount)
+                    val siteText = if (siteCount > 0) ", " + pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
                     Text(
-                        "${blocker.name} - $mode - $appCount app${if (appCount != 1) "s" else ""}${if (siteCount > 0) ", $siteCount site${if (siteCount != 1) "s" else ""}" else ""}",
+                        "${blocker.name} - $mode - $appText$siteText",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 if (blockerLists.size > 3) {
                     Text(
-                        "+${blockerLists.size - 3} more",
+                        stringResource(R.string.spellbook_more_count, blockerLists.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -97,27 +102,28 @@ fun SpellbookScreen(
 
         // Quick Spells Section
         SpellbookSectionCard(
-            title = "Quick Spells",
+            title = stringResource(R.string.spellbook_quick_spells),
             icon = Icons.Filled.AutoFixHigh,
             count = focusPresets.size,
             onSeeAll = onNavigateToQuickSpells
         ) {
             if (focusPresets.isEmpty()) {
                 Text(
-                    "No quick spells yet. Create presets for one-tap focus sessions.",
+                    stringResource(R.string.spellbook_no_quick_spells),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 focusPresets.take(3).forEach { preset ->
+                    val breaksSuffix = if (preset.breaksEnabled) stringResource(R.string.spellbook_breaks_suffix) else ""
                     Text(
-                        "${preset.name} - ${formatDuration(preset.durationMinutes)}${if (preset.breaksEnabled) " - Breaks" else ""}",
+                        "${preset.name} - ${formatDuration(preset.durationMinutes)}$breaksSuffix",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 if (focusPresets.size > 3) {
                     Text(
-                        "+${focusPresets.size - 3} more",
+                        stringResource(R.string.spellbook_more_count, focusPresets.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -129,14 +135,14 @@ fun SpellbookScreen(
 
         // Rituals Section
         SpellbookSectionCard(
-            title = "Rituals",
+            title = stringResource(R.string.spellbook_rituals),
             icon = Icons.Filled.DateRange,
             count = schedules.size,
             onSeeAll = onNavigateToRituals
         ) {
             if (schedules.isEmpty()) {
                 Text(
-                    "No rituals yet. Schedule automatic focus sessions.",
+                    stringResource(R.string.spellbook_no_rituals),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -150,7 +156,7 @@ fun SpellbookScreen(
                 }
                 if (schedules.size > 3) {
                     Text(
-                        "+${schedules.size - 3} more",
+                        stringResource(R.string.spellbook_more_count, schedules.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -162,15 +168,15 @@ fun SpellbookScreen(
 
         // Talismans Section
         SpellbookSectionCard(
-            title = "Talismans",
+            title = stringResource(R.string.spellbook_talismans),
             icon = Icons.Filled.Nfc,
             count = namedTags.size,
-            actionLabel = "Manage",
+            actionLabel = stringResource(R.string.action_manage),
             onSeeAll = onNavigateToTalismans
         ) {
             if (namedTags.isEmpty()) {
                 Text(
-                    "No talismans bound. Scan an NFC tag to get started.",
+                    stringResource(R.string.spellbook_no_talismans),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -180,7 +186,7 @@ fun SpellbookScreen(
                 }
                 if (namedTags.size > 3) {
                     Text(
-                        "+${namedTags.size - 3} more",
+                        stringResource(R.string.spellbook_more_count, namedTags.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -192,15 +198,15 @@ fun SpellbookScreen(
 
         // Time Limits Section
         SpellbookSectionCard(
-            title = "Time Limits",
+            title = stringResource(R.string.spellbook_time_limits),
             icon = Icons.Filled.Timer,
             count = appTimeLimits.size,
-            actionLabel = "Manage",
+            actionLabel = stringResource(R.string.action_manage),
             onSeeAll = onNavigateToTimeLimits
         ) {
             if (appTimeLimits.isEmpty()) {
                 Text(
-                    "No time limits set. Restrict daily app usage even outside focus mode.",
+                    stringResource(R.string.spellbook_no_time_limits),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -208,13 +214,13 @@ fun SpellbookScreen(
                 appTimeLimits.entries.take(3).forEach { (pkg, limit) ->
                     val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
                     Text(
-                        "$appName - $limit min/day",
+                        stringResource(R.string.spellbook_app_time_limit, appName, limit),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 if (appTimeLimits.size > 3) {
                     Text(
-                        "+${appTimeLimits.size - 3} more",
+                        stringResource(R.string.spellbook_more_count, appTimeLimits.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -231,10 +237,11 @@ private fun SpellbookSectionCard(
     title: String,
     icon: ImageVector,
     count: Int,
-    actionLabel: String = "See All",
+    actionLabel: String? = null,
     onSeeAll: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    val resolvedActionLabel = actionLabel ?: stringResource(R.string.action_see_all)
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -269,7 +276,7 @@ private fun SpellbookSectionCard(
                     }
                 }
                 TextButton(onClick = onSeeAll) {
-                    Text(actionLabel)
+                    Text(resolvedActionLabel)
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,

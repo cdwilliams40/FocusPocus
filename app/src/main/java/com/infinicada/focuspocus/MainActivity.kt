@@ -48,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -178,26 +180,26 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     if (preset != null) {
                         val isActive = SessionManager.isSessionActive(sharedPreferences)
                         val actionDescription = when (preset.action ?: PresetAction.TOGGLE) {
-                            PresetAction.TEMP_ENABLE -> "activate \"${preset.name}\" for ${preset.tempDurationMinutes ?: 30} minutes"
-                            PresetAction.TEMP_DISABLE -> if (isActive) "start a ${preset.tempDurationMinutes ?: 30} minute break" else "pause focus (no active session)"
-                            PresetAction.TOGGLE -> if (isActive) "dispel \"${preset.name}\"" else "cast \"${preset.name}\""
+                            PresetAction.TEMP_ENABLE -> stringResource(R.string.main_deep_link_action_temp_enable, preset.name, preset.tempDurationMinutes ?: 30)
+                            PresetAction.TEMP_DISABLE -> if (isActive) stringResource(R.string.main_deep_link_action_temp_disable, preset.tempDurationMinutes ?: 30) else stringResource(R.string.main_deep_link_action_temp_disable_inactive)
+                            PresetAction.TOGGLE -> if (isActive) stringResource(R.string.main_deep_link_action_dispel, preset.name) else stringResource(R.string.main_deep_link_action_cast, preset.name)
                         }
-                        androidx.compose.material3.AlertDialog(
+                        AlertDialog(
                             onDismissRequest = { dismissDeepLinkConfirmation() },
-                            title = { androidx.compose.material3.Text("Confirm Action") },
+                            title = { Text(stringResource(R.string.main_deep_link_confirm_title)) },
                             text = {
-                                androidx.compose.material3.Text(
-                                    "An external link is requesting to $actionDescription. Allow this?"
+                                Text(
+                                    stringResource(R.string.main_deep_link_confirm_message, actionDescription)
                                 )
                             },
                             confirmButton = {
-                                androidx.compose.material3.Button(onClick = { confirmDeepLinkAction() }) {
-                                    androidx.compose.material3.Text("Allow")
+                                Button(onClick = { confirmDeepLinkAction() }) {
+                                    Text(stringResource(R.string.main_deep_link_allow))
                                 }
                             },
                             dismissButton = {
                                 androidx.compose.material3.OutlinedButton(onClick = { dismissDeepLinkConfirmation() }) {
-                                    androidx.compose.material3.Text("Deny")
+                                    Text(stringResource(R.string.main_deep_link_deny))
                                 }
                             }
                         )
@@ -214,14 +216,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         schedules = PrefsHelper.load<List<Schedule>>(
             sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, type
         ) {
-            Toast.makeText(this, "Ritual data was corrupted and has been reset", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_data_corrupted_rituals), Toast.LENGTH_LONG).show()
         } ?: emptyList()
     }
 
     private fun saveSchedule(newSchedule: Schedule) {
         val isUpdate = schedules.any { it.id == newSchedule.id }
         if (!isUpdate && schedules.size >= Constants.MAX_SCHEDULES) {
-            Toast.makeText(this, "Maximum of ${Constants.MAX_SCHEDULES} rituals reached", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_max_rituals, Constants.MAX_SCHEDULES), Toast.LENGTH_SHORT).show()
             return
         }
         val updatedSchedules = schedules.filterNot { it.id == newSchedule.id } + newSchedule
@@ -260,14 +262,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         blockerLists = PrefsHelper.load<List<Blocker>>(
             sharedPreferences, gson, Constants.PrefsKeys.BLOCKER_LISTS, type
         ) {
-            Toast.makeText(this, "Enchantment data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_data_corrupted_enchantments), Toast.LENGTH_LONG).show()
         } ?: listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
     }
 
     private fun saveBlocker(newBlocker: Blocker) {
         val isUpdate = blockerLists.any { it.name == newBlocker.name }
         if (!isUpdate && blockerLists.size >= Constants.MAX_BLOCKERS) {
-            Toast.makeText(this, "Maximum of ${Constants.MAX_BLOCKERS} enchantments reached", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_max_enchantments, Constants.MAX_BLOCKERS), Toast.LENGTH_SHORT).show()
             return
         }
         val capped = newBlocker.copy(
@@ -290,7 +292,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         focusPresets = PrefsHelper.load<List<FocusPreset>>(
             sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, type
         ) {
-            Toast.makeText(this, "Quick Spell data was corrupted - restored defaults", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_data_corrupted_quick_spells), Toast.LENGTH_LONG).show()
         } ?: run {
             val defaults = listOf(
                 FocusPreset(
@@ -321,7 +323,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun saveFocusPreset(preset: FocusPreset) {
         val isUpdate = focusPresets.any { it.id == preset.id }
         if (!isUpdate && focusPresets.size >= Constants.MAX_PRESETS) {
-            Toast.makeText(this, "Maximum of ${Constants.MAX_PRESETS} quick spells reached", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_max_quick_spells, Constants.MAX_PRESETS), Toast.LENGTH_SHORT).show()
             return
         }
         val updatedPresets = focusPresets.filterNot { it.id == preset.id } + preset
@@ -343,7 +345,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val updated = appTimeLimits.toMutableMap()
         updated[packageName] = limitMinutes
         if (updated.size > Constants.MAX_APP_TIME_LIMITS) {
-            Toast.makeText(this, "Maximum of ${Constants.MAX_APP_TIME_LIMITS} time limits reached", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_max_time_limits, Constants.MAX_APP_TIME_LIMITS), Toast.LENGTH_SHORT).show()
             return
         }
         AppTimeLimitManager.saveTimeLimits(sharedPreferences, gson, updated)
@@ -362,7 +364,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         namedTags = PrefsHelper.load<List<NamedTag>>(
             sharedPreferences, gson, Constants.PrefsKeys.NAMED_TAGS, type
         ) {
-            Toast.makeText(this, "Talisman data was corrupted and has been reset", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_data_corrupted_talismans), Toast.LENGTH_LONG).show()
         } ?: emptyList()
     }
 
@@ -371,7 +373,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             val newTag = NamedTag(it, name)
             val isUpdate = namedTags.any { t -> t.id == newTag.id }
             if (!isUpdate && namedTags.size >= Constants.MAX_NAMED_TAGS) {
-                Toast.makeText(this, "Maximum of ${Constants.MAX_NAMED_TAGS} talismans reached", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_max_talismans, Constants.MAX_NAMED_TAGS), Toast.LENGTH_SHORT).show()
                 return
             }
             val updatedTags = namedTags.filterNot { t -> t.id == newTag.id } + newTag
@@ -405,10 +407,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         durationMinutes = tempDuration,
                         breaksEnabled = preset.breaksEnabled
                     )
-                    Toast.makeText(this, "${preset.name} Cast for $tempDuration min!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_preset_cast_timed, preset.name, tempDuration), Toast.LENGTH_SHORT).show()
                     return true
                 } else {
-                    Toast.makeText(this, "Enchantment missing for ${preset.name}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_enchantment_missing, preset.name), Toast.LENGTH_SHORT).show()
                     return false
                 }
             }
@@ -419,17 +421,17 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, tempDuration * 60)
                         .apply()
                     DndController.updateDndState(this)
-                    Toast.makeText(this, "Temporary break for $tempDuration min!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_temp_break, tempDuration), Toast.LENGTH_SHORT).show()
                     return true
                 } else {
-                    Toast.makeText(this, "No active focus to pause", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_no_active_focus), Toast.LENGTH_SHORT).show()
                     return false
                 }
             }
             PresetAction.TOGGLE, null -> {
                 if (isManualFocusActive) {
                     SessionManager.stopSession(this, sharedPreferences, gson)
-                    Toast.makeText(this, "${preset.name} Dispelled!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_preset_dispelled, preset.name), Toast.LENGTH_SHORT).show()
                     return true
                 } else {
                     val blocker = blockerLists.find { it.name == preset.blockerName }
@@ -440,10 +442,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                             durationMinutes = preset.durationMinutes,
                             breaksEnabled = preset.breaksEnabled
                         )
-                        Toast.makeText(this, "${preset.name} Cast!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.toast_preset_cast, preset.name), Toast.LENGTH_SHORT).show()
                         return true
                     } else {
-                        Toast.makeText(this, "Enchantment missing for ${preset.name}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.toast_enchantment_missing, preset.name), Toast.LENGTH_SHORT).show()
                         return false
                     }
                 }
@@ -460,12 +462,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             contents.startsWith(presetPrefix) -> {
                 val presetId = contents.removePrefix(presetPrefix)
                 if (!validIdPattern.matches(presetId)) {
-                    Toast.makeText(this, "Invalid QR code", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_invalid_qr), Toast.LENGTH_SHORT).show()
                     return
                 }
                 val preset = focusPresets.find { it.id == presetId }
                 if (preset == null) {
-                    Toast.makeText(this, "Quick Spell not found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_quick_spell_not_found), Toast.LENGTH_SHORT).show()
                     return
                 }
                 if (togglePreset(preset)) {
@@ -475,12 +477,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             contents.startsWith(talismanPrefix) -> {
                 val talismanId = contents.removePrefix(talismanPrefix)
                 if (!validIdPattern.matches(talismanId)) {
-                    Toast.makeText(this, "Invalid QR code", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_invalid_qr), Toast.LENGTH_SHORT).show()
                     return
                 }
                 val talisman = namedTags.find { it.id == talismanId }
                 if (talisman == null) {
-                    Toast.makeText(this, "Talisman not found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_talisman_not_found), Toast.LENGTH_SHORT).show()
                     return
                 }
                 // Find preset bound to this talisman (same as NFC tap)
@@ -490,11 +492,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         qrTriggerCount++
                     }
                 } else {
-                    Toast.makeText(this, "No Quick Spell bound to ${talisman.name}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_no_quick_spell_bound, talisman.name), Toast.LENGTH_SHORT).show()
                 }
             }
             else -> {
-                Toast.makeText(this, "Invalid QR code", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_invalid_qr), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -540,7 +542,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     fun launchQrScanner() {
         val options = ScanOptions()
         options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        options.setPrompt("Scan a Focus Pocus QR code")
+        options.setPrompt(getString(R.string.main_scan_qr_prompt))
         options.setBeepEnabled(false)
         options.setOrientationLocked(true)
         scanLauncher.launch(options)
@@ -585,9 +587,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     if (schedule != null && schedule.unbindingTalismanId != null) {
                          if (schedule.unbindingTalismanId == newTagId) {
                              dispelSchedule()
-                             Toast.makeText(this, "Ritual Dispelled!", Toast.LENGTH_SHORT).show()
+                             Toast.makeText(this, getString(R.string.toast_ritual_dispelled), Toast.LENGTH_SHORT).show()
                          } else {
-                             Toast.makeText(this, "Wrong Talisman!", Toast.LENGTH_SHORT).show()
+                             Toast.makeText(this, getString(R.string.toast_wrong_talisman), Toast.LENGTH_SHORT).show()
                          }
                          return@runOnUiThread
                     }
@@ -925,14 +927,14 @@ fun FocusPocusApp(
     if (!isServiceEnabled) {
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Grant Magical Sight") },
-            text = { Text("Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus. Without this enchantment, your spells cannot shield you from temptation.") },
+            title = { Text(stringResource(R.string.main_accessibility_title)) },
+            text = { Text(stringResource(R.string.main_accessibility_desc)) },
             confirmButton = {
                 Button(onClick = {
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     context.startActivity(intent)
                 }) {
-                    Text("Go to Settings")
+                    Text(stringResource(R.string.main_accessibility_go_to_settings))
                 }
             }
         )
@@ -1032,10 +1034,10 @@ fun FocusPocusApp(
                     icon = {
                         Icon(
                             it.icon,
-                            contentDescription = it.label
+                            contentDescription = stringResource(it.labelRes)
                         )
                     },
-                    label = { Text(it.label) },
+                    label = { Text(stringResource(it.labelRes)) },
                     selected = it == currentDestination,
                     onClick = {
                         currentDestination = it
@@ -1052,10 +1054,10 @@ fun FocusPocusApp(
             topBar = {
                 @OptIn(ExperimentalMaterial3Api::class)
                 TopAppBar(
-                    title = { Text(currentDestination.label) },
+                    title = { Text(stringResource(currentDestination.labelRes)) },
                     actions = {
                         IconButton(onClick = { topLevelRoute = TopLevelRoute.Settings }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.main_settings_content_desc))
                         }
                     }
                 )
@@ -1199,7 +1201,7 @@ fun FocusPocusApp(
                                 .apply()
                             onDispelSchedule()
                             syncFromPrefs()
-                            Toast.makeText(context, "Emergency Stop activated", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
                         },
                         modifier = contentModifier
                     )
@@ -1403,20 +1405,21 @@ enum class DayOfWeek {
 }
 
 enum class AppDestinations(
-    val label: String,
+    val labelRes: Int,
     val icon: ImageVector,
 ) {
-    HOME("Focus", Icons.Filled.AutoFixHigh),
-    SPELLBOOK("Spellbook", Icons.Filled.MenuBook),
-    INSIGHTS("Insights", Icons.Filled.Insights),
+    HOME(R.string.nav_focus, Icons.Filled.AutoFixHigh),
+    SPELLBOOK(R.string.nav_spellbook, Icons.Filled.MenuBook),
+    INSIGHTS(R.string.nav_insights, Icons.Filled.Insights),
 }
 
+@Composable
 fun formatDuration(minutes: Int): String {
     return when {
-        minutes == 0 -> "Unlimited"
-        minutes < 60 -> "$minutes min"
-        minutes % 60 == 0 -> "${minutes / 60} hour${if (minutes / 60 > 1) "s" else ""}"
-        else -> "${minutes / 60}h ${minutes % 60}m"
+        minutes == 0 -> stringResource(R.string.format_duration_unlimited)
+        minutes < 60 -> stringResource(R.string.format_duration_minutes, minutes)
+        minutes % 60 == 0 -> pluralStringResource(R.plurals.format_duration_hours, minutes / 60, minutes / 60)
+        else -> stringResource(R.string.format_duration_hours_minutes, minutes / 60, minutes % 60)
     }
 }
 
