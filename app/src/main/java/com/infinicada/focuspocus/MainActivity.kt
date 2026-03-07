@@ -155,8 +155,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 .apply()
         }
 
-        // Apply analytics consent state (defaults to false = no collection)
-        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false)
+        // Apply analytics consent state (defaults to true for testing builds)
+        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
         FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
 
@@ -775,7 +775,7 @@ fun FocusPocusApp(
 
     // Analytics consent
     var analyticsConsent by remember {
-        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false))
+        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true))
     }
 
     fun applyAnalyticsConsent(enabled: Boolean) {
