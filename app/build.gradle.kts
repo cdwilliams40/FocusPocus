@@ -44,6 +44,12 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    lint {
+        // False positive: MainActivity extends ComponentActivity, not FragmentActivity,
+        // so the Fragment >= 1.3.0 requirement for ActivityResult APIs does not apply.
+        disable += "InvalidFragmentVersionForActivityResult"
+    }
 }
 
 dependencies {
