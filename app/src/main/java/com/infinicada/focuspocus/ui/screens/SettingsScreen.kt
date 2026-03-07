@@ -52,6 +52,8 @@ fun SettingsScreen(
     onOpenNotificationSettings: () -> Unit,
     nfcLockMode: Boolean,
     onNfcLockModeChanged: (Boolean) -> Unit,
+    analyticsConsent: Boolean,
+    onAnalyticsConsentChanged: (Boolean) -> Unit,
     namedTags: List<NamedTag>,
     focusMode: Boolean,
     onNavigateBack: () -> Unit,
@@ -271,6 +273,34 @@ fun SettingsScreen(
                             stringResource(R.string.settings_add_talisman_first),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Privacy Card
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_analytics))
+                            Text(
+                                stringResource(R.string.settings_analytics_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = analyticsConsent,
+                            onCheckedChange = onAnalyticsConsentChanged
                         )
                     }
                 }

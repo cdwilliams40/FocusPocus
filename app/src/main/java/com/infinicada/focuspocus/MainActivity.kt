@@ -69,6 +69,9 @@ import com.infinicada.focuspocus.ui.screens.TimeLimitsScreen
 import com.infinicada.focuspocus.ui.screens.UsageStatsScreen
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.ThemeMode
+import androidx.compose.material3.OutlinedButton
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import androidx.lifecycle.lifecycleScope
@@ -121,11 +124,41 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             ThemeMode.SYSTEM
         }
 
-        loadNamedTags()
-        loadBlockerLists()
-        loadSchedules()
-        loadFocusPresets()
-        loadAppTimeLimits()
+        try {
+            loadNamedTags()
+            loadBlockerLists()
+            loadSchedules()
+            loadFocusPresets()
+            loadAppTimeLimits()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Data loading failed, clearing corrupted preferences", e)
+            sharedPreferences.edit().clear().apply()
+            loadNamedTags()
+            loadBlockerLists()
+            loadSchedules()
+            loadFocusPresets()
+            loadAppTimeLimits()
+        }
+
+        // Clear dangling references that point to deleted data
+        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+        if (activeBlockerName != null && blockerLists.none { it.name == activeBlockerName }) {
+            sharedPreferences.edit()
+                .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
+                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                .apply()
+        }
+        if (activeScheduleId != null && schedules.none { it.id == activeScheduleId }) {
+            activeScheduleId = null
+            sharedPreferences.edit()
+                .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
+                .apply()
+        }
+
+        // Apply analytics consent state (defaults to false = no collection)
+        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false)
+        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
+        FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
 
         // Load installed apps off the main thread; lifecycleScope cancels automatically on destroy
         lifecycleScope.launch(Dispatchers.IO) {
@@ -740,6 +773,18 @@ fun FocusPocusApp(
         mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false))
     }
 
+    // Analytics consent
+    var analyticsConsent by remember {
+        mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false))
+    }
+
+    fun applyAnalyticsConsent(enabled: Boolean) {
+        analyticsConsent = enabled
+        sharedPreferences.edit().putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, enabled).apply()
+        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(enabled)
+        FirebaseAnalytics.getInstance(context).setAnalyticsCollectionEnabled(enabled)
+    }
+
     // Session history
     val gson = remember { Gson() }
 
@@ -911,6 +956,8 @@ fun FocusPocusApp(
             blockerLists = blockerLists,
             installedApps = installedApps,
             isServiceEnabled = isServiceEnabled,
+            analyticsConsent = analyticsConsent,
+            onAnalyticsConsentChanged = { applyAnalyticsConsent(it) },
             onSaveBlocker = onSaveBlocker,
             onSaveTag = onSaveTag,
             onComplete = {
@@ -918,10 +965,49 @@ fun FocusPocusApp(
                 sharedPreferences.edit()
                     .putBoolean(Constants.PrefsKeys.ONBOARDING_COMPLETED, true)
                     .putInt(Constants.PrefsKeys.ONBOARDING_VERSION, 1)
+                    .putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT_SHOWN, true)
                     .apply()
             }
         )
         return
+    }
+
+    // One-time analytics consent dialog for existing users
+    var showAnalyticsConsentDialog by remember {
+        mutableStateOf(
+            onboardingCompleted &&
+            !sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT_SHOWN, false)
+        )
+    }
+
+    if (showAnalyticsConsentDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.consent_dialog_title)) },
+            text = { Text(stringResource(R.string.consent_dialog_message)) },
+            confirmButton = {
+                Button(onClick = {
+                    applyAnalyticsConsent(true)
+                    sharedPreferences.edit()
+                        .putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT_SHOWN, true)
+                        .apply()
+                    showAnalyticsConsentDialog = false
+                }) {
+                    Text(stringResource(R.string.consent_dialog_accept))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    applyAnalyticsConsent(false)
+                    sharedPreferences.edit()
+                        .putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT_SHOWN, true)
+                        .apply()
+                    showAnalyticsConsentDialog = false
+                }) {
+                    Text(stringResource(R.string.consent_dialog_decline))
+                }
+            }
+        )
     }
 
     if (!isServiceEnabled) {
@@ -1007,6 +1093,8 @@ fun FocusPocusApp(
                 nfcLockMode = enabled
                 sharedPreferences.edit().putBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, enabled).apply()
             },
+            analyticsConsent = analyticsConsent,
+            onAnalyticsConsentChanged = { applyAnalyticsConsent(it) },
             namedTags = namedTags,
             focusMode = focusMode,
             onNavigateBack = { topLevelRoute = TopLevelRoute.Main },

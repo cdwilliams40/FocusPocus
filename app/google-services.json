@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "769309426759",
+    "project_id": "focus-pocus-45bb5",
+    "storage_bucket": "focus-pocus-45bb5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769309426759:android:77b3b977b9103e4fe6dd62",
+        "android_client_info": {
+          "package_name": "com.infinicada.focuspocus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_zUxUG-aypU5yRdHqbU0CJBfJZ4LFHF4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

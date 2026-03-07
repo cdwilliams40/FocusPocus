@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,12 +65,15 @@ fun OnboardingScreen(
     blockerLists: List<Blocker>,
     installedApps: List<AppInfo>,
     isServiceEnabled: Boolean,
+    analyticsConsent: Boolean,
+    onAnalyticsConsentChanged: (Boolean) -> Unit,
     onSaveBlocker: (Blocker) -> Unit,
     onSaveTag: (String) -> Unit,
     onComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    val totalSteps = 6
+    val totalSteps = 7
+    var localAnalyticsConsent by remember { mutableStateOf(analyticsConsent) }
     var currentStep by remember { mutableIntStateOf(0) }
 
     // Re-check permissions on resume
@@ -139,7 +144,14 @@ fun OnboardingScreen(
                     isGranted = usageStatsGranted,
                     onGrant = { UsageStatsHelper.openUsageAccessSettings(context) }
                 )
-                5 -> DoneStep()
+                5 -> AnalyticsConsentStep(
+                    isEnabled = localAnalyticsConsent,
+                    onToggle = { enabled ->
+                        localAnalyticsConsent = enabled
+                        onAnalyticsConsentChanged(enabled)
+                    }
+                )
+                6 -> DoneStep()
             }
         }
 
@@ -432,6 +444,57 @@ private fun UsageStatsStep(
             Button(onClick = onGrant) {
                 Text(stringResource(R.string.onboarding_grant_usage))
             }
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsConsentStep(
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.BarChart,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            stringResource(R.string.onboarding_analytics_title),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            stringResource(R.string.onboarding_analytics_desc),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.onboarding_analytics_toggle))
+                Text(
+                    stringResource(R.string.onboarding_analytics_toggle_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onToggle
+            )
         }
     }
 }
