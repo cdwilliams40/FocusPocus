@@ -162,6 +162,9 @@
     <string name="settings_talisman_lock">Talisman Lock Mode</string>
     <string name="settings_talisman_lock_desc">Require NFC talisman or QR code to stop focus sessions</string>
     <string name="settings_add_talisman_first">Add a talisman first to enable lock mode</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_analytics">Share Analytics</string>
+    <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>
 
     <!-- InsightsScreen -->
     <string name="insights_title">Usage Insights</string>
@@ -225,6 +228,10 @@
     <string name="onboarding_grant_usage">Grant Usage Access</string>
     <string name="onboarding_done_title">You\'re All Set!</string>
     <string name="onboarding_done_desc">Focus Pocus is ready to help you focus. You can always adjust settings, add talismans, and create more enchantments from the Wizard tab.</string>
+    <string name="onboarding_analytics_title">Help Improve Focus Pocus</string>
+    <string name="onboarding_analytics_desc">We use anonymous crash reports and usage statistics to fix bugs and improve the app. No personal data is collected. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_toggle">Share Analytics</string>
+    <string name="onboarding_analytics_toggle_desc">Send anonymous crash reports and usage data</string>
 
     <!-- RitualsScreen -->
     <string name="rituals_title">Scheduled Rituals</string>
@@ -360,4 +367,10 @@
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
     <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
+
+    <!-- Analytics Consent Dialog -->
+    <string name="consent_dialog_title">Help Improve Focus Pocus</string>
+    <string name="consent_dialog_message">Would you like to share anonymous crash reports and usage statistics? This helps us fix bugs and improve the app. No personal data is collected.\n\nYou can change this anytime in Settings.</string>
+    <string name="consent_dialog_accept">Share Analytics</string>
+    <string name="consent_dialog_decline">No Thanks</string>
 </resources>

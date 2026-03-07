@@ -162,6 +162,9 @@
     <string name="settings_talisman_lock">Mode verrouillage par talisman</string>
     <string name="settings_talisman_lock_desc">Exiger un talisman NFC ou un code QR pour arrêter les sessions</string>
     <string name="settings_add_talisman_first">Ajoutez d\'abord un talisman pour activer le mode verrouillage</string>
+    <string name="settings_privacy">Confidentialité</string>
+    <string name="settings_analytics">Partager les analyses</string>
+    <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
 
     <!-- InsightsScreen -->
     <string name="insights_title">Statistiques d\'utilisation</string>
@@ -225,6 +228,10 @@
     <string name="onboarding_grant_usage">Accorder l\'accès à l\'utilisation</string>
     <string name="onboarding_done_title">Vous êtes prêt !</string>
     <string name="onboarding_done_desc">Focus Pocus est prêt à vous aider à vous concentrer. Vous pouvez toujours ajuster les paramètres, ajouter des talismans et créer des enchantements depuis l\'onglet Grimoire.</string>
+    <string name="onboarding_analytics_title">Aidez à améliorer Focus Pocus</string>
+    <string name="onboarding_analytics_desc">Nous utilisons des rapports de plantage anonymes et des statistiques d\'utilisation pour corriger les bugs et améliorer l\'application. Aucune donnée personnelle n\'est collectée. Vous pouvez modifier ce choix à tout moment dans les paramètres.</string>
+    <string name="onboarding_analytics_toggle">Partager les analyses</string>
+    <string name="onboarding_analytics_toggle_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation</string>
 
     <!-- RitualsScreen -->
     <string name="rituals_title">Rituels planifiés</string>
@@ -360,4 +367,10 @@
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
     <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
+
+    <!-- Analytics Consent Dialog -->
+    <string name="consent_dialog_title">Aidez à améliorer Focus Pocus</string>
+    <string name="consent_dialog_message">Souhaitez-vous partager des rapports de plantage anonymes et des statistiques d\'utilisation ? Cela nous aide à corriger les bugs et à améliorer l\'application. Aucune donnée personnelle n\'est collectée.\n\nVous pouvez modifier ce choix à tout moment dans les paramètres.</string>
+    <string name="consent_dialog_accept">Partager les analyses</string>
+    <string name="consent_dialog_decline">Non merci</string>
 </resources>

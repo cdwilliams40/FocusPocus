@@ -55,6 +55,10 @@ object Constants {
         // Onboarding
         const val ONBOARDING_COMPLETED = "onboardingCompleted"
         const val ONBOARDING_VERSION = "onboardingVersion"
+
+        // Analytics consent
+        const val ANALYTICS_CONSENT = "analyticsConsent"
+        const val ANALYTICS_CONSENT_SHOWN = "analyticsConsentShown"
     }
 
     object Defaults {

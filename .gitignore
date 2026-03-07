@@ -6,6 +6,7 @@
 ## Local config — never commit
 local.properties
 keystore.properties
+app/google-services.json
 
 ## Signing keys — never commit
 *.jks
