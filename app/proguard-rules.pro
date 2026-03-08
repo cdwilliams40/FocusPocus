@@ -16,6 +16,13 @@
 -dontwarn sun.misc.**
 -keep class com.google.gson.** { *; }
 
+# Retain generic signatures of TypeToken and its subclasses so Gson can
+# resolve parameterized types (e.g. List<Blocker>) at runtime via reflection.
+# Without this, R8 may strip the Signature attribute and Gson silently
+# deserializes objects as LinkedTreeMap instead of the actual data classes.
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+
 # Keep all data classes serialized/deserialized with Gson.
 # R8 can strip or rename fields that Gson accesses via reflection.
 -keep class com.infinicada.focuspocus.Blocker { *; }

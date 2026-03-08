@@ -130,29 +130,30 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             loadSchedules()
             loadFocusPresets()
             loadAppTimeLimits()
+
+            // Clear dangling references that point to deleted data
+            val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+            if (activeBlockerName != null && blockerLists.none { it.name == activeBlockerName }) {
+                sharedPreferences.edit()
+                    .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
+                    .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+                    .apply()
+            }
+            if (activeScheduleId != null && schedules.none { it.id == activeScheduleId }) {
+                activeScheduleId = null
+                sharedPreferences.edit()
+                    .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
+                    .apply()
+            }
         } catch (e: Exception) {
             Log.e("MainActivity", "Data loading failed, clearing corrupted preferences", e)
             sharedPreferences.edit().clear().apply()
+            activeScheduleId = null
             loadNamedTags()
             loadBlockerLists()
             loadSchedules()
             loadFocusPresets()
             loadAppTimeLimits()
-        }
-
-        // Clear dangling references that point to deleted data
-        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        if (activeBlockerName != null && blockerLists.none { it.name == activeBlockerName }) {
-            sharedPreferences.edit()
-                .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
-                .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-                .apply()
-        }
-        if (activeScheduleId != null && schedules.none { it.id == activeScheduleId }) {
-            activeScheduleId = null
-            sharedPreferences.edit()
-                .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
-                .apply()
         }
 
         // Apply analytics consent state (defaults to true for testing builds)
@@ -808,7 +809,7 @@ fun FocusPocusApp(
         mutableStateOf(sharedPreferences.getLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, 0L))
     }
     var emergencyBreakCadenceWeeks by remember {
-        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, 2))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, 2).coerceIn(2, 8))
     }
 
     var focusSessions by remember {
@@ -858,12 +859,12 @@ fun FocusPocusApp(
 
 
 
-    // Break settings
+    // Break settings (coerceIn guards against corrupted SharedPreferences values)
     var breakDurationMinutes by remember {
-        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5).coerceIn(1, 30))
     }
     var maxBreaksPerSession by remember {
-        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3))
+        mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3).coerceIn(1, 10))
     }
 
     // Break state
@@ -1163,12 +1164,12 @@ fun FocusPocusApp(
                     }
 
                     val effectiveBreakDuration = if (activeSchedule != null) {
-                        activeSchedule.breakDurationMinutes
+                        activeSchedule.breakDurationMinutes.coerceAtLeast(1)
                     } else {
                         breakDurationMinutes
                     }
                     val effectiveMaxBreaks = if (activeSchedule != null) {
-                        activeSchedule.maxBreaksPerSession
+                        activeSchedule.maxBreaksPerSession.coerceAtLeast(1)
                     } else {
                         maxBreaksPerSession
                     }

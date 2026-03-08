@@ -182,8 +182,8 @@ fun ScheduleEditorScreen(
     var showTalismanDialog by remember { mutableStateOf(false) }
 
     var breaksEnabled by remember { mutableStateOf(scheduleToEdit?.breaksEnabled ?: true) }
-    var breakDurationMinutes by remember { mutableIntStateOf(scheduleToEdit?.breakDurationMinutes ?: 5) }
-    var maxBreaksPerSession by remember { mutableIntStateOf(scheduleToEdit?.maxBreaksPerSession ?: 3) }
+    var breakDurationMinutes by remember { mutableIntStateOf((scheduleToEdit?.breakDurationMinutes ?: 5).coerceIn(1, 30)) }
+    var maxBreaksPerSession by remember { mutableIntStateOf((scheduleToEdit?.maxBreaksPerSession ?: 3).coerceIn(1, 10)) }
 
     var selectedDays by remember { mutableStateOf(scheduleToEdit?.days ?: emptySet()) }
 
