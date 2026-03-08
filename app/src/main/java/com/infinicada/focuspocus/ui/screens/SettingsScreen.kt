@@ -130,7 +130,7 @@ fun SettingsScreen(
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Slider(
-                        value = breakDurationMinutes.toFloat(),
+                        value = breakDurationMinutes.coerceIn(1, 30).toFloat(),
                         onValueChange = { onBreakDurationChanged(it.toInt()) },
                         valueRange = 1f..30f,
                         steps = 28,
@@ -145,7 +145,7 @@ fun SettingsScreen(
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Slider(
-                        value = maxBreaksPerSession.toFloat(),
+                        value = maxBreaksPerSession.coerceIn(1, 10).toFloat(),
                         onValueChange = { onMaxBreaksChanged(it.toInt()) },
                         valueRange = 1f..10f,
                         steps = 8,
@@ -165,7 +165,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Slider(
-                        value = emergencyBreakCadenceWeeks.toFloat(),
+                        value = emergencyBreakCadenceWeeks.coerceIn(2, 8).toFloat(),
                         onValueChange = { onEmergencyBreakCadenceChanged(it.toInt()) },
                         valueRange = 2f..8f,
                         steps = 5,
