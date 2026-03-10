@@ -24,28 +24,38 @@ fun QrCodeDialog(
     onDismiss: () -> Unit
 ) {
     val qrBitmap = remember(content) {
-        val writer = QRCodeWriter()
-        val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, 512, 512)
-        val width = bitMatrix.width
-        val height = bitMatrix.height
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
-        for (x in 0 until width) {
+        try {
+            val writer = QRCodeWriter()
+            val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, 512, 512)
+            val width = bitMatrix.width
+            val height = bitMatrix.height
+            val pixels = IntArray(width * height)
             for (y in 0 until height) {
-                bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                for (x in 0 until width) {
+                    pixels[y * width + x] = if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
+                }
             }
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+            bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+            bitmap
+        } catch (e: Exception) {
+            null
         }
-        bitmap
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Image(
-                bitmap = qrBitmap.asImageBitmap(),
-                contentDescription = stringResource(R.string.qr_code_content_desc),
-                modifier = Modifier.size(256.dp)
-            )
+            if (qrBitmap != null) {
+                Image(
+                    bitmap = qrBitmap.asImageBitmap(),
+                    contentDescription = stringResource(R.string.qr_code_content_desc),
+                    modifier = Modifier.size(256.dp)
+                )
+            } else {
+                Text(stringResource(R.string.qr_code_error))
+            }
         },
         confirmButton = {
             Button(onClick = onDismiss) {

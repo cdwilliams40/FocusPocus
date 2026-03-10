@@ -18,10 +18,12 @@
 
 # Retain generic signatures of TypeToken and its subclasses so Gson can
 # resolve parameterized types (e.g. List<Blocker>) at runtime via reflection.
-# Without this, R8 may strip the Signature attribute and Gson silently
-# deserializes objects as LinkedTreeMap instead of the actual data classes.
--keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
--keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+# Without this, R8 strips the Signature attribute causing an
+# IllegalStateException: "TypeToken must be created with a type argument".
+# Do NOT use allowshrinking here — R8 full mode will strip generic
+# signatures from anonymous TypeToken subclasses even with keepattributes.
+-keep,allowobfuscation class com.google.gson.reflect.TypeToken { *; }
+-keep,allowobfuscation class * extends com.google.gson.reflect.TypeToken { *; }
 
 # Keep all data classes serialized/deserialized with Gson.
 # R8 can strip or rename fields that Gson accesses via reflection.

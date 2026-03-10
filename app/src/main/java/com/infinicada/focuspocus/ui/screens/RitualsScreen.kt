@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
+import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -338,7 +339,7 @@ fun ScheduleEditorScreen(
                     Text(stringResource(R.string.rituals_break_duration, breakDurationMinutes), style = MaterialTheme.typography.bodyMedium)
                     Slider(
                         value = breakDurationMinutes.toFloat(),
-                        onValueChange = { breakDurationMinutes = it.toInt() },
+                        onValueChange = { breakDurationMinutes = it.roundToInt() },
                         valueRange = 1f..30f,
                         steps = 28,
                         modifier = Modifier.fillMaxWidth()
@@ -349,7 +350,7 @@ fun ScheduleEditorScreen(
                     Text(stringResource(R.string.rituals_breaks_per_session, maxBreaksPerSession), style = MaterialTheme.typography.bodyMedium)
                     Slider(
                         value = maxBreaksPerSession.toFloat(),
-                        onValueChange = { maxBreaksPerSession = it.toInt() },
+                        onValueChange = { maxBreaksPerSession = it.roundToInt() },
                         valueRange = 1f..10f,
                         steps = 8,
                         modifier = Modifier.fillMaxWidth()

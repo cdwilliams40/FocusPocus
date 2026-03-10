@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
+import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -131,7 +132,7 @@ fun SettingsScreen(
                     )
                     Slider(
                         value = breakDurationMinutes.coerceIn(1, 30).toFloat(),
-                        onValueChange = { onBreakDurationChanged(it.toInt()) },
+                        onValueChange = { onBreakDurationChanged(it.roundToInt()) },
                         valueRange = 1f..30f,
                         steps = 28,
                         enabled = !focusMode,
@@ -146,7 +147,7 @@ fun SettingsScreen(
                     )
                     Slider(
                         value = maxBreaksPerSession.coerceIn(1, 10).toFloat(),
-                        onValueChange = { onMaxBreaksChanged(it.toInt()) },
+                        onValueChange = { onMaxBreaksChanged(it.roundToInt()) },
                         valueRange = 1f..10f,
                         steps = 8,
                         enabled = !focusMode,
@@ -166,7 +167,7 @@ fun SettingsScreen(
                     )
                     Slider(
                         value = emergencyBreakCadenceWeeks.coerceIn(2, 8).toFloat(),
-                        onValueChange = { onEmergencyBreakCadenceChanged(it.toInt()) },
+                        onValueChange = { onEmergencyBreakCadenceChanged(it.roundToInt()) },
                         valueRange = 2f..8f,
                         steps = 5,
                         enabled = !focusMode,

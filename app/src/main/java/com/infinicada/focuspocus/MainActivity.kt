@@ -27,7 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -193,6 +193,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     },
                     onSaveTag = { name -> saveNamedTag(name) },
                     onDeleteTag = { tag -> deleteNamedTag(tag) },
+                    onSaveQrTalisman = { tag -> saveQrTalisman(tag) },
                     onSaveBlocker = { newBlocker -> saveBlocker(newBlocker) },
                     onDeleteBlocker = { blockerToDelete -> deleteBlocker(blockerToDelete) },
                     onSaveSchedule = { newSchedule -> saveSchedule(newSchedule) },
@@ -422,6 +423,16 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         namedTags = updatedTags
     }
 
+    private fun saveQrTalisman(tag: NamedTag) {
+        if (namedTags.size >= Constants.MAX_NAMED_TAGS) {
+            Toast.makeText(this, getString(R.string.toast_max_talismans, Constants.MAX_NAMED_TAGS), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val updatedTags = namedTags + tag
+        PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.NAMED_TAGS, updatedTags)
+        namedTags = updatedTags
+    }
+
     /**
      * Shared preset toggle logic used by both NFC talisman and QR code scanning.
      * Returns true if the trigger count should be incremented.
@@ -462,7 +473,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     return false
                 }
             }
-            PresetAction.TOGGLE, null -> {
+            PresetAction.TOGGLE -> {
                 if (isManualFocusActive) {
                     SessionManager.stopSession(this, sharedPreferences, gson)
                     Toast.makeText(this, getString(R.string.toast_preset_dispelled, preset.name), Toast.LENGTH_SHORT).show()
@@ -713,6 +724,7 @@ fun FocusPocusApp(
     onThemeModeChanged: (ThemeMode) -> Unit,
     onSaveTag: (String) -> Unit,
     onDeleteTag: (NamedTag) -> Unit,
+    onSaveQrTalisman: (NamedTag) -> Unit = {},
     onSaveBlocker: (Blocker) -> Unit,
     onDeleteBlocker: (Blocker) -> Unit,
     onSaveSchedule: (Schedule) -> Unit,
@@ -1206,9 +1218,11 @@ fun FocusPocusApp(
                             selectedPresetId = preset.id
                             activeManualBlocker = blockerLists.find { it.name == preset.blockerName }
                             focusDurationMinutes = preset.durationMinutes
-                            sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes).apply()
                             sessionBreaksEnabled = preset.breaksEnabled
-                            sharedPreferences.edit().putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled).apply()
+                            sharedPreferences.edit()
+                                .putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, preset.durationMinutes)
+                                .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, preset.breaksEnabled)
+                                .apply()
                         },
                         onBlockerSelected = { blocker ->
                             activeManualBlocker = blocker
@@ -1425,6 +1439,7 @@ fun FocusPocusApp(
                             namedTags = namedTags,
                             onSaveTag = onSaveTag,
                             onDeleteTag = onDeleteTag,
+                            onSaveQrTalisman = onSaveQrTalisman,
                             onNavigateBack = { spellbookRoute = SpellbookRoute.Overview },
                             modifier = contentModifier
                         )
@@ -1498,7 +1513,7 @@ enum class AppDestinations(
     val icon: ImageVector,
 ) {
     HOME(R.string.nav_focus, Icons.Filled.AutoFixHigh),
-    SPELLBOOK(R.string.nav_spellbook, Icons.Filled.MenuBook),
+    SPELLBOOK(R.string.nav_spellbook, Icons.AutoMirrored.Filled.MenuBook),
     INSIGHTS(R.string.nav_insights, Icons.Filled.Insights),
 }
 
