@@ -43,9 +43,6 @@ object Constants {
         // NFC lock mode
         const val NFC_LOCK_MODE = "nfcLockMode"
 
-        // Notification blocking
-        const val BLOCK_APP_NOTIFICATIONS = "blockAppNotifications"
-
         // Per-app time limits
         const val APP_TIME_LIMITS = "appTimeLimits"
 

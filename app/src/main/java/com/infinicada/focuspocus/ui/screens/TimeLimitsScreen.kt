@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -212,7 +214,7 @@ fun AddTimeLimitDialog(
                         readOnly = true,
                         label = { Text(stringResource(R.string.time_limits_app_label)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = appDropdownExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = appDropdownExpanded,
@@ -235,7 +237,7 @@ fun AddTimeLimitDialog(
                 Text(stringResource(R.string.time_limits_daily_limit, limitOptions.find { it.first == limitMinutes }?.second ?: stringResource(R.string.format_duration_minutes, limitMinutes)))
                 Slider(
                     value = limitMinutes.toFloat(),
-                    onValueChange = { limitMinutes = it.toInt() },
+                    onValueChange = { limitMinutes = it.roundToInt() },
                     valueRange = 5f..480f,
                     steps = 0,
                     modifier = Modifier.fillMaxWidth()

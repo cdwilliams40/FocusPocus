@@ -10,8 +10,8 @@ class FocusNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
 
-        val blockAppNotifications = prefs.getBoolean(Constants.PrefsKeys.BLOCK_APP_NOTIFICATIONS, true)
-        if (!blockAppNotifications) return
+        val muteBlockedNotifications = prefs.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)
+        if (!muteBlockedNotifications) return
 
         val manualFocusMode = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
         val focusTagId = prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)

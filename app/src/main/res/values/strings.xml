@@ -268,6 +268,9 @@
     <string name="talismans_disenchant">Disenchant</string>
     <string name="talismans_none_bound">No talismans bound yet.</string>
     <string name="talismans_qr_title">QR Code: %s</string>
+    <string name="talismans_create_qr">Create QR Talisman</string>
+    <string name="talismans_create_qr_title">Create QR Talisman</string>
+    <string name="talismans_create_qr_desc">Create a talisman backed by a QR code instead of an NFC tag. Print or display the QR code and scan it to trigger.</string>
 
     <!-- QuickSpellsListScreen -->
     <string name="quick_spells_title">Quick Spells</string>
@@ -309,6 +312,7 @@
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">QR Code</string>
+    <string name="qr_code_error">Failed to generate QR code</string>
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Spell: %s</string>

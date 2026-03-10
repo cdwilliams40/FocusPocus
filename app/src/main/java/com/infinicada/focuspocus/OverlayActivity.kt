@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.MysticalPurpleDark
+import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
 class OverlayActivity : ComponentActivity() {
@@ -70,8 +71,14 @@ class OverlayActivity : ComponentActivity() {
     }
 
     private fun renderOverlay(appName: String, spellName: String?) {
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        val themeMode = try {
+            ThemeMode.valueOf(prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
+        } catch (e: IllegalArgumentException) {
+            ThemeMode.SYSTEM
+        }
         setContent {
-            FocusPocusTheme {
+            FocusPocusTheme(themeMode = themeMode) {
                 OverlayScreen(
                     appName = appName,
                     spellName = spellName,
