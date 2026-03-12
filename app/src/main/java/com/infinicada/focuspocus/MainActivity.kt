@@ -104,6 +104,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
     private var showDeepLinkConfirmation by mutableStateOf(false)
 
+    // Listener to detect when the accessibility service ends a ritual while the app is in the foreground
+    private val scheduleIdChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        if (key == Constants.PrefsKeys.ACTIVE_SCHEDULE_ID) {
+            activeScheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        }
+    }
+
     private lateinit var scanLauncher: ActivityResultLauncher<ScanOptions>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -608,11 +615,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        sharedPreferences.registerOnSharedPreferenceChangeListener(scheduleIdChangeListener)
     }
 
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(scheduleIdChangeListener)
     }
 
     override fun onTagDiscovered(tag: Tag?) {
