@@ -309,6 +309,8 @@
     <string name="time_limits_select_app">Select App</string>
     <string name="time_limits_app_label">App</string>
     <string name="time_limits_daily_limit">Daily Limit: %s</string>
+    <string name="time_limits_daily_limit_label">Daily Limit</string>
+    <string name="time_limits_no_apps_found">No apps found</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">QR Code</string>
