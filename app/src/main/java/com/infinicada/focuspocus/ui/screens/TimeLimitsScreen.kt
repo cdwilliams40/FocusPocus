@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus.ui.screens
 
-import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -185,8 +183,12 @@ fun AddTimeLimitDialog(
     var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
     var limitMinutes by remember { mutableIntStateOf(30) }
     var appDropdownExpanded by remember { mutableStateOf(false) }
+    var appSearchQuery by remember { mutableStateOf("") }
+    var timeLimitExpanded by remember { mutableStateOf(false) }
 
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
+    val filteredApps = if (appSearchQuery.isEmpty()) availableApps
+        else availableApps.filter { it.name.contains(appSearchQuery, ignoreCase = true) }
 
     val limitOptions = listOf(
         5 to stringResource(R.string.duration_5_min),
@@ -206,42 +208,78 @@ fun AddTimeLimitDialog(
             Column {
                 ExposedDropdownMenuBox(
                     expanded = appDropdownExpanded,
-                    onExpandedChange = { appDropdownExpanded = !appDropdownExpanded }
+                    onExpandedChange = { appDropdownExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedApp?.name ?: stringResource(R.string.time_limits_select_app),
-                        onValueChange = {},
-                        readOnly = true,
+                        value = if (appDropdownExpanded) appSearchQuery else selectedApp?.name ?: "",
+                        onValueChange = {
+                            appSearchQuery = it
+                            appDropdownExpanded = true
+                        },
                         label = { Text(stringResource(R.string.time_limits_app_label)) },
+                        placeholder = { Text(stringResource(R.string.time_limits_select_app)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = appDropdownExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        singleLine = true,
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = appDropdownExpanded,
-                        onDismissRequest = { appDropdownExpanded = false }
+                        onDismissRequest = {
+                            appDropdownExpanded = false
+                            appSearchQuery = ""
+                        }
                     ) {
-                        availableApps.take(50).forEach { app ->
+                        if (filteredApps.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(app.name) },
-                                onClick = {
-                                    selectedApp = app
-                                    appDropdownExpanded = false
-                                }
+                                text = { Text(stringResource(R.string.time_limits_no_apps_found)) },
+                                onClick = {},
+                                enabled = false
                             )
+                        } else {
+                            filteredApps.forEach { app ->
+                                DropdownMenuItem(
+                                    text = { Text(app.name) },
+                                    onClick = {
+                                        selectedApp = app
+                                        appDropdownExpanded = false
+                                        appSearchQuery = ""
+                                    }
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(stringResource(R.string.time_limits_daily_limit, limitOptions.find { it.first == limitMinutes }?.second ?: stringResource(R.string.format_duration_minutes, limitMinutes)))
-                Slider(
-                    value = limitMinutes.toFloat(),
-                    onValueChange = { limitMinutes = it.roundToInt() },
-                    valueRange = 5f..480f,
-                    steps = 0,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                ExposedDropdownMenuBox(
+                    expanded = timeLimitExpanded,
+                    onExpandedChange = { timeLimitExpanded = !timeLimitExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = limitOptions.find { it.first == limitMinutes }?.second
+                            ?: stringResource(R.string.format_duration_minutes, limitMinutes),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.time_limits_daily_limit_label)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeLimitExpanded) },
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = timeLimitExpanded,
+                        onDismissRequest = { timeLimitExpanded = false }
+                    ) {
+                        limitOptions.forEach { (minutes, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    limitMinutes = minutes
+                                    timeLimitExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
