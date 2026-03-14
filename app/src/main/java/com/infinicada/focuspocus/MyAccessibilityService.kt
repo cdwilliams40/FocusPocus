@@ -72,6 +72,9 @@ class MyAccessibilityService : AccessibilityService() {
     // Debounce for app blocking to prevent rapid re-triggering
     private var lastAppBlockTime: Long = 0
 
+    // Most recently focused "real" app (updated on every window state change, before debounce)
+    private var currentForegroundPackage: String? = null
+
     // Cache for time limits
     private var cachedTimeLimitsJson: String? = null
     private var cachedTimeLimits: Map<String, Int> = emptyMap()
@@ -95,6 +98,10 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
+                // Also enforce time limits on whichever app is currently in the foreground.
+                // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
+                // could stay inside an app past its daily limit indefinitely.
+                currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
             }
         }
     }
@@ -370,6 +377,10 @@ class MyAccessibilityService : AccessibilityService() {
     private fun handleWindowStateChanged(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
+
+        // Track which real app is currently in the foreground so the minute-tick receiver can
+        // enforce time limits while the user stays inside an app (no window-state events fire then).
+        currentForegroundPackage = packageName
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
