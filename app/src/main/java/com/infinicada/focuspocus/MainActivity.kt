@@ -1261,10 +1261,11 @@ fun FocusPocusApp(
                                     manualFocusMode = false
                                 }
                             } else {
-                                if (activeManualBlocker != null) {
+                                val blocker = activeManualBlocker
+                                if (blocker != null) {
                                     SessionManager.startSession(
                                         sharedPreferences = sharedPreferences,
-                                        blockerName = activeManualBlocker!!.name,
+                                        blockerName = blocker.name,
                                         durationMinutes = focusDurationMinutes,
                                         breaksEnabled = sessionBreaksEnabled
                                     )

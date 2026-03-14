@@ -228,9 +228,10 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Check if a schedule should start (skip if one is already active)
+        // Check if a schedule should start (skip if one is already active).
+        // Re-read from SharedPreferences in case deactivateSchedule() just cleared it above.
         if (currentDay == null) return
-        if (activeScheduleId != null) return
+        if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
         schedules.forEach { schedule ->
             if (schedule.days.contains(currentDay)) {
                 try {
