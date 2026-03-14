@@ -16,26 +16,29 @@ class TimeLimitChecker(
     private data class CacheEntry(val timestamp: Long, val isOverLimit: Boolean)
     private val cache = mutableMapOf<String, CacheEntry>()
 
-    // Cache duration in milliseconds (1 minute)
-    // This balances performance (avoiding frequent IPC calls) with responsiveness (blocking within 1 minute of limit)
+    // How long to trust a cached "over-limit" result (1 minute).
+    // Once over, stays over for the rest of the day, so this is safe.
     private val CACHE_DURATION_MS = 60_000L
 
     fun shouldBlock(packageName: String, limitMinutes: Int): Boolean {
         val now = clock()
         val entry = cache[packageName]
 
-        if (entry != null) {
-            if (now - entry.timestamp < CACHE_DURATION_MS) {
-                // If the app was NOT over limit, and we checked less than a minute ago,
-                // assume it's still safe.
-                // If the app WAS over limit, assume it's still over limit.
-                return entry.isOverLimit
-            }
+        // Only serve from cache when the app is already known to be over its limit.
+        // Once over, it stays over for the rest of the day so the cached answer is safe.
+        // "Under limit" results are NOT cached: the user could be actively using the app
+        // right now, so every call needs a fresh UsageStats query to catch the moment they
+        // cross the threshold (including the minute-tick check while the app is in the foreground).
+        if (entry != null && entry.isOverLimit && now - entry.timestamp < CACHE_DURATION_MS) {
+            return true
         }
 
-        // Cache expired or not present, query UsageStats
         val isOverLimit = checkFunction(context, packageName, limitMinutes)
-        cache[packageName] = CacheEntry(now, isOverLimit)
+        if (isOverLimit) {
+            cache[packageName] = CacheEntry(now, isOverLimit)
+        } else {
+            cache.remove(packageName)
+        }
         return isOverLimit
     }
 
