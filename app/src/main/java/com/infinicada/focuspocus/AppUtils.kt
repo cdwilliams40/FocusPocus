@@ -1,7 +1,6 @@
 package com.infinicada.focuspocus
 
 import android.content.Context
-import android.content.pm.PackageManager
 
 object AppUtils {
 
