@@ -31,14 +31,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.infinicada.focuspocus.AppInfo
+import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
-import com.infinicada.focuspocus.FocusPreset
+import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
-import com.infinicada.focuspocus.Schedule
+import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.formatDuration
+import com.infinicada.focuspocus.ui.formatDuration
 
 @Composable
 fun SpellbookScreen(

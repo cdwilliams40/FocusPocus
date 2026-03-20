@@ -1,5 +1,7 @@
 package com.infinicada.focuspocus
 
+import com.infinicada.focuspocus.model.DayOfWeek
+import com.infinicada.focuspocus.model.Schedule
 import android.accessibilityservice.AccessibilityService
 import android.app.NotificationChannel
 import android.app.NotificationManager

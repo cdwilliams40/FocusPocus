@@ -48,7 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import com.infinicada.focuspocus.AppInfo
+import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R

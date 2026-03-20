@@ -38,10 +38,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.FocusPreset
+import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
-import com.infinicada.focuspocus.PresetAction
-import com.infinicada.focuspocus.formatDuration
+import com.infinicada.focuspocus.model.PresetAction
+import com.infinicada.focuspocus.ui.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

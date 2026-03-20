@@ -40,7 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.AppInfo
+import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
 
