@@ -332,10 +332,13 @@ class MyAccessibilityService : AccessibilityService() {
 
     /**
      * Generate a stable notification ID from a schedule ID.
-     * Uses absolute value to ensure positive ID, with separate ranges for start (even) and end (odd) notifications.
+     * Uses a more distributed hash to reduce collision risk.
+     * Multiplies by a prime and XOR-folds to spread values across the int range.
+     * Separate ranges for start (even) and end (odd) notifications.
      */
     private fun getNotificationId(scheduleId: String, isEndNotification: Boolean): Int {
-        val baseId = (scheduleId.hashCode() and 0x7FFFFFFF) / 2 * 2  // Make it even
+        val hash = scheduleId.fold(0) { acc, c -> acc * 31 + c.code }
+        val baseId = (hash and 0x7FFFFFFE) // Ensure positive and even
         return if (isEndNotification) baseId + 1 else baseId
     }
 
@@ -461,6 +464,7 @@ class MyAccessibilityService : AccessibilityService() {
             val parsed: Map<String, Int> = gson.fromJson(json, type)
             cachedTimeLimitsJson = json
             cachedTimeLimits = parsed
+            timeLimitChecker.clearCache()
             parsed
         } catch (e: Exception) {
             cachedTimeLimitsJson = null

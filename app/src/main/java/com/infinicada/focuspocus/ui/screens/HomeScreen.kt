@@ -116,6 +116,21 @@ fun Greeting(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // NFC Lock Mode indicator - shown prominently during active focus
+            if (focusMode && nfcLockMode) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.home_nfc_lock_active),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
             // Preset chip row (only when not in schedule, not in focus mode, and valid presets exist)
             val validPresets = focusPresets.filter { preset ->
                 blockerLists.any { it.name == preset.blockerName }
@@ -274,7 +289,11 @@ fun Greeting(
                     onClick = onTakeBreak,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
                 ) {
-                    Text(stringResource(R.string.home_take_break), color = MaterialTheme.colorScheme.onTertiary)
+                    val breaksRemaining = maxBreaksPerSession - breaksUsedThisSession
+                    Text(
+                        stringResource(R.string.home_take_break_with_count, breaksRemaining),
+                        color = MaterialTheme.colorScheme.onTertiary
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }

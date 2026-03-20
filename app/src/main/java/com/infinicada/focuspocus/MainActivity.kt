@@ -22,8 +22,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Insights
@@ -152,6 +156,37 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     .remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
                     .apply()
             }
+
+            // Clean up schedules referencing deleted blockers or talismans
+            val blockerNames = blockerLists.map { it.name }.toSet()
+            val talismanIds = namedTags.map { it.id }.toSet()
+
+            val cleanedSchedules = schedules.mapNotNull { schedule ->
+                if (schedule.blockerName !in blockerNames) {
+                    null // Remove schedules whose blocker no longer exists
+                } else if (schedule.unbindingTalismanId != null && schedule.unbindingTalismanId !in talismanIds) {
+                    schedule.copy(unbindingTalismanId = null)
+                } else {
+                    schedule
+                }
+            }
+            if (cleanedSchedules.size != schedules.size || cleanedSchedules != schedules) {
+                schedules = cleanedSchedules
+                PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, cleanedSchedules)
+            }
+
+            // Clean up focus presets referencing deleted talismans
+            val cleanedPresets = focusPresets.map { preset ->
+                if (preset.talismanId != null && preset.talismanId !in talismanIds) {
+                    preset.copy(talismanId = null)
+                } else {
+                    preset
+                }
+            }
+            if (cleanedPresets != focusPresets) {
+                focusPresets = cleanedPresets
+                PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.FOCUS_PRESETS, cleanedPresets)
+            }
         } catch (e: Exception) {
             Log.e("MainActivity", "Data loading failed, clearing corrupted preferences", e)
             sharedPreferences.edit().clear().apply()
@@ -277,6 +312,15 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val updatedSchedules = schedules.filterNot { it.id == scheduleToDelete.id }
         PrefsHelper.save(sharedPreferences, gson, Constants.PrefsKeys.SCHEDULES, updatedSchedules)
         schedules = updatedSchedules
+
+        // Cancel any lingering notifications for this schedule
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        if (notificationManager != null) {
+            val hash = scheduleToDelete.id.fold(0) { acc, c -> acc * 31 + c.code }
+            val baseId = (hash and 0x7FFFFFFE)
+            notificationManager.cancel(baseId)      // start notification
+            notificationManager.cancel(baseId + 1)   // end notification
+        }
     }
 
     private fun dispelSchedule() {
@@ -800,6 +844,12 @@ fun FocusPocusApp(
         mutableStateOf(sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true))
     }
 
+    // Session completion summary dialog state
+    var showSessionSummary by remember { mutableStateOf(false) }
+    var sessionSummaryDuration by remember { mutableIntStateOf(0) }
+    var sessionSummaryBreaks by remember { mutableIntStateOf(0) }
+    var sessionSummaryBlocker by remember { mutableStateOf("") }
+
     fun applyAnalyticsConsent(enabled: Boolean) {
         analyticsConsent = enabled
         sharedPreferences.edit().putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, enabled).apply()
@@ -877,9 +927,6 @@ fun FocusPocusApp(
         ) ?: emptyList()
     }
 
-
-
-
     // Break settings (coerceIn guards against corrupted SharedPreferences values)
     var breakDurationMinutes by remember {
         mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5).coerceIn(1, 30))
@@ -918,6 +965,16 @@ fun FocusPocusApp(
             sharedPreferences.edit().putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining).apply()
 
             if (focusTimeRemaining <= 0) {
+                // Capture session data for summary before stopping
+                val startTime = sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
+                val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
+                sessionSummaryDuration = durationMin
+                sessionSummaryBreaks = breaksUsedThisSession
+                sessionSummaryBlocker = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: ""
+                if (durationMin >= 1) {
+                    showSessionSummary = true
+                }
+
                 // Record session on timer auto-stop
                 SessionManager.stopSession(context, sharedPreferences, gson)
                 syncFromPrefs()
@@ -1056,6 +1113,20 @@ fun FocusPocusApp(
 
     val activeSchedule = remember(activeScheduleId, schedules) {
         schedules.find { it.id == activeScheduleId }
+    }
+
+    // Capture session data and show summary dialog before stopping
+    fun stopSessionWithSummary() {
+        val startTime = sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
+        val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
+        sessionSummaryDuration = durationMin
+        sessionSummaryBreaks = breaksUsedThisSession
+        sessionSummaryBlocker = activeManualBlocker?.name ?: activeSchedule?.blockerName ?: ""
+
+        // Only show summary for sessions >= 1 minute
+        if (durationMin >= 1) {
+            showSessionSummary = true
+        }
     }
 
     if (showBlockerSelectionDialog) {
@@ -1251,11 +1322,13 @@ fun FocusPocusApp(
                             if (focusMode) {
                                 if (activeSchedule != null) {
                                      if (activeSchedule.unbindingTalismanId == null) {
+                                          stopSessionWithSummary()
                                           onDispelSchedule()
                                           syncFromPrefs()
                                           manualFocusMode = false
                                      }
                                 } else {
+                                    stopSessionWithSummary()
                                     SessionManager.stopSession(context, sharedPreferences, gson)
                                     syncFromPrefs()
                                     manualFocusMode = false
@@ -1429,7 +1502,8 @@ fun FocusPocusApp(
                                 spellbookRoute = SpellbookRoute.RitualsList
                             },
                             onCancel = { spellbookRoute = SpellbookRoute.RitualsList },
-                            modifier = contentModifier
+                            modifier = contentModifier,
+                            existingSchedules = schedules
                         )
                         is SpellbookRoute.EditRitual -> ScheduleEditorScreen(
                             scheduleToEdit = currentRoute.schedule,
@@ -1440,7 +1514,8 @@ fun FocusPocusApp(
                                 spellbookRoute = SpellbookRoute.RitualsList
                             },
                             onCancel = { spellbookRoute = SpellbookRoute.RitualsList },
-                            modifier = contentModifier
+                            modifier = contentModifier,
+                            existingSchedules = schedules
                         )
 
                         // Talismans
@@ -1480,6 +1555,27 @@ fun FocusPocusApp(
                 }
             }
         }
+    }
+
+    if (showSessionSummary) {
+        AlertDialog(
+            onDismissRequest = { showSessionSummary = false },
+            title = { Text(stringResource(R.string.session_complete_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.session_complete_great_work))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(stringResource(R.string.session_complete_duration, sessionSummaryDuration))
+                    Text(stringResource(R.string.session_complete_breaks, sessionSummaryBreaks))
+                    Text(stringResource(R.string.session_complete_enchantment, sessionSummaryBlocker))
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showSessionSummary = false }) {
+                    Text(stringResource(R.string.action_done))
+                }
+            }
+        )
     }
 }
 
