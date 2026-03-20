@@ -47,10 +47,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
-import com.infinicada.focuspocus.FocusPreset
+import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.Schedule
+import com.infinicada.focuspocus.model.Schedule
 
 @Composable
 fun Greeting(

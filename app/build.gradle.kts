@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.material.icons.extended)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.gson)
     implementation(libs.zxing.embedded)

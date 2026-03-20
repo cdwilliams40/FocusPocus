@@ -51,10 +51,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.DayOfWeek
-import com.infinicada.focuspocus.FocusPreset
+import com.infinicada.focuspocus.model.DayOfWeek
+import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
-import com.infinicada.focuspocus.Schedule
+import com.infinicada.focuspocus.model.Schedule
 import java.util.UUID
 
 @Composable

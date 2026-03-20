@@ -47,7 +47,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.AppInfo
+import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
