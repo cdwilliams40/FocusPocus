@@ -76,6 +76,8 @@
     <string name="home_unbind_with">Unbind with: %s</string>
     <string name="home_breaks_used">Breaks: %1$d / %2$d used</string>
     <string name="home_take_break">Take a Break</string>
+    <string name="home_take_break_with_count">Take a Break (%1$d left)</string>
+    <string name="home_nfc_lock_active">Talisman Lock Active</string>
     <string name="home_end_break_early">End Break Early</string>
     <string name="home_emergency_stop">Emergency Stop</string>
     <string name="home_emergency_stop_confirm_text">This uses your emergency stop to end the session immediately. You won\'t get another for several weeks. Are you sure?</string>
@@ -203,6 +205,7 @@
     <string name="insights_no_usage_data">No usage data available for this period.</string>
     <string name="insights_hours_minutes">%1$dh %2$dm</string>
     <string name="insights_minutes_only">%dm</string>
+    <string name="insights_daily_trend">Daily Focus (Last 7 Days)</string>
 
     <!-- OnboardingScreen -->
     <string name="onboarding_step_of">Step %1$d of %2$d</string>
@@ -255,6 +258,8 @@
     <string name="rituals_end_time">End: %s</string>
     <string name="rituals_end_time_next_day">End: %1$s (next day)</string>
     <string name="rituals_time_same_error">Start and end times cannot be the same</string>
+    <string name="rituals_conflict_warning">Warning: Overlaps with \"%1$s\"</string>
+    <string name="rituals_overnight_info">This ritual runs overnight. It will start in the evening and end the next morning.</string>
     <string name="rituals_save">Save Ritual</string>
 
     <!-- TalismansScreen -->
@@ -373,6 +378,13 @@
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
     <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
+
+    <!-- Session Complete Dialog -->
+    <string name="session_complete_title">Session Complete!</string>
+    <string name="session_complete_duration">Focus time: %1$d minutes</string>
+    <string name="session_complete_breaks">Breaks taken: %1$d</string>
+    <string name="session_complete_enchantment">Enchantment: %1$s</string>
+    <string name="session_complete_great_work">Great work! You stayed focused.</string>
 
     <!-- Analytics Consent Dialog -->
     <string name="consent_dialog_title">Help Improve Focus Pocus</string>

@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -72,7 +74,8 @@ fun UsageStatsScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val sharedPreferences = remember { context.getSharedPreferences("FocusPocus", Context.MODE_PRIVATE) }
+    var selectedTabIndex by remember { mutableIntStateOf(sharedPreferences.getInt("insightsTimeRange", 0)) }
     var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
     var filterExpanded by remember { mutableStateOf(false) }
 
@@ -201,7 +204,10 @@ fun UsageStatsScreen(
                 timeRangeLabels.forEachIndexed { index, label ->
                     FilterChip(
                         selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
+                        onClick = {
+                            selectedTabIndex = index
+                            sharedPreferences.edit().putInt("insightsTimeRange", index).apply()
+                        },
                         label = { Text(label) }
                     )
                 }
@@ -334,6 +340,83 @@ fun UsageStatsScreen(
                                     stringResource(R.string.insights_sessions),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Daily Focus Trend
+        if (filteredSessions.isNotEmpty() && selectedTabIndex <= 1) {
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.insights_daily_trend),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val dailyMinutes = remember(focusSessions) {
+                            val cal = Calendar.getInstance()
+                            val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
+                            (6 downTo 0).map { daysAgo ->
+                                cal.timeInMillis = System.currentTimeMillis()
+                                cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+                                cal.set(Calendar.HOUR_OF_DAY, 0)
+                                cal.set(Calendar.MINUTE, 0)
+                                cal.set(Calendar.SECOND, 0)
+                                cal.set(Calendar.MILLISECOND, 0)
+                                val dayStart = cal.timeInMillis
+                                cal.add(Calendar.DAY_OF_YEAR, 1)
+                                val dayEnd = cal.timeInMillis
+                                cal.timeInMillis = dayStart
+                                val label = dayFormat.format(Date(dayStart))
+                                val minutes = focusSessions
+                                    .filter { it.startTimeMillis >= dayStart && it.startTimeMillis < dayEnd }
+                                    .sumOf { it.durationMinutes }
+                                label to minutes
+                            }
+                        }
+
+                        val maxMinutes = dailyMinutes.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
+                        dailyMinutes.forEach { (label, minutes) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.width(36.dp)
+                                )
+                                LinearProgressIndicator(
+                                    progress = { (minutes.toFloat() / maxMinutes).coerceIn(0f, 1f) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(16.dp)
+                                        .padding(horizontal = 8.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                )
+                                Text(
+                                    "${minutes}m",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.width(36.dp)
                                 )
                             }
                         }

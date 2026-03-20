@@ -165,7 +165,8 @@ fun ScheduleEditorScreen(
     onSaveSchedule: (Schedule) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
-    scheduleToEdit: Schedule? = null
+    scheduleToEdit: Schedule? = null,
+    existingSchedules: List<Schedule> = emptyList()
 ) {
     var name by remember { mutableStateOf(scheduleToEdit?.name ?: "") }
     var selectedBlocker by remember {
@@ -218,6 +219,31 @@ fun ScheduleEditorScreen(
     val isOvernightSchedule = endTimeMinutes <= startTimeMinutes
     val isTimeValid = startTimeMinutes != endTimeMinutes  // Only invalid if times are identical
     // timeValidationError removed: stringResource used inline below
+
+    // Check for schedule conflicts with existing schedules
+    val conflictingSchedule = remember(selectedDays, startTimeMinutes, endTimeMinutes, existingSchedules) {
+        existingSchedules.filter { it.id != (scheduleToEdit?.id ?: "") }.find { existing ->
+            // Check if any days overlap
+            val daysOverlap = selectedDays.any { it in existing.days }
+            if (!daysOverlap) return@find false
+
+            // Parse existing schedule times
+            val existParts = existing.startTime.split(":")
+            val existEndParts = existing.endTime.split(":")
+            if (existParts.size != 2 || existEndParts.size != 2) return@find false
+            val existStart = (existParts[0].toIntOrNull() ?: 0) * 60 + (existParts[1].toIntOrNull() ?: 0)
+            val existEnd = (existEndParts[0].toIntOrNull() ?: 0) * 60 + (existEndParts[1].toIntOrNull() ?: 0)
+
+            // Check time overlap (simplified - same-day only for now)
+            if (endTimeMinutes > startTimeMinutes && existEnd > existStart) {
+                // Both same-day: ranges overlap if one starts before other ends
+                startTimeMinutes < existEnd && endTimeMinutes > existStart
+            } else {
+                // Overnight schedules involved - just warn if any time overlap possible
+                true
+            }
+        }
+    }
 
     if (showBlockerDialog) {
         BlockerSelectionDialog(
@@ -410,6 +436,24 @@ fun ScheduleEditorScreen(
                 text = stringResource(R.string.rituals_time_same_error),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        if (conflictingSchedule != null) {
+            Text(
+                text = stringResource(R.string.rituals_conflict_warning, conflictingSchedule.name),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        if (isOvernightSchedule && isTimeValid) {
+            Text(
+                text = stringResource(R.string.rituals_overnight_info),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
