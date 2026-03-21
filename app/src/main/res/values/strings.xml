@@ -324,6 +324,7 @@
     <string name="conditional_unlocks_add">Add Conditional Unlock</string>
     <string name="conditional_unlocks_rule_summary">Unlock after %1$d min in %2$s</string>
     <string name="conditional_unlocks_unlocked_apps">Unlocked apps: %d</string>
+    <string name="conditional_unlocks_unlocked_enchantments">Unlocks: %s</string>
     <string name="conditional_unlocks_editor_title_create">New Conditional Unlock</string>
     <string name="conditional_unlocks_editor_title_edit">Edit Conditional Unlock</string>
     <string name="conditional_unlocks_name_label">Rule name</string>
@@ -334,6 +335,9 @@
     <string name="conditional_unlocks_unlocked_apps_label">Apps to unlock</string>
     <string name="conditional_unlocks_unlocked_apps_placeholder">Select apps to unlock</string>
     <string name="conditional_unlocks_unlocked_apps_count">%d app(s) selected</string>
+    <string name="conditional_unlocks_enchantments_label">Enchantments to unlock</string>
+    <string name="conditional_unlocks_enchantments_placeholder">Select enchantments</string>
+    <string name="conditional_unlocks_enchantments_count">%d enchantment(s) selected</string>
     <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
     <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
     <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>

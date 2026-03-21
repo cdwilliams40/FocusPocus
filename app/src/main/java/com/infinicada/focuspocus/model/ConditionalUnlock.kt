@@ -7,5 +7,5 @@ data class ConditionalUnlock(
     val name: String,
     val requiredAppPackage: String,
     val requiredMinutes: Int,
-    val unlockedApps: Set<String>
+    val unlockedBlockerNames: Set<String> = emptySet()
 )

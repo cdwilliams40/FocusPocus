@@ -11,6 +11,7 @@ object Constants {
     object PrefsKeys {
         const val MANUAL_FOCUS_MODE = "manualFocusMode"
         const val ACTIVE_BLOCKER = "activeBlocker"
+        const val ACTIVE_BLOCKERS = "activeBlockers"
         const val ACTIVE_SCHEDULE_ID = "activeScheduleId"
         const val FOCUS_TAG_ID = "focusTagId"
         const val IS_ON_BREAK = "isOnBreak"

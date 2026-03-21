@@ -38,11 +38,11 @@ class TriggerHandler(
 
         return when (preset.action ?: PresetAction.TOGGLE) {
             PresetAction.TEMP_ENABLE -> {
-                val blocker = blockerLists.find { it.name == preset.blockerName }
-                if (blocker != null) {
+                val validNames = preset.effectiveBlockerNames.filter { name -> blockerLists.any { it.name == name } }
+                if (validNames.isNotEmpty()) {
                     SessionManager.startSession(
                         sharedPreferences = prefs,
-                        blockerName = blocker.name,
+                        blockerNames = validNames,
                         durationMinutes = tempDuration,
                         breaksEnabled = preset.breaksEnabled
                     )
@@ -68,11 +68,11 @@ class TriggerHandler(
                     SessionManager.stopSession(context, prefs, gson)
                     TriggerResult.Success(R.string.toast_preset_dispelled, arrayOf(preset.name))
                 } else {
-                    val blocker = blockerLists.find { it.name == preset.blockerName }
-                    if (blocker != null) {
+                    val validNames = preset.effectiveBlockerNames.filter { name -> blockerLists.any { it.name == name } }
+                    if (validNames.isNotEmpty()) {
                         SessionManager.startSession(
                             sharedPreferences = prefs,
-                            blockerName = blocker.name,
+                            blockerNames = validNames,
                             durationMinutes = preset.durationMinutes,
                             breaksEnabled = preset.breaksEnabled
                         )

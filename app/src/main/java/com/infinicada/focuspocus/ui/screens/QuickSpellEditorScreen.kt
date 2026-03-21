@@ -55,10 +55,11 @@ fun QuickSpellEditorScreen(
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf(presetToEdit?.name ?: "") }
-    var selectedBlocker by remember {
+    var selectedBlockerNames by remember {
         mutableStateOf(
-            if (presetToEdit != null) blockerLists.find { it.name == presetToEdit.blockerName }
-            else blockerLists.firstOrNull()
+            presetToEdit?.effectiveBlockerNames?.toSet()
+                ?: blockerLists.firstOrNull()?.let { setOf(it.name) }
+                ?: emptySet()
         )
     }
     var selectedDuration by remember { mutableIntStateOf(presetToEdit?.durationMinutes ?: 25) }
@@ -131,13 +132,14 @@ fun QuickSpellEditorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Blocker selection
+            // Blocker selection (multi-select)
             ExposedDropdownMenuBox(
                 expanded = blockerDropdownExpanded,
                 onExpandedChange = { blockerDropdownExpanded = !blockerDropdownExpanded }
             ) {
                 OutlinedTextField(
-                    value = selectedBlocker?.name ?: stringResource(R.string.quick_spell_editor_select_enchantment),
+                    value = if (selectedBlockerNames.isEmpty()) stringResource(R.string.quick_spell_editor_select_enchantment)
+                            else selectedBlockerNames.joinToString(", "),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.quick_spell_editor_enchantment_label)) },
@@ -150,11 +152,24 @@ fun QuickSpellEditorScreen(
                     onDismissRequest = { blockerDropdownExpanded = false }
                 ) {
                     blockerLists.forEach { blocker ->
+                        val isSelected = blocker.name in selectedBlockerNames
                         DropdownMenuItem(
-                            text = { Text(blocker.name) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = null
+                                    )
+                                    Spacer(modifier = Modifier.padding(start = 8.dp))
+                                    Text(blocker.name)
+                                }
+                            },
                             onClick = {
-                                selectedBlocker = blocker
-                                blockerDropdownExpanded = false
+                                selectedBlockerNames = if (isSelected) {
+                                    selectedBlockerNames - blocker.name
+                                } else {
+                                    selectedBlockerNames + blocker.name
+                                }
                             }
                         )
                     }
@@ -331,22 +346,20 @@ fun QuickSpellEditorScreen(
                 }
                 Button(
                     onClick = {
-                        selectedBlocker?.let { blocker ->
-                            onSave(
-                                FocusPreset(
-                                    id = presetToEdit?.id ?: UUID.randomUUID().toString(),
-                                    name = name.trim(),
-                                    blockerName = blocker.name,
-                                    durationMinutes = selectedDuration,
-                                    breaksEnabled = breaksEnabled,
-                                    talismanId = selectedTalisman?.id,
-                                    action = selectedAction,
-                                    tempDurationMinutes = tempDurationMinutes
-                                )
+                        onSave(
+                            FocusPreset(
+                                id = presetToEdit?.id ?: UUID.randomUUID().toString(),
+                                name = name.trim(),
+                                blockerNames = selectedBlockerNames.toList(),
+                                durationMinutes = selectedDuration,
+                                breaksEnabled = breaksEnabled,
+                                talismanId = selectedTalisman?.id,
+                                action = selectedAction,
+                                tempDurationMinutes = tempDurationMinutes
                             )
-                        }
+                        )
                     },
-                    enabled = name.isNotBlank() && selectedBlocker != null,
+                    enabled = name.isNotBlank() && selectedBlockerNames.isNotEmpty(),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(stringResource(R.string.action_save))

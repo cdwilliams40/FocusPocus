@@ -87,7 +87,7 @@ fun FocusPocusApp(
 
     // Collect ViewModel state
     val manualFocusMode by sessionVM.manualFocusMode.collectAsStateWithLifecycle()
-    val activeBlockerName by sessionVM.activeBlockerName.collectAsStateWithLifecycle()
+    val activeBlockerNames by sessionVM.activeBlockerNames.collectAsStateWithLifecycle()
     val activeScheduleId by sessionVM.activeScheduleId.collectAsStateWithLifecycle()
     val focusDurationMinutes by sessionVM.focusDurationMinutes.collectAsStateWithLifecycle()
     val focusTimeRemaining by sessionVM.focusTimeRemaining.collectAsStateWithLifecycle()
@@ -155,7 +155,7 @@ fun FocusPocusApp(
     }
 
     // Write focus mode state to prefs when it changes
-    LaunchedEffect(manualFocusMode, activeBlockerName, activeScheduleId) {
+    LaunchedEffect(manualFocusMode, activeBlockerNames, activeScheduleId) {
         sessionVM.writeFocusModeState()
     }
 
@@ -251,8 +251,8 @@ fun FocusPocusApp(
     var currentDestination by remember { mutableStateOf(AppDestinations.HOME) }
     var topLevelRoute by remember { mutableStateOf<TopLevelRoute>(TopLevelRoute.Main) }
 
-    val activeManualBlocker = remember(activeBlockerName, blockerLists) {
-        blockerLists.find { it.name == activeBlockerName }
+    val activeManualBlockers = remember(activeBlockerNames, blockerLists) {
+        blockerLists.filter { it.name in activeBlockerNames }
     }
 
     val activeSchedule = remember(activeScheduleId, schedules) {
@@ -263,7 +263,7 @@ fun FocusPocusApp(
         BlockerSelectionDialog(
             blockerLists = blockerLists,
             onBlockerSelected = { blocker ->
-                sessionVM.selectBlocker(blocker)
+                sessionVM.toggleBlocker(blocker)
                 showBlockerSelectionDialog = false
             },
             onDismissRequest = { showBlockerSelectionDialog = false }
@@ -364,7 +364,7 @@ fun FocusPocusApp(
                         focusMode = focusMode,
                         activeTagId = focusTagId,
                         namedTags = namedTags,
-                        activeBlocker = activeManualBlocker,
+                        activeBlockers = activeManualBlockers,
                         activeSchedule = activeSchedule,
                         blockerLists = blockerLists,
                         focusPresets = focusPresets,
@@ -383,7 +383,7 @@ fun FocusPocusApp(
                         emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
                         currentStreak = currentStreak,
                         onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
-                        onBlockerSelected = { blocker -> sessionVM.selectBlocker(blocker) },
+                        onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
                         onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
                         onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
                         onStartClicked = {
@@ -398,9 +398,8 @@ fun FocusPocusApp(
                                     sessionVM.stopSession()
                                 }
                             } else {
-                                val blocker = activeManualBlocker
-                                if (blocker != null) {
-                                    sessionVM.startSession(blocker.name)
+                                if (activeManualBlockers.isNotEmpty()) {
+                                    sessionVM.startSession(activeManualBlockers.map { it.name })
                                 } else {
                                     if (blockerLists.isNotEmpty()) {
                                         showBlockerSelectionDialog = true
@@ -450,7 +449,7 @@ fun FocusPocusApp(
 
                         is SpellbookRoute.EnchantmentsList -> {
                             val activeBlockerForList = if (focusMode) {
-                                activeSchedule?.blockerName ?: activeManualBlocker?.name
+                                activeSchedule?.effectiveBlockerNames?.firstOrNull() ?: activeManualBlockers.firstOrNull()?.name
                             } else null
                             BlockerListScreen(
                                 blockerLists = blockerLists,
@@ -577,6 +576,7 @@ fun FocusPocusApp(
                         is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
+                            blockerLists = blockerLists,
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },

@@ -41,7 +41,7 @@ class ScheduleRepository(
         talismanIds: Set<String>
     ): List<Schedule> {
         val cleaned = schedules.mapNotNull { schedule ->
-            if (schedule.blockerName !in blockerNames) {
+            if (schedule.effectiveBlockerNames.none { it in blockerNames }) {
                 null
             } else if (schedule.unbindingTalismanId != null && schedule.unbindingTalismanId !in talismanIds) {
                 schedule.copy(unbindingTalismanId = null)

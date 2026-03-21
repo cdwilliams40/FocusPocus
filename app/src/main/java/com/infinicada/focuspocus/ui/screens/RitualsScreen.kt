@@ -169,9 +169,9 @@ fun ScheduleEditorScreen(
     existingSchedules: List<Schedule> = emptyList()
 ) {
     var name by remember { mutableStateOf(scheduleToEdit?.name ?: "") }
-    var selectedBlocker by remember {
+    var selectedBlockerNames by remember {
         mutableStateOf(
-            if (scheduleToEdit != null) blockerLists.find { it.name == scheduleToEdit.blockerName } else null
+            scheduleToEdit?.effectiveBlockerNames?.toSet() ?: emptySet()
         )
     }
     var showBlockerDialog by remember { mutableStateOf(false) }
@@ -246,13 +246,46 @@ fun ScheduleEditorScreen(
     }
 
     if (showBlockerDialog) {
-        BlockerSelectionDialog(
-            blockerLists = blockerLists,
-            onBlockerSelected = {
-                selectedBlocker = it
-                showBlockerDialog = false
-             },
-            onDismissRequest = { showBlockerDialog = false }
+        AlertDialog(
+            onDismissRequest = { showBlockerDialog = false },
+            title = { Text(stringResource(R.string.rituals_select_enchantment)) },
+            text = {
+                LazyColumn {
+                    items(blockerLists) { blocker ->
+                        val isSelected = blocker.name in selectedBlockerNames
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedBlockerNames = if (isSelected) {
+                                        selectedBlockerNames - blocker.name
+                                    } else {
+                                        selectedBlockerNames + blocker.name
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    selectedBlockerNames = if (isSelected) {
+                                        selectedBlockerNames - blocker.name
+                                    } else {
+                                        selectedBlockerNames + blocker.name
+                                    }
+                                }
+                            )
+                            Text(blocker.name, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showBlockerDialog = false }) {
+                    Text(stringResource(R.string.action_done))
+                }
+            }
         )
     }
 
@@ -334,7 +367,10 @@ fun ScheduleEditorScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(onClick = { showBlockerDialog = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(selectedBlocker?.name ?: stringResource(R.string.rituals_select_enchantment))
+            Text(
+                if (selectedBlockerNames.isEmpty()) stringResource(R.string.rituals_select_enchantment)
+                else selectedBlockerNames.joinToString(", ")
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -466,23 +502,21 @@ fun ScheduleEditorScreen(
             }
             Spacer(modifier = Modifier.size(8.dp))
             Button(onClick = {
-                selectedBlocker?.let {
-                    onSaveSchedule(
-                        Schedule(
-                            id = scheduleToEdit?.id ?: UUID.randomUUID().toString(),
-                            name = name,
-                            blockerName = it.name,
-                            days = selectedDays,
-                            startTime = "%02d:%02d".format(startTimeState.hour, startTimeState.minute),
-                            endTime = "%02d:%02d".format(endTimeState.hour, endTimeState.minute),
-                            unbindingTalismanId = selectedTalisman?.id,
-                            breaksEnabled = breaksEnabled,
-                            breakDurationMinutes = breakDurationMinutes,
-                            maxBreaksPerSession = maxBreaksPerSession
-                        )
+                onSaveSchedule(
+                    Schedule(
+                        id = scheduleToEdit?.id ?: UUID.randomUUID().toString(),
+                        name = name,
+                        blockerNames = selectedBlockerNames.toList(),
+                        days = selectedDays,
+                        startTime = "%02d:%02d".format(startTimeState.hour, startTimeState.minute),
+                        endTime = "%02d:%02d".format(endTimeState.hour, endTimeState.minute),
+                        unbindingTalismanId = selectedTalisman?.id,
+                        breaksEnabled = breaksEnabled,
+                        breakDurationMinutes = breakDurationMinutes,
+                        maxBreaksPerSession = maxBreaksPerSession
                     )
-                }
-            }, enabled = name.isNotBlank() && selectedBlocker != null && selectedDays.isNotEmpty() && isTimeValid) {
+                )
+            }, enabled = name.isNotBlank() && selectedBlockerNames.isNotEmpty() && selectedDays.isNotEmpty() && isTimeValid) {
                 Text(stringResource(R.string.rituals_save))
             }
         }
