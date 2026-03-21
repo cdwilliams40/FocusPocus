@@ -317,6 +317,31 @@
     <string name="time_limits_daily_limit_label">Daily Limit</string>
     <string name="time_limits_no_apps_found">No apps found</string>
 
+    <!-- ConditionalUnlocksScreen -->
+    <string name="conditional_unlocks_title">Conditional Unlocks</string>
+    <string name="conditional_unlocks_description">Unlock blocked apps as a reward after spending time in another app.</string>
+    <string name="conditional_unlocks_empty">No conditional unlocks yet.</string>
+    <string name="conditional_unlocks_add">Add Conditional Unlock</string>
+    <string name="conditional_unlocks_rule_summary">Unlock after %1$d min in %2$s</string>
+    <string name="conditional_unlocks_unlocked_apps">Unlocked apps: %d</string>
+    <string name="conditional_unlocks_editor_title_create">New Conditional Unlock</string>
+    <string name="conditional_unlocks_editor_title_edit">Edit Conditional Unlock</string>
+    <string name="conditional_unlocks_name_label">Rule name</string>
+    <string name="conditional_unlocks_name_placeholder">e.g. Language reward</string>
+    <string name="conditional_unlocks_required_app_label">Required app</string>
+    <string name="conditional_unlocks_required_app_placeholder">Select app to use first</string>
+    <string name="conditional_unlocks_required_minutes_label">Required time</string>
+    <string name="conditional_unlocks_unlocked_apps_label">Apps to unlock</string>
+    <string name="conditional_unlocks_unlocked_apps_placeholder">Select apps to unlock</string>
+    <string name="conditional_unlocks_unlocked_apps_count">%d app(s) selected</string>
+    <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
+    <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
+    <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>
+    <string name="conditional_unlocks_delete">Delete</string>
+    <string name="spellbook_conditional_unlocks">Conditional Unlocks</string>
+    <string name="spellbook_no_conditional_unlocks">No conditional unlocks yet. Reward yourself by unlocking apps after focused use of another.</string>
+    <string name="toast_max_conditional_unlocks">Maximum of %d conditional unlocks reached</string>
+
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">QR Code</string>
     <string name="qr_code_error">Failed to generate QR code</string>

@@ -15,4 +15,5 @@ class AppContainer(context: Context) {
     val talismans = TalismanRepository(prefs, gson)
     val session = SessionRepository(context, prefs, gson)
     val insights = InsightsRepository(prefs, gson)
+    val conditionalUnlocks = ConditionalUnlockRepository(prefs, gson)
 }

@@ -45,6 +45,7 @@ import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.navigation.TopLevelRoute
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
+import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
@@ -109,6 +110,7 @@ fun FocusPocusApp(
     val focusPresets by spellbookVM.focusPresets.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
     val appTimeLimits by spellbookVM.appTimeLimits.collectAsStateWithLifecycle()
+    val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
     val selectedBlocker by spellbookVM.selectedBlocker.collectAsStateWithLifecycle()
@@ -435,12 +437,14 @@ fun FocusPocusApp(
                             schedules = schedules,
                             namedTags = namedTags,
                             appTimeLimits = appTimeLimits,
+                            conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
                             onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
                             onNavigateToTimeLimits = { spellbookVM.navigateTo(SpellbookRoute.TimeLimits) },
+                            onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             modifier = contentModifier
                         )
 
@@ -566,6 +570,15 @@ fun FocusPocusApp(
                             appTimeLimits = appTimeLimits,
                             onSaveAppTimeLimit = { pkg, limit -> spellbookVM.saveAppTimeLimit(pkg, limit) },
                             onDeleteAppTimeLimit = { spellbookVM.deleteAppTimeLimit(it) },
+                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
+                            modifier = contentModifier
+                        )
+
+                        is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
+                            conditionalUnlocks = conditionalUnlocks,
+                            installedApps = installedApps,
+                            onSave = { spellbookVM.saveConditionalUnlock(it) },
+                            onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )

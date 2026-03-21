@@ -19,6 +19,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.model.ConditionalUnlock
 import java.util.Calendar
 
 class MyAccessibilityService : AccessibilityService() {
@@ -80,6 +81,10 @@ class MyAccessibilityService : AccessibilityService() {
     // Cache for time limits
     private var cachedTimeLimitsJson: String? = null
     private var cachedTimeLimits: Map<String, Int> = emptyMap()
+
+    // Cache for conditional unlocks
+    private var cachedConditionalUnlocksJson: String? = null
+    private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
 
     // Block event recording
     private var pendingBlockEvents = mutableListOf<BlockEvent>()
@@ -420,7 +425,7 @@ class MyAccessibilityService : AccessibilityService() {
             val activeBlocker = blockerLists.find { it.name == activeBlockerName }
 
             activeBlocker?.let {
-                if (it.shouldBlock(packageName)) {
+                if (it.shouldBlock(packageName) && !isConditionallyUnlocked(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTime = now
@@ -446,6 +451,41 @@ class MyAccessibilityService : AccessibilityService() {
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
             showOverlay(appName, getString(R.string.service_daily_time_limit))
+        }
+    }
+
+    private fun isConditionallyUnlocked(packageName: String): Boolean {
+        val rules = getCachedConditionalUnlocks()
+        val matchingRule = rules.find { packageName in it.unlockedApps } ?: return false
+        val usedMs = UsageStatsHelper.getPackageUsageToday(this, matchingRule.requiredAppPackage)
+        val requiredMs = matchingRule.requiredMinutes * 60 * 1000L
+        val unlocked = usedMs >= requiredMs
+        if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
+            "Conditional unlock check for $packageName: ${usedMs / 60000}m / ${matchingRule.requiredMinutes}m required -> unlocked=$unlocked")
+        return unlocked
+    }
+
+    private fun getCachedConditionalUnlocks(): List<ConditionalUnlock> {
+        val json = sharedPreferences.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null)
+        if (json == null) {
+            if (cachedConditionalUnlocksJson != null) {
+                cachedConditionalUnlocksJson = null
+                cachedConditionalUnlocks = emptyList()
+            }
+            return emptyList()
+        }
+        if (json == cachedConditionalUnlocksJson) return cachedConditionalUnlocks
+        return try {
+            val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
+            val parsed: List<ConditionalUnlock> = gson.fromJson(json, type)
+            cachedConditionalUnlocksJson = json
+            cachedConditionalUnlocks = parsed
+            parsed
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
+            cachedConditionalUnlocksJson = null
+            cachedConditionalUnlocks = emptyList()
+            emptyList()
         }
     }
 
