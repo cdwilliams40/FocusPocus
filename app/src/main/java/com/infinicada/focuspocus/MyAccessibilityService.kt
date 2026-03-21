@@ -485,7 +485,8 @@ class MyAccessibilityService : AccessibilityService() {
         val json = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
         if (json != null) {
             return try {
-                gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
+                val type = object : TypeToken<List<String>>() {}.type
+                gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
                 // Fall back to single blocker pref

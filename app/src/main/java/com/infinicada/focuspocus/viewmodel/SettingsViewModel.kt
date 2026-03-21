@@ -1,7 +1,9 @@
 package com.infinicada.focuspocus.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.infinicada.focuspocus.FocusPocusApplication
@@ -85,8 +87,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun applyAnalyticsConsent(enabled: Boolean) {
         _analyticsConsent.value = enabled
         repo.setAnalyticsConsent(enabled)
-        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(enabled)
-        FirebaseAnalytics.getInstance(getApplication()).setAnalyticsCollectionEnabled(enabled)
+        try {
+            FirebaseApp.initializeApp(getApplication())
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(enabled)
+            FirebaseAnalytics.getInstance(getApplication()).setAnalyticsCollectionEnabled(enabled)
+        } catch (e: Exception) {
+            // Ignore initialization issues when google-services.json is missing
+            Log.e("SettingsViewModel", "Firebase initialization failed", e)
+        }
     }
 
     fun completeOnboarding() {

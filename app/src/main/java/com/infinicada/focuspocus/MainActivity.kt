@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
@@ -89,8 +90,14 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
         // Apply analytics consent state
         val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
-        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
-        FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
+        try {
+            FirebaseApp.initializeApp(this)
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
+            FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
+        } catch (e: Exception) {
+            // Ignore initialization issues when google-services.json is missing
+            Log.e("MainActivity", "Firebase initialization failed", e)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
