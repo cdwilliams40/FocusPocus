@@ -10,11 +10,13 @@ import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.data.BlockerListRepository
+import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.InsightsRepository
 import com.infinicada.focuspocus.data.PresetRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
 import com.infinicada.focuspocus.model.AppInfo
+import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -32,6 +34,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val presetRepo: PresetRepository = container.presets
     private val talismanRepo: TalismanRepository = container.talismans
     private val insightsRepo: InsightsRepository = container.insights
+    private val conditionalUnlockRepo: ConditionalUnlockRepository = container.conditionalUnlocks
 
     private val _blockerLists = MutableStateFlow(blockerRepo.getBlockers())
     val blockerLists: StateFlow<List<Blocker>> = _blockerLists.asStateFlow()
@@ -47,6 +50,9 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _appTimeLimits = MutableStateFlow(insightsRepo.getAppTimeLimits())
     val appTimeLimits: StateFlow<Map<String, Int>> = _appTimeLimits.asStateFlow()
+
+    private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
+    val conditionalUnlocks: StateFlow<List<ConditionalUnlock>> = _conditionalUnlocks.asStateFlow()
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -103,6 +109,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             is SpellbookRoute.CreateEnchantment, is SpellbookRoute.EditEnchantment -> SpellbookRoute.EnchantmentsList
             is SpellbookRoute.CreateQuickSpell, is SpellbookRoute.EditQuickSpell -> SpellbookRoute.QuickSpellsList
             is SpellbookRoute.CreateRitual, is SpellbookRoute.EditRitual -> SpellbookRoute.RitualsList
+            is SpellbookRoute.ConditionalUnlocks -> SpellbookRoute.Overview
             else -> SpellbookRoute.Overview
         }
         return true
@@ -207,6 +214,22 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteAppTimeLimit(packageName: String) {
         _appTimeLimits.value = insightsRepo.deleteAppTimeLimit(packageName, _appTimeLimits.value)
+        _dataVersion.value++
+    }
+
+    fun saveConditionalUnlock(rule: ConditionalUnlock) {
+        if (!conditionalUnlockRepo.saveConditionalUnlock(rule, _conditionalUnlocks.value)) {
+            Toast.makeText(getApplication(), getApplication<Application>().getString(
+                R.string.toast_max_conditional_unlocks, com.infinicada.focuspocus.Constants.MAX_CONDITIONAL_UNLOCKS
+            ), Toast.LENGTH_SHORT).show()
+            return
+        }
+        _conditionalUnlocks.value = conditionalUnlockRepo.getConditionalUnlocks()
+        _dataVersion.value++
+    }
+
+    fun deleteConditionalUnlock(rule: ConditionalUnlock) {
+        _conditionalUnlocks.value = conditionalUnlockRepo.deleteConditionalUnlock(rule, _conditionalUnlocks.value)
         _dataVersion.value++
     }
 }

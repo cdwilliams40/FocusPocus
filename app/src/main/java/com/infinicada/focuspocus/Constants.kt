@@ -46,6 +46,9 @@ object Constants {
         // Per-app time limits
         const val APP_TIME_LIMITS = "appTimeLimits"
 
+        // Conditional unlocks
+        const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
+
         // Block events for statistics
         const val BLOCK_EVENTS = "blockEvents"
 
@@ -85,6 +88,7 @@ object Constants {
     const val MAX_WEBSITES_PER_BLOCKER = 100
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_APP_TIME_LIMITS = 100
+    const val MAX_CONDITIONAL_UNLOCKS = 50
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"

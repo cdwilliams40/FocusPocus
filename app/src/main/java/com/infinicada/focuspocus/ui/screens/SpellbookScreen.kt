@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
+import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.model.Schedule
@@ -47,12 +49,14 @@ fun SpellbookScreen(
     schedules: List<Schedule>,
     namedTags: List<NamedTag>,
     appTimeLimits: Map<String, Int>,
+    conditionalUnlocks: List<ConditionalUnlock>,
     installedApps: List<AppInfo>,
     onNavigateToEnchantments: () -> Unit,
     onNavigateToQuickSpells: () -> Unit,
     onNavigateToRituals: () -> Unit,
     onNavigateToTalismans: () -> Unit,
     onNavigateToTimeLimits: () -> Unit,
+    onNavigateToConditionalUnlocks: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -221,6 +225,41 @@ fun SpellbookScreen(
                 if (appTimeLimits.size > 3) {
                     Text(
                         stringResource(R.string.spellbook_more_count, appTimeLimits.size - 3),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Conditional Unlocks Section
+        SpellbookSectionCard(
+            title = stringResource(R.string.spellbook_conditional_unlocks),
+            icon = Icons.Filled.LockOpen,
+            count = conditionalUnlocks.size,
+            actionLabel = stringResource(R.string.action_manage),
+            onSeeAll = onNavigateToConditionalUnlocks
+        ) {
+            if (conditionalUnlocks.isEmpty()) {
+                Text(
+                    stringResource(R.string.spellbook_no_conditional_unlocks),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                conditionalUnlocks.take(3).forEach { rule ->
+                    val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
+                        ?: rule.requiredAppPackage
+                    Text(
+                        "${rule.name} - ${rule.requiredMinutes}m in $requiredAppName",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (conditionalUnlocks.size > 3) {
+                    Text(
+                        stringResource(R.string.spellbook_more_count, conditionalUnlocks.size - 3),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
