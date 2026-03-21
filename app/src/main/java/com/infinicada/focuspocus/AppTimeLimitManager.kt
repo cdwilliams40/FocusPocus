@@ -40,7 +40,8 @@ object AppTimeLimitManager {
 
     fun getAllUsedMinutesToday(context: Context): Map<String, Int> {
         if (!UsageStatsHelper.hasUsageStatsPermission(context)) return emptyMap()
-        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return emptyMap()
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)

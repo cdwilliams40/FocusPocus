@@ -15,7 +15,11 @@ object DndController {
      * - User is NOT on a break
      */
     fun updateDndState(context: Context) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        if (notificationManager == null) {
+            Log.e(TAG, "NotificationManager unavailable")
+            return
+        }
 
         // Check if we have permission to modify DND
         if (!notificationManager.isNotificationPolicyAccessGranted) {

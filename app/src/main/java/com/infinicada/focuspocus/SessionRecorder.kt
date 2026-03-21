@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
+import android.util.Log
 import com.google.gson.Gson
 
 /**
@@ -43,7 +44,10 @@ object SessionRecorder {
                 // Use Array deserialization to avoid TypeToken
                 val array = gson.fromJson(json, Array<FocusSession>::class.java)
                 array?.toMutableList() ?: mutableListOf()
-            } catch (_: Exception) { mutableListOf() }
+            } catch (e: Exception) {
+                Log.e("SessionRecorder", "Error parsing focus sessions JSON", e)
+                mutableListOf()
+            }
         } else mutableListOf()
 
         sessions.add(session)

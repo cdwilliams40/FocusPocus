@@ -17,7 +17,8 @@ data class AppUsage(
 object UsageStatsHelper {
 
     fun hasUsageStatsPermission(context: Context): Boolean {
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
+            ?: return false
         val mode = appOps.unsafeCheckOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(),
@@ -58,7 +59,8 @@ object UsageStatsHelper {
         val endTime = System.currentTimeMillis()
 
         val usageStatsManager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return 0L
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_BEST, startTime, endTime
         )
@@ -87,7 +89,8 @@ object UsageStatsHelper {
 
     private fun queryUsageStats(context: Context, startTime: Long, endTime: Long): List<AppUsage> {
         val usageStatsManager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return emptyList()
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_BEST, startTime, endTime
         )

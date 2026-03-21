@@ -538,7 +538,10 @@ class MyAccessibilityService : AccessibilityService() {
             try {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson(json, type)
-            } catch (e: Exception) { mutableListOf() }
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
+                mutableListOf()
+            }
         } else mutableListOf()
         existing.addAll(pendingBlockEvents)
         pendingBlockEvents.clear()
@@ -631,7 +634,7 @@ class MyAccessibilityService : AccessibilityService() {
         // Check for ending with ".$blockedDomain"
         val offset = navLen - blockedLen
         // The character before the match must be a dot
-        if (navigatedDomain[offset - 1] != '.') return false
+        if (offset < 1 || navigatedDomain[offset - 1] != '.') return false
 
         return navigatedDomain.regionMatches(offset, blockedDomain, 0, blockedLen, ignoreCase = true)
     }
