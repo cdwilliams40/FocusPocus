@@ -407,6 +407,7 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             lastAppBlockTime = now
+            currentForegroundPackage = null
             closeApp()
             showOverlay(appName, getString(R.string.service_talisman_lock))
             return
@@ -429,6 +430,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTime = now
+                    currentForegroundPackage = null
                     recordBlockEvent(packageName, it.name)
                     closeApp()
                     showOverlay(appName, it.name)
@@ -442,12 +444,17 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun checkTimeLimitAndBlock(packageName: String) {
+        // Debounce — prevent rapid re-triggering from both window-state and minute-tick paths
+        val now = System.currentTimeMillis()
+        if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
+
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
         if (timeLimitChecker.shouldBlock(packageName, limit)) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
-            lastAppBlockTime = System.currentTimeMillis()
+            lastAppBlockTime = now
+            currentForegroundPackage = null
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
             showOverlay(appName, getString(R.string.service_daily_time_limit))

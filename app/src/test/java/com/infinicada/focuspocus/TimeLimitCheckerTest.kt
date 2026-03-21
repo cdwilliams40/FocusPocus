@@ -51,9 +51,27 @@ class TimeLimitCheckerTest {
     }
 
     @Test
-    fun `shouldBlock caches result for 60 seconds`() {
-        // First call returns false (under limit)
+    fun `shouldBlock does not cache under-limit results`() {
+        // Under-limit results are NOT cached because the user could be actively
+        // accumulating usage time, so each check needs a fresh query.
         whenever(checkFunction.invoke(any(), eq("com.example.app"), eq(30))).thenReturn(false)
+        val checker = TimeLimitChecker(context, checkFunction, clock)
+
+        // Call 1: Should call checkFunction
+        checker.shouldBlock("com.example.app", 30)
+        verify(checkFunction, times(1)).invoke(any(), eq("com.example.app"), eq(30))
+
+        // Call 2: 10 seconds later. Should call checkFunction again (no caching for false).
+        currentTime += 10_000
+        val result2 = checker.shouldBlock("com.example.app", 30)
+        assertFalse(result2)
+        verify(checkFunction, times(2)).invoke(any(), eq("com.example.app"), eq(30))
+    }
+
+    @Test
+    fun `shouldBlock caches over-limit results for 60 seconds`() {
+        // Over-limit results ARE cached because once over, it stays over for the day.
+        whenever(checkFunction.invoke(any(), eq("com.example.app"), eq(30))).thenReturn(true)
         val checker = TimeLimitChecker(context, checkFunction, clock)
 
         // Call 1: Should call checkFunction
@@ -63,7 +81,7 @@ class TimeLimitCheckerTest {
         // Call 2: 10 seconds later. Should use cache.
         currentTime += 10_000
         val result2 = checker.shouldBlock("com.example.app", 30)
-        assertFalse(result2)
+        assertTrue(result2)
         // Verify checkFunction was NOT called again
         verify(checkFunction, times(1)).invoke(any(), eq("com.example.app"), eq(30))
     }
@@ -108,8 +126,8 @@ class TimeLimitCheckerTest {
 
     @Test
     fun `benchmark cached vs uncached`() {
-        // This test demonstrates the performance improvement
-        whenever(checkFunction.invoke(any(), any(), any())).thenReturn(false)
+        // Over-limit results are cached, so 100 checks should only query once
+        whenever(checkFunction.invoke(any(), any(), any())).thenReturn(true)
         val checker = TimeLimitChecker(context, checkFunction, clock)
 
         // Simulate 100 checks within 1 second
@@ -118,7 +136,7 @@ class TimeLimitCheckerTest {
             currentTime += 10 // 10ms increments
         }
 
-        // Should only call checkFunction once
+        // Should only call checkFunction once (cached after first over-limit result)
         verify(checkFunction, times(1)).invoke(any(), eq("com.example.app"), eq(30))
     }
 }
