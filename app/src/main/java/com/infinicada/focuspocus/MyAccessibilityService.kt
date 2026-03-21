@@ -304,16 +304,17 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun activateSchedule(schedule: Schedule) {
-        // Validate that the schedule's blocker still exists
+        // Validate that at least one of the schedule's blockers still exists
         val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
-        if (blockerLists.none { it.name == schedule.blockerName }) {
-            Log.e("MyAccessibilityService", "Schedule '${schedule.name}' references missing blocker '${schedule.blockerName}', skipping activation")
+        val validNames = schedule.effectiveBlockerNames.filter { name -> blockerLists.any { it.name == name } }
+        if (validNames.isEmpty()) {
+            Log.e("MyAccessibilityService", "Schedule '${schedule.name}' references no valid blockers, skipping activation")
             return
         }
 
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
-            blockerName = schedule.blockerName,
+            blockerNames = validNames,
             scheduleId = schedule.id,
             breaksEnabled = schedule.breaksEnabled
         )
@@ -422,18 +423,18 @@ class MyAccessibilityService : AccessibilityService() {
 
         if (focusActive) {
             val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
-            val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-            val activeBlocker = blockerLists.find { it.name == activeBlockerName }
+            val activeBlockerNames = getActiveBlockerNames()
+            val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
-            activeBlocker?.let {
-                if (it.shouldBlock(packageName) && !isConditionallyUnlocked(packageName)) {
+            for (blocker in activeBlockers) {
+                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTime = now
                     currentForegroundPackage = null
-                    recordBlockEvent(packageName, it.name)
+                    recordBlockEvent(packageName, blocker.name)
                     closeApp()
-                    showOverlay(appName, it.name)
+                    showOverlay(appName, activeBlockerNames.joinToString(", "))
                     return
                 }
             }
@@ -463,13 +464,37 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun isConditionallyUnlocked(packageName: String): Boolean {
         val rules = getCachedConditionalUnlocks()
-        val matchingRule = rules.find { packageName in it.unlockedApps } ?: return false
+        val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
+
+        val matchingRule = rules.find { rule ->
+            rule.unlockedBlockerNames.any { blockerName ->
+                val blocker = blockerLists.find { it.name == blockerName }
+                blocker != null && blocker.apps.contains(packageName)
+            }
+        } ?: return false
+
         val usedMs = UsageStatsHelper.getPackageUsageToday(this, matchingRule.requiredAppPackage)
         val requiredMs = matchingRule.requiredMinutes * 60 * 1000L
         val unlocked = usedMs >= requiredMs
         if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
             "Conditional unlock check for $packageName: ${usedMs / 60000}m / ${matchingRule.requiredMinutes}m required -> unlocked=$unlocked")
         return unlocked
+    }
+
+    private fun getActiveBlockerNames(): List<String> {
+        val json = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
+        if (json != null) {
+            return try {
+                gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
+                // Fall back to single blocker pref
+                val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+                if (single != null) listOf(single) else emptyList()
+            }
+        }
+        val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+        return if (single != null) listOf(single) else emptyList()
     }
 
     private fun getCachedConditionalUnlocks(): List<ConditionalUnlock> {
@@ -564,12 +589,14 @@ class MyAccessibilityService : AccessibilityService() {
         if (isOnBreak) return
         if (focusTagId == null && !manualFocusMode) return
 
-        val activeBlockerName = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: return
+        val activeBlockerNames = getActiveBlockerNames()
+        if (activeBlockerNames.isEmpty()) return
         val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
-        val activeBlocker = blockerLists.find { it.name == activeBlockerName } ?: return
+        val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
-        val blockedWebsites = activeBlocker.websites.orEmpty()
-        if (blockedWebsites.isEmpty()) return
+        // Merge websites from all active blockers
+        val allBlockedWebsites = activeBlockers.flatMap { it.websites.orEmpty() }.distinct()
+        if (allBlockedWebsites.isEmpty()) return
 
         // Debounce — prevent rapid re-triggering
         val now = System.currentTimeMillis()
@@ -578,13 +605,16 @@ class MyAccessibilityService : AccessibilityService() {
         val url = extractUrlFromBrowser(packageName, event) ?: return
         val domain = UrlUtils.extractDomain(url) ?: return
 
-        val matchedDomain = blockedWebsites.find { domainMatches(domain, it) }
+        val matchedDomain = allBlockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
             lastWebsiteBlockTime = now
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
-            recordBlockEvent(matchedDomain, activeBlocker.name)
+            val matchingBlockerName = activeBlockers.find { blocker ->
+                blocker.websites.orEmpty().any { domainMatches(domain, it) }
+            }?.name ?: activeBlockerNames.first()
+            recordBlockEvent(matchedDomain, matchingBlockerName)
             closeApp()
-            showOverlay(matchedDomain, activeBlocker.name)
+            showOverlay(matchedDomain, activeBlockerNames.joinToString(", "))
         }
     }
 

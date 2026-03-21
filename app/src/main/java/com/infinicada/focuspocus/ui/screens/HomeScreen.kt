@@ -57,7 +57,7 @@ fun Greeting(
     focusMode: Boolean,
     activeTagId: String?,
     namedTags: List<NamedTag>,
-    activeBlocker: Blocker?,
+    activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
     focusPresets: List<FocusPreset>,
@@ -76,7 +76,7 @@ fun Greeting(
     emergencyBreakDaysRemaining: Int = 0,
     currentStreak: Int = 0,
     onPresetSelected: (FocusPreset) -> Unit,
-    onBlockerSelected: (Blocker) -> Unit,
+    onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
@@ -133,7 +133,7 @@ fun Greeting(
 
             // Preset chip row (only when not in schedule, not in focus mode, and valid presets exist)
             val validPresets = focusPresets.filter { preset ->
-                blockerLists.any { it.name == preset.blockerName }
+                preset.effectiveBlockerNames.all { name -> blockerLists.any { it.name == name } }
             }
             if (activeSchedule == null && !focusMode && validPresets.isNotEmpty()) {
                 Text(
@@ -153,11 +153,11 @@ fun Greeting(
 
             // Spell Selector Dropdown (only when not in schedule and not in focus mode)
             if (activeSchedule == null) {
-                SpellSelectorDropdown(
+                SpellSelectorMultiDropdown(
                     blockerLists = blockerLists,
-                    selectedBlocker = activeBlocker,
+                    selectedBlockers = activeBlockers,
                     enabled = !focusMode,
-                    onBlockerSelected = onBlockerSelected,
+                    onBlockerToggled = onBlockerToggled,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -246,7 +246,7 @@ fun Greeting(
             }
 
             // Active Schedule Info (when controlled by schedule)
-            if (activeSchedule != null && activeBlocker != null) {
+            if (activeSchedule != null && activeBlockers.isNotEmpty()) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -255,7 +255,7 @@ fun Greeting(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                             Spacer(modifier = Modifier.size(8.dp))
-                            Text(text = stringResource(R.string.home_enchantment_name, activeBlocker.name), style = MaterialTheme.typography.titleMedium)
+                            Text(text = stringResource(R.string.home_enchantment_name, activeBlockers.joinToString(", ") { it.name }), style = MaterialTheme.typography.titleMedium)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(stringResource(R.string.home_ritual_name, activeSchedule.name), style = MaterialTheme.typography.bodyMedium)
@@ -369,7 +369,7 @@ fun Greeting(
             // Big Start/Stop Button
             val buttonColor = if (focusMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
-            val canCast = activeBlocker != null
+            val canCast = activeBlockers.isNotEmpty()
 
             // Hide stop button when: NFC lock mode, or when setting is on + session is timed
             val shouldHideButton = focusMode && (
@@ -449,14 +449,15 @@ fun Greeting(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpellSelectorDropdown(
+fun SpellSelectorMultiDropdown(
     blockerLists: List<Blocker>,
-    selectedBlocker: Blocker?,
+    selectedBlockers: List<Blocker>,
     enabled: Boolean,
-    onBlockerSelected: (Blocker) -> Unit,
+    onBlockerToggled: (Blocker) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedNames = selectedBlockers.map { it.name }.toSet()
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -464,7 +465,8 @@ fun SpellSelectorDropdown(
         modifier = modifier
     ) {
         OutlinedTextField(
-            value = selectedBlocker?.name ?: stringResource(R.string.home_select_enchantment),
+            value = if (selectedBlockers.isEmpty()) stringResource(R.string.home_select_enchantment)
+                    else selectedBlockers.joinToString(", ") { it.name },
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
@@ -472,7 +474,7 @@ fun SpellSelectorDropdown(
                 Icon(
                     Icons.Default.Star,
                     contentDescription = null,
-                    tint = if (selectedBlocker != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (selectedBlockers.isNotEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -486,14 +488,13 @@ fun SpellSelectorDropdown(
             onDismissRequest = { expanded = false }
         ) {
             blockerLists.forEach { blocker ->
+                val isSelected = blocker.name in selectedNames
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(20.dp)
+                            androidx.compose.material3.Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = null
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Column {
@@ -506,10 +507,7 @@ fun SpellSelectorDropdown(
                             }
                         }
                     },
-                    onClick = {
-                        onBlockerSelected(blocker)
-                        expanded = false
-                    }
+                    onClick = { onBlockerToggled(blocker) }
                 )
             }
         }

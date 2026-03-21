@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.AppTimeLimitManager
+import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.model.AppInfo
@@ -52,6 +53,7 @@ import com.infinicada.focuspocus.model.ConditionalUnlock
 fun ConditionalUnlocksScreen(
     conditionalUnlocks: List<ConditionalUnlock>,
     installedApps: List<AppInfo>,
+    blockerLists: List<Blocker>,
     onSave: (ConditionalUnlock) -> Unit,
     onDelete: (ConditionalUnlock) -> Unit,
     onNavigateBack: () -> Unit,
@@ -67,6 +69,7 @@ fun ConditionalUnlocksScreen(
         ConditionalUnlockEditorScreen(
             ruleToEdit = editingRule,
             installedApps = installedApps,
+            blockerLists = blockerLists,
             onSave = { rule ->
                 onSave(rule)
                 showEditor = false
@@ -158,7 +161,8 @@ fun ConditionalUnlocksScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            stringResource(R.string.conditional_unlocks_unlocked_apps, rule.unlockedApps.size),
+                            stringResource(R.string.conditional_unlocks_unlocked_enchantments,
+                                rule.unlockedBlockerNames.joinToString(", ").ifEmpty { "None" }),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -204,6 +208,7 @@ fun ConditionalUnlocksScreen(
 fun ConditionalUnlockEditorScreen(
     ruleToEdit: ConditionalUnlock?,
     installedApps: List<AppInfo>,
+    blockerLists: List<Blocker>,
     onSave: (ConditionalUnlock) -> Unit,
     onDelete: ((ConditionalUnlock) -> Unit)?,
     onCancel: () -> Unit,
@@ -214,23 +219,19 @@ fun ConditionalUnlockEditorScreen(
         mutableStateOf(installedApps.find { it.packageName == ruleToEdit?.requiredAppPackage })
     }
     var requiredMinutes by rememberSaveable { mutableIntStateOf(ruleToEdit?.requiredMinutes ?: 15) }
-    var selectedUnlockedApps by rememberSaveable { mutableStateOf(ruleToEdit?.unlockedApps ?: emptySet()) }
+    var selectedBlockerNames by rememberSaveable { mutableStateOf(ruleToEdit?.unlockedBlockerNames ?: emptySet()) }
 
     var requiredAppDropdownExpanded by remember { mutableStateOf(false) }
     var requiredAppSearchQuery by remember { mutableStateOf("") }
     var minutesDropdownExpanded by remember { mutableStateOf(false) }
-    var unlockedAppsDropdownExpanded by remember { mutableStateOf(false) }
-    var unlockedAppsSearchQuery by remember { mutableStateOf("") }
+    var enchantmentsDropdownExpanded by remember { mutableStateOf(false) }
 
     val minuteOptions = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
 
     val filteredRequiredApps = if (requiredAppSearchQuery.isEmpty()) installedApps
         else installedApps.filter { it.name.contains(requiredAppSearchQuery, ignoreCase = true) }
 
-    val filteredUnlockedApps = if (unlockedAppsSearchQuery.isEmpty()) installedApps
-        else installedApps.filter { it.name.contains(unlockedAppsSearchQuery, ignoreCase = true) }
-
-    val isValid = name.isNotBlank() && selectedRequiredApp != null && selectedUnlockedApps.isNotEmpty()
+    val isValid = name.isNotBlank() && selectedRequiredApp != null && selectedBlockerNames.isNotEmpty()
 
     val title = if (ruleToEdit != null) stringResource(R.string.conditional_unlocks_editor_title_edit)
     else stringResource(R.string.conditional_unlocks_editor_title_create)
@@ -349,44 +350,38 @@ fun ConditionalUnlockEditorScreen(
                 }
             }
 
-            // Unlocked apps multi-select
+            // Enchantments multi-select
             item {
                 ExposedDropdownMenuBox(
-                    expanded = unlockedAppsDropdownExpanded,
-                    onExpandedChange = { unlockedAppsDropdownExpanded = it }
+                    expanded = enchantmentsDropdownExpanded,
+                    onExpandedChange = { enchantmentsDropdownExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = if (unlockedAppsDropdownExpanded) unlockedAppsSearchQuery
-                        else if (selectedUnlockedApps.isEmpty()) ""
-                        else stringResource(R.string.conditional_unlocks_unlocked_apps_count, selectedUnlockedApps.size),
-                        onValueChange = {
-                            unlockedAppsSearchQuery = it
-                            unlockedAppsDropdownExpanded = true
-                        },
-                        label = { Text(stringResource(R.string.conditional_unlocks_unlocked_apps_label)) },
-                        placeholder = { Text(stringResource(R.string.conditional_unlocks_unlocked_apps_placeholder)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unlockedAppsDropdownExpanded) },
+                        value = if (selectedBlockerNames.isEmpty()) ""
+                        else stringResource(R.string.conditional_unlocks_enchantments_count, selectedBlockerNames.size),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.conditional_unlocks_enchantments_label)) },
+                        placeholder = { Text(stringResource(R.string.conditional_unlocks_enchantments_placeholder)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = enchantmentsDropdownExpanded) },
                         singleLine = true,
                         modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryEditable)
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
-                        expanded = unlockedAppsDropdownExpanded,
-                        onDismissRequest = {
-                            unlockedAppsDropdownExpanded = false
-                            unlockedAppsSearchQuery = ""
-                        }
+                        expanded = enchantmentsDropdownExpanded,
+                        onDismissRequest = { enchantmentsDropdownExpanded = false }
                     ) {
-                        if (filteredUnlockedApps.isEmpty()) {
+                        if (blockerLists.isEmpty()) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.time_limits_no_apps_found)) },
                                 onClick = {},
                                 enabled = false
                             )
                         } else {
-                            filteredUnlockedApps.forEach { app ->
-                                val checked = app.packageName in selectedUnlockedApps
+                            blockerLists.forEach { blocker ->
+                                val checked = blocker.name in selectedBlockerNames
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -397,14 +392,14 @@ fun ConditionalUnlockEditorScreen(
                                                 checked = checked,
                                                 onCheckedChange = null
                                             )
-                                            Text(app.name)
+                                            Text(blocker.name)
                                         }
                                     },
                                     onClick = {
-                                        selectedUnlockedApps = if (checked) {
-                                            selectedUnlockedApps - app.packageName
+                                        selectedBlockerNames = if (checked) {
+                                            selectedBlockerNames - blocker.name
                                         } else {
-                                            selectedUnlockedApps + app.packageName
+                                            selectedBlockerNames + blocker.name
                                         }
                                     }
                                 )
@@ -424,7 +419,7 @@ fun ConditionalUnlockEditorScreen(
                             name = name.trim(),
                             requiredAppPackage = selectedRequiredApp!!.packageName,
                             requiredMinutes = requiredMinutes,
-                            unlockedApps = selectedUnlockedApps
+                            unlockedBlockerNames = selectedBlockerNames
                         )
                         onSave(rule)
                     },

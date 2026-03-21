@@ -19,8 +19,8 @@ class SessionRepository(
     private val gson: Gson
 ) {
     // Session lifecycle
-    fun startSession(blockerName: String, durationMinutes: Int = 0, breaksEnabled: Boolean = true) {
-        SessionManager.startSession(prefs, blockerName, durationMinutes = durationMinutes, breaksEnabled = breaksEnabled)
+    fun startSession(blockerNames: List<String>, durationMinutes: Int = 0, breaksEnabled: Boolean = true) {
+        SessionManager.startSession(prefs, blockerNames, durationMinutes = durationMinutes, breaksEnabled = breaksEnabled)
     }
 
     fun stopSession() {
@@ -42,12 +42,28 @@ class SessionRepository(
     fun getActiveBlockerName(): String? =
         prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
 
-    fun setActiveBlockerName(name: String?) {
-        if (name != null) {
-            prefs.edit().putString(Constants.PrefsKeys.ACTIVE_BLOCKER, name).apply()
-        } else {
-            prefs.edit().remove(Constants.PrefsKeys.ACTIVE_BLOCKER).apply()
+    fun getActiveBlockerNames(): List<String> {
+        val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
+        if (json != null) {
+            return try {
+                gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
+            } catch (e: Exception) {
+                android.util.Log.e("SessionRepository", "Error parsing active blockers JSON", e)
+                // Fall back to single blocker pref
+                val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+                if (single != null) listOf(single) else emptyList()
+            }
         }
+        // Fallback to old single-blocker pref
+        val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+        return if (single != null) listOf(single) else emptyList()
+    }
+
+    fun setActiveBlockerNames(names: List<String>) {
+        prefs.edit()
+            .putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(names))
+            .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, names.firstOrNull())
+            .apply()
     }
 
     fun getActiveScheduleId(): String? =
@@ -141,7 +157,7 @@ class SessionRepository(
     // Batch write for focus mode state changes
     fun writeFocusModeState(
         manualFocusMode: Boolean,
-        activeBlockerName: String?,
+        activeBlockerNames: List<String>,
         activeScheduleId: String?,
         isOnBreak: Boolean = false,
         breakTimeRemaining: Int = 0,
@@ -152,7 +168,8 @@ class SessionRepository(
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, manualFocusMode)
 
         if (activeScheduleId == null) {
-            editor.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeBlockerName)
+            editor.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(activeBlockerNames))
+            editor.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeBlockerNames.firstOrNull())
         }
 
         if (!manualFocusMode) {
@@ -179,10 +196,12 @@ class SessionRepository(
 
     // Clean up dangling references
     fun clearDanglingActiveBlocker(blockerNames: Set<String>) {
-        val activeBlockerName = getActiveBlockerName() ?: return
-        if (activeBlockerName !in blockerNames) {
+        val activeNames = getActiveBlockerNames()
+        if (activeNames.isEmpty()) return
+        if (activeNames.none { it in blockerNames }) {
             prefs.edit()
                 .remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
+                .remove(Constants.PrefsKeys.ACTIVE_BLOCKERS)
                 .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
                 .apply()
         }

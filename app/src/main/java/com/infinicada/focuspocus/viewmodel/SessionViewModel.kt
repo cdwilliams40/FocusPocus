@@ -25,8 +25,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _manualFocusMode = MutableStateFlow(repo.getManualFocusMode())
     val manualFocusMode: StateFlow<Boolean> = _manualFocusMode.asStateFlow()
 
-    private val _activeBlockerName = MutableStateFlow(repo.getActiveBlockerName())
-    val activeBlockerName: StateFlow<String?> = _activeBlockerName.asStateFlow()
+    private val _activeBlockerNames = MutableStateFlow(repo.getActiveBlockerNames())
+    val activeBlockerNames: StateFlow<List<String>> = _activeBlockerNames.asStateFlow()
 
     private val _activeScheduleId = MutableStateFlow(repo.getActiveScheduleId())
     val activeScheduleId: StateFlow<String?> = _activeScheduleId.asStateFlow()
@@ -141,7 +141,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
         _sessionSummaryDuration.value = durationMin
         _sessionSummaryBreaks.value = _breaksUsedThisSession.value
-        _sessionSummaryBlocker.value = repo.getActiveBlockerName() ?: ""
+        _sessionSummaryBlocker.value = repo.getActiveBlockerNames().joinToString(", ").ifEmpty { "" }
         if (durationMin >= 1) {
             _showSessionSummary.value = true
         }
@@ -157,7 +157,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectPreset(preset: FocusPreset) {
         _selectedPresetId.value = preset.id
-        _activeBlockerName.value = preset.blockerName
+        _activeBlockerNames.value = preset.effectiveBlockerNames
         _focusDurationMinutes.value = preset.durationMinutes
         _sessionBreaksEnabled.value = preset.breaksEnabled
         repo.setFocusDurationMinutes(preset.durationMinutes)
@@ -165,7 +165,22 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectBlocker(blocker: Blocker) {
-        _activeBlockerName.value = blocker.name
+        _activeBlockerNames.value = listOf(blocker.name)
+        _selectedPresetId.value = null
+    }
+
+    fun selectBlockers(blockers: List<Blocker>) {
+        _activeBlockerNames.value = blockers.map { it.name }
+        _selectedPresetId.value = null
+    }
+
+    fun toggleBlocker(blocker: Blocker) {
+        val current = _activeBlockerNames.value
+        _activeBlockerNames.value = if (blocker.name in current) {
+            current - blocker.name
+        } else {
+            current + blocker.name
+        }
         _selectedPresetId.value = null
     }
 
@@ -181,8 +196,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _selectedPresetId.value = null
     }
 
-    fun startSession(blockerName: String) {
-        repo.startSession(blockerName, _focusDurationMinutes.value, _sessionBreaksEnabled.value)
+    fun startSession(blockerNames: List<String>) {
+        repo.startSession(blockerNames, _focusDurationMinutes.value, _sessionBreaksEnabled.value)
         syncFromPrefs()
     }
 
@@ -191,7 +206,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
         _sessionSummaryDuration.value = durationMin
         _sessionSummaryBreaks.value = _breaksUsedThisSession.value
-        _sessionSummaryBlocker.value = _activeBlockerName.value ?: activeSchedule?.blockerName ?: ""
+        _sessionSummaryBlocker.value = _activeBlockerNames.value.joinToString(", ").ifEmpty {
+            activeSchedule?.effectiveBlockerNames?.joinToString(", ") ?: ""
+        }
         if (durationMin >= 1) {
             _showSessionSummary.value = true
         }
@@ -258,7 +275,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     fun writeFocusModeState() {
         repo.writeFocusModeState(
             manualFocusMode = _manualFocusMode.value,
-            activeBlockerName = _activeBlockerName.value,
+            activeBlockerNames = _activeBlockerNames.value,
             activeScheduleId = _activeScheduleId.value,
             isOnBreak = if (!_manualFocusMode.value) false else _isOnBreak.value,
             breakTimeRemaining = if (!_manualFocusMode.value) 0 else _breakTimeRemaining.value,
@@ -277,7 +294,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     fun syncFromPrefs() {
         _manualFocusMode.value = repo.getManualFocusMode()
-        _activeBlockerName.value = repo.getActiveBlockerName()
+        _activeBlockerNames.value = repo.getActiveBlockerNames()
         _focusDurationMinutes.value = repo.getFocusDurationMinutes()
         _focusTimeRemaining.value = repo.getFocusTimeRemaining()
         _sessionBreaksEnabled.value = repo.getSessionBreaksEnabled()

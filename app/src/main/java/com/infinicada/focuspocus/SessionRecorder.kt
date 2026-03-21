@@ -11,7 +11,7 @@ object SessionRecorder {
 
     /**
      * Records the current focus session using state already stored in SharedPreferences
-     * (SESSION_START_TIME, ACTIVE_BLOCKER, BREAKS_USED_THIS_SESSION).
+     * (SESSION_START_TIME, ACTIVE_BLOCKERS/ACTIVE_BLOCKER, BREAKS_USED_THIS_SESSION).
      *
      * Also updates LONGEST_STREAK if the new streak exceeds it.
      *
@@ -27,7 +27,15 @@ object SessionRecorder {
         val durationMin = ((endTime - startTime) / 60000).toInt()
         if (durationMin < 1) return emptyList()
 
-        val blockerName = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
+        val blockerName = run {
+            val blockersJson = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
+            if (blockersJson != null) {
+                try {
+                    val names = gson.fromJson(blockersJson, Array<String>::class.java)
+                    names?.joinToString(", ")?.ifEmpty { null }
+                } catch (e: Exception) { null }
+            } else null
+        } ?: prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
         val breaksUsed = prefs.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
 
         val session = FocusSession(

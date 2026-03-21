@@ -115,7 +115,7 @@ fun QuickSpellsListScreen(
             }
 
             items(focusPresets) { preset ->
-                val blocker = blockerLists.find { it.name == preset.blockerName }
+                val blockerDisplayName = preset.effectiveBlockerNames.joinToString(", ").ifEmpty { "None" }
                 val talisman = namedTags.find { it.id == preset.talismanId }
                 val durationText = formatDuration(preset.durationMinutes)
                 ElevatedCard(
@@ -138,11 +138,11 @@ fun QuickSpellsListScreen(
                                 else -> ""
                             }
                             Text(
-                                "${blocker?.name ?: preset.blockerName} - $durationText${if (preset.breaksEnabled) stringResource(R.string.spellbook_breaks_suffix) else ""}$actionLabel",
+                                "$blockerDisplayName - $durationText${if (preset.breaksEnabled) stringResource(R.string.spellbook_breaks_suffix) else ""}$actionLabel",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (blocker == null) {
+                            if (preset.effectiveBlockerNames.any { name -> blockerLists.none { it.name == name } }) {
                                 Text(
                                     stringResource(R.string.quick_spells_enchantment_missing),
                                     style = MaterialTheme.typography.bodySmall,
