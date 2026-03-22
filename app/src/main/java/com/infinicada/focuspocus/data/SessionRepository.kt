@@ -46,7 +46,8 @@ class SessionRepository(
         val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
         if (json != null) {
             return try {
-                gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
+                val type = object : TypeToken<List<String>>() {}.type
+                gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
                 android.util.Log.e("SessionRepository", "Error parsing active blockers JSON", e)
                 // Fall back to single blocker pref
