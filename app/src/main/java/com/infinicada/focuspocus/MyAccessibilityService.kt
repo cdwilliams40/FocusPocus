@@ -203,7 +203,7 @@ class MyAccessibilityService : AccessibilityService() {
                 cachedSchedules = parsed
                 parsed
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
+                Log.e("MyAccessibilityService", "Error parsing schedules JSON")
                 cachedSchedulesJson = null
                 cachedSchedules = emptyList()
                 emptyList()
@@ -487,7 +487,7 @@ class MyAccessibilityService : AccessibilityService() {
             return try {
                 gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
+                Log.e("MyAccessibilityService", "Error parsing active blockers JSON")
                 // Fall back to single blocker pref
                 val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
                 if (single != null) listOf(single) else emptyList()
@@ -514,7 +514,7 @@ class MyAccessibilityService : AccessibilityService() {
             cachedConditionalUnlocks = parsed
             parsed
         } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
+            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON")
             cachedConditionalUnlocksJson = null
             cachedConditionalUnlocks = emptyList()
             emptyList()
@@ -564,7 +564,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson(json, type)
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
+                Log.e("MyAccessibilityService", "Error parsing block events JSON")
                 mutableListOf()
             }
         } else mutableListOf()
