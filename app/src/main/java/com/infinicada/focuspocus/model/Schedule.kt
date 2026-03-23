@@ -13,9 +13,10 @@ data class Schedule(
     val breakDurationMinutes: Int = 5,
     val maxBreaksPerSession: Int = 3
 ) {
-    /** Resolved list: uses blockerNames if non-empty, falls back to single blockerName */
+    /** Resolved list: uses blockerNames if non-empty, falls back to single blockerName.
+     *  Null-safe to handle deserialization from older JSON that lacked the blockerNames field. */
     val effectiveBlockerNames: List<String>
-        get() = blockerNames.ifEmpty { if (blockerName.isNotEmpty()) listOf(blockerName) else emptyList() }
+        get() = (blockerNames ?: emptyList()).ifEmpty { if (blockerName.isNotEmpty()) listOf(blockerName) else emptyList() }
 }
 
 enum class DayOfWeek {

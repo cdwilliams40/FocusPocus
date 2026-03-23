@@ -467,7 +467,7 @@ class MyAccessibilityService : AccessibilityService() {
         val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
 
         val matchingRule = rules.find { rule ->
-            rule.unlockedBlockerNames.any { blockerName ->
+            rule.effectiveUnlockedBlockerNames.any { blockerName ->
                 val blocker = blockerLists.find { it.name == blockerName }
                 blocker != null && blocker.apps.contains(packageName)
             }

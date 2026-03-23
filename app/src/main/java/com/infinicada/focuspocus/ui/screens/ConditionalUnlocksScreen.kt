@@ -162,7 +162,7 @@ fun ConditionalUnlocksScreen(
                         )
                         Text(
                             stringResource(R.string.conditional_unlocks_unlocked_enchantments,
-                                rule.unlockedBlockerNames.joinToString(", ").ifEmpty { "None" }),
+                                rule.effectiveUnlockedBlockerNames.joinToString(", ").ifEmpty { "None" }),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
