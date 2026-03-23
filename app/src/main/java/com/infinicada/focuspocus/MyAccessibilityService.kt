@@ -118,6 +118,10 @@ class MyAccessibilityService : AccessibilityService() {
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         Log.d("MyAccessibilityService", "Service connected")
 
+        // Activate any schedule that should currently be running but wasn't started
+        // (e.g. the service restarted mid-schedule after a phone reboot or crash).
+        checkMissedScheduleActivation()
+
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeTickReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -181,6 +185,83 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Called once on service start to activate a schedule that is currently within its active
+     * window but was not running (e.g. after a phone reboot or service crash mid-schedule).
+     *
+     * The regular [checkSchedules] tick only fires at the exact start minute, so without this
+     * a service restart inside an active window would leave the schedule dormant until the
+     * next day.
+     *
+     * Handles same-day schedules (start < end) and the overnight carry-over case where the
+     * current day is the day *after* the scheduled start day.
+     */
+    private fun checkMissedScheduleActivation() {
+        // Skip if a session is already active (manual or scheduled).
+        if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
+        if (sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) return
+
+        val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null) ?: return
+        val schedules: List<Schedule> = try {
+            val type = object : com.google.gson.reflect.TypeToken<List<Schedule>>() {}.type
+            gson.fromJson(json, type) ?: return
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing schedules in checkMissedScheduleActivation", e)
+            return
+        }
+
+        if (schedules.isEmpty()) return
+
+        val now = Calendar.getInstance()
+        val currentHour = now.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = now.get(Calendar.MINUTE)
+        val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK)) ?: return
+
+        // Also derive yesterday's DayOfWeek for overnight carry-over checks.
+        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val previousDay = mapCalendarDayToDayOfWeek(yesterdayCal.get(Calendar.DAY_OF_WEEK))
+
+        for (schedule in schedules) {
+            try {
+                val startParts = schedule.startTime.split(":")
+                val endParts = schedule.endTime.split(":")
+                if (startParts.size != 2 || endParts.size != 2) continue
+
+                val startHour = startParts[0].toIntOrNull() ?: continue
+                val startMinute = startParts[1].toIntOrNull() ?: continue
+                val endHour = endParts[0].toIntOrNull() ?: continue
+                val endMinute = endParts[1].toIntOrNull() ?: continue
+                if (startHour !in 0..23 || startMinute !in 0..59 || endHour !in 0..23 || endMinute !in 0..59) continue
+
+                val inWindow = when {
+                    // Same-day schedule active today
+                    schedule.days.contains(currentDay) ->
+                        isWithinScheduleWindow(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)
+
+                    // Overnight schedule that started yesterday and carries over into today
+                    previousDay != null && schedule.days.contains(previousDay) -> {
+                        val startMins = startHour * 60 + startMinute
+                        val endMins = endHour * 60 + endMinute
+                        val currentMins = currentHour * 60 + currentMinute
+                        // Overnight = end is before start (wraps past midnight).
+                        // We're in the carry-over window when it's still before the end time.
+                        endMins < startMins && currentMins < endMins
+                    }
+
+                    else -> false
+                }
+
+                if (inWindow) {
+                    Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
+                    activateSchedule(schedule)
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error checking missed schedule: ${schedule.name}", e)
+            }
+        }
+    }
+
     private fun checkSchedules() {
         val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null)
         if (json == null) {
@@ -239,6 +320,12 @@ class MyAccessibilityService : AccessibilityService() {
                 } catch (e: Exception) {
                     Log.e("MyAccessibilityService", "Error parsing schedule end time", e)
                 }
+            } else {
+                // The active schedule was deleted while the session was running.
+                // Clear the dangling reference so focus mode can deactivate and new
+                // schedules can activate again.
+                Log.w("MyAccessibilityService", "Active schedule $activeScheduleId no longer exists, clearing dangling reference")
+                sharedPreferences.edit().remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID).apply()
             }
         }
 
@@ -279,29 +366,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Determines if the schedule should deactivate at the current time.
-     * Handles both same-day schedules (start < end) and overnight schedules (start > end).
-     * Uses "at or past" logic so missed end times are caught on service restart.
-     */
-    internal fun shouldDeactivateSchedule(
-        currentHour: Int, currentMinute: Int,
-        startHour: Int, startMinute: Int,
-        endHour: Int, endMinute: Int
-    ): Boolean {
-        val currentMins = currentHour * 60 + currentMinute
-        val startMins = startHour * 60 + startMinute
-        val endMins = endHour * 60 + endMinute
-
-        return if (endMins > startMins) {
-            // Same-day schedule: deactivate at or past end time
-            currentMins >= endMins
-        } else {
-            // Overnight schedule: deactivate when past end time AND before start time
-            // (i.e., in the "morning after" window, not the "active evening" window)
-            currentMins >= endMins && currentMins < startMins
-        }
-    }
+    // shouldDeactivateSchedule and isWithinScheduleWindow are top-level functions in ScheduleUtils.kt
 
     private fun activateSchedule(schedule: Schedule) {
         // Validate that at least one of the schedule's blockers still exists
