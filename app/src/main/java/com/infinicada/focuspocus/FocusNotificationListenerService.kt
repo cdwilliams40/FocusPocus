@@ -50,7 +50,7 @@ class FocusNotificationListenerService : NotificationListenerService() {
                 val type = object : TypeToken<List<String>>() {}.type
                 gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
-                Log.e("FocusNotifListener", "Error parsing active blockers JSON", e)
+                Log.e("FocusNotifListener", "Error parsing active blockers JSON")
                 // Fall back to single blocker pref
                 val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
                 if (single != null) listOf(single) else emptyList()
