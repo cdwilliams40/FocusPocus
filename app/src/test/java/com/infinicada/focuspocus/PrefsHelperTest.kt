@@ -63,7 +63,7 @@ class PrefsHelperTest {
         assertFalse(prefs.contains("test_key"))
 
         // Verify Log.e was called
-        mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any()) }
+        mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString()) }
     }
 
     @Test
