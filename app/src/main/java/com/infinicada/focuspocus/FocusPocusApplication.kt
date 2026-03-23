@@ -9,6 +9,10 @@ class FocusPocusApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        FirebaseApp.initializeApp(this)
+        try {
+            FirebaseApp.initializeApp(this)
+        } catch (e: Exception) {
+            android.util.Log.e("FocusPocusApplication", "Firebase initialization failed", e)
+        }
     }
 }

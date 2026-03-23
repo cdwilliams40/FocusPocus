@@ -5,6 +5,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 class FocusNotificationListenerService : NotificationListenerService() {
 
@@ -46,7 +47,8 @@ class FocusNotificationListenerService : NotificationListenerService() {
         val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
         if (json != null) {
             return try {
-                gson.fromJson(json, Array<String>::class.java)?.toList() ?: emptyList()
+                val type = object : TypeToken<List<String>>() {}.type
+                gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
                 Log.e("FocusNotifListener", "Error parsing active blockers JSON", e)
                 // Fall back to single blocker pref

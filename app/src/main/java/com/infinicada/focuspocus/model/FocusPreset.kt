@@ -11,9 +11,10 @@ data class FocusPreset(
     val action: PresetAction? = PresetAction.TOGGLE,
     val tempDurationMinutes: Int? = 30
 ) {
-    /** Resolved list: uses blockerNames if non-empty, falls back to single blockerName */
+    /** Resolved list: uses blockerNames if non-empty, falls back to single blockerName.
+     *  Null-safe to handle deserialization from older JSON that lacked the blockerNames field. */
     val effectiveBlockerNames: List<String>
-        get() = blockerNames.ifEmpty { if (blockerName.isNotEmpty()) listOf(blockerName) else emptyList() }
+        get() = (blockerNames ?: emptyList()).ifEmpty { if (blockerName.isNotEmpty()) listOf(blockerName) else emptyList() }
 }
 
 enum class PresetAction { TOGGLE, TEMP_ENABLE, TEMP_DISABLE }
