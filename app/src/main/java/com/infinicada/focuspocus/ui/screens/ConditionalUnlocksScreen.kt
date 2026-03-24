@@ -62,7 +62,7 @@ fun ConditionalUnlocksScreen(
     val context = LocalContext.current
     val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
 
-    var editingRule by rememberSaveable { mutableStateOf<ConditionalUnlock?>(null) }
+    var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
 
     if (showEditor) {
@@ -215,11 +215,11 @@ fun ConditionalUnlockEditorScreen(
     modifier: Modifier = Modifier
 ) {
     var name by rememberSaveable { mutableStateOf(ruleToEdit?.name ?: "") }
-    var selectedRequiredApp by rememberSaveable {
+    var selectedRequiredApp by remember {
         mutableStateOf(installedApps.find { it.packageName == ruleToEdit?.requiredAppPackage })
     }
     var requiredMinutes by rememberSaveable { mutableIntStateOf(ruleToEdit?.requiredMinutes ?: 15) }
-    var selectedBlockerNames by rememberSaveable { mutableStateOf(ruleToEdit?.unlockedBlockerNames ?: emptySet()) }
+    var selectedBlockerNames by remember { mutableStateOf(ruleToEdit?.unlockedBlockerNames ?: emptySet()) }
 
     var requiredAppDropdownExpanded by remember { mutableStateOf(false) }
     var requiredAppSearchQuery by remember { mutableStateOf("") }
@@ -414,10 +414,11 @@ fun ConditionalUnlockEditorScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
+                        val app = selectedRequiredApp ?: return@Button
                         val rule = ConditionalUnlock(
                             id = ruleToEdit?.id ?: java.util.UUID.randomUUID().toString(),
                             name = name.trim(),
-                            requiredAppPackage = selectedRequiredApp!!.packageName,
+                            requiredAppPackage = app.packageName,
                             requiredMinutes = requiredMinutes,
                             unlockedBlockerNames = selectedBlockerNames
                         )
