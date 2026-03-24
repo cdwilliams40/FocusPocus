@@ -494,7 +494,7 @@ class MyAccessibilityService : AccessibilityService() {
             val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
             for (blocker in activeBlockers) {
-                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(packageName)) {
+                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTime = now
@@ -529,23 +529,18 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun isConditionallyUnlocked(packageName: String): Boolean {
+    private fun isConditionallyUnlocked(blockerName: String): Boolean {
         val rules = getCachedConditionalUnlocks()
-        val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
 
-        val matchingRule = rules.find { rule ->
-            rule.effectiveUnlockedBlockerNames.any { blockerName ->
-                val blocker = blockerLists.find { it.name == blockerName }
-                blocker != null && blocker.effectiveApps.contains(packageName)
-            }
-        } ?: return false
-
-        val usedMs = UsageStatsHelper.getPackageUsageToday(this, matchingRule.requiredAppPackage)
-        val requiredMs = matchingRule.requiredMinutes * 60 * 1000L
-        val unlocked = usedMs >= requiredMs
-        if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-            "Conditional unlock check for $packageName: ${usedMs / 60000}m / ${matchingRule.requiredMinutes}m required -> unlocked=$unlocked")
-        return unlocked
+        return rules.any { rule ->
+            if (blockerName !in rule.effectiveUnlockedBlockerNames) return@any false
+            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
+            val requiredMs = rule.requiredMinutes * 60 * 1000L
+            val unlocked = usedMs >= requiredMs
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
+                "Conditional unlock check for blocker=$blockerName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
+            unlocked
+        }
     }
 
     private fun getActiveBlockerNames(): List<String> {
