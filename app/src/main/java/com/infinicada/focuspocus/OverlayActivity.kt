@@ -59,6 +59,9 @@ class OverlayActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        val appName = intent.getStringExtra("appName") ?: "App"
+        val spellName = intent.getStringExtra("spellName")
+        renderOverlay(appName, spellName)
     }
 
     private fun closeAndGoHome() {

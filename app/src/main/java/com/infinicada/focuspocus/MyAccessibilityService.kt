@@ -384,6 +384,8 @@ class MyAccessibilityService : AccessibilityService() {
             breaksEnabled = schedule.breaksEnabled
         )
 
+        DndController.updateDndState(this)
+
         sendRitualNotification(
             title = getString(R.string.ritual_started_title),
             message = getString(R.string.ritual_started_message, schedule.name),
