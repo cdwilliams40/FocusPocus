@@ -12,9 +12,14 @@ data class FocusPreset(
     val tempDurationMinutes: Int? = 30
 ) {
     /** Resolved list: uses blockerNames if non-empty, falls back to single blockerName.
-     *  Null-safe to handle deserialization from older JSON that lacked the blockerNames field. */
+     *  Both fields are null-safe: Gson can deserialize them as null even though Kotlin types are
+     *  non-null, so we guard against that to avoid NPEs after a build whose ProGuard rules
+     *  obfuscated the field names (changing mapping across releases). */
     val effectiveBlockerNames: List<String>
-        get() = (blockerNames ?: emptyList()).ifEmpty { if (blockerName.isNotEmpty()) listOf(blockerName) else emptyList() }
+        get() = (blockerNames ?: emptyList()).ifEmpty {
+            @Suppress("SENSELESS_COMPARISON")
+            if (blockerName != null && blockerName.isNotEmpty()) listOf(blockerName) else emptyList()
+        }
 }
 
 enum class PresetAction { TOGGLE, TEMP_ENABLE, TEMP_DISABLE }

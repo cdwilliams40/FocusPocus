@@ -32,10 +32,14 @@
 -keep class com.infinicada.focuspocus.BlockEvent { *; }
 -keep class com.infinicada.focuspocus.FocusSession { *; }
 -keep class com.infinicada.focuspocus.NamedTag { *; }
--keep class com.infinicada.focuspocus.Schedule { *; }
--keep class com.infinicada.focuspocus.FocusPreset { *; }
--keep class com.infinicada.focuspocus.DayOfWeek { *; }
--keep class com.infinicada.focuspocus.PresetAction { *; }
+# Model classes live in the .model sub-package — the old rules below targeted the wrong package
+# and had no effect, leaving fields vulnerable to R8 obfuscation.
+-keep class com.infinicada.focuspocus.model.Schedule { *; }
+-keep class com.infinicada.focuspocus.model.FocusPreset { *; }
+-keep class com.infinicada.focuspocus.model.DayOfWeek { *; }
+-keep class com.infinicada.focuspocus.model.PresetAction { *; }
+-keep class com.infinicada.focuspocus.model.ConditionalUnlock { *; }
+-keep class com.infinicada.focuspocus.model.AppInfo { *; }
 
 # --- ZXing (QR code library) ---
 -keep class com.google.zxing.** { *; }
