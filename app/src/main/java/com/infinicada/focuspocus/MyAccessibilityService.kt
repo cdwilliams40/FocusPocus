@@ -223,8 +223,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         for (schedule in schedules) {
             try {
-                val startParts = schedule.startTime.split(":")
-                val endParts = schedule.endTime.split(":")
+                val startParts = schedule.effectiveStartTime.split(":")
+                val endParts = schedule.effectiveEndTime.split(":")
                 if (startParts.size != 2 || endParts.size != 2) continue
 
                 val startHour = startParts[0].toIntOrNull() ?: continue
@@ -235,11 +235,11 @@ class MyAccessibilityService : AccessibilityService() {
 
                 val inWindow = when {
                     // Same-day schedule active today
-                    schedule.days.contains(currentDay) ->
+                    schedule.effectiveDays.contains(currentDay) ->
                         isWithinScheduleWindow(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)
 
                     // Overnight schedule that started yesterday and carries over into today
-                    previousDay != null && schedule.days.contains(previousDay) -> {
+                    previousDay != null && schedule.effectiveDays.contains(previousDay) -> {
                         val startMins = startHour * 60 + startMinute
                         val endMins = endHour * 60 + endMinute
                         val currentMins = currentHour * 60 + currentMinute
@@ -304,15 +304,15 @@ class MyAccessibilityService : AccessibilityService() {
             val activeSchedule = schedules.find { it.id == activeScheduleId }
             if (activeSchedule != null) {
                 try {
-                    val endParts = activeSchedule.endTime.split(":")
-                    val startParts = activeSchedule.startTime.split(":")
+                    val endParts = activeSchedule.effectiveEndTime.split(":")
+                    val startParts = activeSchedule.effectiveStartTime.split(":")
                     if (endParts.size == 2 && startParts.size == 2) {
                         val endHour = endParts[0].toIntOrNull() ?: -1
                         val endMinute = endParts[1].toIntOrNull() ?: -1
                         val startHour = startParts[0].toIntOrNull() ?: -1
                         val startMinute = startParts[1].toIntOrNull() ?: -1
                         if (endHour !in 0..23 || endMinute !in 0..59 || startHour !in 0..23 || startMinute !in 0..59) {
-                            Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.startTime}-${activeSchedule.endTime}")
+                            Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.effectiveStartTime}-${activeSchedule.effectiveEndTime}")
                         } else if (shouldDeactivateSchedule(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)) {
                             deactivateSchedule(activeSchedule)
                         }
@@ -334,21 +334,21 @@ class MyAccessibilityService : AccessibilityService() {
         if (currentDay == null) return
         if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
         schedules.forEach { schedule ->
-            if (schedule.days.contains(currentDay)) {
-                try {
-                    val parts = schedule.startTime.split(":")
+            try {
+                if (schedule.effectiveDays.contains(currentDay)) {
+                    val parts = schedule.effectiveStartTime.split(":")
                     if (parts.size == 2) {
                         val startHour = parts[0].toIntOrNull() ?: -1
                         val startMinute = parts[1].toIntOrNull() ?: -1
                         if (startHour !in 0..23 || startMinute !in 0..59) {
-                            Log.e("MyAccessibilityService", "Invalid schedule start time: ${schedule.startTime}")
+                            Log.e("MyAccessibilityService", "Invalid schedule start time: ${schedule.effectiveStartTime}")
                         } else if (startHour == currentHour && startMinute == currentMinute) {
                             activateSchedule(schedule)
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e("MyAccessibilityService", "Error parsing schedule time", e)
                 }
+            } catch (e: Exception) {
+                Log.e("MyAccessibilityService", "Error parsing schedule time", e)
             }
         }
     }
@@ -536,7 +536,7 @@ class MyAccessibilityService : AccessibilityService() {
         val matchingRule = rules.find { rule ->
             rule.effectiveUnlockedBlockerNames.any { blockerName ->
                 val blocker = blockerLists.find { it.name == blockerName }
-                blocker != null && blocker.apps.contains(packageName)
+                blocker != null && blocker.effectiveApps.contains(packageName)
             }
         } ?: return false
 
@@ -738,13 +738,15 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private var cachedLauncherPackageName: String? = null
+    private var launcherCacheResolved = false
 
     private fun isLauncher(packageName: String): Boolean {
-        if (cachedLauncherPackageName == null) {
+        if (!launcherCacheResolved) {
             val intent = Intent(Intent.ACTION_MAIN)
             intent.addCategory(Intent.CATEGORY_HOME)
             val resolveInfo = packageManager.resolveActivity(intent, 0)
             cachedLauncherPackageName = resolveInfo?.activityInfo?.packageName
+            launcherCacheResolved = true
         }
         return cachedLauncherPackageName == packageName
     }

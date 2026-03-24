@@ -83,7 +83,7 @@ fun SpellbookScreen(
             } else {
                 blockerLists.take(3).forEach { blocker ->
                     val mode = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
-                    val appCount = blocker.apps.size
+                    val appCount = blocker.effectiveApps.size
                     val siteCount = blocker.websites.orEmpty().size
                     val appText = pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount)
                     val siteText = if (siteCount > 0) ", " + pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
@@ -152,9 +152,9 @@ fun SpellbookScreen(
                 )
             } else {
                 schedules.take(3).forEach { schedule ->
-                    val days = schedule.days.joinToString(", ") { it.name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() } }
+                    val days = schedule.effectiveDays.joinToString(", ") { it.name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() } }
                     Text(
-                        "${schedule.name} - ${schedule.startTime}-${schedule.endTime} - $days",
+                        "${schedule.name} - ${schedule.effectiveStartTime}-${schedule.effectiveEndTime} - $days",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

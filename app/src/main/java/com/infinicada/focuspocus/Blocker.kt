@@ -3,13 +3,17 @@ package com.infinicada.focuspocus
 data class Blocker(
     val name: String,
     val mode: BlockerMode,
-    val apps: Set<String>,
+    val apps: Set<String>? = emptySet(),
     val websites: List<String>? = null
 ) {
+    /** Null-safe accessor — Gson can deserialize apps as null despite Kotlin non-null type. */
+    val effectiveApps: Set<String>
+        get() = apps ?: emptySet()
+
     fun shouldBlock(packageName: String): Boolean {
         return when (mode) {
-            BlockerMode.BLACKLIST -> apps.contains(packageName)
-            BlockerMode.WHITELIST -> !apps.contains(packageName)
+            BlockerMode.BLACKLIST -> effectiveApps.contains(packageName)
+            BlockerMode.WHITELIST -> !effectiveApps.contains(packageName)
         }
     }
 }
