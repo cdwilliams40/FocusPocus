@@ -115,8 +115,8 @@ fun ScheduleListScreen(
                                     }
                                 }
                                 val isOvernight = run {
-                                    val startParts = schedule.startTime.split(":")
-                                    val endParts = schedule.endTime.split(":")
+                                    val startParts = schedule.effectiveStartTime.split(":")
+                                    val endParts = schedule.effectiveEndTime.split(":")
                                     if (startParts.size == 2 && endParts.size == 2) {
                                         val startMins = startParts[0].toIntOrNull()?.times(60)?.plus(startParts[1].toIntOrNull() ?: 0) ?: 0
                                         val endMins = endParts[0].toIntOrNull()?.times(60)?.plus(endParts[1].toIntOrNull() ?: 0) ?: 0
@@ -124,10 +124,10 @@ fun ScheduleListScreen(
                                     } else false
                                 }
                                 Text(
-                                    if (isOvernight) "${schedule.startTime} - ${schedule.endTime} ${stringResource(R.string.rituals_overnight_suffix)}"
-                                    else "${schedule.startTime} - ${schedule.endTime}"
+                                    if (isOvernight) "${schedule.effectiveStartTime} - ${schedule.effectiveEndTime} ${stringResource(R.string.rituals_overnight_suffix)}"
+                                    else "${schedule.effectiveStartTime} - ${schedule.effectiveEndTime}"
                                 )
-                                Text(schedule.days.joinToString { it.name.take(3) })
+                                Text(schedule.effectiveDays.joinToString { it.name.take(3) })
                                 if (schedule.unbindingTalismanId != null) {
                                     Text(stringResource(R.string.rituals_bound_to_talisman), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                                 }
@@ -187,11 +187,11 @@ fun ScheduleEditorScreen(
     var breakDurationMinutes by remember { mutableIntStateOf((scheduleToEdit?.breakDurationMinutes ?: 5).coerceIn(1, 30)) }
     var maxBreaksPerSession by remember { mutableIntStateOf((scheduleToEdit?.maxBreaksPerSession ?: 3).coerceIn(1, 10)) }
 
-    var selectedDays by remember { mutableStateOf(scheduleToEdit?.days ?: emptySet()) }
+    var selectedDays by remember { mutableStateOf(scheduleToEdit?.effectiveDays ?: emptySet()) }
 
     // Initial times
     val (startHour, startMinute) = remember(scheduleToEdit) {
-         val parts = scheduleToEdit?.startTime?.split(":")
+         val parts = scheduleToEdit?.effectiveStartTime?.split(":")
          if (parts != null && parts.size >= 2) {
              (parts[0].toIntOrNull() ?: 9) to (parts[1].toIntOrNull() ?: 0)
          } else {
@@ -201,7 +201,7 @@ fun ScheduleEditorScreen(
     val startTimeState = rememberTimePickerState(initialHour = startHour, initialMinute = startMinute)
 
     val (endHour, endMinute) = remember(scheduleToEdit) {
-         val parts = scheduleToEdit?.endTime?.split(":")
+         val parts = scheduleToEdit?.effectiveEndTime?.split(":")
          if (parts != null && parts.size >= 2) {
              (parts[0].toIntOrNull() ?: 17) to (parts[1].toIntOrNull() ?: 0)
          } else {
@@ -224,12 +224,12 @@ fun ScheduleEditorScreen(
     val conflictingSchedule = remember(selectedDays, startTimeMinutes, endTimeMinutes, existingSchedules) {
         existingSchedules.filter { it.id != (scheduleToEdit?.id ?: "") }.find { existing ->
             // Check if any days overlap
-            val daysOverlap = selectedDays.any { it in existing.days }
+            val daysOverlap = selectedDays.any { it in existing.effectiveDays }
             if (!daysOverlap) return@find false
 
             // Parse existing schedule times
-            val existParts = existing.startTime.split(":")
-            val existEndParts = existing.endTime.split(":")
+            val existParts = existing.effectiveStartTime.split(":")
+            val existEndParts = existing.effectiveEndTime.split(":")
             if (existParts.size != 2 || existEndParts.size != 2) return@find false
             val existStart = (existParts[0].toIntOrNull() ?: 0) * 60 + (existParts[1].toIntOrNull() ?: 0)
             val existEnd = (existEndParts[0].toIntOrNull() ?: 0) * 60 + (existEndParts[1].toIntOrNull() ?: 0)

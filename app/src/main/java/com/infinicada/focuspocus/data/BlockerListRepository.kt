@@ -26,7 +26,7 @@ class BlockerListRepository(
         if (!isUpdate && currentList.size >= Constants.MAX_BLOCKERS) return false
 
         val capped = blocker.copy(
-            apps = blocker.apps.take(Constants.MAX_APPS_PER_BLOCKER).toSet(),
+            apps = blocker.effectiveApps.take(Constants.MAX_APPS_PER_BLOCKER).toSet(),
             websites = blocker.websites?.take(Constants.MAX_WEBSITES_PER_BLOCKER)
         )
         val updated = currentList.filterNot { it.name == capped.name } + capped

@@ -7,7 +7,7 @@ data class ConditionalUnlock(
     val name: String,
     val requiredAppPackage: String,
     val requiredMinutes: Int,
-    val unlockedBlockerNames: Set<String> = emptySet()
+    val unlockedBlockerNames: Set<String>? = emptySet()
 ) {
     /** Null-safe accessor to handle deserialization from older JSON (field was renamed from unlockedApps). */
     val effectiveUnlockedBlockerNames: Set<String>

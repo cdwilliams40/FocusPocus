@@ -157,7 +157,7 @@ fun UsageStatsScreen(
         if (currentFilter == null) {
             usageStats
         } else {
-            val blockedPackages = currentFilter.apps.toSet()
+            val blockedPackages = currentFilter.effectiveApps
             usageStats.filter { it.packageName in blockedPackages }
         }
     }

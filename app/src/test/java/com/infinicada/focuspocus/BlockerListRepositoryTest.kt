@@ -31,7 +31,7 @@ class BlockerListRepositoryTest {
         val blockers = repo.getBlockers()
         assertEquals(1, blockers.size)
         assertEquals("Default", blockers[0].name)
-        assertTrue(blockers[0].apps.contains("com.google.android.youtube"))
+        assertTrue(blockers[0].effectiveApps.contains("com.google.android.youtube"))
     }
 
     @Test
@@ -72,7 +72,7 @@ class BlockerListRepositoryTest {
         repo.saveBlocker(blocker, emptyList())
         val saved = repo.getBlockers()[0]
 
-        assertEquals(Constants.MAX_APPS_PER_BLOCKER, saved.apps.size)
+        assertEquals(Constants.MAX_APPS_PER_BLOCKER, saved.effectiveApps.size)
     }
 
     @Test
