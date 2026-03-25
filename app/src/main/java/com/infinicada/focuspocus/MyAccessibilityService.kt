@@ -519,6 +519,7 @@ class MyAccessibilityService : AccessibilityService() {
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
         if (timeLimitChecker.shouldBlock(packageName, limit)) {
+            if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             lastAppBlockTime = now
@@ -539,6 +540,20 @@ class MyAccessibilityService : AccessibilityService() {
             val unlocked = usedMs >= requiredMs
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Conditional unlock check for blocker=$blockerName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
+            unlocked
+        }
+    }
+
+    private fun isTimeLimitConditionallyUnlocked(packageName: String): Boolean {
+        val rules = getCachedConditionalUnlocks()
+
+        return rules.any { rule ->
+            if (packageName !in rule.effectiveUnlockedTimeLimitApps) return@any false
+            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
+            val requiredMs = rule.requiredMinutes * 60 * 1000L
+            val unlocked = usedMs >= requiredMs
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
+                "Conditional unlock check for time-limit app=$packageName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
             unlocked
         }
     }

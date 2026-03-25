@@ -577,6 +577,7 @@ fun FocusPocusApp(
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
                             blockerLists = blockerLists,
+                            appTimeLimits = appTimeLimits,
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },

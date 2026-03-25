@@ -341,6 +341,10 @@
     <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
     <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
     <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>
+    <string name="conditional_unlocks_time_limit_apps_label">App timers to bypass</string>
+    <string name="conditional_unlocks_time_limit_apps_placeholder">Select time-limited apps</string>
+    <string name="conditional_unlocks_time_limit_apps_count">%d app timer(s) selected</string>
+    <string name="conditional_unlocks_bypassed_timers">Bypassed timers: %s</string>
     <string name="conditional_unlocks_delete">Delete</string>
     <string name="spellbook_conditional_unlocks">Conditional Unlocks</string>
     <string name="spellbook_no_conditional_unlocks">No conditional unlocks yet. Reward yourself by unlocking apps after focused use of another.</string>

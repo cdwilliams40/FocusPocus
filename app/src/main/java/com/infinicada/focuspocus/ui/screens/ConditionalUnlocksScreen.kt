@@ -54,6 +54,7 @@ fun ConditionalUnlocksScreen(
     conditionalUnlocks: List<ConditionalUnlock>,
     installedApps: List<AppInfo>,
     blockerLists: List<Blocker>,
+    appTimeLimits: Map<String, Int>,
     onSave: (ConditionalUnlock) -> Unit,
     onDelete: (ConditionalUnlock) -> Unit,
     onNavigateBack: () -> Unit,
@@ -70,6 +71,7 @@ fun ConditionalUnlocksScreen(
             ruleToEdit = editingRule,
             installedApps = installedApps,
             blockerLists = blockerLists,
+            appTimeLimits = appTimeLimits,
             onSave = { rule ->
                 onSave(rule)
                 showEditor = false
@@ -166,6 +168,16 @@ fun ConditionalUnlocksScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (rule.effectiveUnlockedTimeLimitApps.isNotEmpty()) {
+                            val timerAppNames = rule.effectiveUnlockedTimeLimitApps.map { pkg ->
+                                installedApps.find { it.packageName == pkg }?.name ?: pkg
+                            }.joinToString(", ")
+                            Text(
+                                stringResource(R.string.conditional_unlocks_bypassed_timers, timerAppNames),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (hasUsagePermission) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
@@ -209,6 +221,7 @@ fun ConditionalUnlockEditorScreen(
     ruleToEdit: ConditionalUnlock?,
     installedApps: List<AppInfo>,
     blockerLists: List<Blocker>,
+    appTimeLimits: Map<String, Int>,
     onSave: (ConditionalUnlock) -> Unit,
     onDelete: ((ConditionalUnlock) -> Unit)?,
     onCancel: () -> Unit,
@@ -220,18 +233,21 @@ fun ConditionalUnlockEditorScreen(
     }
     var requiredMinutes by rememberSaveable { mutableIntStateOf(ruleToEdit?.requiredMinutes ?: 15) }
     var selectedBlockerNames by remember { mutableStateOf(ruleToEdit?.unlockedBlockerNames ?: emptySet()) }
+    var selectedTimeLimitApps by remember { mutableStateOf(ruleToEdit?.unlockedTimeLimitApps ?: emptySet()) }
 
     var requiredAppDropdownExpanded by remember { mutableStateOf(false) }
     var requiredAppSearchQuery by remember { mutableStateOf("") }
     var minutesDropdownExpanded by remember { mutableStateOf(false) }
     var enchantmentsDropdownExpanded by remember { mutableStateOf(false) }
+    var timeLimitAppsDropdownExpanded by remember { mutableStateOf(false) }
 
     val minuteOptions = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
 
     val filteredRequiredApps = if (requiredAppSearchQuery.isEmpty()) installedApps
         else installedApps.filter { it.name.contains(requiredAppSearchQuery, ignoreCase = true) }
 
-    val isValid = name.isNotBlank() && selectedRequiredApp != null && selectedBlockerNames.isNotEmpty()
+    val isValid = name.isNotBlank() && selectedRequiredApp != null &&
+        (selectedBlockerNames.isNotEmpty() || selectedTimeLimitApps.isNotEmpty())
 
     val title = if (ruleToEdit != null) stringResource(R.string.conditional_unlocks_editor_title_edit)
     else stringResource(R.string.conditional_unlocks_editor_title_create)
@@ -409,6 +425,60 @@ fun ConditionalUnlockEditorScreen(
                 }
             }
 
+            // Time-limited apps multi-select
+            if (appTimeLimits.isNotEmpty()) {
+                item {
+                    ExposedDropdownMenuBox(
+                        expanded = timeLimitAppsDropdownExpanded,
+                        onExpandedChange = { timeLimitAppsDropdownExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = if (selectedTimeLimitApps.isEmpty()) ""
+                            else stringResource(R.string.conditional_unlocks_time_limit_apps_count, selectedTimeLimitApps.size),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.conditional_unlocks_time_limit_apps_label)) },
+                            placeholder = { Text(stringResource(R.string.conditional_unlocks_time_limit_apps_placeholder)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeLimitAppsDropdownExpanded) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = timeLimitAppsDropdownExpanded,
+                            onDismissRequest = { timeLimitAppsDropdownExpanded = false }
+                        ) {
+                            appTimeLimits.entries.forEach { (pkg, limitMinutes) ->
+                                val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
+                                val checked = pkg in selectedTimeLimitApps
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Checkbox(
+                                                checked = checked,
+                                                onCheckedChange = null
+                                            )
+                                            Text("$appName (${limitMinutes}m)")
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedTimeLimitApps = if (checked) {
+                                            selectedTimeLimitApps - pkg
+                                        } else {
+                                            selectedTimeLimitApps + pkg
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Action buttons
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -420,7 +490,8 @@ fun ConditionalUnlockEditorScreen(
                             name = name.trim(),
                             requiredAppPackage = app.packageName,
                             requiredMinutes = requiredMinutes,
-                            unlockedBlockerNames = selectedBlockerNames
+                            unlockedBlockerNames = selectedBlockerNames,
+                            unlockedTimeLimitApps = selectedTimeLimitApps
                         )
                         onSave(rule)
                     },
