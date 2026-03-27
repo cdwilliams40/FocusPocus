@@ -6,6 +6,8 @@ import android.util.Log
 
 object DndController {
     private const val TAG = "DndController"
+    private const val PREFS_DND_ENABLED_BY_APP = "dndEnabledByApp"
+    private const val PREFS_DND_PREVIOUS_FILTER = "dndPreviousFilter"
 
     /**
      * Updates the Do Not Disturb state based on current focus mode settings.
@@ -13,6 +15,10 @@ object DndController {
      * - Focus mode is active (manual or scheduled)
      * - User has enabled "mute notifications" setting
      * - User is NOT on a break
+     *
+     * When disabling DND, restores the user's previous interruption filter
+     * instead of unconditionally setting INTERRUPTION_FILTER_ALL, so that
+     * a manually-enabled DND is not accidentally overridden.
      */
     fun updateDndState(context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -35,16 +41,31 @@ object DndController {
 
         val focusModeActive = manualFocusMode || activeScheduleId != null
         val shouldEnableDnd = focusModeActive && muteEnabled && !isOnBreak
+        val appEnabledDnd = sharedPreferences.getBoolean(PREFS_DND_ENABLED_BY_APP, false)
 
         try {
             if (shouldEnableDnd) {
-                // Enable DND - Priority only mode (allows alarms and priority contacts)
+                if (!appEnabledDnd) {
+                    // Save the current filter so we can restore it later
+                    sharedPreferences.edit()
+                        .putInt(PREFS_DND_PREVIOUS_FILTER, notificationManager.currentInterruptionFilter)
+                        .putBoolean(PREFS_DND_ENABLED_BY_APP, true)
+                        .apply()
+                }
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                 Log.d(TAG, "DND enabled (priority only mode)")
-            } else {
-                // Disable DND - All notifications allowed
-                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-                Log.d(TAG, "DND disabled (all notifications allowed)")
+            } else if (appEnabledDnd) {
+                // Restore the user's previous DND state
+                val previousFilter = sharedPreferences.getInt(
+                    PREFS_DND_PREVIOUS_FILTER,
+                    NotificationManager.INTERRUPTION_FILTER_ALL
+                )
+                notificationManager.setInterruptionFilter(previousFilter)
+                sharedPreferences.edit()
+                    .remove(PREFS_DND_PREVIOUS_FILTER)
+                    .putBoolean(PREFS_DND_ENABLED_BY_APP, false)
+                    .apply()
+                Log.d(TAG, "DND restored to previous filter: $previousFilter")
             }
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException when setting DND state", e)

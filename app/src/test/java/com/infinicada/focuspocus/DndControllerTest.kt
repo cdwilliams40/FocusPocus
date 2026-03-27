@@ -31,6 +31,9 @@ class DndControllerTest {
     @Mock
     private lateinit var mockSharedPreferences: SharedPreferences
 
+    @Mock
+    private lateinit var mockEditor: SharedPreferences.Editor
+
     private lateinit var mockLog: MockedStatic<Log>
 
     @Before
@@ -41,6 +44,10 @@ class DndControllerTest {
 
         `when`(mockContext.getSystemService(Context.NOTIFICATION_SERVICE)).thenReturn(mockNotificationManager)
         `when`(mockContext.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)).thenReturn(mockSharedPreferences)
+        `when`(mockSharedPreferences.edit()).thenReturn(mockEditor)
+        `when`(mockEditor.putInt(anyString(), anyInt())).thenReturn(mockEditor)
+        `when`(mockEditor.putBoolean(anyString(), Mockito.anyBoolean())).thenReturn(mockEditor)
+        `when`(mockEditor.remove(anyString())).thenReturn(mockEditor)
     }
 
     @After
@@ -60,10 +67,12 @@ class DndControllerTest {
     @Test
     fun `updateDndState enables priority mode when manual focus active and mute enabled`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
+        `when`(mockNotificationManager.currentInterruptionFilter).thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(true)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(false)
 
         DndController.updateDndState(mockContext)
 
@@ -73,10 +82,12 @@ class DndControllerTest {
     @Test
     fun `updateDndState enables priority mode when scheduled focus active and mute enabled`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
+        `when`(mockNotificationManager.currentInterruptionFilter).thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(false)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn("schedule_1")
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(false)
 
         DndController.updateDndState(mockContext)
 
@@ -84,12 +95,15 @@ class DndControllerTest {
     }
 
     @Test
-    fun `updateDndState disables DND when not in focus mode`() {
+    fun `updateDndState restores previous filter when focus ends and app had enabled DND`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(false)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(true)
+        `when`(mockSharedPreferences.getInt("dndPreviousFilter", NotificationManager.INTERRUPTION_FILTER_ALL))
+            .thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
 
         DndController.updateDndState(mockContext)
 
@@ -97,12 +111,29 @@ class DndControllerTest {
     }
 
     @Test
-    fun `updateDndState disables DND when mute disabled`() {
+    fun `updateDndState does not touch DND when focus ends and app had not enabled DND`() {
+        `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
+        `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
+        `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
+        `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(false)
+
+        DndController.updateDndState(mockContext)
+
+        verify(mockNotificationManager, never()).setInterruptionFilter(anyInt())
+    }
+
+    @Test
+    fun `updateDndState restores previous filter when mute disabled and app had enabled DND`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(true)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(false)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(true)
+        `when`(mockSharedPreferences.getInt("dndPreviousFilter", NotificationManager.INTERRUPTION_FILTER_ALL))
+            .thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
 
         DndController.updateDndState(mockContext)
 
@@ -110,12 +141,15 @@ class DndControllerTest {
     }
 
     @Test
-    fun `updateDndState disables DND when on break`() {
+    fun `updateDndState restores previous filter when on break and app had enabled DND`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(true)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(true)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(true)
+        `when`(mockSharedPreferences.getInt("dndPreviousFilter", NotificationManager.INTERRUPTION_FILTER_ALL))
+            .thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
 
         DndController.updateDndState(mockContext)
 
@@ -125,10 +159,12 @@ class DndControllerTest {
     @Test
     fun `updateDndState handles SecurityException gracefully`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
+        `when`(mockNotificationManager.currentInterruptionFilter).thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(true)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
+        `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(false)
 
         doThrow(SecurityException("Test exception")).`when`(mockNotificationManager).setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
 
