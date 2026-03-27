@@ -117,7 +117,7 @@ fun TimeLimitsScreen(
                     val usedMinutes = remember(pkg) {
                         AppTimeLimitManager.getUsedMinutesToday(context, pkg)
                     }
-                    val progress = (usedMinutes.toFloat() / limit).coerceIn(0f, 1f)
+                    val progress = if (limit > 0) (usedMinutes.toFloat() / limit).coerceIn(0f, 1f) else 0f
 
                     ElevatedCard(
                         modifier = Modifier

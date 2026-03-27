@@ -60,6 +60,9 @@ object Constants {
         // Analytics consent
         const val ANALYTICS_CONSENT = "analyticsConsent"
         const val ANALYTICS_CONSENT_SHOWN = "analyticsConsentShown"
+
+        // Insights
+        const val INSIGHTS_TIME_RANGE = "insightsTimeRange"
     }
 
     object Defaults {

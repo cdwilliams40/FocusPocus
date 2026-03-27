@@ -16,9 +16,9 @@ object BlockerRepository {
     }
 
     fun getBlockers(prefs: SharedPreferences): List<Blocker> {
-        val json = prefs.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
-
         synchronized(this) {
+            val json = prefs.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
+
             if (json == null) {
                 cachedBlockerListsJson = null
                 cachedBlockerLists = emptyList()
