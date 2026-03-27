@@ -52,6 +52,7 @@ import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
+import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.UsageStatsHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,8 +75,8 @@ fun UsageStatsScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
-    val sharedPreferences = remember { context.getSharedPreferences("FocusPocus", Context.MODE_PRIVATE) }
-    var selectedTabIndex by remember { mutableIntStateOf(sharedPreferences.getInt("insightsTimeRange", 0)) }
+    val sharedPreferences = remember { context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE) }
+    var selectedTabIndex by remember { mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, 0)) }
     var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
     var filterExpanded by remember { mutableStateOf(false) }
 
@@ -123,7 +124,7 @@ fun UsageStatsScreen(
     // Focus stats
     val totalFocusMinutes = remember(filteredSessions) { filteredSessions.sumOf { it.durationMinutes } }
     val avgSessionLength = remember(filteredSessions) {
-        if (filteredSessions.isNotEmpty()) totalFocusMinutes / filteredSessions.size else 0
+        if (filteredSessions.isNotEmpty()) (totalFocusMinutes + filteredSessions.size / 2) / filteredSessions.size else 0
     }
 
     // Block stats
@@ -140,10 +141,10 @@ fun UsageStatsScreen(
     LaunchedEffect(hasPermission, selectedTabIndex) {
         if (hasPermission) {
             val stats = withContext(Dispatchers.IO) {
-                if (selectedTabIndex == 0) {
-                    UsageStatsHelper.getTodayUsage(context)
-                } else {
-                    UsageStatsHelper.getWeeklyUsage(context)
+                when (selectedTabIndex) {
+                    0 -> UsageStatsHelper.getTodayUsage(context)
+                    1 -> UsageStatsHelper.getWeeklyUsage(context)
+                    else -> UsageStatsHelper.getMonthlyUsage(context)
                 }
             }
             usageStats = stats
@@ -206,7 +207,7 @@ fun UsageStatsScreen(
                         selected = selectedTabIndex == index,
                         onClick = {
                             selectedTabIndex = index
-                            sharedPreferences.edit().putInt("insightsTimeRange", index).apply()
+                            sharedPreferences.edit().putInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, index).apply()
                         },
                         label = { Text(label) }
                     )
@@ -493,7 +494,7 @@ fun UsageStatsScreen(
             items(limitEntries) { (pkg, limit) ->
                 val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
                 val usedMinutes = allUsedMinutes[pkg] ?: 0
-                val progress = (usedMinutes.toFloat() / limit).coerceIn(0f, 1f)
+                val progress = if (limit > 0) (usedMinutes.toFloat() / limit).coerceIn(0f, 1f) else 0f
 
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Row(

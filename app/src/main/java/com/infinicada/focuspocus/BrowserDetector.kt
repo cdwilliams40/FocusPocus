@@ -33,7 +33,7 @@ class BrowserDetector(private val context: Context) {
         val packages = mutableSetOf<String>()
         packages.addAll(KNOWN_BROWSER_PACKAGES)
 
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
         // We use MATCH_ALL to get all browsers including those that might not be default.
         // MATCH_ALL was added in API 23.
         val flags = PackageManager.MATCH_ALL

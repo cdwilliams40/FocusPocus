@@ -66,29 +66,29 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     // Cache for parsed schedules to avoid re-parsing JSON every minute
-    private var cachedSchedulesJson: String? = null
-    private var cachedSchedules: List<Schedule> = emptyList()
+    @Volatile private var cachedSchedulesJson: String? = null
+    @Volatile private var cachedSchedules: List<Schedule> = emptyList()
 
     // Debounce for website blocking to prevent rapid re-triggering
-    private var lastWebsiteBlockTime: Long = 0
+    @Volatile private var lastWebsiteBlockTime: Long = 0
 
     // Debounce for app blocking to prevent rapid re-triggering
-    private var lastAppBlockTime: Long = 0
+    @Volatile private var lastAppBlockTime: Long = 0
 
     // Most recently focused "real" app (updated on every window state change, before debounce)
-    private var currentForegroundPackage: String? = null
+    @Volatile private var currentForegroundPackage: String? = null
 
     // Cache for time limits
-    private var cachedTimeLimitsJson: String? = null
-    private var cachedTimeLimits: Map<String, Int> = emptyMap()
+    @Volatile private var cachedTimeLimitsJson: String? = null
+    @Volatile private var cachedTimeLimits: Map<String, Int> = emptyMap()
 
     // Cache for conditional unlocks
-    private var cachedConditionalUnlocksJson: String? = null
-    private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
+    @Volatile private var cachedConditionalUnlocksJson: String? = null
+    @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
 
     // Block event recording
-    private var pendingBlockEvents = mutableListOf<BlockEvent>()
-    private var lastBlockEventWriteTime: Long = 0
+    private val pendingBlockEvents = mutableListOf<BlockEvent>()
+    @Volatile private var lastBlockEventWriteTime: Long = 0
 
     private val timeLimitChecker by lazy { TimeLimitChecker(this) }
 
@@ -626,7 +626,9 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun recordBlockEvent(packageName: String, blockerName: String) {
-        pendingBlockEvents.add(BlockEvent(packageName, System.currentTimeMillis(), blockerName))
+        synchronized(pendingBlockEvents) {
+            pendingBlockEvents.add(BlockEvent(packageName, System.currentTimeMillis(), blockerName))
+        }
         val now = System.currentTimeMillis()
         if (now - lastBlockEventWriteTime > 1000) {
             flushBlockEvents()
@@ -634,7 +636,12 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun flushBlockEvents() {
-        if (pendingBlockEvents.isEmpty()) return
+        val eventsToWrite: List<BlockEvent>
+        synchronized(pendingBlockEvents) {
+            if (pendingBlockEvents.isEmpty()) return
+            eventsToWrite = pendingBlockEvents.toList()
+            pendingBlockEvents.clear()
+        }
         lastBlockEventWriteTime = System.currentTimeMillis()
         val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
         val existing: MutableList<BlockEvent> = if (json != null) {
@@ -646,8 +653,7 @@ class MyAccessibilityService : AccessibilityService() {
                 mutableListOf()
             }
         } else mutableListOf()
-        existing.addAll(pendingBlockEvents)
-        pendingBlockEvents.clear()
+        existing.addAll(eventsToWrite)
         val pruned = if (existing.size > Constants.MAX_BLOCK_EVENTS) {
             existing.drop(existing.size - Constants.MAX_BLOCK_EVENTS)
         } else existing

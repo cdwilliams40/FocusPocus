@@ -142,7 +142,7 @@ fun ConditionalUnlocksScreen(
                 val usedMinutes = remember(rule.requiredAppPackage) {
                     AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
                 }
-                val progress = (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f)
+                val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
                 val conditionMet = usedMinutes >= rule.requiredMinutes
 
                 ElevatedCard(
