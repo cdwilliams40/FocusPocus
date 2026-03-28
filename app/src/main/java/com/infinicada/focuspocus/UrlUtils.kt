@@ -8,7 +8,7 @@ object UrlUtils {
     // Default matcher uses Android's Patterns.WEB_URL
     // We wrap it in a try-catch because in unit tests, Patterns.WEB_URL might be null or throw RuntimeException("Stub!")
     // In production (Android), it will work fine.
-    var urlMatcher: (String) -> Boolean = { text ->
+    internal var urlMatcher: (String) -> Boolean = { text ->
         try {
             // Use matches() to ensure the entire text is a valid URL,
             // preventing partial matches on non-URL text.
@@ -27,7 +27,7 @@ object UrlUtils {
     fun extractDomain(urlText: String): String? {
         try {
             val trimmed = urlText.trim()
-            if (trimmed.isEmpty()) return null
+            if (trimmed.isEmpty() || trimmed.length > 2048) return null
 
             // Handle URLs without scheme
             // Browsers often omit the scheme in the address bar
