@@ -251,6 +251,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun emergencyStop() {
+        focusTimerJob?.cancel()
+        breakTimerJob?.cancel()
         val now = System.currentTimeMillis()
         _lastEmergencyBreakMillis.value = now
         repo.setLastEmergencyBreakMillis(now)

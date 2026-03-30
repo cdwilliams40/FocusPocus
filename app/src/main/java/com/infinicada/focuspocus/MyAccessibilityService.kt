@@ -138,7 +138,7 @@ class MyAccessibilityService : AccessibilityService() {
             addDataScheme("package")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_EXPORTED)
+            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(packageReceiver, packageFilter)
         }
@@ -535,8 +535,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         return rules.any { rule ->
             if (blockerName !in rule.effectiveUnlockedBlockerNames) return@any false
+            if (rule.requiredMinutes <= 0) return@any false
             val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes * 60 * 1000L
+            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
             val unlocked = usedMs >= requiredMs
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Conditional unlock check for blocker=$blockerName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
@@ -549,8 +550,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         return rules.any { rule ->
             if (packageName !in rule.effectiveUnlockedTimeLimitApps) return@any false
+            if (rule.requiredMinutes <= 0) return@any false
             val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes * 60 * 1000L
+            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
             val unlocked = usedMs >= requiredMs
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Conditional unlock check for time-limit app=$packageName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
@@ -727,6 +729,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {
+        if (blockedDomain.isEmpty() || navigatedDomain.isEmpty()) return false
         if (blockedDomain.length > 255 || navigatedDomain.length > 2048) return false
 
         val navLen = navigatedDomain.length

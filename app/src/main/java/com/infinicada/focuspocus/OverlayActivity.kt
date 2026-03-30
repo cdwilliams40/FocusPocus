@@ -50,8 +50,8 @@ class OverlayActivity : ComponentActivity() {
             }
         })
 
-        val appName = intent.getStringExtra("appName") ?: "App"
-        val spellName = intent.getStringExtra("spellName")
+        val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
+        val spellName = intent.getStringExtra("spellName")?.take(200)
 
         renderOverlay(appName, spellName)
     }
@@ -59,8 +59,8 @@ class OverlayActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val appName = intent.getStringExtra("appName") ?: "App"
-        val spellName = intent.getStringExtra("spellName")
+        val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
+        val spellName = intent.getStringExtra("spellName")?.take(200)
         renderOverlay(appName, spellName)
     }
 
