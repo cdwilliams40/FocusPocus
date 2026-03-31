@@ -138,7 +138,7 @@ class MyAccessibilityService : AccessibilityService() {
             addDataScheme("package")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_EXPORTED)
+            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(packageReceiver, packageFilter)
         }

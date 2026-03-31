@@ -167,8 +167,11 @@ fun UsageStatsScreen(
         filteredStats.sumOf { it.totalTimeInForeground }
     }
 
-    val allUsedMinutes = remember(appTimeLimits, hasPermission) {
-        AppTimeLimitManager.getAllUsedMinutesToday(context)
+    var allUsedMinutes by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    LaunchedEffect(appTimeLimits, hasPermission) {
+        allUsedMinutes = withContext(Dispatchers.IO) {
+            AppTimeLimitManager.getAllUsedMinutesToday(context)
+        }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current

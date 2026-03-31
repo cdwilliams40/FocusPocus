@@ -19,15 +19,17 @@ object UrlUtils {
         }
     }
 
+    private const val MAX_URL_LENGTH = 2048
+
     fun looksLikeUrl(text: String): Boolean {
-        if (text.isBlank()) return false
+        if (text.isBlank() || text.length > MAX_URL_LENGTH) return false
         return urlMatcher(text)
     }
 
     fun extractDomain(urlText: String): String? {
         try {
             val trimmed = urlText.trim()
-            if (trimmed.isEmpty()) return null
+            if (trimmed.isEmpty() || trimmed.length > MAX_URL_LENGTH) return null
 
             // Handle URLs without scheme
             // Browsers often omit the scheme in the address bar

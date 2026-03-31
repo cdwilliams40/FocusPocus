@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.AppTimeLimitManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
@@ -139,8 +142,11 @@ fun ConditionalUnlocksScreen(
             items(conditionalUnlocks) { rule ->
                 val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
                     ?: rule.requiredAppPackage
-                val usedMinutes = remember(rule.requiredAppPackage) {
-                    AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
+                var usedMinutes by remember(rule.requiredAppPackage) { mutableIntStateOf(0) }
+                LaunchedEffect(rule.requiredAppPackage) {
+                    usedMinutes = withContext(Dispatchers.IO) {
+                        AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
+                    }
                 }
                 val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
                 val conditionMet = usedMinutes >= rule.requiredMinutes
