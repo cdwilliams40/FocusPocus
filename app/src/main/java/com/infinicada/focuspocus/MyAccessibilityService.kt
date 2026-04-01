@@ -87,7 +87,7 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
 
     // Block event recording
-    private val pendingBlockEvents = mutableListOf<BlockEvent>()
+    private val pendingBlockEvents = java.util.Collections.synchronizedList(mutableListOf<BlockEvent>())
     @Volatile private var lastBlockEventWriteTime: Long = 0
 
     private val timeLimitChecker by lazy { TimeLimitChecker(this) }

@@ -39,9 +39,10 @@ class InsightsRepository(
         limitMinutes: Int,
         currentLimits: Map<String, Int>
     ): Boolean {
+        val isUpdate = packageName in currentLimits
+        if (!isUpdate && currentLimits.size >= Constants.MAX_APP_TIME_LIMITS) return false
         val updated = currentLimits.toMutableMap()
         updated[packageName] = limitMinutes
-        if (updated.size > Constants.MAX_APP_TIME_LIMITS) return false
         AppTimeLimitManager.saveTimeLimits(prefs, gson, updated)
         return true
     }

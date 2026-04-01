@@ -14,7 +14,7 @@ class TimeLimitChecker(
     private val clock: () -> Long = { System.currentTimeMillis() }
 ) {
     private data class CacheEntry(val timestamp: Long, val isOverLimit: Boolean)
-    private val cache = mutableMapOf<String, CacheEntry>()
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, CacheEntry>()
 
     // How long to trust a cached "over-limit" result (1 minute).
     // Once over, stays over for the rest of the day, so this is safe.

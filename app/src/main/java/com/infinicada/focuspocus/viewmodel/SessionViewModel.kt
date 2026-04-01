@@ -92,8 +92,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private fun startTimersIfNeeded() {
         if (_isOnBreak.value && _breakTimeRemaining.value > 0) {
             startBreakTimer()
-        }
-        if (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
+        } else if (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
             startFocusTimer()
         }
     }
@@ -101,16 +100,16 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private fun startFocusTimer() {
         focusTimerJob?.cancel()
         focusTimerJob = viewModelScope.launch {
-            while (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
-                delay(1000L)
-                val remaining = _focusTimeRemaining.value - 1
-                _focusTimeRemaining.value = remaining
-                repo.setFocusTimeRemaining(remaining)
-
-                if (remaining <= 0) {
+            while (_manualFocusMode.value && !_isOnBreak.value) {
+                val current = _focusTimeRemaining.value
+                if (current <= 0) {
                     handleTimerExpired()
                     break
                 }
+                delay(1000L)
+                val remaining = maxOf(0, current - 1)
+                _focusTimeRemaining.value = remaining
+                repo.setFocusTimeRemaining(remaining)
             }
         }
     }
@@ -118,13 +117,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private fun startBreakTimer() {
         breakTimerJob?.cancel()
         breakTimerJob = viewModelScope.launch {
-            while (_isOnBreak.value && _breakTimeRemaining.value > 0) {
-                delay(1000L)
-                val remaining = _breakTimeRemaining.value - 1
-                _breakTimeRemaining.value = remaining
-                repo.setBreakTimeRemaining(remaining)
-
-                if (remaining <= 0) {
+            while (_isOnBreak.value) {
+                val current = _breakTimeRemaining.value
+                if (current <= 0) {
                     _isOnBreak.value = false
                     repo.setIsOnBreak(false)
                     DndController.updateDndState(getApplication())
@@ -132,6 +127,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     startFocusTimer()
                     break
                 }
+                delay(1000L)
+                val remaining = maxOf(0, current - 1)
+                _breakTimeRemaining.value = remaining
+                repo.setBreakTimeRemaining(remaining)
             }
         }
     }
@@ -239,6 +238,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _breaksUsedThisSession.value = used
         repo.writeBreakState(isOnBreak = true, breakTimeRemaining = remaining, breaksUsed = used)
         focusTimerJob?.cancel()
+        focusTimerJob = null
         startBreakTimer()
     }
 

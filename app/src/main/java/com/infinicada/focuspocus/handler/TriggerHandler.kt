@@ -26,7 +26,7 @@ class TriggerHandler(
     private val prefs: SharedPreferences,
     private val gson: Gson
 ) {
-    private val validIdPattern = Regex("^[a-f0-9\\-]{1,64}$")
+    private val validIdPattern = Regex("^[a-fA-F0-9\\-]{1,64}$")
 
     /**
      * Core preset toggle logic used by NFC, QR, and deep links.
