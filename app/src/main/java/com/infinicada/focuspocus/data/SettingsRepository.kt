@@ -20,7 +20,7 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     }
 
     fun getAnalyticsConsent(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
+        prefs.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false)
 
     fun setAnalyticsConsent(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, enabled).apply()

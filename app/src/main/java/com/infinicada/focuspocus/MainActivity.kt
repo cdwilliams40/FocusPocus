@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
 
         // Apply analytics consent state
-        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
+        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false)
         try {
             FirebaseApp.initializeApp(this)
             FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)

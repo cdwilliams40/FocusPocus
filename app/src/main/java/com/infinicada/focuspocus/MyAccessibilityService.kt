@@ -138,7 +138,7 @@ class MyAccessibilityService : AccessibilityService() {
             addDataScheme("package")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_EXPORTED)
+            registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(packageReceiver, packageFilter)
         }
@@ -279,7 +279,7 @@ class MyAccessibilityService : AccessibilityService() {
         } else {
             try {
                 val type = object : TypeToken<List<Schedule>>() {}.type
-                val parsed: List<Schedule> = gson.fromJson(json, type)
+                val parsed: List<Schedule> = gson.fromJson(json, type) ?: emptyList()
                 cachedSchedulesJson = json
                 cachedSchedules = parsed
                 parsed
@@ -587,7 +587,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (json == cachedConditionalUnlocksJson) return cachedConditionalUnlocks
         return try {
             val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            val parsed: List<ConditionalUnlock> = gson.fromJson(json, type)
+            val parsed: List<ConditionalUnlock> = gson.fromJson(json, type) ?: emptyList()
             cachedConditionalUnlocksJson = json
             cachedConditionalUnlocks = parsed
             parsed
@@ -613,7 +613,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
         return try {
             val type = object : TypeToken<Map<String, Int>>() {}.type
-            val parsed: Map<String, Int> = gson.fromJson(json, type)
+            val parsed: Map<String, Int> = gson.fromJson(json, type) ?: emptyMap()
             cachedTimeLimitsJson = json
             cachedTimeLimits = parsed
             timeLimitChecker.clearCache()
@@ -647,7 +647,7 @@ class MyAccessibilityService : AccessibilityService() {
         val existing: MutableList<BlockEvent> = if (json != null) {
             try {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
-                gson.fromJson(json, type)
+                gson.fromJson<MutableList<BlockEvent>>(json, type) ?: mutableListOf()
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error parsing block events JSON")
                 mutableListOf()

@@ -254,6 +254,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val now = System.currentTimeMillis()
         _lastEmergencyBreakMillis.value = now
         repo.setLastEmergencyBreakMillis(now)
+        focusTimerJob?.cancel()
+        breakTimerJob?.cancel()
         _manualFocusMode.value = false
     }
 
