@@ -17,7 +17,7 @@ object AccessibilityTraverser {
 
         var visitedCount = 0
 
-        while (stack.isNotEmpty()) {
+        try { while (stack.isNotEmpty()) {
             // Safety break if we traverse too many nodes
             if (visitedCount >= MAX_VISITED_NODES) {
                 // Recycle remaining nodes in stack
@@ -68,6 +68,13 @@ object AccessibilityTraverser {
                 // Done with this node
                 stack.pop()
                 if (node != rootNode) node.recycle()
+            }
+        }
+        } catch (_: Exception) {
+            // Clean up remaining nodes on unexpected failure to prevent leaks
+            while (stack.isNotEmpty()) {
+                val s = stack.pop()
+                try { if (s.node != rootNode) s.node.recycle() } catch (_: Exception) {}
             }
         }
         return null

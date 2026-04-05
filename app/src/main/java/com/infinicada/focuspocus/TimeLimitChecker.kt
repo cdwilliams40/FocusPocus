@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.Context
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Checks if an app has exceeded its time limit, with caching to reduce
@@ -14,7 +15,7 @@ class TimeLimitChecker(
     private val clock: () -> Long = { System.currentTimeMillis() }
 ) {
     private data class CacheEntry(val timestamp: Long, val isOverLimit: Boolean)
-    private val cache = java.util.concurrent.ConcurrentHashMap<String, CacheEntry>()
+    private val cache = ConcurrentHashMap<String, CacheEntry>()
 
     // How long to trust a cached "over-limit" result (1 minute).
     // Once over, stays over for the rest of the day, so this is safe.

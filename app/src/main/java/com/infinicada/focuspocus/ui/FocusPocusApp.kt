@@ -271,14 +271,14 @@ fun FocusPocusApp(
     }
 
     // Settings screen
-    val notificationManager = remember { context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+    val notificationManager = remember { context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager }
     var isNotificationListenerEnabled by remember {
-        mutableStateOf(notificationManager.isNotificationPolicyAccessGranted)
+        mutableStateOf(notificationManager?.isNotificationPolicyAccessGranted ?: false)
     }
 
     if (topLevelRoute is TopLevelRoute.Settings) {
         LaunchedEffect(Unit) {
-            isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
+            isNotificationListenerEnabled = notificationManager?.isNotificationPolicyAccessGranted ?: false
         }
         SettingsScreen(
             themeMode = themeMode,

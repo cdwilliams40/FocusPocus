@@ -79,8 +79,8 @@ fun OnboardingScreen(
     // Re-check permissions on resume
     var accessibilityEnabled by remember { mutableStateOf(isServiceEnabled) }
     var notificationPolicyGranted by remember {
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        mutableStateOf(nm.isNotificationPolicyAccessGranted)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        mutableStateOf(nm?.isNotificationPolicyAccessGranted ?: false)
     }
     var usageStatsGranted by remember {
         mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
@@ -91,8 +91,8 @@ fun OnboardingScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 accessibilityEnabled = isAccessibilityEnabled(context)
-                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationPolicyGranted = nm.isNotificationPolicyAccessGranted
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                notificationPolicyGranted = nm?.isNotificationPolicyAccessGranted ?: false
                 usageStatsGranted = UsageStatsHelper.hasUsageStatsPermission(context)
             }
         }
