@@ -27,7 +27,7 @@ object UrlUtils {
     fun extractDomain(urlText: String): String? {
         try {
             val trimmed = urlText.trim()
-            if (trimmed.isEmpty()) return null
+            if (trimmed.isEmpty() || trimmed.length > 2048) return null
 
             // Handle URLs without scheme
             // Browsers often omit the scheme in the address bar
