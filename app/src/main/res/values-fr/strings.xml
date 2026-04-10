@@ -66,6 +66,10 @@
     <string name="home_status_on_break">En pause</string>
     <string name="home_status_active">Sort de concentration actif</string>
     <string name="home_status_ready">Prêt à lancer</string>
+    <string name="home_session_setup">Configuration de session</string>
+    <string name="home_unlimited_session">Illimité</string>
+    <string name="home_session_progress">%1$d sur %2$d min</string>
+    <string name="session_complete_icon_desc">Session terminée</string>
     <string name="home_quick_spells">Sorts rapides</string>
     <string name="home_select_enchantment">Choisir un enchantement</string>
     <string name="home_allow_breaks">Autoriser les pauses</string>
