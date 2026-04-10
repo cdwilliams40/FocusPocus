@@ -10,6 +10,10 @@ fun shouldDeactivateSchedule(
     startHour: Int, startMinute: Int,
     endHour: Int, endMinute: Int
 ): Boolean {
+    if (currentHour !in 0..23 || currentMinute !in 0..59) return false
+    if (startHour !in 0..23 || startMinute !in 0..59) return false
+    if (endHour !in 0..23 || endMinute !in 0..59) return false
+
     val currentMins = currentHour * 60 + currentMinute
     val startMins = startHour * 60 + startMinute
     val endMins = endHour * 60 + endMinute
@@ -34,6 +38,10 @@ fun isWithinScheduleWindow(
     startHour: Int, startMinute: Int,
     endHour: Int, endMinute: Int
 ): Boolean {
+    if (currentHour !in 0..23 || currentMinute !in 0..59) return false
+    if (startHour !in 0..23 || startMinute !in 0..59) return false
+    if (endHour !in 0..23 || endMinute !in 0..59) return false
+
     val currentMins = currentHour * 60 + currentMinute
     val startMins = startHour * 60 + startMinute
     val endMins = endHour * 60 + endMinute
