@@ -11,34 +11,39 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.MysticalPurpleDark
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
 class OverlayActivity : ComponentActivity() {
-
-    private val CLOSE_DELAY_SECONDS = 3
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,18 +55,13 @@ class OverlayActivity : ComponentActivity() {
             }
         })
 
-        val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
-        val spellName = intent.getStringExtra("spellName")?.take(200)
-
-        renderOverlay(appName, spellName)
+        renderOverlay(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
-        val spellName = intent.getStringExtra("spellName")?.take(200)
-        renderOverlay(appName, spellName)
+        renderOverlay(intent)
     }
 
     private fun closeAndGoHome() {
@@ -73,19 +73,30 @@ class OverlayActivity : ComponentActivity() {
         finishAndRemoveTask()
     }
 
-    private fun renderOverlay(appName: String, spellName: String?) {
+    private fun renderOverlay(intent: Intent) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         val themeMode = try {
             ThemeMode.valueOf(prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
         } catch (e: IllegalArgumentException) {
             ThemeMode.SYSTEM
         }
+
+        val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
+        val spellName = intent.getStringExtra("spellName")?.take(200)
+        val frictionLevelOrdinal = intent.getIntExtra("frictionLevel", -1)
+        val cooldownExpiryMillis = intent.getLongExtra("cooldownExpiryMillis", 0L)
+
+        val frictionLevel: FrictionLevel? = if (frictionLevelOrdinal in FrictionLevel.entries.indices) {
+            FrictionLevel.entries[frictionLevelOrdinal]
+        } else null
+
         setContent {
             FocusPocusTheme(themeMode = themeMode) {
                 OverlayScreen(
                     appName = appName,
                     spellName = spellName,
-                    delaySeconds = CLOSE_DELAY_SECONDS,
+                    frictionLevel = frictionLevel,
+                    cooldownExpiryMillis = cooldownExpiryMillis,
                     onClose = { closeAndGoHome() }
                 )
             }
@@ -93,24 +104,55 @@ class OverlayActivity : ComponentActivity() {
     }
 }
 
+/** The phrase a Level-3 user must type exactly (case-insensitive) to dismiss the overlay. */
+private const val REQUIRED_PHRASE = "I will stop scrolling"
+
 @Composable
 fun OverlayScreen(
     appName: String,
     spellName: String?,
-    delaySeconds: Int,
+    frictionLevel: FrictionLevel?,
+    cooldownExpiryMillis: Long,
     onClose: () -> Unit
 ) {
-    var remainingSeconds by remember { mutableIntStateOf(delaySeconds) }
-    var isCloseEnabled by remember { mutableStateOf(false) }
+    val isCooldownOverlay = frictionLevel != null
 
-    // Countdown timer
-    LaunchedEffect(Unit) {
+    // Countdown seconds driven by friction level (or legacy 3-second default)
+    val delaySeconds = frictionLevel?.countdownSeconds ?: 3
+
+    var remainingSeconds by remember { mutableIntStateOf(delaySeconds) }
+    var countdownDone by remember { mutableStateOf(false) }
+    var phraseInput by remember { mutableStateOf("") }
+
+    // Live cooldown timer (minutes remaining in the cooldown block)
+    var cooldownMinutesLeft by remember {
+        mutableIntStateOf(
+            if (cooldownExpiryMillis > 0) {
+                maxOf(0, ((cooldownExpiryMillis - System.currentTimeMillis()) / 1000 / 60).toInt() + 1)
+            } else 0
+        )
+    }
+
+    // Countdown until the close button becomes active
+    LaunchedEffect(delaySeconds) {
         while (remainingSeconds > 0) {
             delay(1000L)
             remainingSeconds--
         }
-        isCloseEnabled = true
+        countdownDone = true
     }
+
+    // Tick the "cooldown remaining" display every 30 seconds
+    LaunchedEffect(cooldownExpiryMillis) {
+        if (cooldownExpiryMillis <= 0L) return@LaunchedEffect
+        while (true) {
+            delay(30_000L)
+            cooldownMinutesLeft = maxOf(0, ((cooldownExpiryMillis - System.currentTimeMillis()) / 1000 / 60).toInt() + 1)
+        }
+    }
+
+    val phraseMatches = phraseInput.trim().equals(REQUIRED_PHRASE, ignoreCase = true)
+    val isCloseEnabled = countdownDone && (frictionLevel?.requiresPhrase != true || phraseMatches)
 
     Box(
         modifier = Modifier
@@ -136,6 +178,7 @@ fun OverlayScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+
                 if (spellName != null) {
                     Text(
                         text = stringResource(R.string.overlay_spell_name, spellName),
@@ -144,12 +187,58 @@ fun OverlayScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
+
                 Text(
                     text = stringResource(R.string.overlay_app_blocked, appName),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
+
+                // Show cooldown remaining time for cooldown overlays
+                if (isCooldownOverlay && cooldownMinutesLeft > 0) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.overlay_cooldown_remaining, cooldownMinutesLeft),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Level 3: phrase input field (shown once countdown finishes)
+                if (frictionLevel?.requiresPhrase == true) {
+                    if (countdownDone) {
+                        Text(
+                            text = stringResource(R.string.overlay_level3_prompt),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "\"$REQUIRED_PHRASE\"",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = phraseInput,
+                            onValueChange = { phraseInput = it },
+                            label = { Text(stringResource(R.string.overlay_level3_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (phraseMatches) onClose()
+                            })
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+
                 Button(
                     onClick = { if (isCloseEnabled) onClose() },
                     enabled = isCloseEnabled,
@@ -159,7 +248,11 @@ fun OverlayScreen(
                     )
                 ) {
                     Text(
-                        text = if (isCloseEnabled) stringResource(R.string.overlay_close) else stringResource(R.string.overlay_wait, remainingSeconds)
+                        text = if (countdownDone) {
+                            stringResource(R.string.overlay_close)
+                        } else {
+                            stringResource(R.string.overlay_wait, remainingSeconds)
+                        }
                     )
                 }
             }

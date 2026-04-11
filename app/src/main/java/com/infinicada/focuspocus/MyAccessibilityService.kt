@@ -19,6 +19,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import java.util.Calendar
 
@@ -86,9 +89,19 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var cachedTimeLimitsJson: String? = null
     @Volatile private var cachedTimeLimits: Map<String, Int> = emptyMap()
 
+    // Cache for time limit configs (includes per-session cooldown settings)
+    @Volatile private var cachedTimeLimitConfigsJson: String? = null
+    @Volatile private var cachedTimeLimitConfigs: Map<String, AppTimeLimit> = emptyMap()
+
     // Cache for conditional unlocks
     @Volatile private var cachedConditionalUnlocksJson: String? = null
     @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
+
+    // Session cooldown manager — tracks per-app usage sessions and cooldown state
+    private lateinit var sessionCooldownManager: SessionCooldownManager
+
+    // Date string used to detect when a new day begins (format: "yyyyMMdd")
+    @Volatile private var lastCooldownResetDate: String? = null
 
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
@@ -109,6 +122,16 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
+
+                // Clear any cooldowns whose expiry has now passed.
+                sessionCooldownManager.clearExpiredCooldowns()
+
+                // Reset daily escalation counters when the calendar date rolls over.
+                if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
+                    sessionCooldownManager.resetDailyCooldowns()
+                    lastCooldownResetDate = SessionCooldownManager.todayString()
+                }
+
                 // Also enforce time limits on whichever app is currently in the foreground.
                 // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
                 // could stay inside an app past its daily limit indefinitely.
@@ -120,6 +143,8 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
+        lastCooldownResetDate = SessionCooldownManager.todayString()
         Log.d("MyAccessibilityService", "Service connected")
 
         // Activate any schedule that should currently be running but wasn't started
@@ -468,7 +493,17 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Track which real app is currently in the foreground so the minute-tick receiver can
         // enforce time limits while the user stays inside an app (no window-state events fire then).
+        val previousForegroundPackage = currentForegroundPackage
         currentForegroundPackage = packageName
+
+        // Session lifecycle tracking (not debounced — we want accurate start/end times).
+        if (previousForegroundPackage != null && previousForegroundPackage != packageName) {
+            sessionCooldownManager.onAppLeft(previousForegroundPackage)
+        }
+        val timeLimitConfigs = getCachedTimeLimitConfigs()
+        if (timeLimitConfigs.containsKey(packageName)) {
+            sessionCooldownManager.onAppForegrounded(packageName)
+        }
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
@@ -528,6 +563,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
+
+        // 1. Daily limit (existing) — always takes precedence; no cooldown interaction.
         if (timeLimitChecker.shouldBlock(packageName, limit)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
@@ -537,6 +574,44 @@ class MyAccessibilityService : AccessibilityService() {
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
             showOverlay(appName, getString(R.string.service_daily_time_limit))
+            return
+        }
+
+        // 2. Per-session cooldown — active cooldown blocks the app with escalating friction.
+        if (sessionCooldownManager.isInCooldown(packageName, now)) {
+            if (isTimeLimitConditionallyUnlocked(packageName)) return
+            val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
+            val newAttemptCount = sessionCooldownManager.recordAttempt(packageName, now)
+            val frictionLevel = FrictionLevel.fromAttemptCount(newAttemptCount)
+            val appName = AppUtils.getAppName(this, packageName)
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
+                "Cooldown active for $appName (attempt #$newAttemptCount, friction=$frictionLevel)")
+            lastAppBlockTime = now
+            currentForegroundPackage = null
+            recordBlockEvent(packageName, "Session Cooldown")
+            closeApp()
+            showCooldownOverlay(appName, frictionLevel, cooldownState.cooldownExpiryMillis)
+            return
+        }
+
+        // 3. Session limit — if the user has been in this app too long, start a cooldown.
+        val configs = getCachedTimeLimitConfigs()
+        val config = configs[packageName]
+        if (config != null && config.sessionLimitMinutes > 0) {
+            val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
+            if (sessionMinutes >= config.sessionLimitMinutes) {
+                if (isTimeLimitConditionallyUnlocked(packageName)) return
+                sessionCooldownManager.startCooldown(packageName, config, now)
+                val freshState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
+                val appName = AppUtils.getAppName(this, packageName)
+                if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
+                    "Session limit reached for $appName after ${sessionMinutes}m — cooldown started")
+                lastAppBlockTime = now
+                currentForegroundPackage = null
+                recordBlockEvent(packageName, "Session Cooldown")
+                closeApp()
+                showCooldownOverlay(appName, FrictionLevel.LEVEL_1, freshState.cooldownExpiryMillis)
+            }
         }
     }
 
@@ -814,11 +889,54 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
+    private fun getCachedTimeLimitConfigs(): Map<String, AppTimeLimit> {
+        val json = sharedPreferences.getString(Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS, null)
+        if (json == null) {
+            if (cachedTimeLimitConfigsJson != null) {
+                cachedTimeLimitConfigsJson = null
+                cachedTimeLimitConfigs = emptyMap()
+            }
+            return emptyMap()
+        }
+        if (json == cachedTimeLimitConfigsJson) return cachedTimeLimitConfigs
+        return try {
+            val type = object : TypeToken<Map<String, AppTimeLimit>>() {}.type
+            val parsed: Map<String, AppTimeLimit>? = gson.fromJson(json, type)
+            if (parsed == null) {
+                cachedTimeLimitConfigsJson = null
+                cachedTimeLimitConfigs = emptyMap()
+                emptyMap()
+            } else {
+                cachedTimeLimitConfigsJson = json
+                cachedTimeLimitConfigs = parsed
+                parsed
+            }
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing time limit configs JSON")
+            cachedTimeLimitConfigsJson = null
+            cachedTimeLimitConfigs = emptyMap()
+            emptyMap()
+        }
+    }
+
     private fun showOverlay(appName: String, spellName: String? = null) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("spellName", spellName)
+        startActivity(intent)
+    }
+
+    private fun showCooldownOverlay(
+        appName: String,
+        frictionLevel: FrictionLevel,
+        cooldownExpiryMillis: Long
+    ) {
+        val intent = Intent(this, OverlayActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.putExtra("appName", appName)
+        intent.putExtra("frictionLevel", frictionLevel.ordinal)
+        intent.putExtra("cooldownExpiryMillis", cooldownExpiryMillis)
         startActivity(intent)
     }
 

@@ -121,6 +121,7 @@ fun FocusPocusApp(
     val focusPresets by spellbookVM.focusPresets.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
     val appTimeLimits by spellbookVM.appTimeLimits.collectAsStateWithLifecycle()
+    val appTimeLimitConfigs by spellbookVM.appTimeLimitConfigs.collectAsStateWithLifecycle()
     val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
@@ -577,8 +578,8 @@ fun FocusPocusApp(
 
                         is SpellbookRoute.TimeLimits -> TimeLimitsScreen(
                             installedApps = installedApps,
-                            appTimeLimits = appTimeLimits,
-                            onSaveAppTimeLimit = { pkg, limit -> spellbookVM.saveAppTimeLimit(pkg, limit) },
+                            appTimeLimits = appTimeLimitConfigs,
+                            onSaveAppTimeLimit = { config -> spellbookVM.saveAppTimeLimitConfig(config) },
                             onDeleteAppTimeLimit = { spellbookVM.deleteAppTimeLimit(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier

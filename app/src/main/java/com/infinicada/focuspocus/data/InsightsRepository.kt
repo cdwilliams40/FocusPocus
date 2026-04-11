@@ -9,6 +9,7 @@ import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.PrefsHelper
 import com.infinicada.focuspocus.calculateCurrentStreak
+import com.infinicada.focuspocus.model.AppTimeLimit
 
 class InsightsRepository(
     private val prefs: SharedPreferences,
@@ -50,6 +51,33 @@ class InsightsRepository(
         val updated = currentLimits.toMutableMap()
         updated.remove(packageName)
         AppTimeLimitManager.saveTimeLimits(prefs, gson, updated)
+        return updated
+    }
+
+    // --- Config (includes session-cooldown settings) ---
+
+    fun getAppTimeLimitConfigs(): Map<String, AppTimeLimit> =
+        AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
+
+    fun saveAppTimeLimitConfig(
+        config: AppTimeLimit,
+        currentConfigs: Map<String, AppTimeLimit>
+    ): Boolean {
+        val updated = currentConfigs.toMutableMap()
+        updated[config.packageName] = config
+        if (updated.size > Constants.MAX_APP_TIME_LIMITS) return false
+        AppTimeLimitManager.saveTimeLimitConfigs(prefs, gson, updated)
+        return true
+    }
+
+    fun deleteAppTimeLimitConfig(
+        packageName: String,
+        currentConfigs: Map<String, AppTimeLimit>
+    ): Map<String, AppTimeLimit> {
+        val updated = currentConfigs.toMutableMap()
+        updated.remove(packageName)
+        // saveTimeLimitConfigs keeps the legacy flat map in sync automatically.
+        AppTimeLimitManager.saveTimeLimitConfigs(prefs, gson, updated)
         return updated
     }
 }

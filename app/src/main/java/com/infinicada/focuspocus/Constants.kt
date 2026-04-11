@@ -47,6 +47,12 @@ object Constants {
         // Per-app time limits
         const val APP_TIME_LIMITS = "appTimeLimits"
 
+        // Per-app time limit configs (includes session-cooldown settings)
+        const val APP_TIME_LIMIT_CONFIGS = "appTimeLimitConfigs"
+
+        // Active per-app cooldown states (expiry time, attempt counts)
+        const val APP_COOLDOWN_STATES = "appCooldownStates"
+
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 

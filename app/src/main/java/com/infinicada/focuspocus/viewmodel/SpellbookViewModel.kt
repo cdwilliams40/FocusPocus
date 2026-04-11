@@ -16,6 +16,7 @@ import com.infinicada.focuspocus.data.PresetRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
 import com.infinicada.focuspocus.model.AppInfo
+import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
@@ -48,7 +49,13 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _namedTags = MutableStateFlow(talismanRepo.getNamedTags())
     val namedTags: StateFlow<List<NamedTag>> = _namedTags.asStateFlow()
 
-    private val _appTimeLimits = MutableStateFlow(insightsRepo.getAppTimeLimits())
+    private val _appTimeLimitConfigs = MutableStateFlow(insightsRepo.getAppTimeLimitConfigs())
+    val appTimeLimitConfigs: StateFlow<Map<String, AppTimeLimit>> = _appTimeLimitConfigs.asStateFlow()
+
+    // Derived flat map (packageName → daily minutes) for screens that don't need cooldown info.
+    private val _appTimeLimits = MutableStateFlow(
+        _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
+    )
     val appTimeLimits: StateFlow<Map<String, Int>> = _appTimeLimits.asStateFlow()
 
     private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
@@ -201,19 +208,21 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _dataVersion.value++
     }
 
-    fun saveAppTimeLimit(packageName: String, limitMinutes: Int) {
-        if (!insightsRepo.saveAppTimeLimit(packageName, limitMinutes, _appTimeLimits.value)) {
+    fun saveAppTimeLimitConfig(config: AppTimeLimit) {
+        if (!insightsRepo.saveAppTimeLimitConfig(config, _appTimeLimitConfigs.value)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(
                 R.string.toast_max_time_limits, com.infinicada.focuspocus.Constants.MAX_APP_TIME_LIMITS
             ), Toast.LENGTH_SHORT).show()
             return
         }
-        _appTimeLimits.value = insightsRepo.getAppTimeLimits()
+        _appTimeLimitConfigs.value = insightsRepo.getAppTimeLimitConfigs()
+        _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
     }
 
     fun deleteAppTimeLimit(packageName: String) {
-        _appTimeLimits.value = insightsRepo.deleteAppTimeLimit(packageName, _appTimeLimits.value)
+        _appTimeLimitConfigs.value = insightsRepo.deleteAppTimeLimitConfig(packageName, _appTimeLimitConfigs.value)
+        _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
     }
 

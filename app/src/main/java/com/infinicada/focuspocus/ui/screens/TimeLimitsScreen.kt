@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
+import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
 
@@ -48,8 +50,8 @@ import com.infinicada.focuspocus.UsageStatsHelper
 @Composable
 fun TimeLimitsScreen(
     installedApps: List<AppInfo>,
-    appTimeLimits: Map<String, Int>,
-    onSaveAppTimeLimit: (String, Int) -> Unit,
+    appTimeLimits: Map<String, AppTimeLimit>,
+    onSaveAppTimeLimit: (AppTimeLimit) -> Unit,
     onDeleteAppTimeLimit: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -62,8 +64,8 @@ fun TimeLimitsScreen(
         AddTimeLimitDialog(
             installedApps = installedApps,
             existingLimits = appTimeLimits,
-            onSave = { pkg, limit ->
-                onSaveAppTimeLimit(pkg, limit)
+            onSave = { config ->
+                onSaveAppTimeLimit(config)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
@@ -112,8 +114,9 @@ fun TimeLimitsScreen(
                     )
                 }
             } else {
-                items(appTimeLimits.entries.toList()) { (pkg, limit) ->
+                items(appTimeLimits.entries.toList()) { (pkg, config) ->
                     val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
+                    val limit = config.dailyLimitMinutes
                     val usedMinutes = remember(pkg) {
                         AppTimeLimitManager.getUsedMinutesToday(context, pkg)
                     }
@@ -138,6 +141,17 @@ fun TimeLimitsScreen(
                                     color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                if (config.sessionLimitMinutes > 0) {
+                                    Text(
+                                        stringResource(
+                                            R.string.time_limits_cooldown_desc,
+                                            config.sessionLimitMinutes,
+                                            config.cooldownMinutes
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
                                 LinearProgressIndicator(
                                     progress = { progress },
                                     modifier = Modifier
@@ -176,8 +190,8 @@ fun TimeLimitsScreen(
 @Composable
 fun AddTimeLimitDialog(
     installedApps: List<AppInfo>,
-    existingLimits: Map<String, Int>,
-    onSave: (String, Int) -> Unit,
+    existingLimits: Map<String, AppTimeLimit>,
+    onSave: (AppTimeLimit) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
@@ -185,6 +199,13 @@ fun AddTimeLimitDialog(
     var appDropdownExpanded by remember { mutableStateOf(false) }
     var appSearchQuery by remember { mutableStateOf("") }
     var timeLimitExpanded by remember { mutableStateOf(false) }
+
+    // Cooldown settings
+    var cooldownEnabled by remember { mutableStateOf(false) }
+    var sessionLimitMinutes by remember { mutableIntStateOf(10) }
+    var cooldownMinutes by remember { mutableIntStateOf(30) }
+    var sessionLimitExpanded by remember { mutableStateOf(false) }
+    var cooldownDurationExpanded by remember { mutableStateOf(false) }
 
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
     val filteredApps = if (appSearchQuery.isEmpty()) availableApps
@@ -201,11 +222,28 @@ fun AddTimeLimitDialog(
         480 to stringResource(R.string.duration_8_hours)
     )
 
+    val sessionLimitOptions = listOf(
+        5 to stringResource(R.string.duration_5_min),
+        10 to stringResource(R.string.duration_10_min),
+        15 to stringResource(R.string.duration_15_min),
+        20 to stringResource(R.string.time_limits_minutes_value, 20),
+        30 to stringResource(R.string.duration_30_min)
+    )
+
+    val cooldownDurationOptions = listOf(
+        15 to stringResource(R.string.time_limits_minutes_value, 15),
+        30 to stringResource(R.string.duration_30_min),
+        45 to stringResource(R.string.time_limits_minutes_value, 45),
+        60 to stringResource(R.string.duration_1_hour),
+        90 to stringResource(R.string.time_limits_minutes_value, 90)
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.time_limits_add_dialog_title)) },
         text = {
             Column {
+                // App picker
                 ExposedDropdownMenuBox(
                     expanded = appDropdownExpanded,
                     onExpandedChange = { appDropdownExpanded = it }
@@ -252,6 +290,7 @@ fun AddTimeLimitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Daily limit picker
                 ExposedDropdownMenuBox(
                     expanded = timeLimitExpanded,
                     onExpandedChange = { timeLimitExpanded = !timeLimitExpanded }
@@ -280,11 +319,112 @@ fun AddTimeLimitDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Session cooldown toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.time_limits_enable_cooldown),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.time_limits_enable_cooldown_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = cooldownEnabled,
+                        onCheckedChange = { cooldownEnabled = it }
+                    )
+                }
+
+                if (cooldownEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Session limit picker
+                    ExposedDropdownMenuBox(
+                        expanded = sessionLimitExpanded,
+                        onExpandedChange = { sessionLimitExpanded = !sessionLimitExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = sessionLimitOptions.find { it.first == sessionLimitMinutes }?.second
+                                ?: stringResource(R.string.format_duration_minutes, sessionLimitMinutes),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time_limits_session_limit_label)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sessionLimitExpanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = sessionLimitExpanded,
+                            onDismissRequest = { sessionLimitExpanded = false }
+                        ) {
+                            sessionLimitOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        sessionLimitMinutes = minutes
+                                        sessionLimitExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Cooldown duration picker
+                    ExposedDropdownMenuBox(
+                        expanded = cooldownDurationExpanded,
+                        onExpandedChange = { cooldownDurationExpanded = !cooldownDurationExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = cooldownDurationOptions.find { it.first == cooldownMinutes }?.second
+                                ?: stringResource(R.string.format_duration_minutes, cooldownMinutes),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time_limits_cooldown_label)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cooldownDurationExpanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = cooldownDurationExpanded,
+                            onDismissRequest = { cooldownDurationExpanded = false }
+                        ) {
+                            cooldownDurationOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        cooldownMinutes = minutes
+                                        cooldownDurationExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { selectedApp?.let { onSave(it.packageName, limitMinutes) } },
+                onClick = {
+                    selectedApp?.let { app ->
+                        onSave(
+                            AppTimeLimit(
+                                packageName = app.packageName,
+                                dailyLimitMinutes = limitMinutes,
+                                sessionLimitMinutes = if (cooldownEnabled) sessionLimitMinutes else 0,
+                                cooldownMinutes = cooldownMinutes
+                            )
+                        )
+                    }
+                },
                 enabled = selectedApp != null
             ) {
                 Text(stringResource(R.string.action_save))
