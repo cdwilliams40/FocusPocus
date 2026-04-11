@@ -320,6 +320,12 @@
     <string name="time_limits_daily_limit">Daily Limit: %s</string>
     <string name="time_limits_daily_limit_label">Daily Limit</string>
     <string name="time_limits_no_apps_found">No apps found</string>
+    <string name="time_limits_enable_cooldown">Per-session cooldown</string>
+    <string name="time_limits_enable_cooldown_desc">Block the app for a cooldown period after continuous use</string>
+    <string name="time_limits_session_limit_label">Session limit (per continuous use)</string>
+    <string name="time_limits_cooldown_label">Cooldown duration</string>
+    <string name="time_limits_cooldown_desc">Session: %1$d min → %2$d min cooldown</string>
+    <string name="time_limits_minutes_value">%d min</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
@@ -363,6 +369,9 @@
     <string name="overlay_app_blocked">%s is blocked!</string>
     <string name="overlay_close">Close</string>
     <string name="overlay_wait">Wait %ds\u2026</string>
+    <string name="overlay_cooldown_remaining">Cooldown: %d min remaining</string>
+    <string name="overlay_level3_prompt">To close this overlay, type the phrase below:</string>
+    <string name="overlay_level3_hint">Type the phrase to continue</string>
 
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituals</string>
@@ -375,6 +384,11 @@
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Talisman Lock</string>
     <string name="service_daily_time_limit">Daily Time Limit Reached</string>
+
+    <!-- Pacing toasts (near-limit warnings) -->
+    <string name="pacing_toast_50">%1$s: %2$d of %3$d min used today — halfway through. Save some for later!</string>
+    <string name="pacing_toast_75">%1$s: %2$d of %3$d min used today — only %4$d min left.</string>
+    <string name="pacing_toast_90">%1$s: %2$d of %3$d min used today — almost gone!</string>
 
     <!-- MainActivity navigation and dialogs -->
     <string name="main_settings_content_desc">Settings</string>
