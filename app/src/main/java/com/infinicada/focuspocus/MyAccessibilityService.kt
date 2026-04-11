@@ -12,9 +12,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
@@ -103,6 +106,11 @@ class MyAccessibilityService : AccessibilityService() {
     // Date string used to detect when a new day begins (format: "yyyyMMdd")
     @Volatile private var lastCooldownResetDate: String? = null
 
+    // Pacing notifications: tracks which usage thresholds have already been toasted today.
+    // Key = packageName, value = set of thresholds already shown (e.g. 50, 75, 90).
+    // In-memory only — resets on service restart and at midnight.
+    private val pacingNotifiedToday = mutableMapOf<String, MutableSet<Int>>()
+
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
     @Volatile private var lastBlockEventWriteTime: Long = 0
@@ -126,10 +134,17 @@ class MyAccessibilityService : AccessibilityService() {
                 // Clear any cooldowns whose expiry has now passed.
                 sessionCooldownManager.clearExpiredCooldowns()
 
-                // Reset daily escalation counters when the calendar date rolls over.
+                // Reset daily counters when the calendar date rolls over.
                 if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
                     sessionCooldownManager.resetDailyCooldowns()
+                    pacingNotifiedToday.clear()
                     lastCooldownResetDate = SessionCooldownManager.todayString()
+                }
+
+                // Pacing notification for the app currently in the foreground.
+                currentForegroundPackage?.let { pkg ->
+                    val limit = getCachedTimeLimits()[pkg]
+                    if (limit != null) checkPacingNotification(pkg, limit)
                 }
 
                 // Also enforce time limits on whichever app is currently in the foreground.
@@ -504,6 +519,11 @@ class MyAccessibilityService : AccessibilityService() {
         if (timeLimitConfigs.containsKey(packageName)) {
             sessionCooldownManager.onAppForegrounded(packageName)
         }
+
+        // Pacing notification on app open (not debounced — fires before blocking logic so the
+        // user sees the warning even on the first open of the day at a high-usage threshold).
+        val pacingLimit = getCachedTimeLimits()[packageName]
+        if (pacingLimit != null) checkPacingNotification(packageName, pacingLimit)
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
@@ -925,6 +945,50 @@ class MyAccessibilityService : AccessibilityService() {
         intent.putExtra("appName", appName)
         intent.putExtra("spellName", spellName)
         startActivity(intent)
+    }
+
+    /**
+     * Fires a one-time toast when daily usage of [packageName] crosses 50%, 75%, or 90% of
+     * [limitMinutes]. Each threshold is shown at most once per day per app.
+     */
+    private fun checkPacingNotification(packageName: String, limitMinutes: Int) {
+        if (limitMinutes <= 0) return
+        val usedMinutes = AppTimeLimitManager.getUsedMinutesToday(this, packageName)
+        if (usedMinutes <= 0) return
+        val percentUsed = (usedMinutes * 100) / limitMinutes
+        val notified = pacingNotifiedToday.getOrPut(packageName) { mutableSetOf() }
+        for (threshold in intArrayOf(90, 75, 50)) {
+            if (percentUsed >= threshold && threshold !in notified) {
+                notified.add(threshold)
+                val appName = AppUtils.getAppName(this, packageName)
+                val remaining = (limitMinutes - usedMinutes).coerceAtLeast(0)
+                showPacingToast(appName, usedMinutes, limitMinutes, remaining, threshold)
+                break // One toast at a time; higher thresholds take priority
+            }
+        }
+    }
+
+    private fun showPacingToast(
+        appName: String,
+        usedMinutes: Int,
+        limitMinutes: Int,
+        remainingMinutes: Int,
+        threshold: Int
+    ) {
+        val message = when {
+            threshold >= 90 -> getString(
+                R.string.pacing_toast_90, appName, usedMinutes, limitMinutes
+            )
+            threshold >= 75 -> getString(
+                R.string.pacing_toast_75, appName, usedMinutes, limitMinutes, remainingMinutes
+            )
+            else -> getString(
+                R.string.pacing_toast_50, appName, usedMinutes, limitMinutes, remainingMinutes
+            )
+        }
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun showCooldownOverlay(

@@ -385,6 +385,11 @@
     <string name="service_talisman_lock">Talisman Lock</string>
     <string name="service_daily_time_limit">Daily Time Limit Reached</string>
 
+    <!-- Pacing toasts (near-limit warnings) -->
+    <string name="pacing_toast_50">%1$s: %2$d of %3$d min used today — halfway through. Save some for later!</string>
+    <string name="pacing_toast_75">%1$s: %2$d of %3$d min used today — only %4$d min left.</string>
+    <string name="pacing_toast_90">%1$s: %2$d of %3$d min used today — almost gone!</string>
+
     <!-- MainActivity navigation and dialogs -->
     <string name="main_settings_content_desc">Settings</string>
     <string name="main_accessibility_title">Grant Magical Sight</string>
