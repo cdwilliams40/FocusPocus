@@ -284,7 +284,7 @@ class MyAccessibilityService : AccessibilityService() {
                 cachedSchedules = parsed
                 parsed
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing schedules JSON")
+                Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
                 cachedSchedulesJson = null
                 cachedSchedules = emptyList()
                 emptyList()
@@ -565,7 +565,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<List<String>>() {}.type
                 gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing active blockers JSON")
+                Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
                 // Fall back to single blocker pref
                 val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
                 if (single != null) listOf(single) else emptyList()
@@ -592,7 +592,7 @@ class MyAccessibilityService : AccessibilityService() {
             cachedConditionalUnlocks = parsed
             parsed
         } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON")
+            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
             cachedConditionalUnlocksJson = null
             cachedConditionalUnlocks = emptyList()
             emptyList()
@@ -614,11 +614,14 @@ class MyAccessibilityService : AccessibilityService() {
         return try {
             val type = object : TypeToken<Map<String, Int>>() {}.type
             val parsed: Map<String, Int> = gson.fromJson(json, type)
+            // Clear the TimeLimitChecker cache BEFORE updating our cached values so that
+            // concurrent reads cannot see new limits paired with stale over-limit results.
+            timeLimitChecker.clearCache()
             cachedTimeLimitsJson = json
             cachedTimeLimits = parsed
-            timeLimitChecker.clearCache()
             parsed
         } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing time limits JSON", e)
             cachedTimeLimitsJson = null
             cachedTimeLimits = emptyMap()
             emptyMap()
@@ -649,7 +652,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson(json, type)
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing block events JSON")
+                Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
                 mutableListOf()
             }
         } else mutableListOf()

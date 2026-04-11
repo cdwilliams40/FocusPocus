@@ -25,7 +25,11 @@ object SessionRecorder {
 
         val endTime = System.currentTimeMillis()
         val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return emptyList()
+        if (durationMin < 1) {
+            // Clean up the orphaned start time so it doesn't leak into the next session
+            prefs.edit().remove(Constants.PrefsKeys.SESSION_START_TIME).apply()
+            return emptyList()
+        }
 
         val blockerName = run {
             val blockersJson = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
@@ -53,7 +57,7 @@ object SessionRecorder {
                 val array = gson.fromJson(json, Array<FocusSession>::class.java)
                 array?.toMutableList() ?: mutableListOf()
             } catch (e: Exception) {
-                Log.e("SessionRecorder", "Error parsing focus sessions JSON")
+                Log.e("SessionRecorder", "Error parsing focus sessions JSON", e)
                 mutableListOf()
             }
         } else mutableListOf()
