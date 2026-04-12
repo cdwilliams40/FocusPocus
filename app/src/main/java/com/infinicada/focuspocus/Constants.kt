@@ -22,6 +22,7 @@ object Constants {
         const val SESSION_BREAKS_ENABLED = "sessionBreaksEnabled"
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"
+        const val BREAK_END_TIME_MILLIS = "breakEndTimeMillis"
         const val MAX_BREAKS_PER_SESSION = "maxBreaksPerSession"
         const val THEME_MODE = "themeMode"
         const val HIDE_STOP_BUTTON = "hideStopButton"
@@ -102,4 +103,8 @@ object Constants {
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
+    const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_session"
+
+    // Notification IDs
+    const val FOCUS_SESSION_NOTIFICATION_ID = 9001
 }

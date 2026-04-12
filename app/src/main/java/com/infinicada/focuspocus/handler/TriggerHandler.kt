@@ -53,9 +53,12 @@ class TriggerHandler(
             }
             PresetAction.TEMP_DISABLE -> {
                 if (isActive) {
+                    val breakSeconds = tempDuration * 60
                     prefs.edit()
                         .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
-                        .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, tempDuration * 60)
+                        .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakSeconds)
+                        .putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
+                            System.currentTimeMillis() + breakSeconds * 1000L)
                         .apply()
                     DndController.updateDndState(context)
                     TriggerResult.Success(R.string.toast_temp_break, arrayOf(tempDuration))

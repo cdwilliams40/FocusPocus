@@ -64,6 +64,7 @@ object SessionManager {
             .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
             .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
             .remove(Constants.PrefsKeys.SESSION_START_TIME)
+            .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
             .apply()
 
         DndController.updateDndState(context)

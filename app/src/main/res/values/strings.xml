@@ -381,9 +381,17 @@
     <string name="ritual_ended_title">Ritual Ended</string>
     <string name="ritual_ended_message">%s has ended.</string>
 
+    <!-- Focus session countdown notification -->
+    <string name="focus_session_channel_name">Focus Session</string>
+    <string name="focus_session_channel_description">Ongoing countdown while a spell is active</string>
+    <string name="focus_session_notification_title">Spell Active</string>
+    <string name="focus_session_notification_unlimited">Focus session in progress</string>
+    <string name="focus_session_notification_break">On break</string>
+
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Talisman Lock</string>
     <string name="service_daily_time_limit">Daily Time Limit Reached</string>
+    <string name="service_time_limit_warning">%s will be blocked in about 1 minute</string>
 
     <!-- Pacing toasts (near-limit warnings) -->
     <string name="pacing_toast_50">%1$s: %2$d of %3$d min used today — halfway through. Save some for later!</string>

@@ -12,19 +12,13 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.limit.FrictionLevel
-import com.infinicada.focuspocus.limit.SessionCooldownManager
-import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import java.util.Calendar
 
@@ -92,24 +86,9 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var cachedTimeLimitsJson: String? = null
     @Volatile private var cachedTimeLimits: Map<String, Int> = emptyMap()
 
-    // Cache for time limit configs (includes per-session cooldown settings)
-    @Volatile private var cachedTimeLimitConfigsJson: String? = null
-    @Volatile private var cachedTimeLimitConfigs: Map<String, AppTimeLimit> = emptyMap()
-
     // Cache for conditional unlocks
     @Volatile private var cachedConditionalUnlocksJson: String? = null
     @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
-
-    // Session cooldown manager — tracks per-app usage sessions and cooldown state
-    private lateinit var sessionCooldownManager: SessionCooldownManager
-
-    // Date string used to detect when a new day begins (format: "yyyyMMdd")
-    @Volatile private var lastCooldownResetDate: String? = null
-
-    // Pacing notifications: tracks which usage thresholds have already been toasted today.
-    // Key = packageName, value = set of thresholds already shown (e.g. 50, 75, 90).
-    // In-memory only — resets on service restart and at midnight.
-    private val pacingNotifiedToday = mutableMapOf<String, MutableSet<Int>>()
 
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
@@ -130,27 +109,15 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 checkSchedules()
-
-                // Clear any cooldowns whose expiry has now passed.
-                sessionCooldownManager.clearExpiredCooldowns()
-
-                // Reset daily counters when the calendar date rolls over.
-                if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
-                    sessionCooldownManager.resetDailyCooldowns()
-                    pacingNotifiedToday.clear()
-                    lastCooldownResetDate = SessionCooldownManager.todayString()
-                }
-
-                // Pacing notification for the app currently in the foreground.
-                currentForegroundPackage?.let { pkg ->
-                    val limit = getCachedTimeLimits()[pkg]
-                    if (limit != null) checkPacingNotification(pkg, limit)
-                }
-
-                // Also enforce time limits on whichever app is currently in the foreground.
+                // Clear stale break state: if the break timer should have expired but the
+                // ViewModel was killed (e.g. process death), IS_ON_BREAK stays true with no
+                // timer to clear it. Reset it here so blocking resumes.
+                clearStaleBreakState()
+                // Enforce blocking on whichever app is currently in the foreground.
                 // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
-                // could stay inside an app past its daily limit indefinitely.
-                currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
+                // could stay inside an app past its daily limit or continue using a blocked
+                // app after a break ends.
+                currentForegroundPackage?.let { enforceForegroundBlocking(it) }
             }
         }
     }
@@ -158,9 +125,10 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
-        lastCooldownResetDate = SessionCooldownManager.todayString()
         Log.d("MyAccessibilityService", "Service connected")
+
+        // Clear stale break state on service restart (e.g. process killed during a break).
+        clearStaleBreakState()
 
         // Activate any schedule that should currently be running but wasn't started
         // (e.g. the service restarted mid-schedule after a phone reboot or crash).
@@ -508,22 +476,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Track which real app is currently in the foreground so the minute-tick receiver can
         // enforce time limits while the user stays inside an app (no window-state events fire then).
-        val previousForegroundPackage = currentForegroundPackage
         currentForegroundPackage = packageName
-
-        // Session lifecycle tracking (not debounced — we want accurate start/end times).
-        if (previousForegroundPackage != null && previousForegroundPackage != packageName) {
-            sessionCooldownManager.onAppLeft(previousForegroundPackage)
-        }
-        val timeLimitConfigs = getCachedTimeLimitConfigs()
-        if (timeLimitConfigs.containsKey(packageName)) {
-            sessionCooldownManager.onAppForegrounded(packageName)
-        }
-
-        // Pacing notification on app open (not debounced — fires before blocking logic so the
-        // user sees the warning even on the first open of the day at a high-usage threshold).
-        val pacingLimit = getCachedTimeLimits()[packageName]
-        if (pacingLimit != null) checkPacingNotification(packageName, pacingLimit)
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
@@ -583,8 +536,6 @@ class MyAccessibilityService : AccessibilityService() {
 
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
-
-        // 1. Daily limit (existing) — always takes precedence; no cooldown interaction.
         if (timeLimitChecker.shouldBlock(packageName, limit)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
@@ -594,45 +545,84 @@ class MyAccessibilityService : AccessibilityService() {
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
             showOverlay(appName, getString(R.string.service_daily_time_limit))
-            return
         }
+    }
 
-        // 2. Per-session cooldown — active cooldown blocks the app with escalating friction.
-        if (sessionCooldownManager.isInCooldown(packageName, now)) {
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
-            val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
-            val newAttemptCount = sessionCooldownManager.recordAttempt(packageName, now)
-            val frictionLevel = FrictionLevel.fromAttemptCount(newAttemptCount)
+    /**
+     * Clear IS_ON_BREAK when the break should have ended but the ViewModel was not alive
+     * to clean up (e.g. after process death). Checks two conditions:
+     * 1. BREAK_TIME_REMAINING reached 0 but IS_ON_BREAK was never cleared.
+     * 2. Wall-clock time has passed BREAK_END_TIME_MILLIS (catches the case where
+     *    BREAK_TIME_REMAINING is still > 0 because no timer was decrementing it).
+     */
+    private fun clearStaleBreakState() {
+        val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+        if (!isOnBreak) return
+
+        val breakTimeRemaining = sharedPreferences.getInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+        val breakEndTimeMillis = sharedPreferences.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
+        val now = System.currentTimeMillis()
+
+        val shouldClear = breakTimeRemaining <= 0
+            || (breakEndTimeMillis > 0 && now >= breakEndTimeMillis)
+
+        if (shouldClear) {
+            Log.d("MyAccessibilityService", "Clearing stale break state (remaining=${breakTimeRemaining}s, endTime=${breakEndTimeMillis}, now=$now)")
+            sharedPreferences.edit()
+                .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                .apply()
+        }
+    }
+
+    /**
+     * Enforce both focus-mode and time-limit blocking for the current foreground app.
+     * Called from the minute-tick receiver to catch state changes that happen without a
+     * window-state event (e.g. break ending, schedule activating while user is in a blocked app).
+     */
+    private fun enforceForegroundBlocking(packageName: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
+
+        val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
+        val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+        val focusActive = focusTagId != null || manualFocusMode
+        val nfcLockMode = sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
+
+        // NFC lock mode: block settings apps when focus is active (regardless of break)
+        if (focusActive && nfcLockMode && packageName in SETTINGS_PACKAGES) {
             val appName = AppUtils.getAppName(this, packageName)
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Cooldown active for $appName (attempt #$newAttemptCount, friction=$frictionLevel)")
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Minute-tick NFC Lock: Blocking settings app: $appName")
             lastAppBlockTime = now
             currentForegroundPackage = null
-            recordBlockEvent(packageName, "Session Cooldown")
             closeApp()
-            showCooldownOverlay(appName, frictionLevel, cooldownState.cooldownExpiryMillis)
+            showOverlay(appName, getString(R.string.service_talisman_lock))
             return
         }
 
-        // 3. Session limit — if the user has been in this app too long, start a cooldown.
-        val configs = getCachedTimeLimitConfigs()
-        val config = configs[packageName]
-        if (config != null && config.sessionLimitMinutes > 0) {
-            val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
-            if (sessionMinutes >= config.sessionLimitMinutes) {
-                if (isTimeLimitConditionallyUnlocked(packageName)) return
-                sessionCooldownManager.startCooldown(packageName, config, now)
-                val freshState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
-                val appName = AppUtils.getAppName(this, packageName)
-                if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                    "Session limit reached for $appName after ${sessionMinutes}m — cooldown started")
-                lastAppBlockTime = now
-                currentForegroundPackage = null
-                recordBlockEvent(packageName, "Session Cooldown")
-                closeApp()
-                showCooldownOverlay(appName, FrictionLevel.LEVEL_1, freshState.cooldownExpiryMillis)
+        if (focusActive && !isOnBreak) {
+            val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
+            val activeBlockerNames = getActiveBlockerNames()
+            val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
+
+            for (blocker in activeBlockers) {
+                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
+                    val appName = AppUtils.getAppName(this, packageName)
+                    if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Minute-tick: blocking app $appName")
+                    lastAppBlockTime = now
+                    currentForegroundPackage = null
+                    recordBlockEvent(packageName, blocker.name)
+                    closeApp()
+                    showOverlay(appName, activeBlockerNames.joinToString(", "))
+                    return
+                }
             }
         }
+
+        // Per-app time limits (always active, even outside focus mode and during breaks)
+        checkTimeLimitAndBlock(packageName)
     }
 
     private fun isConditionallyUnlocked(blockerName: String): Boolean {
@@ -909,98 +899,11 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun getCachedTimeLimitConfigs(): Map<String, AppTimeLimit> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS, null)
-        if (json == null) {
-            if (cachedTimeLimitConfigsJson != null) {
-                cachedTimeLimitConfigsJson = null
-                cachedTimeLimitConfigs = emptyMap()
-            }
-            return emptyMap()
-        }
-        if (json == cachedTimeLimitConfigsJson) return cachedTimeLimitConfigs
-        return try {
-            val type = object : TypeToken<Map<String, AppTimeLimit>>() {}.type
-            val parsed: Map<String, AppTimeLimit>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedTimeLimitConfigsJson = null
-                cachedTimeLimitConfigs = emptyMap()
-                emptyMap()
-            } else {
-                cachedTimeLimitConfigsJson = json
-                cachedTimeLimitConfigs = parsed
-                parsed
-            }
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing time limit configs JSON")
-            cachedTimeLimitConfigsJson = null
-            cachedTimeLimitConfigs = emptyMap()
-            emptyMap()
-        }
-    }
-
     private fun showOverlay(appName: String, spellName: String? = null) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("spellName", spellName)
-        startActivity(intent)
-    }
-
-    /**
-     * Fires a one-time toast when daily usage of [packageName] crosses 50%, 75%, or 90% of
-     * [limitMinutes]. Each threshold is shown at most once per day per app.
-     */
-    private fun checkPacingNotification(packageName: String, limitMinutes: Int) {
-        if (limitMinutes <= 0) return
-        val usedMinutes = AppTimeLimitManager.getUsedMinutesToday(this, packageName)
-        if (usedMinutes <= 0) return
-        val percentUsed = (usedMinutes * 100) / limitMinutes
-        val notified = pacingNotifiedToday.getOrPut(packageName) { mutableSetOf() }
-        for (threshold in intArrayOf(90, 75, 50)) {
-            if (percentUsed >= threshold && threshold !in notified) {
-                notified.add(threshold)
-                val appName = AppUtils.getAppName(this, packageName)
-                val remaining = (limitMinutes - usedMinutes).coerceAtLeast(0)
-                showPacingToast(appName, usedMinutes, limitMinutes, remaining, threshold)
-                break // One toast at a time; higher thresholds take priority
-            }
-        }
-    }
-
-    private fun showPacingToast(
-        appName: String,
-        usedMinutes: Int,
-        limitMinutes: Int,
-        remainingMinutes: Int,
-        threshold: Int
-    ) {
-        val message = when {
-            threshold >= 90 -> getString(
-                R.string.pacing_toast_90, appName, usedMinutes, limitMinutes
-            )
-            threshold >= 75 -> getString(
-                R.string.pacing_toast_75, appName, usedMinutes, limitMinutes, remainingMinutes
-            )
-            else -> getString(
-                R.string.pacing_toast_50, appName, usedMinutes, limitMinutes, remainingMinutes
-            )
-        }
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun showCooldownOverlay(
-        appName: String,
-        frictionLevel: FrictionLevel,
-        cooldownExpiryMillis: Long
-    ) {
-        val intent = Intent(this, OverlayActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.putExtra("appName", appName)
-        intent.putExtra("frictionLevel", frictionLevel.ordinal)
-        intent.putExtra("cooldownExpiryMillis", cooldownExpiryMillis)
         startActivity(intent)
     }
 

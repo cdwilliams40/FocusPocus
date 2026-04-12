@@ -53,13 +53,13 @@ object SessionRecorder {
                 val array = gson.fromJson(json, Array<FocusSession>::class.java)
                 array?.toMutableList() ?: mutableListOf()
             } catch (e: Exception) {
-                Log.e("SessionRecorder", "Error parsing focus sessions JSON")
+                Log.e("SessionRecorder", "Error parsing focus sessions JSON", e)
                 mutableListOf()
             }
         } else mutableListOf()
 
         sessions.add(session)
-        val pruned = if (sessions.size > 500) sessions.drop(sessions.size - 500) else sessions
+        val pruned = if (sessions.size > 500) sessions.takeLast(500) else sessions
 
         val newStreak = calculateCurrentStreak(pruned)
         val currentLongest = prefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)

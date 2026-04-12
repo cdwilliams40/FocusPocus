@@ -179,6 +179,7 @@ class SessionRepository(
                 .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
                 .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
                 .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
+                .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
         }
 
         editor.apply()
@@ -187,11 +188,17 @@ class SessionRepository(
 
     // Break state batch write
     fun writeBreakState(isOnBreak: Boolean, breakTimeRemaining: Int, breaksUsed: Int) {
-        prefs.edit()
+        val editor = prefs.edit()
             .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
             .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
             .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed)
-            .apply()
+        if (isOnBreak && breakTimeRemaining > 0) {
+            editor.putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
+                System.currentTimeMillis() + breakTimeRemaining * 1000L)
+        } else {
+            editor.remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+        }
+        editor.apply()
         DndController.updateDndState(context)
     }
 
