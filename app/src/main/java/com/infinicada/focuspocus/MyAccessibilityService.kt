@@ -64,6 +64,9 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
                 updateBrowserPackages()
+                // Invalidate launcher and input method caches when packages change
+                launcherCacheResolved = false
+                cachedInputMethodPackageNames = null
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error updating browser packages", e)
             }
@@ -747,10 +750,10 @@ class MyAccessibilityService : AccessibilityService() {
     private fun recordBlockEvent(packageName: String, blockerName: String) {
         synchronized(pendingBlockEvents) {
             pendingBlockEvents.add(BlockEvent(packageName, System.currentTimeMillis(), blockerName))
-        }
-        val now = System.currentTimeMillis()
-        if (now - lastBlockEventWriteTime > 1000) {
-            flushBlockEvents()
+            val now = System.currentTimeMillis()
+            if (now - lastBlockEventWriteTime > 1000) {
+                flushBlockEvents()
+            }
         }
     }
 
@@ -768,7 +771,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson<MutableList<BlockEvent>>(json, type) ?: mutableListOf()
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing block events JSON")
+                Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
                 mutableListOf()
             }
         } else mutableListOf()

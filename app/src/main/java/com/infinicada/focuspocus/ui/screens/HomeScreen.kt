@@ -612,8 +612,9 @@ private fun CircularTimer(
         -1f
     }
 
-    val minutes = timeRemaining / 60
-    val seconds = timeRemaining % 60
+    val safeTime = timeRemaining.coerceAtLeast(0)
+    val minutes = safeTime / 60
+    val seconds = safeTime % 60
 
     Box(
         contentAlignment = Alignment.Center,

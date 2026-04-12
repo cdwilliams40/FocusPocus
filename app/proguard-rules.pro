@@ -39,6 +39,7 @@
 -keep class com.infinicada.focuspocus.model.DayOfWeek { *; }
 -keep class com.infinicada.focuspocus.model.PresetAction { *; }
 -keep class com.infinicada.focuspocus.model.ConditionalUnlock { *; }
+-keep class com.infinicada.focuspocus.model.AppTimeLimit { *; }
 -keep class com.infinicada.focuspocus.model.AppInfo { *; }
 
 # --- ZXing (QR code library) ---

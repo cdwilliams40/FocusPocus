@@ -256,7 +256,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val now = System.currentTimeMillis()
         _lastEmergencyBreakMillis.value = now
         repo.setLastEmergencyBreakMillis(now)
+        repo.stopSession()
+        syncFromPrefs()
         _manualFocusMode.value = false
+        DndController.updateDndState(getApplication())
     }
 
     fun setFocusTagId(tagId: String?) {

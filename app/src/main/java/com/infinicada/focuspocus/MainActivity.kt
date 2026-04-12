@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
@@ -88,15 +87,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             container.schedules.getSchedules().map { it.id }.toSet()
         )
 
-        // Apply analytics consent state
-        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
+        // Apply analytics consent state (Firebase is initialized in FocusPocusApplication)
+        val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, false)
         try {
-            FirebaseApp.initializeApp(this)
             FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
             FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
         } catch (e: Exception) {
-            // Ignore initialization issues when google-services.json is missing
-            Log.e("MainActivity", "Firebase initialization failed", e)
+            Log.e("MainActivity", "Firebase consent update failed", e)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -160,6 +157,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             pendingDeepLinkPreset = preset
             showDeepLinkConfirmation = true
         }
+        // Consume the deep link data so it is not reprocessed on configuration change
+        intent.data = null
     }
 
     private fun confirmDeepLinkAction() {
