@@ -814,7 +814,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
             val matchingBlockerName = activeBlockers.find { blocker ->
                 blocker.websites.orEmpty().any { domainMatches(domain, it) }
-            }?.name ?: activeBlockerNames.first()
+            }?.name ?: activeBlockerNames.firstOrNull() ?: "Unknown"
             recordBlockEvent(matchedDomain, matchingBlockerName)
             closeApp()
             showOverlay(matchedDomain, activeBlockerNames.joinToString(", "))
