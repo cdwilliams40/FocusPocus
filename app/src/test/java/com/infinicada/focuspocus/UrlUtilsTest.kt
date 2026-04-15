@@ -33,7 +33,14 @@ class UrlUtilsTest {
         assertEquals("google.com", UrlUtils.extractDomain("google.com"))
         assertEquals("google.com", UrlUtils.extractDomain("https://google.com"))
         assertEquals("google.com", UrlUtils.extractDomain("http://google.com"))
-        assertEquals("google.com", UrlUtils.extractDomain("ftp://google.com"))
+    }
+
+    @Test
+    fun testExtractDomain_RejectsNonHttpSchemes() {
+        // Only http/https schemes are allowed to prevent bypass via exotic schemes
+        assertNull(UrlUtils.extractDomain("ftp://google.com"))
+        assertNull(UrlUtils.extractDomain("file:///etc/passwd"))
+        assertNull(UrlUtils.extractDomain("javascript://anything"))
     }
 
     @Test

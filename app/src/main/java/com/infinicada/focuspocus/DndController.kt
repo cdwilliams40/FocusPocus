@@ -46,13 +46,18 @@ object DndController {
         try {
             if (shouldEnableDnd) {
                 if (!appEnabledDnd) {
-                    // Save the current filter so we can restore it later
+                    // Save the current filter so we can restore it later.
+                    // Capture BEFORE the system call so we have the previous state,
+                    // but only persist the "enabled by app" flag AFTER the call succeeds.
+                    val previousFilter = notificationManager.currentInterruptionFilter
+                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                     sharedPreferences.edit()
-                        .putInt(PREFS_DND_PREVIOUS_FILTER, notificationManager.currentInterruptionFilter)
+                        .putInt(PREFS_DND_PREVIOUS_FILTER, previousFilter)
                         .putBoolean(PREFS_DND_ENABLED_BY_APP, true)
                         .apply()
+                } else {
+                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                 }
-                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                 Log.d(TAG, "DND enabled (priority only mode)")
             } else if (appEnabledDnd) {
                 // Restore the user's previous DND state

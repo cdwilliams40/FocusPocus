@@ -2,6 +2,7 @@ package com.infinicada.focuspocus
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -36,7 +37,7 @@ object BlockerRepository {
                 cachedBlockerLists = parsed
                 parsed
             } catch (e: Exception) {
-                // If parsing fails, we reset cache to be safe
+                Log.e("BlockerRepository", "Error parsing blocker lists JSON", e)
                 cachedBlockerListsJson = null
                 cachedBlockerLists = emptyList()
                 emptyList()
