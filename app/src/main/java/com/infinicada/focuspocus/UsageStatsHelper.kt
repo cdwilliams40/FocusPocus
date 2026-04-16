@@ -72,12 +72,14 @@ object UsageStatsHelper {
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
                 ?: return 0L
+        // Use INTERVAL_DAILY to get day-aligned buckets. INTERVAL_BEST can return
+        // cross-day data that includes yesterday's usage, preventing proper midnight reset.
         val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST, startTime, endTime
+            UsageStatsManager.INTERVAL_DAILY, startTime, endTime
         )
 
         return stats
-            ?.filter { it.packageName == packageName }
+            ?.filter { it.packageName == packageName && it.firstTimeStamp >= startTime }
             ?.sumOf { it.totalTimeInForeground } ?: 0L
     }
 

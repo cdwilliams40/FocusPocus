@@ -141,6 +141,9 @@ class MyAccessibilityService : AccessibilityService() {
                 if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
                     sessionCooldownManager.resetDailyCooldowns()
                     pacingNotifiedToday.clear()
+                    // Clear the over-limit cache so stale "over limit" results from
+                    // yesterday don't persist into the new day.
+                    timeLimitChecker.clearCache()
                     lastCooldownResetDate = SessionCooldownManager.todayString()
                 }
 
@@ -509,18 +512,11 @@ class MyAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString() ?: return
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
 
-        // Track which real app is currently in the foreground so the minute-tick receiver can
-        // enforce time limits while the user stays inside an app (no window-state events fire then).
+        // End the previous app's session if switching to a different app.
+        // Not debounced — we want accurate session end times.
         val previousForegroundPackage = currentForegroundPackage
-        currentForegroundPackage = packageName
-
-        // Session lifecycle tracking (not debounced — we want accurate start/end times).
         if (previousForegroundPackage != null && previousForegroundPackage != packageName) {
             sessionCooldownManager.onAppLeft(previousForegroundPackage)
-        }
-        val timeLimitConfigs = getCachedTimeLimitConfigs()
-        if (timeLimitConfigs.containsKey(packageName)) {
-            sessionCooldownManager.onAppForegrounded(packageName)
         }
 
         // Pacing notification on app open (not debounced — fires before blocking logic so the
@@ -528,7 +524,11 @@ class MyAccessibilityService : AccessibilityService() {
         val pacingLimit = getCachedTimeLimits()[packageName]
         if (pacingLimit != null) checkPacingNotification(packageName, pacingLimit)
 
-        // Debounce — prevent rapid re-triggering when Android fires multiple events
+        // Debounce — prevent rapid re-triggering when Android fires multiple events.
+        // IMPORTANT: currentForegroundPackage is NOT updated above the debounce. If a block
+        // just fired and Android delivers a stale TYPE_WINDOW_STATE_CHANGED for the blocked
+        // app, we must not set currentForegroundPackage to that app — otherwise the minute-tick
+        // would re-trigger the block while the user is actually on the overlay or home screen.
         val now = System.currentTimeMillis()
         if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
 
@@ -551,6 +551,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Don't block apps during a break (for normal blocking)
         if (isOnBreak) {
+            // Update foreground tracking — user is allowed through during a break.
+            currentForegroundPackage = packageName
+            startSessionTrackingIfEligible(packageName)
             // Still check time limits during breaks
             checkTimeLimitAndBlock(packageName)
             return
@@ -575,8 +578,27 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
+        // App passed all focus-mode checks. Update foreground tracking and start session
+        // tracking now — only for apps that are actually allowed through to the foreground.
+        currentForegroundPackage = packageName
+        startSessionTrackingIfEligible(packageName)
+
         // Per-app time limits (always active, even outside focus mode)
         checkTimeLimitAndBlock(packageName)
+    }
+
+    /**
+     * Starts session tracking for [packageName] if it has a time-limit config and is NOT
+     * currently in a cooldown. Calling onAppForegrounded for a cooled-down app would record
+     * a session start that never gets cleared (the app is immediately blocked), causing the
+     * session timer to include the entire cooldown duration and trigger an instant re-cooldown
+     * when the cooldown expires.
+     */
+    private fun startSessionTrackingIfEligible(packageName: String) {
+        val timeLimitConfigs = getCachedTimeLimitConfigs()
+        if (timeLimitConfigs.containsKey(packageName) && !sessionCooldownManager.isInCooldown(packageName)) {
+            sessionCooldownManager.onAppForegrounded(packageName)
+        }
     }
 
     private fun checkTimeLimitAndBlock(packageName: String) {
