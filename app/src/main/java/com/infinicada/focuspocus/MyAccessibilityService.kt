@@ -601,9 +601,9 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // 2. Per-session cooldown — active cooldown blocks the app with escalating friction.
-        if (sessionCooldownManager.isInCooldown(packageName, now)) {
+        val cooldownState = sessionCooldownManager.getCooldownState(packageName, now)
+        if (cooldownState != null) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
-            val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
             val newAttemptCount = sessionCooldownManager.recordAttempt(packageName, now)
             val frictionLevel = FrictionLevel.fromAttemptCount(newAttemptCount)
             val appName = AppUtils.getAppName(this, packageName)

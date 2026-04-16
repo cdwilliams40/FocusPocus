@@ -1,8 +1,12 @@
 package com.infinicada.focuspocus
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
 
 object AppUtils {
+
+    private const val TAG = "AppUtils"
 
     /**
      * Retrieves the application name (label) for a given package name.
@@ -14,7 +18,10 @@ object AppUtils {
             pm.getApplicationLabel(
                 pm.getApplicationInfo(packageName, 0)
             ).toString()
-        } catch (_: Exception) {
+        } catch (_: PackageManager.NameNotFoundException) {
+            packageName
+        } catch (e: Exception) {
+            Log.w(TAG, "Unexpected error resolving app name for $packageName", e)
             packageName
         }
     }

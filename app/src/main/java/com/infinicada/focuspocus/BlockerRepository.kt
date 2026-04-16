@@ -31,7 +31,12 @@ object BlockerRepository {
 
             return try {
                 val type = object : TypeToken<List<Blocker>>() {}.type
-                val parsed: List<Blocker> = gson.fromJson(json, type)
+                val parsed: List<Blocker>? = gson.fromJson(json, type)
+                if (parsed == null) {
+                    cachedBlockerListsJson = null
+                    cachedBlockerLists = emptyList()
+                    return emptyList()
+                }
                 cachedBlockerListsJson = json
                 cachedBlockerLists = parsed
                 parsed
