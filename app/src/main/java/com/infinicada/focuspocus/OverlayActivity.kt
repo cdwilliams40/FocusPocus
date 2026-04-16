@@ -64,6 +64,17 @@ class OverlayActivity : ComponentActivity() {
         renderOverlay(intent)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // If the user navigates away without pressing Close (e.g. Home button),
+        // finish the activity so it doesn't linger in the background. A stale
+        // overlay task can be brought back to the foreground later, making it
+        // look like the blocked app is being re-blocked.
+        if (!isFinishing) {
+            finishAndRemoveTask()
+        }
+    }
+
     private fun closeAndGoHome() {
         val homeIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_HOME)
