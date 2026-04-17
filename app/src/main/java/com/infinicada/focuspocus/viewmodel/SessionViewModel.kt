@@ -232,6 +232,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun takeBreak(effectiveBreakDuration: Int) {
+        if (effectiveBreakDuration <= 0) return
         val used = _breaksUsedThisSession.value + 1
         val remaining = effectiveBreakDuration * 60
         _isOnBreak.value = true

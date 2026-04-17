@@ -26,7 +26,7 @@ class TriggerHandler(
     private val prefs: SharedPreferences,
     private val gson: Gson
 ) {
-    private val validIdPattern = Regex("^[a-f0-9\\-]{1,64}$")
+    private val validIdPattern = Regex("^[a-f0-9][a-f0-9\\-]{3,63}$")
 
     /**
      * Core preset toggle logic used by NFC, QR, and deep links.
@@ -94,6 +94,8 @@ class TriggerHandler(
         namedTags: List<NamedTag>,
         blockerLists: List<Blocker>
     ): TriggerResult {
+        if (contents.length > 256) return TriggerResult.Error(R.string.toast_invalid_qr)
+
         val presetPrefix = "focuspocus://preset/"
         val talismanPrefix = "focuspocus://talisman/"
 

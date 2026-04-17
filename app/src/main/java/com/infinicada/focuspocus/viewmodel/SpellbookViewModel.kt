@@ -90,11 +90,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadInstalledApps() {
         viewModelScope.launch {
             val apps = withContext(Dispatchers.IO) {
-                val pm = getApplication<Application>().packageManager
-                pm.getInstalledApplications(PackageManager.GET_META_DATA)
-                    .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
-                    .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName) }
-                    .sortedBy { it.name.lowercase() }
+                try {
+                    val pm = getApplication<Application>().packageManager
+                    pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                        .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+                        .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName) }
+                        .sortedBy { it.name.lowercase() }
+                } catch (e: Exception) {
+                    android.util.Log.e("SpellbookViewModel", "Failed to load installed apps", e)
+                    emptyList()
+                }
             }
             _installedApps.value = apps
         }

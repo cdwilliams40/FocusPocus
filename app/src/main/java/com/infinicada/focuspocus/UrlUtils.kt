@@ -29,7 +29,6 @@ object UrlUtils {
             val trimmed = urlText.trim()
             if (trimmed.isEmpty() || trimmed.length > 2048) return null
 
-            // Handle URLs without scheme
             // Browsers often omit the scheme in the address bar
             val uriString = if (!trimmed.contains("://")) {
                 "https://$trimmed"
