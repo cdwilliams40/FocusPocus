@@ -360,7 +360,7 @@ fun ScheduleEditorScreen(
 
         TextField(
             value = name,
-            onValueChange = { name = it },
+            onValueChange = { if (it.length <= 100) name = it },
             label = { Text(stringResource(R.string.rituals_name_label)) },
             modifier = Modifier.fillMaxWidth()
         )

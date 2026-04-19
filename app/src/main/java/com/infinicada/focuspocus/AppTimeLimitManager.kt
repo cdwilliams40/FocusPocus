@@ -64,14 +64,14 @@ object AppTimeLimitManager {
     fun isOverLimit(context: Context, packageName: String, limitMinutes: Int): Boolean {
         if (!UsageStatsHelper.hasUsageStatsPermission(context)) return false
         val totalForegroundMs = UsageStatsHelper.getPackageUsageToday(context, packageName)
-        val usedMinutes = totalForegroundMs / 1000 / 60
+        val usedMinutes = totalForegroundMs / 60_000
         return usedMinutes >= limitMinutes
     }
 
     fun getUsedMinutesToday(context: Context, packageName: String): Int {
         if (!UsageStatsHelper.hasUsageStatsPermission(context)) return 0
         val totalForegroundMs = UsageStatsHelper.getPackageUsageToday(context, packageName)
-        return (totalForegroundMs / 1000 / 60).toInt()
+        return (totalForegroundMs / 60_000).toInt()
     }
 
     fun getAllUsedMinutesToday(context: Context): Map<String, Int> {
@@ -97,7 +97,7 @@ object AppTimeLimitManager {
             .filter { it.firstTimeStamp >= startTime }
             .groupBy { it.packageName }
             .mapValues { (_, usageList) ->
-                (usageList.sumOf { it.totalTimeInForeground } / 1000 / 60).toInt()
+                (usageList.sumOf { it.totalTimeInForeground } / 60_000).toInt()
             }
     }
 }

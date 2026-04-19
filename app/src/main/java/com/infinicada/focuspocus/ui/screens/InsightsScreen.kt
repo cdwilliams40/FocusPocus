@@ -369,7 +369,7 @@ fun UsageStatsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        val dailyMinutes = remember(focusSessions) {
+                        val dailyMinutes = remember(filteredSessions) {
                             val cal = Calendar.getInstance()
                             val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
                             (6 downTo 0).map { daysAgo ->
@@ -384,7 +384,7 @@ fun UsageStatsScreen(
                                 val dayEnd = cal.timeInMillis
                                 cal.timeInMillis = dayStart
                                 val label = dayFormat.format(Date(dayStart))
-                                val minutes = focusSessions
+                                val minutes = filteredSessions
                                     .filter { it.startTimeMillis >= dayStart && it.startTimeMillis < dayEnd }
                                     .sumOf { it.durationMinutes }
                                 label to minutes

@@ -64,6 +64,8 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
                 updateBrowserPackages()
+                launcherCacheResolved = false
+                cachedInputMethodPackageNames = null
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error updating browser packages", e)
             }
@@ -830,14 +832,15 @@ class MyAccessibilityService : AccessibilityService() {
         val url = extractUrlFromBrowser(packageName, event) ?: return
         val domain = UrlUtils.extractDomain(url) ?: return
 
-        val matchedDomain = allBlockedWebsites.find { domainMatches(domain, it) }
-        if (matchedDomain != null) {
+        val matchingBlocker = activeBlockers.find { blocker ->
+            blocker.websites.orEmpty().any { domainMatches(domain, it) } &&
+                !isConditionallyUnlocked(blocker.name)
+        }
+        if (matchingBlocker != null) {
+            val matchedDomain = matchingBlocker.websites.orEmpty().find { domainMatches(domain, it) } ?: return
             lastWebsiteBlockTime = now
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
-            val matchingBlockerName = activeBlockers.find { blocker ->
-                blocker.websites.orEmpty().any { domainMatches(domain, it) }
-            }?.name ?: activeBlockerNames.first()
-            recordBlockEvent(matchedDomain, matchingBlockerName)
+            recordBlockEvent(matchedDomain, matchingBlocker.name)
             closeApp()
             showOverlay(matchedDomain, activeBlockerNames.joinToString(", "))
         }

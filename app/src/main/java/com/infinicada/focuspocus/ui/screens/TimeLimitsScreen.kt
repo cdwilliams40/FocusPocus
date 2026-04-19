@@ -32,9 +32,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +61,17 @@ fun TimeLimitsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
+    var hasUsagePermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasUsagePermission = UsageStatsHelper.hasUsageStatsPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {
@@ -420,7 +434,7 @@ fun AddTimeLimitDialog(
                                 packageName = app.packageName,
                                 dailyLimitMinutes = limitMinutes,
                                 sessionLimitMinutes = if (cooldownEnabled) sessionLimitMinutes else 0,
-                                cooldownMinutes = cooldownMinutes
+                                cooldownMinutes = if (cooldownEnabled) cooldownMinutes else 0
                             )
                         )
                     }

@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
@@ -283,15 +287,22 @@ fun FocusPocusApp(
     }
 
     // Settings screen
-    val notificationManager = remember { context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+    val notificationManager = remember { context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager }
     var isNotificationListenerEnabled by remember {
-        mutableStateOf(notificationManager.isNotificationPolicyAccessGranted)
+        mutableStateOf(notificationManager?.isNotificationPolicyAccessGranted ?: false)
+    }
+    val focusPocusLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(focusPocusLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isNotificationListenerEnabled = notificationManager?.isNotificationPolicyAccessGranted ?: false
+            }
+        }
+        focusPocusLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { focusPocusLifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     if (topLevelRoute is TopLevelRoute.Settings) {
-        LaunchedEffect(Unit) {
-            isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
-        }
         SettingsScreen(
             themeMode = themeMode,
             onThemeModeChanged = { settingsVM.setThemeMode(it) },

@@ -148,10 +148,9 @@ class SessionCooldownManager(
     fun resetDailyCooldowns() {
         val states = loadCooldownStates()
         val now = System.currentTimeMillis()
-        val reset = states.mapValues { (_, s) ->
-            if (s.cooldownExpiryMillis <= now) s
-            else s.copy(cooldownNumber = 0) // active cooldown survives, but counter resets
-        }
+        val reset = states
+            .filterValues { it.cooldownExpiryMillis > now }
+            .mapValues { (_, s) -> s.copy(cooldownNumber = 0) }
         saveCooldownStates(reset)
         Log.d(tag, "Daily cooldown counters reset")
     }
@@ -181,7 +180,7 @@ class SessionCooldownManager(
         fun isNewDay(previousDateStr: String?): Boolean {
             val cal = Calendar.getInstance()
             val today = "%04d%02d%02d".format(
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             )
             return previousDateStr != today
         }
@@ -189,7 +188,7 @@ class SessionCooldownManager(
         fun todayString(): String {
             val cal = Calendar.getInstance()
             return "%04d%02d%02d".format(
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             )
         }
     }

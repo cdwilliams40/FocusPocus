@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonParseException
 import java.lang.reflect.Type
 
 /**
@@ -32,10 +33,13 @@ object PrefsHelper {
         if (json != null) {
             try {
                 return gson.fromJson(json, type)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing JSON for key $key")
+            } catch (e: JsonParseException) {
+                Log.e(TAG, "Corrupt JSON for key $key, removing", e)
                 prefs.edit().remove(key).apply()
                 onCorruption?.invoke()
+                return null
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing JSON for key $key", e)
                 return null
             }
         }

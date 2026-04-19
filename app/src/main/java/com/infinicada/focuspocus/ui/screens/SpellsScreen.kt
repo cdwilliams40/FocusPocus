@@ -557,16 +557,16 @@ fun BlockerSelectionDialog(
 @Composable
 fun AppIcon(packageName: String, contentDescription: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val icon = remember(packageName) {
+    val imageBitmap = remember(packageName) {
         try {
-            context.packageManager.getApplicationIcon(packageName)
+            context.packageManager.getApplicationIcon(packageName).toBitmap().asImageBitmap()
         } catch (e: Exception) {
             null
         }
     }
-    icon?.let {
+    imageBitmap?.let {
         Image(
-            bitmap = it.toBitmap().asImageBitmap(),
+            bitmap = it,
             contentDescription = contentDescription,
             modifier = modifier
         )

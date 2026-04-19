@@ -32,10 +32,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,7 +65,17 @@ fun ConditionalUnlocksScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
+    var hasUsagePermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasUsagePermission = UsageStatsHelper.hasUsageStatsPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
@@ -275,7 +289,7 @@ fun ConditionalUnlockEditorScreen(
             item {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { if (it.length <= 100) name = it },
                     label = { Text(stringResource(R.string.conditional_unlocks_name_label)) },
                     placeholder = { Text(stringResource(R.string.conditional_unlocks_name_placeholder)) },
                     singleLine = true,
