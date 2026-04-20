@@ -103,7 +103,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         focusTimerJob = viewModelScope.launch {
             while (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
                 delay(1000L)
-                val remaining = _focusTimeRemaining.value - 1
+                val remaining = maxOf(_focusTimeRemaining.value - 1, 0)
                 _focusTimeRemaining.value = remaining
                 repo.setFocusTimeRemaining(remaining)
 
@@ -120,7 +120,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         breakTimerJob = viewModelScope.launch {
             while (_isOnBreak.value && _breakTimeRemaining.value > 0) {
                 delay(1000L)
-                val remaining = _breakTimeRemaining.value - 1
+                val remaining = maxOf(_breakTimeRemaining.value - 1, 0)
                 _breakTimeRemaining.value = remaining
                 repo.setBreakTimeRemaining(remaining)
 

@@ -91,10 +91,11 @@ class SessionCooldownManager(
         val cooldownNumber = (existing?.cooldownNumber ?: 0) + 1
 
         val baseDuration = config.cooldownMinutes.toLong() * 60 * 1000
+        val maxCooldownMs = 24L * 60 * 60 * 1000 // cap at 24 hours
         val escalationExtra = if (config.cooldownEscalationEnabled) {
-            (cooldownNumber - 1) * config.cooldownEscalationStepMinutes.toLong() * 60 * 1000
+            (cooldownNumber - 1).toLong() * config.cooldownEscalationStepMinutes.toLong() * 60 * 1000
         } else 0L
-        val totalDurationMs = baseDuration + escalationExtra
+        val totalDurationMs = (baseDuration + escalationExtra).coerceIn(0, maxCooldownMs)
 
         val newState = CooldownState(
             packageName = packageName,

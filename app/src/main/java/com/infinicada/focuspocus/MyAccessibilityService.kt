@@ -339,7 +339,7 @@ class MyAccessibilityService : AccessibilityService() {
                     parsed
                 }
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing schedules JSON")
+                Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
                 cachedSchedulesJson = null
                 cachedSchedules = emptyList()
                 emptyList()
@@ -696,7 +696,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<List<String>>() {}.type
                 gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing active blockers JSON")
+                Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
                 // Fall back to single blocker pref
                 val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
                 if (single != null) listOf(single) else emptyList()
@@ -729,7 +729,7 @@ class MyAccessibilityService : AccessibilityService() {
                 parsed
             }
         } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON")
+            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
             cachedConditionalUnlocksJson = null
             cachedConditionalUnlocks = emptyList()
             emptyList()
@@ -762,6 +762,7 @@ class MyAccessibilityService : AccessibilityService() {
                 parsed
             }
         } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing time limits JSON", e)
             cachedTimeLimitsJson = null
             cachedTimeLimits = emptyMap()
             emptyMap()
@@ -771,20 +772,24 @@ class MyAccessibilityService : AccessibilityService() {
     private fun recordBlockEvent(packageName: String, blockerName: String) {
         synchronized(pendingBlockEvents) {
             pendingBlockEvents.add(BlockEvent(packageName, System.currentTimeMillis(), blockerName))
-        }
-        val now = System.currentTimeMillis()
-        if (now - lastBlockEventWriteTime > 1000) {
-            flushBlockEvents()
+            val now = System.currentTimeMillis()
+            if (now - lastBlockEventWriteTime > 1000) {
+                flushBlockEventsLocked()
+            }
         }
     }
 
     private fun flushBlockEvents() {
-        val eventsToWrite: List<BlockEvent>
         synchronized(pendingBlockEvents) {
-            if (pendingBlockEvents.isEmpty()) return
-            eventsToWrite = pendingBlockEvents.toList()
-            pendingBlockEvents.clear()
+            flushBlockEventsLocked()
         }
+    }
+
+    /** Must be called while holding the pendingBlockEvents lock. */
+    private fun flushBlockEventsLocked() {
+        if (pendingBlockEvents.isEmpty()) return
+        val eventsToWrite = pendingBlockEvents.toList()
+        pendingBlockEvents.clear()
         lastBlockEventWriteTime = System.currentTimeMillis()
         val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
         val existing: MutableList<BlockEvent> = if (json != null) {
@@ -792,7 +797,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson<MutableList<BlockEvent>>(json, type) ?: mutableListOf()
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing block events JSON")
+                Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
                 mutableListOf()
             }
         } else mutableListOf()
@@ -957,7 +962,7 @@ class MyAccessibilityService : AccessibilityService() {
                 parsed
             }
         } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing time limit configs JSON")
+            Log.e("MyAccessibilityService", "Error parsing time limit configs JSON", e)
             cachedTimeLimitConfigsJson = null
             cachedTimeLimitConfigs = emptyMap()
             emptyMap()

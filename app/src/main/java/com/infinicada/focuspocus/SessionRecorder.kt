@@ -32,7 +32,7 @@ object SessionRecorder {
             if (blockersJson != null) {
                 try {
                     val names = gson.fromJson(blockersJson, Array<String>::class.java)
-                    names?.joinToString(", ")?.ifEmpty { null }
+                    names?.filter { it.isNotBlank() }?.joinToString(", ")?.ifEmpty { null }
                 } catch (e: Exception) { null }
             } else null
         } ?: prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
