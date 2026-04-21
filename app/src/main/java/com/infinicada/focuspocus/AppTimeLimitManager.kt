@@ -84,13 +84,17 @@ object AppTimeLimitManager {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
+        val startTime = calendar.timeInMillis
+        // Use INTERVAL_DAILY to get day-aligned buckets. INTERVAL_BEST can return
+        // cross-day data that includes yesterday's usage, preventing proper midnight reset.
         val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST,
-            calendar.timeInMillis,
+            UsageStatsManager.INTERVAL_DAILY,
+            startTime,
             System.currentTimeMillis()
         ) ?: return emptyMap()
 
         return stats
+            .filter { it.firstTimeStamp >= startTime }
             .groupBy { it.packageName }
             .mapValues { (_, usageList) ->
                 (usageList.sumOf { it.totalTimeInForeground } / 1000 / 60).toInt()
