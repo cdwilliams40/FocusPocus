@@ -10,6 +10,10 @@ data class Blocker(
     val effectiveApps: Set<String>
         get() = apps ?: emptySet()
 
+    /** Null-safe accessor — Gson can deserialize websites as null despite Kotlin nullable default. */
+    val effectiveWebsites: List<String>
+        get() = websites ?: emptyList()
+
     fun shouldBlock(packageName: String): Boolean {
         return when (mode) {
             BlockerMode.BLACKLIST -> effectiveApps.contains(packageName)

@@ -83,7 +83,7 @@ class BlockerListRepositoryTest {
         repo.saveBlocker(blocker, emptyList())
         val saved = repo.getBlockers()[0]
 
-        assertEquals(Constants.MAX_WEBSITES_PER_BLOCKER, saved.websites?.size)
+        assertEquals(Constants.MAX_WEBSITES_PER_BLOCKER, saved.effectiveWebsites.size)
     }
 
     @Test

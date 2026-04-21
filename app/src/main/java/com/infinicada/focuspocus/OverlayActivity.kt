@@ -70,7 +70,9 @@ class OverlayActivity : ComponentActivity() {
         // finish the activity so it doesn't linger in the background. A stale
         // overlay task can be brought back to the foreground later, making it
         // look like the blocked app is being re-blocked.
-        if (!isFinishing) {
+        // Skip during configuration changes (e.g. rotation) to prevent the
+        // overlay from being dismissed, which would let the user bypass the block.
+        if (!isFinishing && !isChangingConfigurations) {
             finishAndRemoveTask()
         }
     }

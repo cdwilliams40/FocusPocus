@@ -134,7 +134,7 @@ fun BlockerListScreen(
                             }
                             val modeLabel = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
                             val appCount = blocker.effectiveApps.size
-                            val siteCount = blocker.websites.orEmpty().size
+                            val siteCount = blocker.effectiveWebsites.size
                             val appCountStr = if (appCount > 0) pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount) else ""
                             val siteCountStr = if (siteCount > 0) pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
                             Text(
@@ -260,7 +260,7 @@ fun EditBlockerScreen(
 ) {
     var selectedMode by remember { mutableStateOf(blocker.mode) }
     var apps by remember { mutableStateOf(blocker.effectiveApps.toList()) }
-    var websites by remember { mutableStateOf(blocker.websites.orEmpty()) }
+    var websites by remember { mutableStateOf(blocker.effectiveWebsites) }
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
