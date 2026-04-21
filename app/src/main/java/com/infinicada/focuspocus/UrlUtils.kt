@@ -30,11 +30,13 @@ object UrlUtils {
             if (trimmed.isEmpty() || trimmed.length > 2048) return null
 
             // Handle URLs without scheme
-            // Browsers often omit the scheme in the address bar
-            val uriString = if (!trimmed.contains("://")) {
-                "https://$trimmed"
-            } else {
-                trimmed
+            // Browsers often omit the scheme in the address bar.
+            // Only allow http/https schemes to prevent bypass via exotic schemes.
+            val uriString = when {
+                !trimmed.contains("://") -> "https://$trimmed"
+                trimmed.startsWith("http://", ignoreCase = true) ||
+                    trimmed.startsWith("https://", ignoreCase = true) -> trimmed
+                else -> return null
             }
 
             // Use java.net.URI for robust parsing

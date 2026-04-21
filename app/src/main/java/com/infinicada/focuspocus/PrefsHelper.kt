@@ -33,7 +33,7 @@ object PrefsHelper {
             try {
                 return gson.fromJson(json, type)
             } catch (e: Exception) {
-                Log.e(TAG, "Error parsing JSON for key $key")
+                Log.e(TAG, "Error parsing JSON for key $key", e)
                 prefs.edit().remove(key).apply()
                 onCorruption?.invoke()
                 return null
