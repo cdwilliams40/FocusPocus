@@ -39,8 +39,9 @@ class TalismanRepository(
      * @return true if saved successfully, false if at max capacity
      */
     fun saveQrTalisman(tag: NamedTag, currentList: List<NamedTag>): Boolean {
-        if (currentList.size >= Constants.MAX_NAMED_TAGS) return false
-        val updated = currentList + tag
+        val isUpdate = currentList.any { it.id == tag.id }
+        if (!isUpdate && currentList.size >= Constants.MAX_NAMED_TAGS) return false
+        val updated = currentList.filterNot { it.id == tag.id } + tag
         PrefsHelper.save(prefs, gson, Constants.PrefsKeys.NAMED_TAGS, updated)
         return true
     }

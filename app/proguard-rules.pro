@@ -40,6 +40,8 @@
 -keep class com.infinicada.focuspocus.model.PresetAction { *; }
 -keep class com.infinicada.focuspocus.model.ConditionalUnlock { *; }
 -keep class com.infinicada.focuspocus.model.AppInfo { *; }
+-keep class com.infinicada.focuspocus.model.AppTimeLimit { *; }
+-keep class com.infinicada.focuspocus.limit.CooldownState { *; }
 
 # --- ZXing (QR code library) ---
 -keep class com.google.zxing.** { *; }

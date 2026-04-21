@@ -160,7 +160,7 @@ fun FocusPocusApp(
 
     // Cross-VM sync when spellbook data changes
     LaunchedEffect(dataVersion) {
-        if (dataVersion > 0) {
+        if (dataVersion != 0) {
             sessionVM.syncFromPrefs()
             insightsVM.refresh()
         }

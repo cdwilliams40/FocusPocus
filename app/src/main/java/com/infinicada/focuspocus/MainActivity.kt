@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
@@ -88,15 +87,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             container.schedules.getSchedules().map { it.id }.toSet()
         )
 
-        // Apply analytics consent state
+        // Apply analytics consent state (Firebase already initialized in FocusPocusApplication)
         val analyticsConsent = sharedPreferences.getBoolean(Constants.PrefsKeys.ANALYTICS_CONSENT, true)
         try {
-            FirebaseApp.initializeApp(this)
             FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(analyticsConsent)
             FirebaseAnalytics.getInstance(this).setAnalyticsCollectionEnabled(analyticsConsent)
         } catch (e: Exception) {
-            // Ignore initialization issues when google-services.json is missing
-            Log.e("MainActivity", "Firebase initialization failed", e)
+            Log.e("MainActivity", "Firebase consent update failed", e)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -138,11 +135,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         )
         when (result) {
             is TriggerResult.Success -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
                 qrTriggerCount++
             }
             is TriggerResult.Error -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
             }
             else -> {}
         }
@@ -168,11 +165,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             val result = triggerHandler.togglePreset(preset, container.blockers.getBlockers())
             when (result) {
                 is TriggerResult.Success -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
                     qrTriggerCount++
                 }
                 is TriggerResult.Error -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
                 }
                 else -> {}
             }
@@ -251,11 +248,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         val triggerResult = result.triggerResult
                         when (triggerResult) {
                             is TriggerResult.Success -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
                                 nfcTriggerCount++
                             }
                             is TriggerResult.Error -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
                             }
                             else -> {}
                         }

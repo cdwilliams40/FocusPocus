@@ -64,6 +64,7 @@ class MyAccessibilityService : AccessibilityService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
                 updateBrowserPackages()
+                invalidatePackageCaches()
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error updating browser packages", e)
             }
@@ -73,6 +74,12 @@ class MyAccessibilityService : AccessibilityService() {
     private fun updateBrowserPackages() {
         browserPackages = BrowserDetector(this).getBrowserPackages()
         Log.d("MyAccessibilityService", "Updated browser packages: $browserPackages")
+    }
+
+    private fun invalidatePackageCaches() {
+        launcherCacheResolved = false
+        cachedLauncherPackageName = null
+        cachedInputMethodPackageNames = null
     }
 
     // Cache for parsed schedules to avoid re-parsing JSON every minute
@@ -798,7 +805,7 @@ class MyAccessibilityService : AccessibilityService() {
         val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
         // Merge websites from all active blockers
-        val allBlockedWebsites = activeBlockers.flatMap { it.websites.orEmpty() }.distinct()
+        val allBlockedWebsites = activeBlockers.flatMap { it.effectiveWebsites }.distinct()
         if (allBlockedWebsites.isEmpty()) return
 
         // Debounce — prevent rapid re-triggering
@@ -813,7 +820,7 @@ class MyAccessibilityService : AccessibilityService() {
             lastWebsiteBlockTime = now
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
             val matchingBlockerName = activeBlockers.find { blocker ->
-                blocker.websites.orEmpty().any { domainMatches(domain, it) }
+                blocker.effectiveWebsites.any { domainMatches(domain, it) }
             }?.name ?: activeBlockerNames.first()
             recordBlockEvent(matchedDomain, matchingBlockerName)
             closeApp()

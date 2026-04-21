@@ -15,8 +15,8 @@ import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.model.Schedule
 
 sealed class TriggerResult {
-    data class Success(val messageResId: Int, val args: Array<Any> = emptyArray()) : TriggerResult()
-    data class Error(val messageResId: Int, val args: Array<Any> = emptyArray()) : TriggerResult()
+    data class Success(val messageResId: Int, val args: List<Any> = emptyList()) : TriggerResult()
+    data class Error(val messageResId: Int, val args: List<Any> = emptyList()) : TriggerResult()
     data class DeepLinkPending(val preset: FocusPreset) : TriggerResult()
     object NoOp : TriggerResult()
 }
@@ -46,9 +46,9 @@ class TriggerHandler(
                         durationMinutes = tempDuration,
                         breaksEnabled = preset.breaksEnabled
                     )
-                    TriggerResult.Success(R.string.toast_preset_cast_timed, arrayOf(preset.name, tempDuration))
+                    TriggerResult.Success(R.string.toast_preset_cast_timed, listOf(preset.name, tempDuration))
                 } else {
-                    TriggerResult.Error(R.string.toast_enchantment_missing, arrayOf(preset.name))
+                    TriggerResult.Error(R.string.toast_enchantment_missing, listOf(preset.name))
                 }
             }
             PresetAction.TEMP_DISABLE -> {
@@ -61,7 +61,7 @@ class TriggerHandler(
                             System.currentTimeMillis() + breakSeconds * 1000L)
                         .apply()
                     DndController.updateDndState(context)
-                    TriggerResult.Success(R.string.toast_temp_break, arrayOf(tempDuration))
+                    TriggerResult.Success(R.string.toast_temp_break, listOf(tempDuration))
                 } else {
                     TriggerResult.Error(R.string.toast_no_active_focus)
                 }
@@ -69,7 +69,7 @@ class TriggerHandler(
             PresetAction.TOGGLE -> {
                 if (isActive) {
                     SessionManager.stopSession(context, prefs, gson)
-                    TriggerResult.Success(R.string.toast_preset_dispelled, arrayOf(preset.name))
+                    TriggerResult.Success(R.string.toast_preset_dispelled, listOf(preset.name))
                 } else {
                     val validNames = preset.effectiveBlockerNames.filter { name -> blockerLists.any { it.name == name } }
                     if (validNames.isNotEmpty()) {
@@ -79,9 +79,9 @@ class TriggerHandler(
                             durationMinutes = preset.durationMinutes,
                             breaksEnabled = preset.breaksEnabled
                         )
-                        TriggerResult.Success(R.string.toast_preset_cast, arrayOf(preset.name))
+                        TriggerResult.Success(R.string.toast_preset_cast, listOf(preset.name))
                     } else {
-                        TriggerResult.Error(R.string.toast_enchantment_missing, arrayOf(preset.name))
+                        TriggerResult.Error(R.string.toast_enchantment_missing, listOf(preset.name))
                     }
                 }
             }
@@ -121,7 +121,7 @@ class TriggerHandler(
                 if (boundPreset != null) {
                     togglePreset(boundPreset, blockerLists)
                 } else {
-                    TriggerResult.Error(R.string.toast_no_quick_spell_bound, arrayOf(talisman.name))
+                    TriggerResult.Error(R.string.toast_no_quick_spell_bound, listOf(talisman.name))
                 }
             }
             else -> TriggerResult.Error(R.string.toast_invalid_qr)

@@ -84,7 +84,7 @@ fun SpellbookScreen(
                 blockerLists.take(3).forEach { blocker ->
                     val mode = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
                     val appCount = blocker.effectiveApps.size
-                    val siteCount = blocker.websites.orEmpty().size
+                    val siteCount = blocker.effectiveWebsites.size
                     val appText = pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount)
                     val siteText = if (siteCount > 0) ", " + pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
                     Text(

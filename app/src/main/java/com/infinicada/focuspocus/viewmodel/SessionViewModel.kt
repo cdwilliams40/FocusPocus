@@ -147,6 +147,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         }
 
         repo.stopSession()
+        DndController.updateDndState(getApplication())
         syncFromPrefs()
         _manualFocusMode.value = false
     }
@@ -240,6 +241,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         repo.writeBreakState(isOnBreak = true, breakTimeRemaining = remaining, breaksUsed = used)
         focusTimerJob?.cancel()
         startBreakTimer()
+        DndController.updateDndState(getApplication())
     }
 
     fun endBreak() {
@@ -248,6 +250,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _breakTimeRemaining.value = 0
         repo.writeBreakState(isOnBreak = false, breakTimeRemaining = 0, breaksUsed = _breaksUsedThisSession.value)
         startFocusTimer()
+        DndController.updateDndState(getApplication())
     }
 
     fun emergencyStop() {
@@ -256,6 +259,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val now = System.currentTimeMillis()
         _lastEmergencyBreakMillis.value = now
         repo.setLastEmergencyBreakMillis(now)
+        repo.stopSession()
+        syncFromPrefs()
         _manualFocusMode.value = false
     }
 
