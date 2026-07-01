@@ -84,6 +84,33 @@ class SessionRepository(
         prefs.edit().putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, seconds).apply()
     }
 
+    fun getFocusEndTimeMillis(): Long =
+        prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
+
+    fun getBreakEndTimeMillis(): Long =
+        prefs.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
+
+    /**
+     * Focus seconds remaining derived from the persisted wall-clock end time.
+     * The stored countdown only ticks while the UI is alive, so after process
+     * death it is stale; the end timestamp is authoritative. During a break the
+     * countdown is paused and the stored (frozen) value is correct.
+     */
+    fun getEffectiveFocusTimeRemaining(): Int {
+        if (getIsOnBreak()) return getFocusTimeRemaining()
+        val endTime = getFocusEndTimeMillis()
+        if (endTime <= 0L) return getFocusTimeRemaining()
+        return (((endTime - System.currentTimeMillis()) / 1000L).toInt()).coerceAtLeast(0)
+    }
+
+    /** Break seconds remaining derived from the persisted wall-clock end time. */
+    fun getEffectiveBreakTimeRemaining(): Int {
+        if (!getIsOnBreak()) return 0
+        val endTime = getBreakEndTimeMillis()
+        if (endTime <= 0L) return getBreakTimeRemaining()
+        return (((endTime - System.currentTimeMillis()) / 1000L).toInt()).coerceAtLeast(0)
+    }
+
     fun getSessionBreaksEnabled(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
 
@@ -180,14 +207,22 @@ class SessionRepository(
                 .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
                 .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
                 .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
         }
 
         editor.apply()
         DndController.updateDndState(context)
     }
 
-    // Break state batch write
-    fun writeBreakState(isOnBreak: Boolean, breakTimeRemaining: Int, breaksUsed: Int) {
+    // Break state batch write.
+    // The focus countdown pauses during a break, so the focus end time is removed
+    // when a break starts and recomputed from [focusTimeRemaining] when it ends.
+    fun writeBreakState(
+        isOnBreak: Boolean,
+        breakTimeRemaining: Int,
+        breaksUsed: Int,
+        focusTimeRemaining: Int = 0
+    ) {
         val editor = prefs.edit()
             .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
             .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
@@ -195,8 +230,13 @@ class SessionRepository(
         if (isOnBreak && breakTimeRemaining > 0) {
             editor.putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
                 System.currentTimeMillis() + breakTimeRemaining * 1000L)
+            editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
         } else {
             editor.remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+            if (focusTimeRemaining > 0) {
+                editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
+                    System.currentTimeMillis() + focusTimeRemaining * 1000L)
+            }
         }
         editor.apply()
         DndController.updateDndState(context)

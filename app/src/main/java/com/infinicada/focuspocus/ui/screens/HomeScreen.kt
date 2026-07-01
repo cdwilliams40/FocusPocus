@@ -74,6 +74,7 @@ import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.ui.StarfieldBackground
 
 @Composable
 fun Greeting(
@@ -115,56 +116,59 @@ fun Greeting(
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
     } else null
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (focusMode) {
-            // ── ACTIVE / BREAK STATE ──
-            ActiveSessionContent(
-                isOnBreak = isOnBreak,
-                activeBlockers = activeBlockers,
-                activeSchedule = activeSchedule,
-                focusDurationMinutes = focusDurationMinutes,
-                focusTimeRemaining = focusTimeRemaining,
-                breakTimeRemaining = breakTimeRemaining,
-                breaksUsedThisSession = breaksUsedThisSession,
-                maxBreaksPerSession = maxBreaksPerSession,
-                breaksAllowed = breaksAllowed,
-                hideStopButton = hideStopButton,
-                nfcLockMode = nfcLockMode,
-                emergencyBreakAvailable = emergencyBreakAvailable,
-                emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                activeTagId = activeTagId,
-                activeTagName = activeTagName,
-                boundTalismanName = boundTalismanName,
-                onStartClicked = onStartClicked,
-                onTakeBreak = onTakeBreak,
-                onEndBreak = onEndBreak,
-                onEmergencyStop = onEmergencyStop,
-                onScanQrCode = onScanQrCode
-            )
-        } else {
-            // ── IDLE STATE ──
-            IdleContent(
-                activeBlockers = activeBlockers,
-                activeSchedule = activeSchedule,
-                blockerLists = blockerLists,
-                focusPresets = focusPresets,
-                selectedPresetId = selectedPresetId,
-                focusDurationMinutes = focusDurationMinutes,
-                sessionBreaksEnabled = sessionBreaksEnabled,
-                currentStreak = currentStreak,
-                onPresetSelected = onPresetSelected,
-                onBlockerToggled = onBlockerToggled,
-                onDurationSelected = onDurationSelected,
-                onSessionBreaksToggled = onSessionBreaksToggled,
-                onStartClicked = onStartClicked,
-                onScanQrCode = onScanQrCode
-            )
+    Box(modifier = modifier.fillMaxSize()) {
+        StarfieldBackground()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (focusMode) {
+                // ── ACTIVE / BREAK STATE ──
+                ActiveSessionContent(
+                    isOnBreak = isOnBreak,
+                    activeBlockers = activeBlockers,
+                    activeSchedule = activeSchedule,
+                    focusDurationMinutes = focusDurationMinutes,
+                    focusTimeRemaining = focusTimeRemaining,
+                    breakTimeRemaining = breakTimeRemaining,
+                    breaksUsedThisSession = breaksUsedThisSession,
+                    maxBreaksPerSession = maxBreaksPerSession,
+                    breaksAllowed = breaksAllowed,
+                    hideStopButton = hideStopButton,
+                    nfcLockMode = nfcLockMode,
+                    emergencyBreakAvailable = emergencyBreakAvailable,
+                    emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
+                    activeTagId = activeTagId,
+                    activeTagName = activeTagName,
+                    boundTalismanName = boundTalismanName,
+                    onStartClicked = onStartClicked,
+                    onTakeBreak = onTakeBreak,
+                    onEndBreak = onEndBreak,
+                    onEmergencyStop = onEmergencyStop,
+                    onScanQrCode = onScanQrCode
+                )
+            } else {
+                // ── IDLE STATE ──
+                IdleContent(
+                    activeBlockers = activeBlockers,
+                    activeSchedule = activeSchedule,
+                    blockerLists = blockerLists,
+                    focusPresets = focusPresets,
+                    selectedPresetId = selectedPresetId,
+                    focusDurationMinutes = focusDurationMinutes,
+                    sessionBreaksEnabled = sessionBreaksEnabled,
+                    currentStreak = currentStreak,
+                    onPresetSelected = onPresetSelected,
+                    onBlockerToggled = onBlockerToggled,
+                    onDurationSelected = onDurationSelected,
+                    onSessionBreaksToggled = onSessionBreaksToggled,
+                    onStartClicked = onStartClicked,
+                    onScanQrCode = onScanQrCode
+                )
+            }
         }
     }
 }

@@ -1,17 +1,21 @@
 package com.infinicada.focuspocus.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,9 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -353,10 +362,7 @@ fun UsageStatsScreen(
         if (filteredSessions.isNotEmpty() && selectedTabIndex <= 1) {
             item {
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
@@ -393,30 +399,33 @@ fun UsageStatsScreen(
 
                         val maxMinutes = dailyMinutes.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
 
-                        dailyMinutes.forEach { (label, minutes) ->
+                        dailyMinutes.forEachIndexed { index, (label, minutes) ->
+                            val isToday = index == dailyMinutes.lastIndex
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 2.dp),
+                                    .padding(vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     label,
                                     style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isToday) FontWeight.Bold else null,
+                                    color = if (isToday) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.width(36.dp)
                                 )
-                                LinearProgressIndicator(
-                                    progress = { (minutes.toFloat() / maxMinutes).coerceIn(0f, 1f) },
+                                MagnitudeBar(
+                                    fraction = minutes.toFloat() / maxMinutes,
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(16.dp)
-                                        .padding(horizontal = 8.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        .padding(horizontal = 8.dp)
                                 )
                                 Text(
                                     "${minutes}m",
                                     style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isToday) FontWeight.Bold else null,
                                     modifier = Modifier.width(36.dp)
                                 )
                             }
@@ -430,10 +439,7 @@ fun UsageStatsScreen(
         if (filteredBlockEvents.isNotEmpty()) {
             item {
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
@@ -442,40 +448,48 @@ fun UsageStatsScreen(
                     ) {
                         Text(
                             stringResource(R.string.insights_blocking_stats),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             stringResource(R.string.insights_total_blocks, totalBlocks),
                             style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = MaterialTheme.colorScheme.primary
                         )
                         if (topBlockedApps.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 stringResource(R.string.insights_most_blocked),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val maxBlockCount = topBlockedApps.maxOf { it.value }.coerceAtLeast(1)
                             topBlockedApps.forEach { (pkg, count) ->
                                 val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 2.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                        .padding(vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         appName,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.weight(1f)
+                                        maxLines = 1,
+                                        modifier = Modifier.width(96.dp)
+                                    )
+                                    MagnitudeBar(
+                                        fraction = count.toFloat() / maxBlockCount,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 8.dp)
                                     )
                                     Text(
                                         "$count",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.width(28.dp)
                                     )
                                 }
                             }
@@ -525,6 +539,8 @@ fun UsageStatsScreen(
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                 color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                         else MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                strokeCap = StrokeCap.Round
                             )
                         }
                     }
@@ -744,6 +760,40 @@ fun UsageStatsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * A thin horizontal bar showing a magnitude as a fraction of the row maximum,
+ * with fully rounded ends, a visible recessive track, and a gradient that
+ * brightens toward the bar's head.
+ */
+@Composable
+private fun MagnitudeBar(
+    fraction: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(10.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    ) {
+        val clamped = fraction.coerceIn(0f, 1f)
+        if (clamped > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(clamped)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(color.copy(alpha = 0.55f), color)
+                        )
+                    )
+            )
         }
     }
 }
