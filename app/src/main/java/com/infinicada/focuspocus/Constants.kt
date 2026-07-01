@@ -19,6 +19,7 @@ object Constants {
         const val BREAK_TIME_REMAINING = "breakTimeRemaining"
         const val FOCUS_DURATION_MINUTES = "focusDurationMinutes"
         const val FOCUS_TIME_REMAINING = "focusTimeRemaining"
+        const val FOCUS_END_TIME_MILLIS = "focusEndTimeMillis"
         const val SESSION_BREAKS_ENABLED = "sessionBreaksEnabled"
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"

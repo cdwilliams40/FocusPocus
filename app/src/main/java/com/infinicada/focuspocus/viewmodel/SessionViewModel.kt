@@ -34,7 +34,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _focusDurationMinutes = MutableStateFlow(repo.getFocusDurationMinutes())
     val focusDurationMinutes: StateFlow<Int> = _focusDurationMinutes.asStateFlow()
 
-    private val _focusTimeRemaining = MutableStateFlow(repo.getFocusTimeRemaining())
+    private val _focusTimeRemaining = MutableStateFlow(repo.getEffectiveFocusTimeRemaining())
     val focusTimeRemaining: StateFlow<Int> = _focusTimeRemaining.asStateFlow()
 
     private val _sessionBreaksEnabled = MutableStateFlow(repo.getSessionBreaksEnabled())
@@ -50,7 +50,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _breaksUsedThisSession = MutableStateFlow(repo.getBreaksUsedThisSession())
     val breaksUsedThisSession: StateFlow<Int> = _breaksUsedThisSession.asStateFlow()
 
-    private val _breakTimeRemaining = MutableStateFlow(repo.getBreakTimeRemaining())
+    private val _breakTimeRemaining = MutableStateFlow(repo.getEffectiveBreakTimeRemaining())
     val breakTimeRemaining: StateFlow<Int> = _breakTimeRemaining.asStateFlow()
 
     // Emergency break
@@ -86,7 +86,34 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private var breakTimerJob: Job? = null
 
     init {
+        normalizePersistedState()
         startTimersIfNeeded()
+    }
+
+    /**
+     * Reconciles persisted countdown state with the wall clock. The in-memory tickers
+     * only run while the UI is alive, so a break or timed session may have expired
+     * while the process was dead. The accessibility service also enforces this on its
+     * minute tick; this covers the window before that tick and the service-disabled case.
+     */
+    private fun normalizePersistedState() {
+        // End a break whose wall-clock end time has passed.
+        if (_isOnBreak.value && _breakTimeRemaining.value <= 0) {
+            _isOnBreak.value = false
+            _breakTimeRemaining.value = 0
+            repo.writeBreakState(
+                isOnBreak = false,
+                breakTimeRemaining = 0,
+                breaksUsed = _breaksUsedThisSession.value,
+                focusTimeRemaining = _focusTimeRemaining.value
+            )
+        }
+        // Expire a timed session whose wall-clock end time has passed.
+        if (_manualFocusMode.value && !_isOnBreak.value &&
+            _focusTimeRemaining.value <= 0 && repo.getFocusEndTimeMillis() > 0
+        ) {
+            handleTimerExpired()
+        }
     }
 
     private fun startTimersIfNeeded() {
@@ -126,8 +153,14 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
                 if (remaining <= 0) {
                     _isOnBreak.value = false
-                    repo.setIsOnBreak(false)
-                    DndController.updateDndState(getApplication())
+                    // Persist break end and restart the focus end-time clock so the
+                    // accessibility service can enforce expiry if the UI goes away.
+                    repo.writeBreakState(
+                        isOnBreak = false,
+                        breakTimeRemaining = 0,
+                        breaksUsed = _breaksUsedThisSession.value,
+                        focusTimeRemaining = _focusTimeRemaining.value
+                    )
                     // Resume focus timer
                     startFocusTimer()
                     break
@@ -248,7 +281,12 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         breakTimerJob?.cancel()
         _isOnBreak.value = false
         _breakTimeRemaining.value = 0
-        repo.writeBreakState(isOnBreak = false, breakTimeRemaining = 0, breaksUsed = _breaksUsedThisSession.value)
+        repo.writeBreakState(
+            isOnBreak = false,
+            breakTimeRemaining = 0,
+            breaksUsed = _breaksUsedThisSession.value,
+            focusTimeRemaining = _focusTimeRemaining.value
+        )
         startFocusTimer()
         DndController.updateDndState(getApplication())
     }
@@ -303,15 +341,16 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _manualFocusMode.value = repo.getManualFocusMode()
         _activeBlockerNames.value = repo.getActiveBlockerNames()
         _focusDurationMinutes.value = repo.getFocusDurationMinutes()
-        _focusTimeRemaining.value = repo.getFocusTimeRemaining()
+        _focusTimeRemaining.value = repo.getEffectiveFocusTimeRemaining()
         _sessionBreaksEnabled.value = repo.getSessionBreaksEnabled()
         _isOnBreak.value = repo.getIsOnBreak()
         _breaksUsedThisSession.value = repo.getBreaksUsedThisSession()
-        _breakTimeRemaining.value = repo.getBreakTimeRemaining()
+        _breakTimeRemaining.value = repo.getEffectiveBreakTimeRemaining()
         _focusTagId.value = repo.getFocusTagId()
         _activeScheduleId.value = repo.getActiveScheduleId()
         _focusSessions.value = repo.getFocusSessions()
         _longestStreak.value = repo.getLongestStreak()
+        normalizePersistedState()
         startTimersIfNeeded()
     }
 }

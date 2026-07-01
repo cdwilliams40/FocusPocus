@@ -15,22 +15,34 @@ object SessionManager {
         durationMinutes: Int = 0,
         breaksEnabled: Boolean = true
     ) {
+        val now = System.currentTimeMillis()
         val editor = sharedPreferences.edit()
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
             .putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(blockerNames))
             .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blockerNames.firstOrNull())
-            .putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis())
+            .putLong(Constants.PrefsKeys.SESSION_START_TIME, now)
             .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, breaksEnabled)
+            // A new session always starts outside any leftover break state
+            .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+            .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+            .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
+            .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
 
         if (scheduleId != null) {
             editor.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, scheduleId)
             editor.remove(Constants.PrefsKeys.FOCUS_DURATION_MINUTES)
             editor.remove(Constants.PrefsKeys.FOCUS_TIME_REMAINING)
+            editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
         } else {
             editor.remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
             editor.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, durationMinutes)
             val focusTimeRemaining = if (durationMinutes > 0) durationMinutes * 60 else 0
             editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
+            if (durationMinutes > 0) {
+                editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + durationMinutes * 60_000L)
+            } else {
+                editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+            }
         }
 
         editor.apply()
@@ -65,6 +77,7 @@ object SessionManager {
             .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
             .remove(Constants.PrefsKeys.SESSION_START_TIME)
             .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+            .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
             .apply()
 
         DndController.updateDndState(context)

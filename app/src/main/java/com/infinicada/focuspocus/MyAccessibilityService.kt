@@ -136,6 +136,7 @@ class MyAccessibilityService : AccessibilityService() {
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
+                enforceTimedSessionExpiry()
                 checkSchedules()
 
                 // Clear any cooldowns whose expiry has now passed.
@@ -169,8 +170,10 @@ class MyAccessibilityService : AccessibilityService() {
         lastCooldownResetDate = SessionCooldownManager.todayString()
         Log.d("MyAccessibilityService", "Service connected")
 
-        // Activate any schedule that should currently be running but wasn't started
-        // (e.g. the service restarted mid-schedule after a phone reboot or crash).
+        // Clean up any break or timed session that expired while the service was down
+        // (e.g. after a reboot), then activate any schedule that should currently be
+        // running but wasn't started.
+        enforceTimedSessionExpiry()
         checkMissedScheduleActivation()
 
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
@@ -310,6 +313,49 @@ class MyAccessibilityService : AccessibilityService() {
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error checking missed schedule: ${schedule.name}", e)
             }
+        }
+    }
+
+    /**
+     * Ends breaks and timed manual sessions whose wall-clock end time has passed.
+     *
+     * The per-second countdowns live in the UI's ViewModel and stop when the activity
+     * is destroyed, leaving IS_ON_BREAK / MANUAL_FOCUS_MODE stuck in SharedPreferences.
+     * The service outlives the UI, so it enforces expiry from the persisted end
+     * timestamps (BREAK_END_TIME_MILLIS / FOCUS_END_TIME_MILLIS).
+     */
+    private fun enforceTimedSessionExpiry() {
+        val now = System.currentTimeMillis()
+
+        if (sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) {
+            val breakEnd = sharedPreferences.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
+            if (breakEnd in 1..now) {
+                // The focus countdown was frozen at break start; restart its end-time
+                // clock from the frozen remaining value so expiry keeps being enforced.
+                val focusRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
+                val editor = sharedPreferences.edit()
+                    .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                    .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                    .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                if (focusRemaining > 0) {
+                    editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + focusRemaining * 1000L)
+                }
+                editor.apply()
+                Log.d("MyAccessibilityService", "Break expired while UI was away — resuming focus mode")
+                DndController.updateDndState(this)
+            }
+            // Still on break (or just resumed this instant) — no session expiry to enforce.
+            return
+        }
+
+        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) return
+        // Scheduled sessions end via checkSchedules(), not a duration timer.
+        if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
+
+        val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
+        if (focusEnd in 1..now) {
+            Log.d("MyAccessibilityService", "Timed session expired while UI was away — stopping session")
+            SessionManager.stopSession(this, sharedPreferences, gson)
         }
     }
 
@@ -512,6 +558,11 @@ class MyAccessibilityService : AccessibilityService() {
     private fun handleWindowStateChanged(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
+
+        // End expired breaks / timed sessions before reading focus state below, so
+        // blocking resumes (or stops) immediately on an app switch rather than
+        // waiting for the next minute tick.
+        enforceTimedSessionExpiry()
 
         // Track which real app is currently in the foreground so the minute-tick receiver can
         // enforce time limits while the user stays inside an app (no window-state events fire then).
@@ -794,6 +845,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Fast O(1) check — discard events from non-browser apps immediately
         if (packageName !in browserPackages) return
+
+        // Resume website blocking promptly if a break expired while browsing.
+        enforceTimedSessionExpiry()
 
         val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
