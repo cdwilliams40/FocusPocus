@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -16,62 +15,96 @@ enum class ThemeMode {
 }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = GlowingPurple,
-    onPrimary = OnDarkPrimary,
-    primaryContainer = MysticalPurpleDark,
-    onPrimaryContainer = GlowingPurple,
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    inversePrimary = DarkInversePrimary,
 
-    secondary = MidnightBlueLight,
-    onSecondary = OnDarkPrimary,
-    secondaryContainer = MidnightBlueDark,
-    onSecondaryContainer = Color(0xFFB0BEC5),
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
 
-    tertiary = GlowingGold,
-    onTertiary = Color(0xFF1A1A1A),
-    tertiaryContainer = ArcaneGoldDark,
-    onTertiaryContainer = ArcaneGoldLight,
+    tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
+    tertiaryContainer = DarkTertiaryContainer,
+    onTertiaryContainer = DarkOnTertiaryContainer,
 
-    background = DarkEnchantedBackground,
-    onBackground = OnDarkSecondary,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
 
-    surface = DarkEnchantedSurface,
-    onSurface = OnDarkSecondary,
-    surfaceVariant = DarkEnchantedSurfaceVariant,
-    onSurfaceVariant = Color(0xFFCAC4D0),
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceTint = DarkPrimary,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
+    surfaceContainer = DarkSurfaceContainer,
+    surfaceContainerHigh = DarkSurfaceContainerHigh,
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
 
-    error = SpellError,
-    onError = OnDarkPrimary,
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6)
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = Color.Black,
+
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = MysticalPurple,
-    onPrimary = OnLightPrimary,
-    primaryContainer = MysticalPurpleLight,
-    onPrimaryContainer = Color(0xFFFFFFFF),
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer,
+    inversePrimary = LightInversePrimary,
 
-    secondary = MidnightBlue,
-    onSecondary = OnLightPrimary,
-    secondaryContainer = MidnightBlueLight,
-    onSecondaryContainer = Color(0xFFFFFFFF),
+    secondary = LightSecondary,
+    onSecondary = LightOnSecondary,
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer,
 
-    tertiary = ArcaneGoldDark,
-    onTertiary = Color(0xFF1A1A1A),
-    tertiaryContainer = ArcaneGold,
-    onTertiaryContainer = Color(0xFF1A1A1A),
+    tertiary = LightTertiary,
+    onTertiary = LightOnTertiary,
+    tertiaryContainer = LightTertiaryContainer,
+    onTertiaryContainer = LightOnTertiaryContainer,
 
-    background = ParchmentBackground,
-    onBackground = OnLightSecondary,
+    background = LightBackground,
+    onBackground = LightOnBackground,
 
-    surface = ParchmentSurface,
-    onSurface = OnLightSecondary,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
     surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = Color(0xFF49454F)
+    onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceTint = LightPrimary,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
+    surfaceContainer = LightSurfaceContainer,
+    surfaceContainerHigh = LightSurfaceContainerHigh,
+    surfaceContainerHighest = LightSurfaceContainerHighest,
+
+    inverseSurface = LightInverseSurface,
+    inverseOnSurface = LightInverseOnSurface,
+
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    scrim = Color.Black,
+
+    error = LightError,
+    onError = LightOnError,
+    errorContainer = LightErrorContainer,
+    onErrorContainer = LightOnErrorContainer
 )
 
 private val AppShapes = Shapes(
-    small = RoundedCornerShape(8.dp),
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
     medium = RoundedCornerShape(16.dp),
     large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(32.dp)
