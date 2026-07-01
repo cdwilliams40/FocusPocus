@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus.ui.screens
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -58,9 +59,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -207,33 +210,21 @@ private fun IdleContent(
 
     // Hero Cast Button
     val canCast = activeBlockers.isNotEmpty()
-    Button(
-        onClick = onStartClicked,
-        modifier = Modifier.size(160.dp),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (canCast) MaterialTheme.colorScheme.primary else Color.Gray
-        ),
-        enabled = canCast
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.AutoFixHigh,
-                contentDescription = stringResource(R.string.home_cast_content_desc),
-                modifier = Modifier.size(44.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.home_button_cast),
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
+    CastSpellButton(
+        enabled = canCast,
+        onClick = onStartClicked
+    )
+    if (!canCast) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.home_cast_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(modifier = Modifier.height(24.dp))
 
     // Quick Spell chips (above config card when presets exist)
     val validPresets = focusPresets.filter { preset ->
@@ -529,7 +520,10 @@ private fun ActiveSessionContent(
             modifier = Modifier.size(120.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isButtonEnabled) MaterialTheme.colorScheme.error else Color.Gray
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             ),
             enabled = isButtonEnabled
         ) {
@@ -594,6 +588,84 @@ private fun ActiveSessionContent(
 }
 
 // ────────────────────────────────────────────────────────────
+//  CAST SPELL BUTTON
+// ────────────────────────────────────────────────────────────
+
+@Composable
+private fun CastSpellButton(
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val infiniteTransition = rememberInfiniteTransition(label = "castGlow")
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowScale"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(212.dp)
+    ) {
+        // Soft magical aura behind the button while a cast is possible
+        if (enabled) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val radius = size.minDimension / 2f * glowScale
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            primary.copy(alpha = 0.35f),
+                            primary.copy(alpha = 0.12f),
+                            Color.Transparent
+                        ),
+                        center = center,
+                        radius = radius
+                    ),
+                    radius = radius
+                )
+            }
+        }
+        Button(
+            onClick = onClick,
+            modifier = Modifier.size(160.dp),
+            shape = CircleShape,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            ),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 6.dp,
+                pressedElevation = 2.dp
+            )
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AutoFixHigh,
+                    contentDescription = stringResource(R.string.home_cast_content_desc),
+                    modifier = Modifier.size(44.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.home_button_cast),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  CIRCULAR TIMER
 // ────────────────────────────────────────────────────────────
 
@@ -617,29 +689,37 @@ private fun CircularTimer(
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(200.dp)
+        modifier = Modifier.size(220.dp)
     ) {
-        // Track circle
-        Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-            val strokeWidth = 12.dp.toPx()
+        // Track circle with a gradient arc that fades in along its length
+        Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
+            val strokeWidth = 14.dp.toPx()
             drawCircle(
                 color = trackColor,
                 style = Stroke(width = strokeWidth)
             )
             if (progress >= 0f) {
                 val sweepAngle = 360f * progress
-                drawArc(
-                    color = color,
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                    topLeft = Offset(
-                        (size.width - size.minDimension) / 2,
-                        (size.height - size.minDimension) / 2
-                    ),
-                    size = Size(size.minDimension, size.minDimension)
-                )
+                val headStop = progress.coerceIn(0.01f, 1f)
+                // Rotate so the sweep gradient starts at 12 o'clock with the arc
+                rotate(degrees = -90f) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            0f to color.copy(alpha = 0.25f),
+                            headStop to color,
+                            1f to color.copy(alpha = 0.25f)
+                        ),
+                        startAngle = 0f,
+                        sweepAngle = sweepAngle,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                        topLeft = Offset(
+                            (size.width - size.minDimension) / 2,
+                            (size.height - size.minDimension) / 2
+                        ),
+                        size = Size(size.minDimension, size.minDimension)
+                    )
+                }
             }
         }
 
@@ -678,10 +758,10 @@ private fun UnlimitedSessionIndicator() {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(200.dp)
+        modifier = Modifier.size(220.dp)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-            val strokeWidth = 12.dp.toPx()
+        Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
+            val strokeWidth = 14.dp.toPx()
             drawCircle(
                 color = primaryColor.copy(alpha = alpha * 0.4f),
                 style = Stroke(width = strokeWidth)

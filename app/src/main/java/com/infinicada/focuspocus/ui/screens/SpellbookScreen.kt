@@ -1,6 +1,8 @@
 package com.infinicada.focuspocus.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -290,25 +292,36 @@ private fun SpellbookSectionCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                     Text(title, style = MaterialTheme.typography.titleMedium)
                     if (count > 0) {
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            ),
+                            shape = MaterialTheme.shapes.extraLarge
                         ) {
                             Text(
                                 "$count",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }

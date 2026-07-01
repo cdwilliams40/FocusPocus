@@ -98,6 +98,7 @@
     <string name="home_triggered_by_talisman">Déclenché par le talisman : %s</string>
     <string name="home_scan_to_dispel">Scanner %s pour dissiper</string>
     <string name="home_scan_talisman_to_dispel">Scannez votre talisman pour dissiper</string>
+    <string name="home_cast_hint">Choisissez un enchantement ci-dessous pour commencer</string>
 
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Grimoire</string>

@@ -100,6 +100,7 @@
     <string name="home_triggered_by_talisman">Triggered by Talisman: %s</string>
     <string name="home_scan_to_dispel">Scan %s to dispel</string>
     <string name="home_scan_talisman_to_dispel">Scan your talisman to dispel</string>
+    <string name="home_cast_hint">Choose an enchantment below to begin</string>
 
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Spellbook</string>

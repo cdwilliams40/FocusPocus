@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
-import com.infinicada.focuspocus.ui.theme.MysticalPurpleDark
+import com.infinicada.focuspocus.ui.theme.OverlayScrim
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
@@ -170,7 +170,7 @@ fun OverlayScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MysticalPurpleDark.copy(alpha = 0.85f)),
+            .background(OverlayScrim.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center
     ) {
         Card(
