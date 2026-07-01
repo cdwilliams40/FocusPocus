@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -176,6 +177,7 @@ fun CreateBlockerScreen(
     var selectedMode by remember { mutableStateOf(BlockerMode.BLACKLIST) }
     var apps by remember { mutableStateOf(emptyList<String>()) }
     var websites by remember { mutableStateOf(emptyList<String>()) }
+    var autoAddNewApps by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
@@ -220,6 +222,13 @@ fun CreateBlockerScreen(
             Text(stringResource(R.string.label_shield_whitelist))
         }
 
+        if (selectedMode == BlockerMode.BLACKLIST) {
+            AutoAddNewAppsRow(
+                checked = autoAddNewApps,
+                onCheckedChange = { autoAddNewApps = it }
+            )
+        }
+
         Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.spells_select_target_apps))
         }
@@ -239,7 +248,17 @@ fun CreateBlockerScreen(
         )
 
         Button(
-            onClick = { onSaveBlocker(Blocker(name.trim(), selectedMode, apps.toSet(), websites)) },
+            onClick = {
+                onSaveBlocker(
+                    Blocker(
+                        name.trim(),
+                        selectedMode,
+                        apps.toSet(),
+                        websites,
+                        autoAddNewApps = autoAddNewApps && selectedMode == BlockerMode.BLACKLIST
+                    )
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp),
@@ -261,6 +280,7 @@ fun EditBlockerScreen(
     var selectedMode by remember { mutableStateOf(blocker.mode) }
     var apps by remember { mutableStateOf(blocker.effectiveApps.toList()) }
     var websites by remember { mutableStateOf(blocker.effectiveWebsites) }
+    var autoAddNewApps by remember { mutableStateOf(blocker.autoAddNewApps) }
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
@@ -290,6 +310,13 @@ fun EditBlockerScreen(
             Text(stringResource(R.string.label_shield_whitelist))
         }
 
+        if (selectedMode == BlockerMode.BLACKLIST) {
+            AutoAddNewAppsRow(
+                checked = autoAddNewApps,
+                onCheckedChange = { autoAddNewApps = it }
+            )
+        }
+
         Button(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.spells_select_target_apps))
         }
@@ -314,7 +341,16 @@ fun EditBlockerScreen(
                 .padding(top = 16.dp)
         ) {
             Button(
-                onClick = { onSaveBlocker(blocker.copy(mode = selectedMode, apps = apps.toSet(), websites = websites)) },
+                onClick = {
+                    onSaveBlocker(
+                        blocker.copy(
+                            mode = selectedMode,
+                            apps = apps.toSet(),
+                            websites = websites,
+                            autoAddNewApps = autoAddNewApps && selectedMode == BlockerMode.BLACKLIST
+                        )
+                    )
+                },
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 8.dp)
@@ -331,6 +367,34 @@ fun EditBlockerScreen(
                 Text(stringResource(R.string.action_delete))
             }
         }
+    }
+}
+
+/** Toggle for automatically banishing newly installed apps (blacklist mode only). */
+@Composable
+private fun AutoAddNewAppsRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.spells_auto_add_new_apps))
+            Text(
+                stringResource(R.string.spells_auto_add_new_apps_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 

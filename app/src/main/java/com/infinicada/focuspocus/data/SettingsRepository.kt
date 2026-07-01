@@ -79,6 +79,20 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit().putInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, max.coerceIn(1, 10)).apply()
     }
 
+    fun getAutoBreakEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, false)
+
+    fun setAutoBreakEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, enabled).apply()
+    }
+
+    fun getAutoBreakIntervalMinutes(): Int =
+        prefs.getInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, 25).coerceIn(5, 60)
+
+    fun setAutoBreakIntervalMinutes(minutes: Int) {
+        prefs.edit().putInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, minutes.coerceIn(5, 60)).apply()
+    }
+
     fun getEmergencyBreakCadenceWeeks(): Int =
         prefs.getInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, 2).coerceIn(2, 8)
 

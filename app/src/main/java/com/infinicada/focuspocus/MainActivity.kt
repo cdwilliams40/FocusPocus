@@ -56,9 +56,19 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
     private var showDeepLinkConfirmation by mutableStateOf(false)
 
-    // Listener to detect when the accessibility service ends a ritual while the app is in the foreground
-    private val scheduleIdChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == Constants.PrefsKeys.ACTIVE_SCHEDULE_ID) {
+    // Session-state keys the accessibility service can change on its own (ending rituals,
+    // expiring timed sessions, starting/ending breaks). These are only written on state
+    // transitions — not by the per-second countdown — so this stays quiet during a session.
+    private val sessionStateKeys = setOf(
+        Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
+        Constants.PrefsKeys.MANUAL_FOCUS_MODE,
+        Constants.PrefsKeys.IS_ON_BREAK,
+        Constants.PrefsKeys.FOCUS_TAG_ID
+    )
+
+    // Listener to detect when the accessibility service changes session state while the app is in the foreground
+    private val sessionStateChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in sessionStateKeys) {
             // The SessionViewModel will pick this up via syncFromPrefs triggered by the composable
             nfcTriggerCount++ // Reuse trigger mechanism to force sync
         }
@@ -205,13 +215,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             null
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
-        sharedPreferences.registerOnSharedPreferenceChangeListener(scheduleIdChangeListener)
+        sharedPreferences.registerOnSharedPreferenceChangeListener(sessionStateChangeListener)
     }
 
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
-        sharedPreferences.unregisterOnSharedPreferenceChangeListener(scheduleIdChangeListener)
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(sessionStateChangeListener)
     }
 
     override fun onTagDiscovered(tag: Tag?) {

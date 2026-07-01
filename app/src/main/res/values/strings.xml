@@ -141,6 +141,8 @@
     <string name="spells_save_enchantment">Save Enchantment</string>
     <string name="spells_char_count">%1$d/%2$d</string>
     <string name="spells_blocked_websites">Blocked Websites</string>
+    <string name="spells_auto_add_new_apps">Banish new apps</string>
+    <string name="spells_auto_add_new_apps_desc">Automatically add newly installed apps to this enchantment</string>
     <string name="spells_website_hint">e.g. youtube.com</string>
     <string name="spells_remove_site">Remove %s</string>
     <string name="spells_select_apps_title">Select Apps</string>
@@ -158,6 +160,9 @@
     <string name="settings_breaks_per_session">Default Breaks Per Session: %d</string>
     <string name="settings_emergency_cooldown">Emergency Stop Cooldown: %d weeks</string>
     <string name="settings_emergency_cooldown_desc">One emergency stop per cooldown period when you need to end a session early</string>
+    <string name="settings_auto_break">Auto-break (Pomodoro)</string>
+    <string name="settings_auto_break_desc">Automatically start a break after each stretch of focus</string>
+    <string name="settings_auto_break_interval">Focus stretch: %d min</string>
     <string name="settings_hide_stop_button">Hide Stop Button</string>
     <string name="settings_hide_stop_button_desc">Hides Dispel button during timed focus sessions</string>
     <string name="settings_notifications">Notifications</string>
@@ -377,6 +382,8 @@
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituals</string>
     <string name="rituals_channel_description">Notifications for scheduled rituals</string>
+    <string name="auto_break_started_title">Break time</string>
+    <string name="auto_break_started_message">You\'ve focused for %1$d minutes — enjoy a %2$d-minute break.</string>
     <string name="ritual_started_title">Ritual Started</string>
     <string name="ritual_started_message">%s is now active.</string>
     <string name="ritual_ended_title">Ritual Ended</string>

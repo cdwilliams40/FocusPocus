@@ -21,6 +21,7 @@ object SessionManager {
             .putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(blockerNames))
             .putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blockerNames.firstOrNull())
             .putLong(Constants.PrefsKeys.SESSION_START_TIME, now)
+            .putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
             .putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, breaksEnabled)
             // A new session always starts outside any leftover break state
             .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
@@ -78,6 +79,7 @@ object SessionManager {
             .remove(Constants.PrefsKeys.SESSION_START_TIME)
             .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
             .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+            .remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
             .apply()
 
         DndController.updateDndState(context)
