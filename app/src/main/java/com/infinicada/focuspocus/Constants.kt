@@ -25,6 +25,13 @@ object Constants {
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"
         const val BREAK_END_TIME_MILLIS = "breakEndTimeMillis"
         const val MAX_BREAKS_PER_SESSION = "maxBreaksPerSession"
+
+        // Auto-break (Pomodoro) keys
+        const val AUTO_BREAK_ENABLED = "autoBreakEnabled"
+        const val AUTO_BREAK_INTERVAL_MINUTES = "autoBreakIntervalMinutes"
+        // Wall-clock start of the current uninterrupted focus stretch
+        // (set at session start and whenever a break ends)
+        const val FOCUS_SEGMENT_START_MILLIS = "focusSegmentStartMillis"
         const val THEME_MODE = "themeMode"
         const val HIDE_STOP_BUTTON = "hideStopButton"
 

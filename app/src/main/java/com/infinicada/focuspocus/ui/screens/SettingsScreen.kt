@@ -45,6 +45,10 @@ fun SettingsScreen(
     onMaxBreaksChanged: (Int) -> Unit,
     emergencyBreakCadenceWeeks: Int,
     onEmergencyBreakCadenceChanged: (Int) -> Unit,
+    autoBreakEnabled: Boolean,
+    onAutoBreakEnabledChanged: (Boolean) -> Unit,
+    autoBreakIntervalMinutes: Int,
+    onAutoBreakIntervalChanged: (Int) -> Unit,
     hideStopButton: Boolean,
     onHideStopButtonChanged: (Boolean) -> Unit,
     muteNotifications: Boolean,
@@ -153,6 +157,44 @@ fun SettingsScreen(
                         enabled = !focusMode,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_auto_break))
+                            Text(
+                                stringResource(R.string.settings_auto_break_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = autoBreakEnabled,
+                            onCheckedChange = onAutoBreakEnabledChanged,
+                            enabled = !focusMode
+                        )
+                    }
+
+                    if (autoBreakEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_auto_break_interval, autoBreakIntervalMinutes),
+                            color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                        )
+                        Slider(
+                            value = autoBreakIntervalMinutes.coerceIn(5, 60).toFloat(),
+                            onValueChange = { onAutoBreakIntervalChanged((it / 5).roundToInt() * 5) },
+                            valueRange = 5f..60f,
+                            steps = 10,
+                            enabled = !focusMode,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 

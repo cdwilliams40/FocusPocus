@@ -132,6 +132,8 @@ fun FocusPocusApp(
     val breakDurationMinutes by settingsVM.breakDurationMinutes.collectAsStateWithLifecycle()
     val maxBreaksPerSession by settingsVM.maxBreaksPerSession.collectAsStateWithLifecycle()
     val emergencyBreakCadenceWeeks by settingsVM.emergencyBreakCadenceWeeks.collectAsStateWithLifecycle()
+    val autoBreakEnabled by settingsVM.autoBreakEnabled.collectAsStateWithLifecycle()
+    val autoBreakIntervalMinutes by settingsVM.autoBreakIntervalMinutes.collectAsStateWithLifecycle()
     val hideStopButton by settingsVM.hideStopButton.collectAsStateWithLifecycle()
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
@@ -301,6 +303,10 @@ fun FocusPocusApp(
             onMaxBreaksChanged = { settingsVM.setMaxBreaks(it) },
             emergencyBreakCadenceWeeks = emergencyBreakCadenceWeeks,
             onEmergencyBreakCadenceChanged = { settingsVM.setEmergencyBreakCadence(it) },
+            autoBreakEnabled = autoBreakEnabled,
+            onAutoBreakEnabledChanged = { settingsVM.setAutoBreakEnabled(it) },
+            autoBreakIntervalMinutes = autoBreakIntervalMinutes,
+            onAutoBreakIntervalChanged = { settingsVM.setAutoBreakInterval(it) },
             hideStopButton = hideStopButton,
             onHideStopButtonChanged = { settingsVM.setHideStopButton(it) },
             muteNotifications = muteBlockedNotifications,

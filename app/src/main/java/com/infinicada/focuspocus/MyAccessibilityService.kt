@@ -65,9 +65,39 @@ class MyAccessibilityService : AccessibilityService() {
             try {
                 updateBrowserPackages()
                 invalidatePackageCaches()
+                // Fresh installs (not updates) get added to opted-in blocklists
+                if (intent?.action == Intent.ACTION_PACKAGE_ADDED &&
+                    !intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
+                ) {
+                    intent.data?.schemeSpecificPart?.let { autoAddNewAppToBlockers(it) }
+                }
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error updating browser packages", e)
             }
+        }
+    }
+
+    /**
+     * Adds a newly installed package to every blacklist enchantment that has opted in
+     * via [Blocker.autoAddNewApps] — closing the loophole of installing a fresh
+     * distraction mid-session.
+     */
+    private fun autoAddNewAppToBlockers(newPackageName: String) {
+        if (newPackageName == packageName) return
+        val blockers = BlockerRepository.getBlockers(sharedPreferences)
+        val updated = blockers.map { blocker ->
+            if (blocker.autoAddNewApps && blocker.mode == BlockerMode.BLACKLIST &&
+                newPackageName !in blocker.effectiveApps &&
+                blocker.effectiveApps.size < Constants.MAX_APPS_PER_BLOCKER
+            ) {
+                blocker.copy(apps = blocker.effectiveApps + newPackageName)
+            } else blocker
+        }
+        if (updated != blockers) {
+            sharedPreferences.edit()
+                .putString(Constants.PrefsKeys.BLOCKER_LISTS, gson.toJson(updated))
+                .apply()
+            Log.d("MyAccessibilityService", "Auto-added new app to opted-in enchantments")
         }
     }
 
@@ -89,8 +119,10 @@ class MyAccessibilityService : AccessibilityService() {
     // Debounce for website blocking to prevent rapid re-triggering
     @Volatile private var lastWebsiteBlockTime: Long = 0
 
-    // Debounce for app blocking to prevent rapid re-triggering
-    @Volatile private var lastAppBlockTime: Long = 0
+    // Debounce for app blocking, per package — Android fires multiple window-state
+    // events when one app opens, but blocking one app must not suppress checks for
+    // a different app opened right after.
+    private val lastAppBlockTimes = HashMap<String, Long>()
 
     // Most recently focused "real" app (updated on every window state change, before debounce)
     @Volatile private var currentForegroundPackage: String? = null
@@ -138,6 +170,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
                 enforceTimedSessionExpiry()
                 checkSchedules()
+                maybeStartAutoBreak()
 
                 // Clear any cooldowns whose expiry has now passed.
                 sessionCooldownManager.clearExpiredCooldowns()
@@ -337,6 +370,8 @@ class MyAccessibilityService : AccessibilityService() {
                     .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
                     .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
                     .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                    // A fresh focus stretch begins now that the break is over
+                    .putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
                 if (focusRemaining > 0) {
                     editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + focusRemaining * 1000L)
                 }
@@ -356,6 +391,83 @@ class MyAccessibilityService : AccessibilityService() {
         if (focusEnd in 1..now) {
             Log.d("MyAccessibilityService", "Timed session expired while UI was away — stopping session")
             SessionManager.stopSession(this, sharedPreferences, gson)
+        }
+    }
+
+    /**
+     * Pomodoro auto-break: when enabled in settings, starts a break automatically once
+     * the current uninterrupted focus stretch reaches the configured interval. Runs on
+     * the minute tick so it works whether or not the UI is alive. Mirrors the break
+     * bookkeeping in SessionRepository.writeBreakState: the focus countdown is frozen
+     * (FOCUS_END_TIME_MILLIS parked as remaining seconds) for the length of the break.
+     */
+    private fun maybeStartAutoBreak() {
+        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, false)) return
+        if (sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return
+
+        val focusActive = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
+            sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
+        if (!focusActive) return
+        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)) return
+
+        // Respect schedule-level break overrides when a ritual is running.
+        val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        val activeSchedule = if (activeScheduleId != null) cachedSchedules.find { it.id == activeScheduleId } else null
+        if (activeSchedule?.breaksEnabled == false) return
+
+        val maxBreaks = (activeSchedule?.maxBreaksPerSession
+            ?: sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3)).coerceAtLeast(1)
+        val breaksUsed = sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
+        if (breaksUsed >= maxBreaks) return
+
+        val now = System.currentTimeMillis()
+        val segmentStart = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, 0L)
+        if (segmentStart <= 0L) return
+        val intervalMinutes = sharedPreferences.getInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, 25)
+            .coerceIn(5, 60)
+        if (now - segmentStart < intervalMinutes * 60_000L) return
+
+        val breakDuration = (activeSchedule?.breakDurationMinutes
+            ?: sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5)).coerceAtLeast(1)
+
+        val editor = sharedPreferences.edit()
+            .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+            .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakDuration * 60)
+            .putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
+            .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed + 1)
+        // Freeze the focus countdown for the duration of the break.
+        val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
+        if (focusEnd > 0L) {
+            val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
+            editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
+            editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+        }
+        editor.apply()
+
+        DndController.updateDndState(this)
+        Log.d("MyAccessibilityService", "Auto-break started after ${intervalMinutes}m of focus")
+        sendAutoBreakNotification(intervalMinutes, breakDuration)
+    }
+
+    private fun sendAutoBreakNotification(focusedMinutes: Int, breakMinutes: Int) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, Constants.RITUALS_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.fplogo_round)
+            .setContentTitle(getString(R.string.auto_break_started_title))
+            .setContentText(getString(R.string.auto_break_started_message, focusedMinutes, breakMinutes))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            notificationManager.notify(Constants.FOCUS_SESSION_NOTIFICATION_ID, builder.build())
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Failed to send auto-break notification", e)
         }
     }
 
@@ -585,7 +697,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
-        if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
+        if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
 
         val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
@@ -597,7 +709,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (focusActive && nfcLockMode && packageName in SETTINGS_PACKAGES) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
-            lastAppBlockTime = now
+            lastAppBlockTimes[packageName] = now
             currentForegroundPackage = null
             closeApp()
             showOverlay(appName, getString(R.string.service_talisman_lock))
@@ -620,7 +732,7 @@ class MyAccessibilityService : AccessibilityService() {
                 if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
-                    lastAppBlockTime = now
+                    lastAppBlockTimes[packageName] = now
                     currentForegroundPackage = null
                     recordBlockEvent(packageName, blocker.name)
                     closeApp()
@@ -637,7 +749,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun checkTimeLimitAndBlock(packageName: String) {
         // Debounce — prevent rapid re-triggering from both window-state and minute-tick paths
         val now = System.currentTimeMillis()
-        if (now - lastAppBlockTime < APP_BLOCK_DEBOUNCE_MS) return
+        if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
 
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
@@ -647,7 +759,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
-            lastAppBlockTime = now
+            lastAppBlockTimes[packageName] = now
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
@@ -664,7 +776,7 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Cooldown active for $appName (attempt #$newAttemptCount, friction=$frictionLevel)")
-            lastAppBlockTime = now
+            lastAppBlockTimes[packageName] = now
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Session Cooldown")
             closeApp()
@@ -684,7 +796,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val appName = AppUtils.getAppName(this, packageName)
                 if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                     "Session limit reached for $appName after ${sessionMinutes}m — cooldown started")
-                lastAppBlockTime = now
+                lastAppBlockTimes[packageName] = now
                 currentForegroundPackage = null
                 recordBlockEvent(packageName, "Session Cooldown")
                 closeApp()

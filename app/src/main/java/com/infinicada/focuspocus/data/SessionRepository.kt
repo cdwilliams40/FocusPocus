@@ -208,6 +208,7 @@ class SessionRepository(
                 .putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
                 .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                 .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+                .remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
         }
 
         editor.apply()
@@ -237,6 +238,8 @@ class SessionRepository(
                 editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
                     System.currentTimeMillis() + focusTimeRemaining * 1000L)
             }
+            // A fresh focus stretch begins when the break ends
+            editor.putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, System.currentTimeMillis())
         }
         editor.apply()
         DndController.updateDndState(context)

@@ -29,6 +29,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _emergencyBreakCadenceWeeks = MutableStateFlow(repo.getEmergencyBreakCadenceWeeks())
     val emergencyBreakCadenceWeeks: StateFlow<Int> = _emergencyBreakCadenceWeeks.asStateFlow()
 
+    private val _autoBreakEnabled = MutableStateFlow(repo.getAutoBreakEnabled())
+    val autoBreakEnabled: StateFlow<Boolean> = _autoBreakEnabled.asStateFlow()
+
+    private val _autoBreakIntervalMinutes = MutableStateFlow(repo.getAutoBreakIntervalMinutes())
+    val autoBreakIntervalMinutes: StateFlow<Int> = _autoBreakIntervalMinutes.asStateFlow()
+
     private val _hideStopButton = MutableStateFlow(repo.getHideStopButton())
     val hideStopButton: StateFlow<Boolean> = _hideStopButton.asStateFlow()
 
@@ -67,6 +73,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setEmergencyBreakCadence(weeks: Int) {
         _emergencyBreakCadenceWeeks.value = weeks
         repo.setEmergencyBreakCadenceWeeks(weeks)
+    }
+
+    fun setAutoBreakEnabled(enabled: Boolean) {
+        _autoBreakEnabled.value = enabled
+        repo.setAutoBreakEnabled(enabled)
+    }
+
+    fun setAutoBreakInterval(minutes: Int) {
+        _autoBreakIntervalMinutes.value = minutes
+        repo.setAutoBreakIntervalMinutes(minutes)
     }
 
     fun setHideStopButton(enabled: Boolean) {

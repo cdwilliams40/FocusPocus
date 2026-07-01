@@ -139,6 +139,8 @@
     <string name="spells_save_enchantment">Enregistrer l\'enchantement</string>
     <string name="spells_char_count">%1$d/%2$d</string>
     <string name="spells_blocked_websites">Sites web bloqués</string>
+    <string name="spells_auto_add_new_apps">Bannir les nouvelles applications</string>
+    <string name="spells_auto_add_new_apps_desc">Ajoute automatiquement les applications nouvellement installées à cet enchantement</string>
     <string name="spells_website_hint">ex. youtube.com</string>
     <string name="spells_remove_site">Retirer %s</string>
     <string name="spells_select_apps_title">Sélectionner les applications</string>
@@ -156,6 +158,9 @@
     <string name="settings_breaks_per_session">Pauses par session par défaut : %d</string>
     <string name="settings_emergency_cooldown">Délai d\'arrêt d\'urgence : %d semaines</string>
     <string name="settings_emergency_cooldown_desc">Un arrêt d\'urgence par période de délai lorsque vous devez terminer une session plus tôt</string>
+    <string name="settings_auto_break">Pause automatique (Pomodoro)</string>
+    <string name="settings_auto_break_desc">Démarre automatiquement une pause après chaque période de concentration</string>
+    <string name="settings_auto_break_interval">Période de concentration : %d min</string>
     <string name="settings_hide_stop_button">Masquer le bouton d\'arrêt</string>
     <string name="settings_hide_stop_button_desc">Masque le bouton Dissiper pendant les sessions de concentration minutées</string>
     <string name="settings_notifications">Notifications</string>
@@ -328,6 +333,8 @@
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituels</string>
     <string name="rituals_channel_description">Notifications pour les rituels planifiés</string>
+    <string name="auto_break_started_title">C\'est l\'heure de la pause</string>
+    <string name="auto_break_started_message">Vous êtes concentré depuis %1$d minutes — profitez d\'une pause de %2$d minutes.</string>
     <string name="ritual_started_title">Rituel commencé</string>
     <string name="ritual_started_message">%s est maintenant actif.</string>
     <string name="ritual_ended_title">Rituel terminé</string>

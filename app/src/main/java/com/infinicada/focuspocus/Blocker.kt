@@ -4,7 +4,10 @@ data class Blocker(
     val name: String,
     val mode: BlockerMode,
     val apps: Set<String>? = emptySet(),
-    val websites: List<String>? = null
+    val websites: List<String>? = null,
+    // Blacklist only: newly installed apps are added to this list automatically.
+    // Gson deserializes the field as false when absent in stored JSON.
+    val autoAddNewApps: Boolean = false
 ) {
     /** Null-safe accessor — Gson can deserialize apps as null despite Kotlin non-null type. */
     val effectiveApps: Set<String>
