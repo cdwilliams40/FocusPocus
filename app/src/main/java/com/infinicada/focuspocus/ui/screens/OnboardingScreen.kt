@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,17 +21,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DataUsage
+import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -44,6 +48,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +65,7 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.ui.StarfieldBackground
 
 @Composable
 fun OnboardingScreen(
@@ -100,17 +108,34 @@ fun OnboardingScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Progress bar
-        LinearProgressIndicator(
-            progress = { (currentStep + 1).toFloat() / totalSteps },
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        StarfieldBackground()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+        // Segmented step progress
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            repeat(totalSteps) { step ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (step <= currentStep) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
+                )
+            }
+        }
 
         Text(
             stringResource(R.string.onboarding_step_of, currentStep + 1, totalSteps),
@@ -191,6 +216,51 @@ fun OnboardingScreen(
                 }
             }
         }
+        }
+    }
+}
+
+/** Icon inside a soft tonal circle, used as the visual anchor of each step. */
+@Composable
+private fun StepHero(
+    icon: ImageVector,
+    container: Color = MaterialTheme.colorScheme.primaryContainer,
+    content: Color = MaterialTheme.colorScheme.onPrimaryContainer
+) {
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .background(container, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = content
+        )
+    }
+}
+
+/** Confirmation card shown once a permission or setup step is complete. */
+@Composable
+private fun StatusConfirmedCard(text: String, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(text, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
     }
 }
 
@@ -201,12 +271,7 @@ private fun WelcomeStep() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Default.AutoFixHigh,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        StepHero(Icons.Default.AutoFixHigh)
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             stringResource(R.string.onboarding_welcome_title),
@@ -233,6 +298,8 @@ private fun AccessibilityStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        StepHero(Icons.Default.Accessibility)
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             stringResource(R.string.onboarding_accessibility_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -248,20 +315,7 @@ private fun AccessibilityStep(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isEnabled) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(
-                        stringResource(R.string.onboarding_accessibility_enabled),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            StatusConfirmedCard(stringResource(R.string.onboarding_accessibility_enabled))
         } else {
             Button(onClick = onEnable) {
                 Text(stringResource(R.string.onboarding_enable_accessibility))
@@ -314,21 +368,10 @@ private fun CreateBlockerStep(
 
         if (blockerLists.isNotEmpty()) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                StatusConfirmedCard(
+                    stringResource(R.string.onboarding_enchantment_created),
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text(
-                            stringResource(R.string.onboarding_enchantment_created),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -370,6 +413,8 @@ private fun NotificationStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        StepHero(Icons.Default.DoNotDisturbOn)
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             stringResource(R.string.onboarding_notification_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -385,17 +430,7 @@ private fun NotificationStep(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isGranted) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.onboarding_notification_granted), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
+            StatusConfirmedCard(stringResource(R.string.onboarding_notification_granted))
         } else {
             Button(onClick = onGrant) {
                 Text(stringResource(R.string.onboarding_grant_notification))
@@ -414,6 +449,8 @@ private fun UsageStatsStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        StepHero(Icons.Default.DataUsage)
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             stringResource(R.string.onboarding_usage_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -429,17 +466,7 @@ private fun UsageStatsStep(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isGranted) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.onboarding_usage_granted), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
+            StatusConfirmedCard(stringResource(R.string.onboarding_usage_granted))
         } else {
             Button(onClick = onGrant) {
                 Text(stringResource(R.string.onboarding_grant_usage))
@@ -458,12 +485,7 @@ private fun AnalyticsConsentStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Default.BarChart,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        StepHero(Icons.Default.BarChart)
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             stringResource(R.string.onboarding_analytics_title),
@@ -506,11 +528,10 @@ private fun DoneStep() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
+        StepHero(
             Icons.Default.Check,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary
+            container = MaterialTheme.colorScheme.tertiaryContainer,
+            content = MaterialTheme.colorScheme.onTertiaryContainer
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
