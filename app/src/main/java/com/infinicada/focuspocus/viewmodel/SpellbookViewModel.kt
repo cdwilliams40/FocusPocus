@@ -92,7 +92,15 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             val apps = withContext(Dispatchers.IO) {
                 val pm = getApplication<Application>().packageManager
                 pm.getInstalledApplications(PackageManager.GET_META_DATA)
-                    .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+                    .filter {
+                        try {
+                            pm.getLaunchIntentForPackage(it.packageName) != null
+                        } catch (_: Exception) {
+                            // The framework can throw NPE ("class name is null") for packages in
+                            // a transient state (mid-update/uninstall); skip them instead of crashing.
+                            false
+                        }
+                    }
                     .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName) }
                     .sortedBy { it.name.lowercase() }
             }
