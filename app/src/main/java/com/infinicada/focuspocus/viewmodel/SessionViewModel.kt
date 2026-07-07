@@ -81,9 +81,14 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _longestStreak = MutableStateFlow(repo.getLongestStreak())
     val longestStreak: StateFlow<Int> = _longestStreak.asStateFlow()
 
+    // Elapsed seconds for unlimited sessions (no end time to count down to)
+    private val _sessionElapsedSeconds = MutableStateFlow(0L)
+    val sessionElapsedSeconds: StateFlow<Long> = _sessionElapsedSeconds.asStateFlow()
+
     // Timer jobs
     private var focusTimerJob: Job? = null
     private var breakTimerJob: Job? = null
+    private var elapsedTimerJob: Job? = null
 
     init {
         normalizePersistedState()
@@ -123,21 +128,25 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         if (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
             startFocusTimer()
         }
+        startOrStopElapsedTimer()
     }
 
+    // The tickers below re-derive the remaining time from the persisted wall-clock
+    // end timestamps on every tick instead of decrementing a counter. This keeps the
+    // display honest across process suspension, dispatcher throttling, and clock
+    // changes, and avoids a SharedPreferences write per second — the end timestamp
+    // written once at the state transition is the single source of truth.
     private fun startFocusTimer() {
         focusTimerJob?.cancel()
         focusTimerJob = viewModelScope.launch {
-            while (_manualFocusMode.value && _focusTimeRemaining.value > 0 && !_isOnBreak.value) {
-                delay(1000L)
-                val remaining = _focusTimeRemaining.value - 1
+            while (_manualFocusMode.value && !_isOnBreak.value) {
+                val remaining = repo.getEffectiveFocusTimeRemaining()
                 _focusTimeRemaining.value = remaining
-                repo.setFocusTimeRemaining(remaining)
-
                 if (remaining <= 0) {
-                    handleTimerExpired()
+                    if (repo.getFocusEndTimeMillis() > 0) handleTimerExpired()
                     break
                 }
+                delay(1000L)
             }
         }
     }
@@ -145,12 +154,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private fun startBreakTimer() {
         breakTimerJob?.cancel()
         breakTimerJob = viewModelScope.launch {
-            while (_isOnBreak.value && _breakTimeRemaining.value > 0) {
-                delay(1000L)
-                val remaining = _breakTimeRemaining.value - 1
+            while (_isOnBreak.value) {
+                val remaining = repo.getEffectiveBreakTimeRemaining()
                 _breakTimeRemaining.value = remaining
-                repo.setBreakTimeRemaining(remaining)
-
                 if (remaining <= 0) {
                     _isOnBreak.value = false
                     // Persist break end and restart the focus end-time clock so the
@@ -165,6 +171,26 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     startFocusTimer()
                     break
                 }
+                delay(1000L)
+            }
+        }
+    }
+
+    /** Ticks elapsed time for unlimited sessions, where no countdown is running. */
+    private fun startOrStopElapsedTimer() {
+        elapsedTimerJob?.cancel()
+        val unlimited = _manualFocusMode.value && repo.getFocusEndTimeMillis() <= 0L &&
+            _focusTimeRemaining.value <= 0
+        if (!unlimited) {
+            _sessionElapsedSeconds.value = 0L
+            return
+        }
+        elapsedTimerJob = viewModelScope.launch {
+            while (_manualFocusMode.value) {
+                val start = repo.getSessionStartTime()
+                _sessionElapsedSeconds.value =
+                    if (start > 0) ((System.currentTimeMillis() - start) / 1000L).coerceAtLeast(0L) else 0L
+                delay(1000L)
             }
         }
     }
@@ -268,10 +294,19 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     fun takeBreak(effectiveBreakDuration: Int) {
         val used = _breaksUsedThisSession.value + 1
         val remaining = effectiveBreakDuration * 60
+        // Freeze the focus countdown at its current wall-clock value for the length
+        // of the break; the end timestamp is recomputed from it when the break ends.
+        val focusRemaining = repo.getEffectiveFocusTimeRemaining()
         _isOnBreak.value = true
         _breakTimeRemaining.value = remaining
         _breaksUsedThisSession.value = used
-        repo.writeBreakState(isOnBreak = true, breakTimeRemaining = remaining, breaksUsed = used)
+        _focusTimeRemaining.value = focusRemaining
+        repo.writeBreakState(
+            isOnBreak = true,
+            breakTimeRemaining = remaining,
+            breaksUsed = used,
+            focusTimeRemaining = focusRemaining
+        )
         focusTimerJob?.cancel()
         startBreakTimer()
         DndController.updateDndState(getApplication())
@@ -332,8 +367,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             _isOnBreak.value = false
             _breakTimeRemaining.value = 0
             _focusTimeRemaining.value = 0
+            _sessionElapsedSeconds.value = 0L
             focusTimerJob?.cancel()
             breakTimerJob?.cancel()
+            elapsedTimerJob?.cancel()
         }
     }
 

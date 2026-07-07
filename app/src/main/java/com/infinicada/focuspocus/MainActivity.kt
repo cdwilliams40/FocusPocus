@@ -208,14 +208,21 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
     override fun onResume() {
         super.onResume()
+        // Accept all common tag technologies so any NFC talisman works, not just NfcA.
         nfcAdapter?.enableReaderMode(
             this,
             this,
-            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B or
+                NfcAdapter.FLAG_READER_NFC_F or NfcAdapter.FLAG_READER_NFC_V or
+                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
             null
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         sharedPreferences.registerOnSharedPreferenceChangeListener(sessionStateChangeListener)
+        // The listener above was unregistered while paused, so any session state the
+        // accessibility service changed in the meantime (ritual started/ended, timed
+        // session expired) went unseen — force one sync to pick it up.
+        nfcTriggerCount++
     }
 
     override fun onPause() {

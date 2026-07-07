@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -63,6 +64,9 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.ui.components.GlassCard
+import com.infinicada.focuspocus.ui.components.SectionHeader
+import com.infinicada.focuspocus.ui.components.StatTile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -199,10 +203,6 @@ fun UsageStatsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(stringResource(R.string.insights_title), style = MaterialTheme.typography.headlineMedium)
-        }
-
         // Time range tabs
         item {
             Row(
@@ -224,136 +224,66 @@ fun UsageStatsScreen(
             }
         }
 
-        // Focus Streaks Card
+        // Streak tiles
         if (focusSessions.isNotEmpty() || currentStreak > 0) {
             item {
-                ElevatedCard(
+                SectionHeader(stringResource(R.string.insights_focus_streaks))
+            }
+            item {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.insights_focus_streaks),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "$currentStreak",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_current),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "$longestStreak",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_best),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "${focusSessions.size}",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_total),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            }
-                        }
-                    }
+                    StatTile(
+                        value = "$currentStreak",
+                        label = stringResource(R.string.insights_current),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = "$longestStreak",
+                        label = stringResource(R.string.insights_best),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = "${focusSessions.size}",
+                        label = stringResource(R.string.insights_total),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
 
-        // Focus Stats Card
+        // Focus stat tiles
         if (filteredSessions.isNotEmpty()) {
             item {
-                ElevatedCard(
+                SectionHeader(stringResource(R.string.insights_focus_stats))
+            }
+            item {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.insights_focus_stats),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                val hours = totalFocusMinutes / 60
-                                val mins = totalFocusMinutes % 60
-                                Text(
-                                    if (hours > 0) stringResource(R.string.insights_hours_minutes, hours, mins) else stringResource(R.string.insights_minutes_only, mins),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_total_focus),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    stringResource(R.string.insights_minutes_only, avgSessionLength),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_avg_session),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "${filteredSessions.size}",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text(
-                                    stringResource(R.string.insights_sessions),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
+                    val hours = totalFocusMinutes / 60
+                    val mins = totalFocusMinutes % 60
+                    StatTile(
+                        value = if (hours > 0) stringResource(R.string.insights_hours_minutes, hours, mins)
+                                else stringResource(R.string.insights_minutes_only, mins),
+                        label = stringResource(R.string.insights_total_focus),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = stringResource(R.string.insights_minutes_only, avgSessionLength),
+                        label = stringResource(R.string.insights_avg_session),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = "${filteredSessions.size}",
+                        label = stringResource(R.string.insights_sessions),
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
@@ -361,14 +291,10 @@ fun UsageStatsScreen(
         // Daily Focus Trend
         if (filteredSessions.isNotEmpty() && selectedTabIndex <= 1) {
             item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth()
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
                         Text(
                             stringResource(R.string.insights_daily_trend),
                             style = MaterialTheme.typography.titleMedium
@@ -430,7 +356,6 @@ fun UsageStatsScreen(
                                 )
                             }
                         }
-                    }
                 }
             }
         }
@@ -438,14 +363,10 @@ fun UsageStatsScreen(
         // Blocking Stats Card
         if (filteredBlockEvents.isNotEmpty()) {
             item {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth()
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
                         Text(
                             stringResource(R.string.insights_blocking_stats),
                             style = MaterialTheme.typography.titleMedium
@@ -494,7 +415,6 @@ fun UsageStatsScreen(
                                 }
                             }
                         }
-                    }
                 }
             }
         }
@@ -502,7 +422,7 @@ fun UsageStatsScreen(
         // App Time Limit Status
         if (appTimeLimits.isNotEmpty() && hasPermission) {
             item {
-                Text(stringResource(R.string.insights_time_limit_status), style = MaterialTheme.typography.titleMedium)
+                SectionHeader(stringResource(R.string.insights_time_limit_status))
             }
             val limitEntries = appTimeLimits.entries.toList()
             items(limitEntries) { (pkg, limit) ->
@@ -551,7 +471,7 @@ fun UsageStatsScreen(
         // Session History
         if (filteredSessions.isNotEmpty()) {
             item {
-                Text(stringResource(R.string.insights_session_history), style = MaterialTheme.typography.titleMedium)
+                SectionHeader(stringResource(R.string.insights_session_history))
             }
 
             val sortedSessions = filteredSessions.sortedByDescending { it.endTimeMillis }
@@ -633,35 +553,31 @@ fun UsageStatsScreen(
             }
         } else {
             item {
-                ElevatedCard(
+                GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    contentPadding = PaddingValues(24.dp)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             if (selectedTabIndex == 0) stringResource(R.string.insights_today_screen_time) else stringResource(R.string.insights_screen_time),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             UsageStatsHelper.formatDuration(totalScreenTime),
                             style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.primary
                         )
                         val filter = selectedBlockerFilter
                         if (filter != null) {
                             Text(
                                 stringResource(R.string.insights_filtered_by, filter.name),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -709,10 +625,7 @@ fun UsageStatsScreen(
             }
 
             item {
-                Text(
-                    stringResource(R.string.insights_app_usage),
-                    style = MaterialTheme.typography.titleMedium
-                )
+                SectionHeader(stringResource(R.string.insights_app_usage))
             }
 
             if (filteredStats.isEmpty()) {

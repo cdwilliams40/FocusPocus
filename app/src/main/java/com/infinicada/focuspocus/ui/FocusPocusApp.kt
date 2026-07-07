@@ -7,6 +7,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,14 +34,17 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -53,7 +57,7 @@ import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
 import com.infinicada.focuspocus.navigation.SpellbookRoute
-import com.infinicada.focuspocus.navigation.TopLevelRoute
+import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
@@ -115,6 +119,7 @@ fun FocusPocusApp(
     val sessionSummaryBlocker by sessionVM.sessionSummaryBlocker.collectAsStateWithLifecycle()
     val sessionFocusSessions by sessionVM.focusSessions.collectAsStateWithLifecycle()
     val longestStreak by sessionVM.longestStreak.collectAsStateWithLifecycle()
+    val sessionElapsedSeconds by sessionVM.sessionElapsedSeconds.collectAsStateWithLifecycle()
 
     val blockerLists by spellbookVM.blockerLists.collectAsStateWithLifecycle()
     val schedules by spellbookVM.schedules.collectAsStateWithLifecycle()
@@ -262,8 +267,10 @@ fun FocusPocusApp(
 
     var showBlockerSelectionDialog by remember { mutableStateOf(false) }
     val focusMode = focusTagId != null || manualFocusMode
-    var currentDestination by remember { mutableStateOf(AppDestinations.HOME) }
-    var topLevelRoute by remember { mutableStateOf<TopLevelRoute>(TopLevelRoute.Main) }
+    // Saveable so the selected tab and settings screen survive rotation and
+    // process recreation instead of snapping back to Home.
+    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     val activeManualBlockers = remember(activeBlockerNames, blockerLists) {
         blockerLists.filter { it.name in activeBlockerNames }
@@ -290,10 +297,11 @@ fun FocusPocusApp(
         mutableStateOf(notificationManager.isNotificationPolicyAccessGranted)
     }
 
-    if (topLevelRoute is TopLevelRoute.Settings) {
+    if (showSettings) {
         LaunchedEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
         }
+        BackHandler { showSettings = false }
         SettingsScreen(
             themeMode = themeMode,
             onThemeModeChanged = { settingsVM.setThemeMode(it) },
@@ -325,7 +333,7 @@ fun FocusPocusApp(
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
             namedTags = namedTags,
             focusMode = focusMode,
-            onNavigateBack = { topLevelRoute = TopLevelRoute.Main },
+            onNavigateBack = { showSettings = false },
             modifier = modifier.fillMaxSize()
         )
         return
@@ -336,8 +344,13 @@ fun FocusPocusApp(
         BackHandler { spellbookVM.handleBack() }
     }
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
+    // One shared arcane sky behind every tab — the scaffold and top bar are
+    // transparent so screens feel like they live in the same night.
+    Box(modifier = modifier.fillMaxSize()) {
+        ArcaneBackground()
+        NavigationSuiteScaffold(
+            containerColor = Color.Transparent,
+            navigationSuiteItems = {
             AppDestinations.entries.forEach {
                 item(
                     icon = { Icon(it.icon, contentDescription = stringResource(it.labelRes)) },
@@ -354,12 +367,16 @@ fun FocusPocusApp(
         }
     ) {
         Scaffold(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(currentDestination.labelRes)) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
                     actions = {
-                        IconButton(onClick = { topLevelRoute = TopLevelRoute.Settings }) {
+                        IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.main_settings_content_desc))
                         }
                     }
@@ -391,6 +408,8 @@ fun FocusPocusApp(
                         focusTimeRemaining = focusTimeRemaining,
                         isOnBreak = isOnBreak,
                         breakTimeRemaining = breakTimeRemaining,
+                        breakTotalSeconds = effectiveBreakDuration * 60,
+                        sessionElapsedSeconds = sessionElapsedSeconds,
                         breaksUsedThisSession = breaksUsedThisSession,
                         maxBreaksPerSession = effectiveMaxBreaks,
                         breaksAllowed = breaksAllowed,
@@ -618,6 +637,7 @@ fun FocusPocusApp(
                 }
             }
         }
+    }
     }
 
     // Session summary dialog

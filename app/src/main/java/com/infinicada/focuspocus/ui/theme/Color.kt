@@ -96,6 +96,18 @@ val LightSurfaceContainerHighest = Color(0xFFE6E0EC)
 // Blocker overlay scrim — deep violet night behind the block card
 val OverlayScrim = Color(0xFF14102A)
 
+// ── Arcane sky gradients ──
+// Layered night-sky backdrop drawn behind every screen: a violet glow near
+// the top that settles into near-black indigo at the bottom of the screen.
+val NightSkyTop = Color(0xFF241B44)
+val NightSkyMid = Color(0xFF171130)
+val NightSkyBottom = Color(0xFF0C0917)
+
+// Light theme counterpart — a soft lavender dawn.
+val DaySkyTop = Color(0xFFEFE7FF)
+val DaySkyMid = Color(0xFFF8F3FF)
+val DaySkyBottom = Color(0xFFFDF8FF)
+
 val LightOutline = Color(0xFF7A7489)
 val LightOutlineVariant = Color(0xFFCBC4DA)
 val LightInverseSurface = Color(0xFF322F3B)

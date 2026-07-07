@@ -65,7 +65,7 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.UsageStatsHelper
-import com.infinicada.focuspocus.ui.StarfieldBackground
+import com.infinicada.focuspocus.ui.components.ArcaneBackground
 
 @Composable
 fun OnboardingScreen(
@@ -108,8 +108,7 @@ fun OnboardingScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        StarfieldBackground()
+    ArcaneBackground(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
