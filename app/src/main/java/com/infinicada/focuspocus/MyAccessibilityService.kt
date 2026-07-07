@@ -154,6 +154,11 @@ class MyAccessibilityService : AccessibilityService() {
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
     @Volatile private var lastBlockEventWriteTime: Long = 0
 
+    // Cache of the persisted block-event list so each flush doesn't re-parse a
+    // potentially 1000-entry JSON array on the service's main thread.
+    @Volatile private var cachedBlockEventsJson: String? = null
+    @Volatile private var cachedBlockEvents: List<BlockEvent> = emptyList()
+
     private val timeLimitChecker by lazy { TimeLimitChecker(this) }
 
     // Settings packages to block in NFC lock mode
@@ -168,31 +173,54 @@ class MyAccessibilityService : AccessibilityService() {
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_TIME_TICK) {
-                enforceTimedSessionExpiry()
-                checkSchedules()
-                maybeStartAutoBreak()
-
-                // Clear any cooldowns whose expiry has now passed.
-                sessionCooldownManager.clearExpiredCooldowns()
-
-                // Reset daily counters when the calendar date rolls over.
-                if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
-                    sessionCooldownManager.resetDailyCooldowns()
-                    pacingNotifiedToday.clear()
-                    lastCooldownResetDate = SessionCooldownManager.todayString()
+                try {
+                    onMinuteTick()
+                } catch (e: Exception) {
+                    // The minute tick must never take the service down — blocking,
+                    // schedule enforcement, and limits all depend on it staying alive.
+                    Log.e("MyAccessibilityService", "Error in minute tick", e)
+                    reportNonFatal(e)
                 }
-
-                // Pacing notification for the app currently in the foreground.
-                currentForegroundPackage?.let { pkg ->
-                    val limit = getCachedTimeLimits()[pkg]
-                    if (limit != null) checkPacingNotification(pkg, limit)
-                }
-
-                // Also enforce time limits on whichever app is currently in the foreground.
-                // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
-                // could stay inside an app past its daily limit indefinitely.
-                currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
             }
+        }
+    }
+
+    private fun onMinuteTick() {
+        enforceTimedSessionExpiry()
+        checkSchedules()
+        maybeStartAutoBreak()
+
+        // Clear any cooldowns whose expiry has now passed.
+        sessionCooldownManager.clearExpiredCooldowns()
+
+        // Reset daily counters when the calendar date rolls over.
+        if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
+            sessionCooldownManager.resetDailyCooldowns()
+            pacingNotifiedToday.clear()
+            lastCooldownResetDate = SessionCooldownManager.todayString()
+        }
+
+        // Pacing notification for the app currently in the foreground.
+        currentForegroundPackage?.let { pkg ->
+            val limit = getCachedTimeLimits()[pkg]
+            if (limit != null) checkPacingNotification(pkg, limit)
+        }
+
+        // Also enforce time limits on whichever app is currently in the foreground.
+        // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
+        // could stay inside an app past its daily limit indefinitely.
+        currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
+    }
+
+    /**
+     * Reports a swallowed exception to Crashlytics without risking a second failure —
+     * the service must stay alive even if Firebase itself is unavailable.
+     */
+    private fun reportNonFatal(e: Exception) {
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+        } catch (_: Exception) {
+            // Crashlytics unavailable — already logged to logcat.
         }
     }
 
@@ -205,9 +233,15 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Clean up any break or timed session that expired while the service was down
         // (e.g. after a reboot), then activate any schedule that should currently be
-        // running but wasn't started.
-        enforceTimedSessionExpiry()
-        checkMissedScheduleActivation()
+        // running but wasn't started. Guarded so a bad persisted state can never
+        // prevent the service from finishing its startup wiring below.
+        try {
+            enforceTimedSessionExpiry()
+            checkMissedScheduleActivation()
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error reconciling state on service start", e)
+            reportNonFatal(e)
+        }
 
         val filter = IntentFilter(Intent.ACTION_TIME_TICK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -661,9 +695,16 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> handleWindowContentChanged(event)
+        try {
+            when (event.eventType) {
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> handleWindowContentChanged(event)
+            }
+        } catch (e: Exception) {
+            // Never let a single bad event crash the service — a dead service means
+            // nothing is blocked until the user manually re-enables accessibility.
+            Log.e("MyAccessibilityService", "Error handling accessibility event", e)
+            reportNonFatal(e)
         }
     }
 
@@ -936,20 +977,25 @@ class MyAccessibilityService : AccessibilityService() {
         }
         lastBlockEventWriteTime = System.currentTimeMillis()
         val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
-        val existing: MutableList<BlockEvent> = if (json != null) {
-            try {
+        val existing: MutableList<BlockEvent> = when {
+            json == null -> mutableListOf()
+            json == cachedBlockEventsJson -> cachedBlockEvents.toMutableList()
+            else -> try {
                 val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
                 gson.fromJson<MutableList<BlockEvent>>(json, type) ?: mutableListOf()
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
                 mutableListOf()
             }
-        } else mutableListOf()
+        }
         existing.addAll(eventsToWrite)
         val pruned = if (existing.size > Constants.MAX_BLOCK_EVENTS) {
             existing.drop(existing.size - Constants.MAX_BLOCK_EVENTS)
         } else existing
-        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCK_EVENTS, gson.toJson(pruned)).apply()
+        val prunedJson = gson.toJson(pruned)
+        cachedBlockEventsJson = prunedJson
+        cachedBlockEvents = pruned
+        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCK_EVENTS, prunedJson).apply()
     }
 
     private fun handleWindowContentChanged(event: AccessibilityEvent) {

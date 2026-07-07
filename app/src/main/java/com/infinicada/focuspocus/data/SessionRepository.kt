@@ -231,6 +231,9 @@ class SessionRepository(
         if (isOnBreak && breakTimeRemaining > 0) {
             editor.putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
                 System.currentTimeMillis() + breakTimeRemaining * 1000L)
+            // Park the focus countdown at its frozen value while the break runs;
+            // the end timestamp is re-derived from it when the break ends.
+            editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
             editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
         } else {
             editor.remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
