@@ -8,7 +8,9 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Create custom blocklists ("Enchantments") to block distracting apps
 - Choose between **Blacklist** mode (block specific apps) or **Whitelist** mode (allow only specific apps)
 - Block specific websites in addition to apps
+- **Auto-banish new apps**: opt an enchantment in and newly installed apps are added to it automatically, closing the loophole of installing a fresh distraction mid-session (blacklist mode only)
 - Gentle redirection back to your task when you try to open a blocked app
+- Optionally silence notifications from blocked apps while a session is active
 
 ### Quick Spells (Focus Presets)
 - Pre-configured focus sessions with customizable duration and settings
@@ -26,18 +28,28 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Use NFC tags as physical "talismans" to toggle focus mode
 - Bind talismans to specific Quick Spells for instant activation
 - Tap again to dispel the focus session
-- Optionally require a talisman tap to end a session early
+- Optionally require a talisman tap to end a session early (talisman lock)
 
 ### Timed Sessions with Breaks
 - Set focus duration (or unlimited)
-- Configurable break duration and frequency
+- Configurable break duration and maximum breaks per session
+- **Auto-breaks (Pomodoro)**: optionally start a break automatically after each uninterrupted focus stretch (5–60 minutes, default 25)
 - Breaks temporarily allow access to all apps and suspend Do Not Disturb
 - Emergency break feature with weekly cadence-based cooldown
+- Session and break timers are enforced by the background service using wall-clock timestamps, so they end on time even if the app is closed or the device reboots
+- Optionally hide the stop button so a session can't be ended early on impulse
 
 ### Per-App Time Limits
 - Set daily usage limits for individual apps (e.g., 30 minutes/day for social media)
 - Apps are automatically blocked once they exceed their daily limit
+- **Session limits with cooldowns**: cap continuous use of an app (e.g., 10 minutes at a time), after which it's blocked for a configurable cooldown period — optionally escalating on repeated offences in the same day
+- **Escalating friction**: each attempt to open a cooled-down app makes the block overlay harder to dismiss, from a short countdown up to typing a reflective phrase
 - View per-app usage statistics on the Insights screen
+
+### Conditional Unlocks
+- Earn access to blocked apps by first spending time in a productive one
+- Example: unlock social media only after 30 minutes in a study app
+- Unlocks can lift enchantment blocks and/or per-app time limits
 
 ### Browser URL Blocking
 - Block specific websites during focus sessions
@@ -45,7 +57,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 
 ### Session Analytics & Insights
 - Track completed focus sessions with start time, duration, and breaks used
-- View daily app usage statistics
+- View daily app usage trends and per-app statistics
 - Monitor block events to understand your distraction patterns
 
 ### Do Not Disturb Integration
@@ -67,7 +79,8 @@ Focus Pocus requires the following permissions:
 | **Accessibility Service** | Detect when you open apps and redirect from blocked apps |
 | **Usage Stats** | Track per-app usage for time limit enforcement |
 | **NFC** | Read NFC tags for talisman features |
-| **Notifications** | Show notifications for scheduled rituals |
+| **Notifications** | Show notifications for scheduled rituals and breaks |
+| **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
 | **Camera** | Scan QR codes to activate Quick Spells |
 
@@ -86,58 +99,60 @@ cd FocusPocus
 
 ## Setup
 
-1. **Grant Accessibility Permission**: On first launch, you'll be prompted to enable the Focus Pocus accessibility service. This is required for app blocking to work.
+On first launch, a guided onboarding flow walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that:
 
-2. **Grant Usage Access**: For per-app time limits, grant Usage Stats access in your device settings.
+1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps and websites you want to block during focus sessions.
 
-3. **Create an Enchantment**: Go to the Enchantments tab and create a blocklist with the apps you want to block during focus sessions.
-
-4. **Start Focusing**: Return to the Home tab, select your enchantment, and tap "Cast Spell" to begin your focus session.
+2. **Start Focusing**: Return to the Focus tab, select your enchantment, and tap "Cast Spell" to begin your focus session.
 
 ## Usage
 
-### Home Tab
+The app has three tabs, plus a Settings screen reached from the top bar.
+
+### Focus Tab
 - Select a Quick Spell or customize your session
-- Choose an enchantment (blocklist)
+- Choose one or more enchantments (blocklists)
 - Set duration and break preferences
 - Tap "Cast Spell" to start or "Dispel" to end
 
-### Enchantments Tab
-- View and manage your blocklists
-- Create new enchantments with specific apps and websites
-- Edit or delete existing enchantments
-
-### Rituals Tab
-- Schedule automatic focus sessions
-- Set days, times, and enchantments for each ritual
-- Optionally require a talisman to end early
+### Spellbook Tab
+Your grimoire of configuration, organized into sections:
+- **Enchantments**: create and manage blocklists of apps and websites
+- **Quick Spells**: create one-tap focus presets, with QR codes for sharing
+- **Rituals**: schedule automatic focus sessions by day and time
+- **Talismans**: manage your NFC tags and their bindings
+- **Time Limits**: set daily and per-session limits with cooldowns for individual apps
+- **Conditional Unlocks**: define productive-time requirements that unlock blocked apps
 
 ### Insights Tab
 - View session history and focus statistics
-- Monitor daily per-app usage and block events
+- Daily usage trends, per-app usage, and most-blocked apps
 
-### Profile Tab
-- Manage your NFC talismans
-- Set per-app time limits
-- Configure break settings
-- Toggle notification muting
-- Change app theme (Light/Dark/System)
+### Settings
+- **Appearance**: Light/Dark/System theme
+- **Focus Behavior**: break duration, breaks per session, auto-breaks (Pomodoro interval), emergency break cadence, hide stop button
+- **Notifications**: mute notifications from blocked apps during focus
+- **Security**: talisman lock (require an NFC tap to end sessions)
+- **Privacy**: opt in or out of analytics
 
 ## Tech Stack
 
 - **Language**: Kotlin
-- **UI**: Jetpack Compose with Material 3
+- **UI**: Jetpack Compose with Material 3 (custom "Arcane Dusk" theme)
 - **Min SDK**: 29 (Android 10)
 - **Target SDK**: 36
-- **Architecture**: Single-activity with Compose navigation
+- **Architecture**: Single-activity with Compose navigation, ViewModels, and repository-based data layer
+- **Libraries**: Navigation Compose, Gson, ZXing (QR codes), Firebase Crashlytics & Analytics
 
 ## Project Structure
 
 ```
 app/src/main/java/com/infinicada/focuspocus/
-├── MainActivity.kt                    # Main UI and navigation
-├── MyAccessibilityService.kt          # Background app blocking service
-├── OverlayActivity.kt                 # Blocker overlay shown when app is blocked
+├── MainActivity.kt                    # Single activity hosting the Compose UI
+├── FocusPocusApplication.kt           # Application class and initialization
+├── MyAccessibilityService.kt          # Background blocking, timer/break enforcement, auto-breaks
+├── FocusNotificationListenerService.kt# Silences notifications from blocked apps
+├── OverlayActivity.kt                 # Blocker overlay shown when an app is blocked
 ├── SessionManager.kt                  # Focus session state management
 ├── SessionRecorder.kt                 # Session history persistence
 ├── TimeLimitChecker.kt                # Per-app daily time limit enforcement
@@ -148,9 +163,19 @@ app/src/main/java/com/infinicada/focuspocus/
 ├── BlockerRepository.kt               # Blocklist persistence
 ├── BootCompletedReceiver.kt           # Restore state after device restart
 ├── Constants.kt                       # Shared constants and preference keys
-├── Blocker.kt                         # Blocklist data model
-├── NamedTag.kt                        # NFC tag data model
-└── ui/screens/                        # Jetpack Compose screen definitions
+├── data/                              # Repositories (blockers, presets, schedules,
+│                                      #   talismans, sessions, settings, insights,
+│                                      #   conditional unlocks)
+├── model/                             # Data models (Blocker, FocusPreset, Schedule,
+│                                      #   AppTimeLimit, ConditionalUnlock, ...)
+├── limit/                             # Session cooldowns and escalating friction levels
+├── handler/                           # Trigger handling (NFC, QR, deep links)
+├── navigation/                        # Navigation routes and destinations
+├── viewmodel/                         # ViewModels for session, settings, spellbook, insights
+└── ui/                                # Theme, shared composables, and screens
+    ├── theme/                         # Arcane Dusk Material 3 theme
+    └── screens/                       # Compose screens (Home, Spellbook, Insights,
+                                       #   Settings, Onboarding, editors, ...)
 ```
 
 ## Building
@@ -172,7 +197,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ## Acknowledgments
 
