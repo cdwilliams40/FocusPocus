@@ -9,17 +9,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,13 +38,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.ui.components.ArcaneBackground
+import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
-import com.infinicada.focuspocus.ui.theme.OverlayScrim
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
@@ -167,24 +175,47 @@ fun OverlayScreen(
     val phraseMatches = phraseInput.trim().equals(REQUIRED_PHRASE, ignoreCase = true)
     val isCloseEnabled = countdownDone && (frictionLevel?.requiresPhrase != true || phraseMatches)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(OverlayScrim.copy(alpha = 0.9f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-            modifier = Modifier.padding(32.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+    ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            GlassCard(
                 modifier = Modifier.padding(28.dp),
+                contentPadding = PaddingValues(28.dp)
+            ) {
+            Column(
+                modifier = Modifier,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // Glowing sigil at the top of the card
+                val sigilColor = MaterialTheme.colorScheme.primary
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(76.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                listOf(
+                                    sigilColor.copy(alpha = 0.28f),
+                                    sigilColor.copy(alpha = 0.06f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (isCooldownOverlay) Icons.Filled.HourglassEmpty
+                                      else Icons.Filled.AutoFixHigh,
+                        contentDescription = null,
+                        tint = sigilColor,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
@@ -268,6 +299,7 @@ fun OverlayScreen(
                         }
                     )
                 }
+            }
             }
         }
     }

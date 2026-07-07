@@ -9,10 +9,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,10 +35,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -68,13 +67,17 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Schedule
-import com.infinicada.focuspocus.ui.StarfieldBackground
+import com.infinicada.focuspocus.ui.components.GlassCard
+import com.infinicada.focuspocus.ui.components.formatClock
 
 @Composable
 fun Greeting(
@@ -90,6 +93,8 @@ fun Greeting(
     focusTimeRemaining: Int,
     isOnBreak: Boolean,
     breakTimeRemaining: Int,
+    breakTotalSeconds: Int = 0,
+    sessionElapsedSeconds: Long = 0L,
     breaksUsedThisSession: Int,
     maxBreaksPerSession: Int,
     breaksAllowed: Boolean,
@@ -117,7 +122,6 @@ fun Greeting(
     } else null
 
     Box(modifier = modifier.fillMaxSize()) {
-        StarfieldBackground()
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,6 +138,8 @@ fun Greeting(
                     focusDurationMinutes = focusDurationMinutes,
                     focusTimeRemaining = focusTimeRemaining,
                     breakTimeRemaining = breakTimeRemaining,
+                    breakTotalSeconds = breakTotalSeconds,
+                    sessionElapsedSeconds = sessionElapsedSeconds,
                     breaksUsedThisSession = breaksUsedThisSession,
                     maxBreaksPerSession = maxBreaksPerSession,
                     breaksAllowed = breaksAllowed,
@@ -253,53 +259,47 @@ private fun IdleContent(
 
     // Configuration card
     if (activeSchedule == null) {
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.home_session_setup),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SpellSelectorMultiDropdown(
+                blockerLists = blockerLists,
+                selectedBlockers = activeBlockers,
+                enabled = true,
+                onBlockerToggled = onBlockerToggled,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            DurationSelectorDropdown(
+                selectedDuration = focusDurationMinutes,
+                enabled = true,
+                onDurationSelected = onDurationSelected,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.home_session_setup),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    text = stringResource(R.string.home_allow_breaks),
+                    style = MaterialTheme.typography.bodyMedium
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SpellSelectorMultiDropdown(
-                    blockerLists = blockerLists,
-                    selectedBlockers = activeBlockers,
-                    enabled = true,
-                    onBlockerToggled = onBlockerToggled,
-                    modifier = Modifier.fillMaxWidth()
+                Switch(
+                    checked = sessionBreaksEnabled,
+                    onCheckedChange = onSessionBreaksToggled
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DurationSelectorDropdown(
-                    selectedDuration = focusDurationMinutes,
-                    enabled = true,
-                    onDurationSelected = onDurationSelected,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_allow_breaks),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = sessionBreaksEnabled,
-                        onCheckedChange = onSessionBreaksToggled
-                    )
-                }
             }
         }
 
@@ -326,6 +326,8 @@ private fun ActiveSessionContent(
     focusDurationMinutes: Int,
     focusTimeRemaining: Int,
     breakTimeRemaining: Int,
+    breakTotalSeconds: Int,
+    sessionElapsedSeconds: Long,
     breaksUsedThisSession: Int,
     maxBreaksPerSession: Int,
     breaksAllowed: Boolean,
@@ -390,7 +392,7 @@ private fun ActiveSessionContent(
     if (isOnBreak) {
         CircularTimer(
             timeRemaining = breakTimeRemaining,
-            totalTime = 0, // break total not tracked, show countdown only
+            totalTime = breakTotalSeconds,
             color = MaterialTheme.colorScheme.tertiary,
             trackColor = MaterialTheme.colorScheme.tertiaryContainer,
             label = stringResource(R.string.home_break_remaining)
@@ -404,37 +406,33 @@ private fun ActiveSessionContent(
             label = stringResource(R.string.home_remaining)
         )
     } else {
-        // Unlimited session — pulsing indicator
-        UnlimitedSessionIndicator()
+        // Unlimited session — pulsing ring with a live elapsed clock
+        UnlimitedSessionIndicator(elapsedSeconds = sessionElapsedSeconds)
     }
 
     Spacer(modifier = Modifier.height(16.dp))
 
     // Active Schedule info card
     if (activeSchedule != null && activeBlockers.isNotEmpty()) {
-        ElevatedCard(
+        GlassCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+            contentPadding = PaddingValues(16.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Text(
-                        text = stringResource(R.string.home_ritual_name, activeSchedule.name),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-                if (boundTalismanName != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.home_unbind_with, boundTalismanName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = stringResource(R.string.home_ritual_name, activeSchedule.name),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            if (boundTalismanName != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.home_unbind_with, boundTalismanName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -600,7 +598,9 @@ private fun CastSpellButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    val primary = MaterialTheme.colorScheme.primary
+    val scheme = MaterialTheme.colorScheme
+    val primary = scheme.primary
+    val gold = scheme.tertiary
     val infiniteTransition = rememberInfiniteTransition(label = "castGlow")
     val glowScale by infiniteTransition.animateFloat(
         initialValue = 0.88f,
@@ -611,19 +611,29 @@ private fun CastSpellButton(
         ),
         label = "glowScale"
     )
+    // A faint golden spark slowly orbiting the button rim
+    val orbitAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(9000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "orbitAngle"
+    )
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(212.dp)
+        modifier = Modifier.size(216.dp)
     ) {
-        // Soft magical aura behind the button while a cast is possible
         if (enabled) {
+            // Soft magical aura behind the button while a cast is possible
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val radius = size.minDimension / 2f * glowScale
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            primary.copy(alpha = 0.35f),
+                            primary.copy(alpha = 0.38f),
                             primary.copy(alpha = 0.12f),
                             Color.Transparent
                         ),
@@ -633,37 +643,74 @@ private fun CastSpellButton(
                     radius = radius
                 )
             }
+            // Orbiting golden ring
+            Canvas(modifier = Modifier.size(184.dp)) {
+                rotate(degrees = orbitAngle) {
+                    drawCircle(
+                        brush = Brush.sweepGradient(
+                            0f to Color.Transparent,
+                            0.72f to Color.Transparent,
+                            0.9f to gold.copy(alpha = 0.9f),
+                            1f to Color.Transparent
+                        ),
+                        radius = size.minDimension / 2f,
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+            }
         }
         Button(
             onClick = onClick,
             modifier = Modifier.size(160.dp),
             shape = CircleShape,
             enabled = enabled,
+            contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                containerColor = Color.Transparent,
+                contentColor = scheme.onPrimary,
+                disabledContainerColor = scheme.surfaceContainerHighest,
+                disabledContentColor = scheme.onSurface.copy(alpha = 0.38f)
             ),
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation = 6.dp,
                 pressedElevation = 2.dp
             )
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            // Gradient fill drawn inside the circular button so the orb reads
+            // as a lit crystal rather than a flat disc.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = if (enabled) {
+                            Brush.verticalGradient(
+                                listOf(primary, scheme.primaryContainer)
+                            )
+                        } else {
+                            Brush.verticalGradient(
+                                listOf(scheme.surfaceContainerHighest, scheme.surfaceContainerHighest)
+                            )
+                        }
+                    )
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AutoFixHigh,
-                    contentDescription = stringResource(R.string.home_cast_content_desc),
-                    modifier = Modifier.size(44.dp)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.home_button_cast),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoFixHigh,
+                        contentDescription = stringResource(R.string.home_cast_content_desc),
+                        tint = if (enabled) scheme.onPrimary else scheme.onSurface.copy(alpha = 0.38f),
+                        modifier = Modifier.size(44.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.home_button_cast),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = if (enabled) scheme.onPrimary else scheme.onSurface.copy(alpha = 0.38f)
+                    )
+                }
             }
         }
     }
@@ -684,20 +731,30 @@ private fun CircularTimer(
     val progress = if (totalTime > 0) {
         (timeRemaining.toFloat() / totalTime).coerceIn(0f, 1f)
     } else {
-        // No total known (e.g. break) — just show the time without an arc
+        // No total known — just show the time without an arc
         -1f
     }
 
-    val minutes = timeRemaining / 60
-    val seconds = timeRemaining % 60
+    // Long sessions read as h:mm:ss instead of an ever-growing minute count.
+    val clockText = formatClock(timeRemaining)
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(220.dp)
+        modifier = Modifier.size(230.dp)
     ) {
-        // Track circle with a gradient arc that fades in along its length
-        Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
+        Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             val strokeWidth = 14.dp.toPx()
+
+            // Soft inner glow so the dial feels lit from within
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(color.copy(alpha = 0.16f), Color.Transparent),
+                    center = center,
+                    radius = size.minDimension / 2f
+                ),
+                radius = size.minDimension / 2f
+            )
+
             drawCircle(
                 color = trackColor,
                 style = Stroke(width = strokeWidth)
@@ -724,13 +781,32 @@ private fun CircularTimer(
                         size = Size(size.minDimension, size.minDimension)
                     )
                 }
+
+                // Glowing bead at the head of the arc
+                val angleRad = (sweepAngle - 90f) * (PI.toFloat() / 180f)
+                val radius = size.minDimension / 2f
+                val head = Offset(
+                    center.x + radius * cos(angleRad),
+                    center.y + radius * sin(angleRad)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(color, color.copy(alpha = 0f)),
+                        center = head,
+                        radius = strokeWidth * 1.4f
+                    ),
+                    radius = strokeWidth * 1.4f,
+                    center = head
+                )
+                drawCircle(color = color, radius = strokeWidth / 2f, center = head)
             }
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "%d:%02d".format(minutes, seconds),
-                style = MaterialTheme.typography.displayLarge,
+                text = clockText,
+                style = if (clockText.length > 5) MaterialTheme.typography.displayMedium
+                        else MaterialTheme.typography.displayLarge,
                 color = color
             )
             Text(
@@ -747,7 +823,7 @@ private fun CircularTimer(
 // ────────────────────────────────────────────────────────────
 
 @Composable
-private fun UnlimitedSessionIndicator() {
+private fun UnlimitedSessionIndicator(elapsedSeconds: Long = 0L) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
@@ -762,26 +838,49 @@ private fun UnlimitedSessionIndicator() {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(220.dp)
+        modifier = Modifier.size(230.dp)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
+        Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             val strokeWidth = 14.dp.toPx()
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(primaryColor.copy(alpha = 0.14f), Color.Transparent),
+                    center = center,
+                    radius = size.minDimension / 2f
+                ),
+                radius = size.minDimension / 2f
+            )
             drawCircle(
                 color = primaryColor.copy(alpha = alpha * 0.4f),
                 style = Stroke(width = strokeWidth)
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(R.string.home_unlimited_session),
-                style = MaterialTheme.typography.headlineMedium,
-                color = primaryColor.copy(alpha = alpha)
-            )
-            Text(
-                text = stringResource(R.string.home_status_active),
-                style = MaterialTheme.typography.bodyMedium,
-                color = primaryColor.copy(alpha = 0.7f)
-            )
+            if (elapsedSeconds > 0) {
+                val clockText = formatClock(elapsedSeconds.toInt().coerceAtLeast(0))
+                Text(
+                    text = clockText,
+                    style = if (clockText.length > 5) MaterialTheme.typography.displayMedium
+                            else MaterialTheme.typography.displayLarge,
+                    color = primaryColor
+                )
+                Text(
+                    text = stringResource(R.string.home_elapsed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = primaryColor.copy(alpha = 0.7f)
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.home_unlimited_session),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = primaryColor.copy(alpha = alpha)
+                )
+                Text(
+                    text = stringResource(R.string.home_status_active),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = primaryColor.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }

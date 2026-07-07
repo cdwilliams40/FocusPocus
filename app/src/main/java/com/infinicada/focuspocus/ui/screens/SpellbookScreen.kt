@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +23,6 @@ import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,7 @@ import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.formatDuration
 
 @Composable
@@ -66,9 +68,6 @@ fun SpellbookScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(stringResource(R.string.spellbook_title), style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Enchantments Section
         SpellbookSectionCard(
             title = stringResource(R.string.spellbook_enchantments),
@@ -283,8 +282,10 @@ private fun SpellbookSectionCard(
     content: @Composable () -> Unit
 ) {
     val resolvedActionLabel = actionLabel ?: stringResource(R.string.action_see_all)
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -298,7 +299,12 @@ private fun SpellbookSectionCard(
                         modifier = Modifier
                             .size(40.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.primaryContainer,
+                                brush = Brush.radialGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                    )
+                                ),
                                 shape = MaterialTheme.shapes.medium
                             ),
                         contentAlignment = Alignment.Center
@@ -338,6 +344,5 @@ private fun SpellbookSectionCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             content()
-        }
     }
 }

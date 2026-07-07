@@ -68,6 +68,7 @@
     <string name="home_status_ready">Ready to Cast</string>
     <string name="home_session_setup">Session Setup</string>
     <string name="home_unlimited_session">Unlimited</string>
+    <string name="home_elapsed">elapsed</string>
     <string name="home_session_progress">%1$d of %2$d min</string>
     <string name="session_complete_icon_desc">Session complete</string>
     <string name="home_quick_spells">Quick Spells</string>
