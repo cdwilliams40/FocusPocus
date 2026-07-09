@@ -64,6 +64,7 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.SectionHeader
 import com.infinicada.focuspocus.ui.components.StatTile

@@ -385,6 +385,14 @@
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
     <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
 
+    <!-- App Picker -->
+    <string name="app_picker_selected_chip">Sélectionnées (%1$d)</string>
+    <string name="app_picker_selected_count">%1$d sélectionnées</string>
+    <string name="app_picker_open_search">Rechercher des applications</string>
+    <string name="app_picker_close_search">Fermer la recherche</string>
+    <string name="app_picker_clear_search">Effacer la recherche</string>
+    <string name="app_picker_search_hint">Rechercher des applications</string>
+
     <!-- Analytics Consent Dialog -->
     <string name="consent_dialog_title">Aidez à améliorer Focus Pocus</string>
     <string name="consent_dialog_message">Souhaitez-vous partager des rapports de plantage anonymes et des statistiques d\'utilisation ? Cela nous aide à corriger les bugs et à améliorer l\'application. Aucune donnée personnelle n\'est collectée.\n\nVous pouvez modifier ce choix à tout moment dans les paramètres.</string>

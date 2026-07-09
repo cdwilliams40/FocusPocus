@@ -1,5 +1,7 @@
 package com.infinicada.focuspocus.ui.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +47,7 @@ import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,8 +199,7 @@ fun AddTimeLimitDialog(
 ) {
     var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
     var limitMinutes by remember { mutableIntStateOf(30) }
-    var appDropdownExpanded by remember { mutableStateOf(false) }
-    var appSearchQuery by remember { mutableStateOf("") }
+    var showAppPicker by remember { mutableStateOf(false) }
     var timeLimitExpanded by remember { mutableStateOf(false) }
 
     // Cooldown settings
@@ -208,8 +210,6 @@ fun AddTimeLimitDialog(
     var cooldownDurationExpanded by remember { mutableStateOf(false) }
 
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
-    val filteredApps = if (appSearchQuery.isEmpty()) availableApps
-        else availableApps.filter { it.name.contains(appSearchQuery, ignoreCase = true) }
 
     val limitOptions = listOf(
         5 to stringResource(R.string.duration_5_min),
@@ -243,49 +243,35 @@ fun AddTimeLimitDialog(
         title = { Text(stringResource(R.string.time_limits_add_dialog_title)) },
         text = {
             Column {
-                // App picker
-                ExposedDropdownMenuBox(
-                    expanded = appDropdownExpanded,
-                    onExpandedChange = { appDropdownExpanded = it }
-                ) {
+                // App picker: read-only field that opens the full-screen picker
+                Box {
                     OutlinedTextField(
-                        value = if (appDropdownExpanded) appSearchQuery else selectedApp?.name ?: "",
-                        onValueChange = {
-                            appSearchQuery = it
-                            appDropdownExpanded = true
-                        },
+                        value = selectedApp?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
                         label = { Text(stringResource(R.string.time_limits_app_label)) },
                         placeholder = { Text(stringResource(R.string.time_limits_select_app)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = appDropdownExpanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showAppPicker) },
                         singleLine = true,
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
-                        expanded = appDropdownExpanded,
-                        onDismissRequest = {
-                            appDropdownExpanded = false
-                            appSearchQuery = ""
-                        }
-                    ) {
-                        if (filteredApps.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.time_limits_no_apps_found)) },
-                                onClick = {},
-                                enabled = false
-                            )
-                        } else {
-                            filteredApps.forEach { app ->
-                                DropdownMenuItem(
-                                    text = { Text(app.name) },
-                                    onClick = {
-                                        selectedApp = app
-                                        appDropdownExpanded = false
-                                        appSearchQuery = ""
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showAppPicker = true }
+                    )
+                }
+                if (showAppPicker) {
+                    SingleAppPickerDialog(
+                        installedApps = availableApps,
+                        title = stringResource(R.string.time_limits_select_app),
+                        selectedPackage = selectedApp?.packageName,
+                        onPick = { app ->
+                            selectedApp = app
+                            showAppPicker = false
+                        },
+                        onDismiss = { showAppPicker = false }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
