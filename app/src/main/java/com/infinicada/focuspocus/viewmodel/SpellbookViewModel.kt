@@ -101,7 +101,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                             false
                         }
                     }
-                    .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName) }
+                    .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName, category = it.category) }
                     .sortedBy { it.name.lowercase() }
             }
             _installedApps.value = apps

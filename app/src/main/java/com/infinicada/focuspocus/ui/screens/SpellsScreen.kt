@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -42,17 +40,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.ui.components.AppIcon
+import com.infinicada.focuspocus.ui.components.AppPickerDialog
 
 @Composable
 fun BlockerListScreen(
@@ -181,14 +178,15 @@ fun CreateBlockerScreen(
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
-        AppSelectionDialog(
+        AppPickerDialog(
             installedApps = installedApps,
-            selectedApps = apps,
-            onSave = { newApps ->
+            title = stringResource(R.string.spells_select_apps_title),
+            initialSelection = apps,
+            onConfirm = { newApps ->
                 apps = newApps
                 showDialog = false
             },
-            onDismissRequest = { showDialog = false }
+            onDismiss = { showDialog = false }
         )
     }
 
@@ -284,14 +282,15 @@ fun EditBlockerScreen(
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
-        AppSelectionDialog(
+        AppPickerDialog(
             installedApps = installedApps,
-            selectedApps = apps,
-            onSave = { newApps ->
+            title = stringResource(R.string.spells_select_apps_title),
+            initialSelection = apps,
+            onConfirm = { newApps ->
                 apps = newApps
                 showDialog = false
             },
-            onDismissRequest = { showDialog = false }
+            onDismiss = { showDialog = false }
         )
     }
 
@@ -514,72 +513,6 @@ fun AppListColumn(
 }
 
 @Composable
-fun AppSelectionDialog(
-    installedApps: List<AppInfo>,
-    selectedApps: List<String>,
-    onSave: (List<String>) -> Unit,
-    onDismissRequest: () -> Unit
-) {
-    var currentSelections by remember { mutableStateOf(selectedApps.toSet()) }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.spells_select_apps_title)) },
-        text = {
-            LazyColumn {
-                items(installedApps) { app ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                currentSelections = if (currentSelections.contains(app.packageName)) {
-                                    currentSelections - app.packageName
-                                } else {
-                                    currentSelections + app.packageName
-                                }
-                            }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AppIcon(
-                            packageName = app.packageName,
-                            contentDescription = app.name,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Text(
-                            text = app.name,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 16.dp)
-                        )
-                        Checkbox(
-                            checked = currentSelections.contains(app.packageName),
-                            onCheckedChange = { isChecked ->
-                                currentSelections = if (isChecked) {
-                                    currentSelections + app.packageName
-                                } else {
-                                    currentSelections - app.packageName
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onSave(currentSelections.toList()) }) {
-                Text(stringResource(R.string.action_save))
-            }
-        },
-        dismissButton = {
-            Button(onClick = onDismissRequest) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        }
-    )
-}
-
-@Composable
 fun BlockerSelectionDialog(
     blockerLists: List<Blocker>,
     onBlockerSelected: (Blocker) -> Unit,
@@ -618,21 +551,3 @@ fun BlockerSelectionDialog(
     )
 }
 
-@Composable
-fun AppIcon(packageName: String, contentDescription: String?, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val icon = remember(packageName) {
-        try {
-            context.packageManager.getApplicationIcon(packageName)
-        } catch (e: Exception) {
-            null
-        }
-    }
-    icon?.let {
-        Image(
-            bitmap = it.toBitmap().asImageBitmap(),
-            contentDescription = contentDescription,
-            modifier = modifier
-        )
-    }
-}

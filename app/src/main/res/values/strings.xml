@@ -454,6 +454,14 @@
     <string name="session_complete_enchantment">Enchantment: %1$s</string>
     <string name="session_complete_great_work">Great work! You stayed focused.</string>
 
+    <!-- App Picker -->
+    <string name="app_picker_selected_chip">Selected (%1$d)</string>
+    <string name="app_picker_selected_count">%1$d selected</string>
+    <string name="app_picker_open_search">Search apps</string>
+    <string name="app_picker_close_search">Close search</string>
+    <string name="app_picker_clear_search">Clear search</string>
+    <string name="app_picker_search_hint">Search apps</string>
+
     <!-- Analytics Consent Dialog -->
     <string name="consent_dialog_title">Help Improve Focus Pocus</string>
     <string name="consent_dialog_message">Would you like to share anonymous crash reports and usage statistics? This helps us fix bugs and improve the app. No personal data is collected.\n\nYou can change this anytime in Settings.</string>

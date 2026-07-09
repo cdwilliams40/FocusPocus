@@ -1,6 +1,8 @@
 package com.infinicada.focuspocus.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +49,7 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ConditionalUnlock
+import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,16 +238,12 @@ fun ConditionalUnlockEditorScreen(
     var selectedBlockerNames by remember { mutableStateOf(ruleToEdit?.unlockedBlockerNames ?: emptySet()) }
     var selectedTimeLimitApps by remember { mutableStateOf(ruleToEdit?.unlockedTimeLimitApps ?: emptySet()) }
 
-    var requiredAppDropdownExpanded by remember { mutableStateOf(false) }
-    var requiredAppSearchQuery by remember { mutableStateOf("") }
+    var showRequiredAppPicker by remember { mutableStateOf(false) }
     var minutesDropdownExpanded by remember { mutableStateOf(false) }
     var enchantmentsDropdownExpanded by remember { mutableStateOf(false) }
     var timeLimitAppsDropdownExpanded by remember { mutableStateOf(false) }
 
     val minuteOptions = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
-
-    val filteredRequiredApps = if (requiredAppSearchQuery.isEmpty()) installedApps
-        else installedApps.filter { it.name.contains(requiredAppSearchQuery, ignoreCase = true) }
 
     val isValid = name.isNotBlank() && selectedRequiredApp != null &&
         (selectedBlockerNames.isNotEmpty() || selectedTimeLimitApps.isNotEmpty())
@@ -283,53 +282,36 @@ fun ConditionalUnlockEditorScreen(
                 )
             }
 
-            // Required app picker
+            // Required app picker: read-only field that opens the full-screen picker
             item {
-                ExposedDropdownMenuBox(
-                    expanded = requiredAppDropdownExpanded,
-                    onExpandedChange = { requiredAppDropdownExpanded = it }
-                ) {
+                Box {
                     OutlinedTextField(
-                        value = if (requiredAppDropdownExpanded) requiredAppSearchQuery
-                        else selectedRequiredApp?.name ?: "",
-                        onValueChange = {
-                            requiredAppSearchQuery = it
-                            requiredAppDropdownExpanded = true
-                        },
+                        value = selectedRequiredApp?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
                         label = { Text(stringResource(R.string.conditional_unlocks_required_app_label)) },
                         placeholder = { Text(stringResource(R.string.conditional_unlocks_required_app_placeholder)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = requiredAppDropdownExpanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showRequiredAppPicker) },
                         singleLine = true,
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryEditable)
-                            .fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
-                        expanded = requiredAppDropdownExpanded,
-                        onDismissRequest = {
-                            requiredAppDropdownExpanded = false
-                            requiredAppSearchQuery = ""
-                        }
-                    ) {
-                        if (filteredRequiredApps.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.time_limits_no_apps_found)) },
-                                onClick = {},
-                                enabled = false
-                            )
-                        } else {
-                            filteredRequiredApps.forEach { app ->
-                                DropdownMenuItem(
-                                    text = { Text(app.name) },
-                                    onClick = {
-                                        selectedRequiredApp = app
-                                        requiredAppDropdownExpanded = false
-                                        requiredAppSearchQuery = ""
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showRequiredAppPicker = true }
+                    )
+                }
+                if (showRequiredAppPicker) {
+                    SingleAppPickerDialog(
+                        installedApps = installedApps,
+                        title = stringResource(R.string.conditional_unlocks_required_app_label),
+                        selectedPackage = selectedRequiredApp?.packageName,
+                        onPick = { app ->
+                            selectedRequiredApp = app
+                            showRequiredAppPicker = false
+                        },
+                        onDismiss = { showRequiredAppPicker = false }
+                    )
                 }
             }
 

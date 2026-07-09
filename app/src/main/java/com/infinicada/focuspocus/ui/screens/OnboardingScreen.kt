@@ -65,6 +65,7 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.ui.components.AppPickerDialog
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 
 @Composable
@@ -334,14 +335,15 @@ private fun CreateBlockerStep(
     var showAppDialog by remember { mutableStateOf(false) }
 
     if (showAppDialog) {
-        AppSelectionDialog(
+        AppPickerDialog(
             installedApps = installedApps,
-            selectedApps = selectedApps,
-            onSave = { apps ->
+            title = stringResource(R.string.spells_select_apps_title),
+            initialSelection = selectedApps,
+            onConfirm = { apps ->
                 selectedApps = apps
                 showAppDialog = false
             },
-            onDismissRequest = { showAppDialog = false }
+            onDismiss = { showAppDialog = false }
         )
     }
 
