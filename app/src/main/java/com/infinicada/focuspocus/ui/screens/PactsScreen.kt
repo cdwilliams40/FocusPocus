@@ -52,6 +52,7 @@ import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
  * that store, so the enforcement layer needs no awareness of where a config was
  * created.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PactsScreen(
     installedApps: List<AppInfo>,
