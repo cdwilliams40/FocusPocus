@@ -20,6 +20,6 @@ sealed class SpellbookRoute {
     // Talismans & Time Limits
     object Talismans : SpellbookRoute()
     object TimeLimits : SpellbookRoute()
-    // Conditional Unlocks
-    object ConditionalUnlocks : SpellbookRoute()
+    // Pacts
+    object Pacts : SpellbookRoute()
 }

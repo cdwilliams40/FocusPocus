@@ -116,6 +116,21 @@
     <string name="spellbook_more_count">+%d de plus</string>
     <string name="spellbook_app_time_limit">%1$s - %2$d min/jour</string>
     <string name="spellbook_breaks_suffix"> - Pauses</string>
+    <string name="spellbook_pacts">Pactes</string>
+    <string name="spellbook_pacts_tagline">Scellez vos applications les plus distrayantes derri\u00e8re des pactes conscients et minut\u00e9s \u2014 le rem\u00e8de au d\u00e9filement r\u00e9flexe.</string>
+    <string name="spellbook_pacts_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes attrap\u00e9s</string>
+    <string name="spellbook_pact_app_line">%1$s \u2014 %2$d ouvertures aujourd\'hui</string>
+    <string name="spellbook_group_focus">Sessions de concentration</string>
+    <string name="spellbook_group_guards">Gardes du quotidien</string>
+    <string name="spellbook_group_gear">Raccourcis et accessoires</string>
+    <plurals name="spellbook_pact_app_count">
+        <item quantity="one">%d application sous pacte</item>
+        <item quantity="other">%d applications sous pacte</item>
+    </plurals>
+    <plurals name="spellbook_unlock_rule_count">
+        <item quantity="one">%d r\u00e8gle d\'acc\u00e8s m\u00e9rit\u00e9</item>
+        <item quantity="other">%d r\u00e8gles d\'acc\u00e8s m\u00e9rit\u00e9</item>
+    </plurals>
 
     <!-- Plurals for spellbook counts -->
     <plurals name="spellbook_app_count">
@@ -344,14 +359,25 @@
     <string name="time_limits_select_app">Sélectionner une application</string>
     <string name="time_limits_app_label">Application</string>
     <string name="time_limits_daily_limit">Limite quotidienne : %s</string>
-    <string name="time_limits_enable_pact">Mode Pacte — scellée par défaut</string>
-    <string name="time_limits_enable_pact_desc">L\'application reste bloquée jusqu\'à ce que vous demandiez consciemment du temps. Chaque pacte accorde quelques minutes, puis scelle à nouveau l\'application.</string>
     <string name="time_limits_pact_max_label">Pacte le plus long</string>
     <string name="time_limits_pact_seal_label">Durée du sceau après chaque pacte</string>
-    <string name="time_limits_pact_desc">Mode Pacte : jusqu\'à %1$d min par pacte → scellée %2$d min ensuite</string>
     <string name="time_limits_pact_alternative_label">Suggérer à la place (facultatif)</string>
     <string name="time_limits_pact_alternative_none">Aucune suggestion</string>
     <string name="time_limits_pact_alternative_clear">Retirer la suggestion</string>
+
+    <!-- PactsScreen -->
+    <string name="pacts_title">Pactes</string>
+    <string name="pacts_description">Les applications sous pacte sont scell\u00e9es par d\u00e9faut, toute la journ\u00e9e. En ouvrir une demande de combien de temps vous avez vraiment besoin \u2014 et quand il est \u00e9coul\u00e9, l\'application se scelle \u00e0 nouveau.</string>
+    <string name="pacts_empty">Aucun pacte pour l\'instant. Scellez votre application la plus distrayante et regardez le nombre de r\u00e9flexes chuter.</string>
+    <string name="pacts_add">Ajouter un pacte</string>
+    <string name="pacts_add_dialog_title">Ajouter un pacte</string>
+    <string name="pacts_config_summary">Jusqu\'\u00e0 %1$d min par pacte \u2192 scell\u00e9e %2$d min ensuite</string>
+    <string name="pacts_alternative_summary">\u00c0 la place : %s</string>
+    <string name="pacts_backstop_summary">Garde-fou quotidien : %d min</string>
+    <string name="pacts_backstop_label">Garde-fou quotidien (facultatif)</string>
+    <string name="pacts_backstop_none">Aucun</string>
+    <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
+    <string name="conditional_unlocks_pact_app_label">%s (Pacte)</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">Code QR</string>

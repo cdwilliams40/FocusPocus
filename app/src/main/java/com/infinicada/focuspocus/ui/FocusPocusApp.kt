@@ -61,11 +61,11 @@ import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
-import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
+import com.infinicada.focuspocus.ui.screens.PactsScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
@@ -493,15 +493,16 @@ fun FocusPocusApp(
                             focusPresets = focusPresets,
                             schedules = schedules,
                             namedTags = namedTags,
-                            appTimeLimits = appTimeLimits,
+                            appTimeLimitConfigs = appTimeLimitConfigs,
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
+                            pactOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
+                            onNavigateToPacts = { spellbookVM.navigateTo(SpellbookRoute.Pacts) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
                             onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
                             onNavigateToTimeLimits = { spellbookVM.navigateTo(SpellbookRoute.TimeLimits) },
-                            onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             modifier = contentModifier
                         )
 
@@ -625,19 +626,22 @@ fun FocusPocusApp(
                         is SpellbookRoute.TimeLimits -> TimeLimitsScreen(
                             installedApps = installedApps,
                             appTimeLimits = appTimeLimitConfigs,
+                            conditionalUnlocks = conditionalUnlocks,
+                            blockerLists = blockerLists,
                             onSaveAppTimeLimit = { config -> spellbookVM.saveAppTimeLimitConfig(config) },
                             onDeleteAppTimeLimit = { spellbookVM.deleteAppTimeLimit(it) },
+                            onSaveRule = { spellbookVM.saveConditionalUnlock(it) },
+                            onDeleteRule = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )
 
-                        is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
-                            conditionalUnlocks = conditionalUnlocks,
+                        is SpellbookRoute.Pacts -> PactsScreen(
                             installedApps = installedApps,
-                            blockerLists = blockerLists,
-                            appTimeLimits = appTimeLimits,
-                            onSave = { spellbookVM.saveConditionalUnlock(it) },
-                            onDelete = { spellbookVM.deleteConditionalUnlock(it) },
+                            appTimeLimitConfigs = appTimeLimitConfigs,
+                            todayOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
+                            onSaveConfig = { spellbookVM.saveAppTimeLimitConfig(it) },
+                            onDeleteConfig = { spellbookVM.deleteAppTimeLimit(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )

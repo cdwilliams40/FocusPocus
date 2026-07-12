@@ -30,22 +30,24 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
+import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
@@ -55,14 +57,53 @@ import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 fun TimeLimitsScreen(
     installedApps: List<AppInfo>,
     appTimeLimits: Map<String, AppTimeLimit>,
+    conditionalUnlocks: List<ConditionalUnlock>,
+    blockerLists: List<Blocker>,
     onSaveAppTimeLimit: (AppTimeLimit) -> Unit,
     onDeleteAppTimeLimit: (String) -> Unit,
+    onSaveRule: (ConditionalUnlock) -> Unit,
+    onDeleteRule: (ConditionalUnlock) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
     var showAddDialog by remember { mutableStateOf(false) }
+
+    // Pact-gated apps are managed on the dedicated Pacts screen; this screen owns
+    // plain daily/session limits plus the earn-access rules that modify them.
+    val visibleLimits = appTimeLimits.filterValues { !it.pactModeEnabled }
+
+    var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
+    var showRuleEditor by rememberSaveable { mutableStateOf(false) }
+
+    if (showRuleEditor) {
+        ConditionalUnlockEditorScreen(
+            ruleToEdit = editingRule,
+            installedApps = installedApps,
+            blockerLists = blockerLists,
+            appTimeLimits = appTimeLimits.mapValues { it.value.dailyLimitMinutes },
+            pactPackages = appTimeLimits.filterValues { it.pactModeEnabled }.keys,
+            onSave = { rule ->
+                onSaveRule(rule)
+                showRuleEditor = false
+                editingRule = null
+            },
+            onDelete = if (editingRule != null) {
+                { rule ->
+                    onDeleteRule(rule)
+                    showRuleEditor = false
+                    editingRule = null
+                }
+            } else null,
+            onCancel = {
+                showRuleEditor = false
+                editingRule = null
+            },
+            modifier = modifier
+        )
+        return
+    }
 
     if (showAddDialog) {
         AddTimeLimitDialog(
@@ -74,6 +115,43 @@ fun TimeLimitsScreen(
             },
             onDismiss = { showAddDialog = false }
         )
+    }
+
+    val ruleCardContent: @Composable (ConditionalUnlock) -> Unit = { rule ->
+        val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
+            ?: rule.requiredAppPackage
+        val usedMinutes = remember(rule.requiredAppPackage) {
+            AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
+        }
+        val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
+        val conditionMet = usedMinutes >= rule.requiredMinutes
+
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(rule.name, style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.conditional_unlocks_rule_summary, rule.requiredMinutes, requiredAppName),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (hasUsagePermission) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.conditional_unlocks_progress, usedMinutes, rule.requiredMinutes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (conditionMet) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    color = if (conditionMet) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.secondary,
+                )
+            }
+        }
     }
 
     Scaffold(
@@ -118,7 +196,7 @@ fun TimeLimitsScreen(
                     )
                 }
             } else {
-                items(appTimeLimits.entries.toList()) { (pkg, config) ->
+                items(visibleLimits.entries.toList()) { (pkg, config) ->
                     val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
                     val limit = config.dailyLimitMinutes
                     val usedMinutes = remember(pkg) {
@@ -145,17 +223,7 @@ fun TimeLimitsScreen(
                                     color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (config.pactModeEnabled) {
-                                    Text(
-                                        stringResource(
-                                            R.string.time_limits_pact_desc,
-                                            if (config.pactMaxMinutes > 0) config.pactMaxMinutes else 15,
-                                            config.cooldownMinutes
-                                        ),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                } else if (config.sessionLimitMinutes > 0) {
+                                if (config.sessionLimitMinutes > 0) {
                                     Text(
                                         stringResource(
                                             R.string.time_limits_cooldown_desc,
@@ -195,6 +263,51 @@ fun TimeLimitsScreen(
                         Text(stringResource(R.string.time_limits_add))
                     }
                 }
+
+                // Earn access (conditional unlocks) — rules that lift blocks after
+                // productive time, folded in here so all everyday guardrails live
+                // on one screen.
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        stringResource(R.string.conditional_unlocks_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.conditional_unlocks_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(conditionalUnlocks) { rule ->
+                    ElevatedCard(
+                        onClick = {
+                            editingRule = rule
+                            showRuleEditor = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        ruleCardContent(rule)
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            editingRule = null
+                            showRuleEditor = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.conditional_unlocks_add))
+                    }
+                }
             }
         }
     }
@@ -219,15 +332,6 @@ fun AddTimeLimitDialog(
     var cooldownMinutes by remember { mutableIntStateOf(30) }
     var sessionLimitExpanded by remember { mutableStateOf(false) }
     var cooldownDurationExpanded by remember { mutableStateOf(false) }
-
-    // Pact Mode settings (mutually exclusive with the passive session cooldown —
-    // in Pact Mode the chosen allowance IS the session limit)
-    var pactEnabled by remember { mutableStateOf(false) }
-    var pactMaxMinutes by remember { mutableIntStateOf(15) }
-    var pactMaxExpanded by remember { mutableStateOf(false) }
-    var pactSealExpanded by remember { mutableStateOf(false) }
-    var alternativeApp by remember { mutableStateOf<AppInfo?>(null) }
-    var showAlternativePicker by remember { mutableStateOf(false) }
 
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
 
@@ -256,13 +360,6 @@ fun AddTimeLimitDialog(
         45 to stringResource(R.string.time_limits_minutes_value, 45),
         60 to stringResource(R.string.duration_1_hour),
         90 to stringResource(R.string.time_limits_minutes_value, 90)
-    )
-
-    val pactMaxOptions = listOf(
-        5 to stringResource(R.string.duration_5_min),
-        10 to stringResource(R.string.duration_10_min),
-        15 to stringResource(R.string.duration_15_min),
-        30 to stringResource(R.string.duration_30_min)
     )
 
     AlertDialog(
@@ -335,136 +432,6 @@ fun AddTimeLimitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Pact Mode toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.time_limits_enable_pact),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(R.string.time_limits_enable_pact_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = pactEnabled,
-                        onCheckedChange = {
-                            pactEnabled = it
-                            if (it) cooldownEnabled = false
-                        }
-                    )
-                }
-
-                if (pactEnabled) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Longest pact picker
-                    ExposedDropdownMenuBox(
-                        expanded = pactMaxExpanded,
-                        onExpandedChange = { pactMaxExpanded = !pactMaxExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = pactMaxOptions.find { it.first == pactMaxMinutes }?.second
-                                ?: stringResource(R.string.format_duration_minutes, pactMaxMinutes),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.time_limits_pact_max_label)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = pactMaxExpanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = pactMaxExpanded,
-                            onDismissRequest = { pactMaxExpanded = false }
-                        ) {
-                            pactMaxOptions.forEach { (minutes, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        pactMaxMinutes = minutes
-                                        pactMaxExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Seal duration picker (cooldown after each pact)
-                    ExposedDropdownMenuBox(
-                        expanded = pactSealExpanded,
-                        onExpandedChange = { pactSealExpanded = !pactSealExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = cooldownDurationOptions.find { it.first == cooldownMinutes }?.second
-                                ?: stringResource(R.string.format_duration_minutes, cooldownMinutes),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.time_limits_pact_seal_label)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = pactSealExpanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = pactSealExpanded,
-                            onDismissRequest = { pactSealExpanded = false }
-                        ) {
-                            cooldownDurationOptions.forEach { (minutes, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        cooldownMinutes = minutes
-                                        pactSealExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Optional healthier substitute offered on the pact screen
-                    Box {
-                        OutlinedTextField(
-                            value = alternativeApp?.name ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.time_limits_pact_alternative_label)) },
-                            placeholder = { Text(stringResource(R.string.time_limits_pact_alternative_none)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .clickable { showAlternativePicker = true }
-                        )
-                    }
-                    if (alternativeApp != null) {
-                        TextButton(onClick = { alternativeApp = null }) {
-                            Text(stringResource(R.string.time_limits_pact_alternative_clear))
-                        }
-                    }
-                    if (showAlternativePicker) {
-                        SingleAppPickerDialog(
-                            installedApps = installedApps.filter { it.packageName != selectedApp?.packageName },
-                            title = stringResource(R.string.time_limits_pact_alternative_label),
-                            selectedPackage = alternativeApp?.packageName,
-                            onPick = { app ->
-                                alternativeApp = app
-                                showAlternativePicker = false
-                            },
-                            onDismiss = { showAlternativePicker = false }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // Session cooldown toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -483,10 +450,7 @@ fun AddTimeLimitDialog(
                     }
                     Switch(
                         checked = cooldownEnabled,
-                        onCheckedChange = {
-                            cooldownEnabled = it
-                            if (it) pactEnabled = false
-                        }
+                        onCheckedChange = { cooldownEnabled = it }
                     )
                 }
 
@@ -566,10 +530,7 @@ fun AddTimeLimitDialog(
                                 packageName = app.packageName,
                                 dailyLimitMinutes = limitMinutes,
                                 sessionLimitMinutes = if (cooldownEnabled) sessionLimitMinutes else 0,
-                                cooldownMinutes = cooldownMinutes,
-                                pactModeEnabled = pactEnabled,
-                                pactMaxMinutes = pactMaxMinutes,
-                                pactAlternativePackage = if (pactEnabled) alternativeApp?.packageName else null
+                                cooldownMinutes = cooldownMinutes
                             )
                         )
                     }

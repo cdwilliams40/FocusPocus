@@ -10,23 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -40,183 +36,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ConditionalUnlocksScreen(
-    conditionalUnlocks: List<ConditionalUnlock>,
-    installedApps: List<AppInfo>,
-    blockerLists: List<Blocker>,
-    appTimeLimits: Map<String, Int>,
-    onSave: (ConditionalUnlock) -> Unit,
-    onDelete: (ConditionalUnlock) -> Unit,
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
-
-    var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
-    var showEditor by rememberSaveable { mutableStateOf(false) }
-
-    if (showEditor) {
-        ConditionalUnlockEditorScreen(
-            ruleToEdit = editingRule,
-            installedApps = installedApps,
-            blockerLists = blockerLists,
-            appTimeLimits = appTimeLimits,
-            onSave = { rule ->
-                onSave(rule)
-                showEditor = false
-                editingRule = null
-            },
-            onDelete = if (editingRule != null) {
-                { rule ->
-                    onDelete(rule)
-                    showEditor = false
-                    editingRule = null
-                }
-            } else null,
-            onCancel = {
-                showEditor = false
-                editingRule = null
-            }
-        )
-        return
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.conditional_unlocks_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
-                    }
-                }
-            )
-        },
-        modifier = modifier
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            item {
-                Text(
-                    stringResource(R.string.conditional_unlocks_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            if (!hasUsagePermission) {
-                item {
-                    OutlinedButton(
-                        onClick = { UsageStatsHelper.openUsageAccessSettings(context) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.conditional_unlocks_grant_usage))
-                    }
-                    Text(
-                        stringResource(R.string.conditional_unlocks_usage_required),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-
-            items(conditionalUnlocks) { rule ->
-                val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
-                    ?: rule.requiredAppPackage
-                val usedMinutes = remember(rule.requiredAppPackage) {
-                    AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
-                }
-                val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
-                val conditionMet = usedMinutes >= rule.requiredMinutes
-
-                ElevatedCard(
-                    onClick = {
-                        editingRule = rule
-                        showEditor = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(rule.name, style = MaterialTheme.typography.titleSmall)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.conditional_unlocks_rule_summary, rule.requiredMinutes, requiredAppName),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            stringResource(R.string.conditional_unlocks_unlocked_enchantments,
-                                rule.effectiveUnlockedBlockerNames.joinToString(", ").ifEmpty { "None" }),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (rule.effectiveUnlockedTimeLimitApps.isNotEmpty()) {
-                            val timerAppNames = rule.effectiveUnlockedTimeLimitApps.map { pkg ->
-                                installedApps.find { it.packageName == pkg }?.name ?: pkg
-                            }.joinToString(", ")
-                            Text(
-                                stringResource(R.string.conditional_unlocks_bypassed_timers, timerAppNames),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        if (hasUsagePermission) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                stringResource(R.string.conditional_unlocks_progress, usedMinutes, rule.requiredMinutes),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (conditionMet) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp),
-                                color = if (conditionMet) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.secondary,
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = {
-                        editingRule = null
-                        showEditor = true
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.conditional_unlocks_add))
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,7 +54,9 @@ fun ConditionalUnlockEditorScreen(
     onSave: (ConditionalUnlock) -> Unit,
     onDelete: ((ConditionalUnlock) -> Unit)?,
     onCancel: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Packages whose "limit" is a pact gate rather than daily minutes (label only). */
+    pactPackages: Set<String> = emptySet()
 ) {
     var name by rememberSaveable { mutableStateOf(ruleToEdit?.name ?: "") }
     var selectedRequiredApp by remember {
@@ -434,6 +262,11 @@ fun ConditionalUnlockEditorScreen(
                             appTimeLimits.entries.forEach { (pkg, limitMinutes) ->
                                 val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
                                 val checked = pkg in selectedTimeLimitApps
+                                val label = if (pkg in pactPackages) {
+                                    stringResource(R.string.conditional_unlocks_pact_app_label, appName)
+                                } else {
+                                    "$appName (${limitMinutes}m)"
+                                }
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -444,7 +277,7 @@ fun ConditionalUnlockEditorScreen(
                                                 checked = checked,
                                                 onCheckedChange = null
                                             )
-                                            Text("$appName (${limitMinutes}m)")
+                                            Text(label)
                                         }
                                     },
                                     onClick = {

@@ -5,10 +5,14 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.InsightsRepository
@@ -30,6 +34,14 @@ import kotlinx.coroutines.withContext
 
 class SpellbookViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as FocusPocusApplication).container
+
+    private val openReflexTracker = OpenReflexTracker(
+        application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE),
+        Gson()
+    )
+
+    /** Today's open/reflex counters per package, for the Spellbook Pacts hero and Pacts screen. */
+    fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
     private val presetRepo: PresetRepository = container.presets
@@ -124,7 +136,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             is SpellbookRoute.CreateEnchantment, is SpellbookRoute.EditEnchantment -> SpellbookRoute.EnchantmentsList
             is SpellbookRoute.CreateQuickSpell, is SpellbookRoute.EditQuickSpell -> SpellbookRoute.QuickSpellsList
             is SpellbookRoute.CreateRitual, is SpellbookRoute.EditRitual -> SpellbookRoute.RitualsList
-            is SpellbookRoute.ConditionalUnlocks -> SpellbookRoute.Overview
             else -> SpellbookRoute.Overview
         }
         return true

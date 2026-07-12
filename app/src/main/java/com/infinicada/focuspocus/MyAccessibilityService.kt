@@ -831,8 +831,9 @@ class MyAccessibilityService : AccessibilityService() {
         val timeLimits = getCachedTimeLimits()
         val limit = timeLimits[packageName] ?: return
 
-        // 1. Daily limit (existing) — always takes precedence; no cooldown interaction.
-        if (timeLimitChecker.shouldBlock(packageName, limit)) {
+        // 1. Daily limit — always takes precedence; no cooldown interaction.
+        // A limit of 0 means "no daily cap" (pacts without a daily backstop).
+        if (limit > 0 && timeLimitChecker.shouldBlock(packageName, limit)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
