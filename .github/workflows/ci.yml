@@ -72,18 +72,6 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      # TEMPORARY: first run with a missing baseline writes it and fails; dump it
-      # base64-encoded so it can be committed, then this step will be removed.
-      - name: Generate lint baseline
-        run: |
-          if [ ! -f app/lint-baseline.xml ]; then
-            ./gradlew lintDebug || true
-            echo "===BASELINE-START==="
-            base64 -w0 app/lint-baseline.xml
-            echo ""
-            echo "===BASELINE-END==="
-          fi
-
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
 
