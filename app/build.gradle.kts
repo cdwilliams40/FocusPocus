@@ -49,6 +49,9 @@ android {
         // False positive: MainActivity extends ComponentActivity, not FragmentActivity,
         // so the Fragment >= 1.3.0 requirement for ActivityResult APIs does not apply.
         disable += "InvalidFragmentVersionForActivityResult"
+        // Pre-existing issues are grandfathered here so CI only fails on new ones.
+        // Delete entries from the baseline as they get fixed.
+        baseline = file("lint-baseline.xml")
     }
 }
 
