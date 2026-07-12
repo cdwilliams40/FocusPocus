@@ -1,9 +1,7 @@
 package com.infinicada.focuspocus
 
-import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.SharedPreferences
-import java.util.Calendar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -76,28 +74,8 @@ object AppTimeLimitManager {
 
     fun getAllUsedMinutesToday(context: Context): Map<String, Int> {
         if (!UsageStatsHelper.hasUsageStatsPermission(context)) return emptyMap()
-        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-            ?: return emptyMap()
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val startTime = calendar.timeInMillis
-        // Use INTERVAL_DAILY to get day-aligned buckets. INTERVAL_BEST can return
-        // cross-day data that includes yesterday's usage, preventing proper midnight reset.
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startTime,
-            System.currentTimeMillis()
-        ) ?: return emptyMap()
-
-        return stats
-            .filter { it.firstTimeStamp >= startTime }
-            .groupBy { it.packageName }
-            .mapValues { (_, usageList) ->
-                (usageList.sumOf { it.totalTimeInForeground } / 1000 / 60).toInt()
-            }
+        return UsageStatsHelper
+            .getForegroundUsageSince(context, UsageStatsHelper.startOfTodayMillis())
+            .mapValues { (_, totalMs) -> (totalMs / 1000 / 60).toInt() }
     }
 }
