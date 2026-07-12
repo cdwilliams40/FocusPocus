@@ -1213,7 +1213,7 @@ class MyAccessibilityService : AccessibilityService() {
                 R.string.pacing_toast_75, appName, usedMinutes, limitMinutes, remainingMinutes
             )
             else -> getString(
-                R.string.pacing_toast_50, appName, usedMinutes, limitMinutes, remainingMinutes
+                R.string.pacing_toast_50, appName, usedMinutes, limitMinutes
             )
         }
         Handler(Looper.getMainLooper()).post {
