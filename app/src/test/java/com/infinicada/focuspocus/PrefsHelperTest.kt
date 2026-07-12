@@ -62,8 +62,8 @@ class PrefsHelperTest {
         assertTrue(corruptionCallbackCalled)
         assertFalse(prefs.contains("test_key"))
 
-        // Verify Log.e was called
-        mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString()) }
+        // Verify Log.e was called (PrefsHelper logs with the throwable overload)
+        mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any()) }
     }
 
     @Test
