@@ -23,6 +23,7 @@ import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -150,6 +151,16 @@ class MyAccessibilityService : AccessibilityService() {
     // In-memory only; a duplicate toast after a service restart is harmless.
     private val pactWarnedExpiries = HashMap<String, Long>()
 
+    // Open/reflex counter shown on the pact overlay
+    private lateinit var openReflexTracker: OpenReflexTracker
+
+    // Which tracked-or-untracked app the open/reflex bookkeeping considers foreground,
+    // and since when. Separate from currentForegroundPackage because going home ends
+    // an "open" here but deliberately does NOT end a session-limit usage session
+    // (bouncing to the launcher must not reset session limits).
+    @Volatile private var openTrackingPackage: String? = null
+    @Volatile private var openTrackingSince: Long = 0L
+
     // Date string used to detect when a new day begins (format: "yyyyMMdd")
     @Volatile private var lastCooldownResetDate: String? = null
 
@@ -245,6 +256,7 @@ class MyAccessibilityService : AccessibilityService() {
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
         pactManager = PactManager(sharedPreferences, gson)
+        openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
         lastCooldownResetDate = SessionCooldownManager.todayString()
         Log.d("MyAccessibilityService", "Service connected")
 
@@ -731,6 +743,9 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun handleWindowStateChanged(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
+
+        trackOpenTransition(packageName)
+
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
 
         // End expired breaks / timed sessions before reading focus state below, so
@@ -1282,7 +1297,55 @@ class MyAccessibilityService : AccessibilityService() {
         intent.putExtra("pactPackageName", packageName)
         intent.putExtra("pactChoices", PactManager.choicesFor(config).toIntArray())
         intent.putExtra("pactSealMinutes", config.cooldownMinutes)
+
+        // Awareness counter: this attempt is already counted, so opens is "open #N".
+        val stats = openReflexTracker.getStats(packageName)
+        intent.putExtra("pactTodayOpens", stats.opens)
+        intent.putExtra("pactTodayReflexOpens", stats.reflexOpens)
+
+        // Optional healthier substitute ("Open X instead")
+        val alternative = config.pactAlternativePackage
+        if (alternative != null && isPackageInstalled(alternative)) {
+            intent.putExtra("pactAlternativePackage", alternative)
+            intent.putExtra("pactAlternativeName", AppUtils.getAppName(this, alternative))
+        }
         startActivity(intent)
+    }
+
+    private fun isPackageInstalled(packageName: String): Boolean = try {
+        packageManager.getApplicationInfo(packageName, 0)
+        true
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Open/reflex bookkeeping for the pact overlay's awareness counter. Runs before
+     * the launcher/IME/system filter because going home is what ends an "open" —
+     * while our own overlay, the keyboard, and system UI appearing don't mean the
+     * user left the app.
+     */
+    private fun trackOpenTransition(packageName: String) {
+        if (packageName == this.packageName || isInputMethod(packageName) || isSystemUI(packageName)) return
+        val now = System.currentTimeMillis()
+        if (isLauncher(packageName)) {
+            openTrackingPackage?.let { finishOpenTracking(it, now) }
+            return
+        }
+        if (packageName == openTrackingPackage) return
+        openTrackingPackage?.let { finishOpenTracking(it, now) }
+        if (getCachedTimeLimitConfigs().containsKey(packageName)) {
+            openReflexTracker.recordOpen(packageName)
+        }
+        openTrackingPackage = packageName
+        openTrackingSince = now
+    }
+
+    private fun finishOpenTracking(packageName: String, now: Long) {
+        if (getCachedTimeLimitConfigs().containsKey(packageName)) {
+            openReflexTracker.recordClose(packageName, now - openTrackingSince)
+        }
+        openTrackingPackage = null
     }
 
     /**

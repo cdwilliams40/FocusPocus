@@ -118,12 +118,20 @@ class OverlayActivity : ComponentActivity() {
         val pactSealMinutes = intent.getIntExtra("pactSealMinutes", 30)
 
         if (pactPackageName != null && pactChoices != null && pactChoices.isNotEmpty()) {
+            val todayOpens = intent.getIntExtra("pactTodayOpens", 0)
+            val todayReflexOpens = intent.getIntExtra("pactTodayReflexOpens", 0)
+            val alternativePackage = intent.getStringExtra("pactAlternativePackage")
+            val alternativeName = intent.getStringExtra("pactAlternativeName")?.take(200)
             setContent {
                 FocusPocusTheme(themeMode = themeMode) {
                     PactOfferScreen(
                         appName = appName,
                         choicesMinutes = pactChoices.toList(),
                         sealMinutes = pactSealMinutes,
+                        todayOpens = todayOpens,
+                        todayReflexOpens = todayReflexOpens,
+                        alternativeName = if (alternativePackage != null) alternativeName else null,
+                        onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
                         onPactChosen = { minutes -> grantPactAndLaunch(pactPackageName, minutes) },
                         onDecline = { closeAndGoHome() }
                     )
@@ -152,6 +160,10 @@ class OverlayActivity : ComponentActivity() {
     private fun grantPactAndLaunch(packageName: String, minutes: Int) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         PactManager(prefs, Gson()).grantAllowance(packageName, minutes)
+        launchApp(packageName)
+    }
+
+    private fun launchApp(packageName: String) {
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         if (launchIntent != null) {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -351,6 +363,10 @@ fun PactOfferScreen(
     appName: String,
     choicesMinutes: List<Int>,
     sealMinutes: Int,
+    todayOpens: Int = 0,
+    todayReflexOpens: Int = 0,
+    alternativeName: String? = null,
+    onOpenAlternative: () -> Unit = {},
     onPactChosen: (Int) -> Unit,
     onDecline: () -> Unit
 ) {
@@ -416,6 +432,27 @@ fun PactOfferScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center
                     )
+
+                    // Awareness counter: the shape of today's habit, shown at the
+                    // exact moment the urge fires. Hidden on the first open of the
+                    // day — there's no pattern to show yet.
+                    if (todayOpens > 1) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (todayReflexOpens > 0) {
+                                stringResource(
+                                    R.string.overlay_pact_stats_reflex,
+                                    todayOpens, todayReflexOpens
+                                )
+                            } else {
+                                stringResource(R.string.overlay_pact_stats, todayOpens)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
@@ -424,6 +461,18 @@ fun PactOfferScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // The healthier substitute is the most prominent choice and the
+                    // only one usable immediately — good reflexes shouldn't wait.
+                    if (alternativeName != null) {
+                        Button(
+                            onClick = onOpenAlternative,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.overlay_pact_alternative, alternativeName))
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     if (!countdownDone) {
                         Text(

@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -225,6 +226,8 @@ fun AddTimeLimitDialog(
     var pactMaxMinutes by remember { mutableIntStateOf(15) }
     var pactMaxExpanded by remember { mutableStateOf(false) }
     var pactSealExpanded by remember { mutableStateOf(false) }
+    var alternativeApp by remember { mutableStateOf<AppInfo?>(null) }
+    var showAlternativePicker by remember { mutableStateOf(false) }
 
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
 
@@ -421,6 +424,43 @@ fun AddTimeLimitDialog(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Optional healthier substitute offered on the pact screen
+                    Box {
+                        OutlinedTextField(
+                            value = alternativeApp?.name ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time_limits_pact_alternative_label)) },
+                            placeholder = { Text(stringResource(R.string.time_limits_pact_alternative_none)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { showAlternativePicker = true }
+                        )
+                    }
+                    if (alternativeApp != null) {
+                        TextButton(onClick = { alternativeApp = null }) {
+                            Text(stringResource(R.string.time_limits_pact_alternative_clear))
+                        }
+                    }
+                    if (showAlternativePicker) {
+                        SingleAppPickerDialog(
+                            installedApps = installedApps.filter { it.packageName != selectedApp?.packageName },
+                            title = stringResource(R.string.time_limits_pact_alternative_label),
+                            selectedPackage = alternativeApp?.packageName,
+                            onPick = { app ->
+                                alternativeApp = app
+                                showAlternativePicker = false
+                            },
+                            onDismiss = { showAlternativePicker = false }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -528,7 +568,8 @@ fun AddTimeLimitDialog(
                                 sessionLimitMinutes = if (cooldownEnabled) sessionLimitMinutes else 0,
                                 cooldownMinutes = cooldownMinutes,
                                 pactModeEnabled = pactEnabled,
-                                pactMaxMinutes = pactMaxMinutes
+                                pactMaxMinutes = pactMaxMinutes,
+                                pactAlternativePackage = if (pactEnabled) alternativeApp?.packageName else null
                             )
                         )
                     }

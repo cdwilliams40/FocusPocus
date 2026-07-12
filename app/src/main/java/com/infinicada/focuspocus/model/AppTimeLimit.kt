@@ -19,5 +19,10 @@ data class AppTimeLimit(
      */
     val pactModeEnabled: Boolean = false,
     /** Longest allowance offered in a single pact, in minutes. 0 = use default. */
-    val pactMaxMinutes: Int = 15
+    val pactMaxMinutes: Int = 15,
+    /**
+     * Optional healthier substitute offered on the pact overlay ("Open X instead").
+     * Reflexes don't disappear — they get rerouted; this gives them somewhere to go.
+     */
+    val pactAlternativePackage: String? = null
 )
