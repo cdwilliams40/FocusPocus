@@ -53,6 +53,11 @@ object Constants {
         // NFC lock mode
         const val NFC_LOCK_MODE = "nfcLockMode"
 
+        // Device owner: suspend (grey out) blocked apps during focus sessions
+        const val DEVICE_OWNER_ENFORCEMENT = "deviceOwnerEnforcement"
+        // Packages currently suspended by us, so they can be unsuspended later
+        const val DEVICE_OWNER_SUSPENDED_PACKAGES = "deviceOwnerSuspendedPackages"
+
         // Per-app time limits
         const val APP_TIME_LIMITS = "appTimeLimits"
 

@@ -83,6 +83,7 @@ object SessionManager {
             .apply()
 
         DndController.updateDndState(context)
+        DeviceOwnerManager.syncSuspensions(context)
     }
 
     fun isSessionActive(sharedPreferences: SharedPreferences): Boolean {

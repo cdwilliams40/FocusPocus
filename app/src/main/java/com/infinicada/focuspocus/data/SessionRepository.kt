@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Constants
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.PrefsHelper
@@ -21,6 +22,7 @@ class SessionRepository(
     // Session lifecycle
     fun startSession(blockerNames: List<String>, durationMinutes: Int = 0, breaksEnabled: Boolean = true) {
         SessionManager.startSession(prefs, blockerNames, durationMinutes = durationMinutes, breaksEnabled = breaksEnabled)
+        DeviceOwnerManager.syncSuspensions(context)
     }
 
     fun stopSession() {
@@ -213,6 +215,7 @@ class SessionRepository(
 
         editor.apply()
         DndController.updateDndState(context)
+        DeviceOwnerManager.syncSuspensions(context)
     }
 
     // Break state batch write.
@@ -246,6 +249,7 @@ class SessionRepository(
         }
         editor.apply()
         DndController.updateDndState(context)
+        DeviceOwnerManager.syncSuspensions(context)
     }
 
     // Clean up dangling references

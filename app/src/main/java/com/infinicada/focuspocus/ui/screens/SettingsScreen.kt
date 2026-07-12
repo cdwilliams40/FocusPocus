@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -25,14 +27,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
@@ -61,6 +70,10 @@ fun SettingsScreen(
     onOpenNotificationSettings: () -> Unit,
     nfcLockMode: Boolean,
     onNfcLockModeChanged: (Boolean) -> Unit,
+    isDeviceOwner: Boolean,
+    deviceOwnerEnforcement: Boolean,
+    onDeviceOwnerEnforcementChanged: (Boolean) -> Unit,
+    onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
     namedTags: List<NamedTag>,
@@ -326,6 +339,97 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Warden Mode (device owner) Card
+            var showRemoveWardenDialog by remember { mutableStateOf(false) }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_device_owner), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (isDeviceOwner) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.settings_device_owner_suspend))
+                                Text(
+                                    stringResource(R.string.settings_device_owner_suspend_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = deviceOwnerEnforcement,
+                                onCheckedChange = onDeviceOwnerEnforcementChanged
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_device_owner_active),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { showRemoveWardenDialog = true },
+                            enabled = !focusMode,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.settings_device_owner_remove))
+                        }
+                        Text(
+                            stringResource(R.string.settings_device_owner_remove_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.settings_device_owner_inactive_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_device_owner_command_hint),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SelectionContainer {
+                            Text(
+                                DeviceOwnerManager.SET_DEVICE_OWNER_COMMAND,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+            if (showRemoveWardenDialog) {
+                AlertDialog(
+                    onDismissRequest = { showRemoveWardenDialog = false },
+                    title = { Text(stringResource(R.string.settings_device_owner_remove_confirm_title)) },
+                    text = { Text(stringResource(R.string.settings_device_owner_remove_confirm_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showRemoveWardenDialog = false
+                            onRemoveDeviceOwner()
+                        }) {
+                            Text(stringResource(R.string.settings_device_owner_remove_confirm_yes))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRemoveWardenDialog = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
 

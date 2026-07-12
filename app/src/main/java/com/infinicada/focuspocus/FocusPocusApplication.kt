@@ -14,5 +14,9 @@ class FocusPocusApplication : Application() {
         } catch (e: Exception) {
             android.util.Log.e("FocusPocusApplication", "Firebase initialization failed", e)
         }
+        // Re-assert device-owner protections on every process start; both are
+        // cheap no-ops when the app is not device owner.
+        DeviceOwnerManager.applySelfProtection(this)
+        DeviceOwnerManager.syncSuspensions(this)
     }
 }

@@ -142,6 +142,8 @@ fun FocusPocusApp(
     val hideStopButton by settingsVM.hideStopButton.collectAsStateWithLifecycle()
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
+    val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
+    val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
     val analyticsConsent by settingsVM.analyticsConsent.collectAsStateWithLifecycle()
     val onboardingCompleted by settingsVM.onboardingCompleted.collectAsStateWithLifecycle()
     val showAnalyticsConsentDialog by settingsVM.showAnalyticsConsentDialog.collectAsStateWithLifecycle()
@@ -300,6 +302,7 @@ fun FocusPocusApp(
     if (showSettings) {
         LaunchedEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
+            settingsVM.refreshDeviceOwnerState()
         }
         BackHandler { showSettings = false }
         SettingsScreen(
@@ -329,6 +332,18 @@ fun FocusPocusApp(
             },
             nfcLockMode = nfcLockMode,
             onNfcLockModeChanged = { settingsVM.setNfcLockMode(it) },
+            isDeviceOwner = isDeviceOwner,
+            deviceOwnerEnforcement = deviceOwnerEnforcement,
+            onDeviceOwnerEnforcementChanged = { settingsVM.setDeviceOwnerEnforcement(it) },
+            onRemoveDeviceOwner = {
+                if (!settingsVM.removeDeviceOwner()) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_device_owner_remove_failed),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            },
             analyticsConsent = analyticsConsent,
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
             namedTags = namedTags,

@@ -6,6 +6,7 @@ import android.net.Uri
 import com.google.gson.Gson
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
@@ -46,6 +47,7 @@ class TriggerHandler(
                         durationMinutes = tempDuration,
                         breaksEnabled = preset.breaksEnabled
                     )
+                    DeviceOwnerManager.syncSuspensions(context)
                     TriggerResult.Success(R.string.toast_preset_cast_timed, listOf(preset.name, tempDuration))
                 } else {
                     TriggerResult.Error(R.string.toast_enchantment_missing, listOf(preset.name))
@@ -61,6 +63,7 @@ class TriggerHandler(
                             System.currentTimeMillis() + breakSeconds * 1000L)
                         .apply()
                     DndController.updateDndState(context)
+                    DeviceOwnerManager.syncSuspensions(context)
                     TriggerResult.Success(R.string.toast_temp_break, listOf(tempDuration))
                 } else {
                     TriggerResult.Error(R.string.toast_no_active_focus)
@@ -79,6 +82,7 @@ class TriggerHandler(
                             durationMinutes = preset.durationMinutes,
                             breaksEnabled = preset.breaksEnabled
                         )
+                        DeviceOwnerManager.syncSuspensions(context)
                         TriggerResult.Success(R.string.toast_preset_cast, listOf(preset.name))
                     } else {
                         TriggerResult.Error(R.string.toast_enchantment_missing, listOf(preset.name))

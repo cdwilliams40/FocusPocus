@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.ui.theme.ThemeMode
@@ -43,6 +44,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _nfcLockMode = MutableStateFlow(repo.getNfcLockMode())
     val nfcLockMode: StateFlow<Boolean> = _nfcLockMode.asStateFlow()
+
+    private val _isDeviceOwner = MutableStateFlow(DeviceOwnerManager.isDeviceOwner(application))
+    val isDeviceOwner: StateFlow<Boolean> = _isDeviceOwner.asStateFlow()
+
+    private val _deviceOwnerEnforcement = MutableStateFlow(repo.getDeviceOwnerEnforcement())
+    val deviceOwnerEnforcement: StateFlow<Boolean> = _deviceOwnerEnforcement.asStateFlow()
 
     private val _analyticsConsent = MutableStateFlow(repo.getAnalyticsConsent())
     val analyticsConsent: StateFlow<Boolean> = _analyticsConsent.asStateFlow()
@@ -98,6 +105,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setNfcLockMode(enabled: Boolean) {
         _nfcLockMode.value = enabled
         repo.setNfcLockMode(enabled)
+    }
+
+    fun refreshDeviceOwnerState() {
+        _isDeviceOwner.value = DeviceOwnerManager.isDeviceOwner(getApplication())
+    }
+
+    fun setDeviceOwnerEnforcement(enabled: Boolean) {
+        _deviceOwnerEnforcement.value = enabled
+        repo.setDeviceOwnerEnforcement(enabled)
+        // Apply (or lift) suspensions immediately if a session is already running.
+        DeviceOwnerManager.syncSuspensions(getApplication())
+    }
+
+    /** Returns false if relinquishing device-owner status failed. */
+    fun removeDeviceOwner(): Boolean {
+        val cleared = DeviceOwnerManager.clearDeviceOwner(getApplication())
+        refreshDeviceOwnerState()
+        return cleared
     }
 
     fun applyAnalyticsConsent(enabled: Boolean) {

@@ -210,6 +210,10 @@ class MyAccessibilityService : AccessibilityService() {
         // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
         // could stay inside an app past its daily limit indefinitely.
         currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
+
+        // Device owner: catch-all reconciliation for anything the event-driven sync
+        // points missed (conditional unlocks flipping, apps installed mid-session).
+        DeviceOwnerManager.syncSuspensions(this)
     }
 
     /**
@@ -238,6 +242,7 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             enforceTimedSessionExpiry()
             checkMissedScheduleActivation()
+            DeviceOwnerManager.syncSuspensions(this)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error reconciling state on service start", e)
             reportNonFatal(e)
@@ -412,6 +417,7 @@ class MyAccessibilityService : AccessibilityService() {
                 editor.apply()
                 Log.d("MyAccessibilityService", "Break expired while UI was away — resuming focus mode")
                 DndController.updateDndState(this)
+                DeviceOwnerManager.syncSuspensions(this)
             }
             // Still on break (or just resumed this instant) — no session expiry to enforce.
             return
@@ -479,6 +485,7 @@ class MyAccessibilityService : AccessibilityService() {
         editor.apply()
 
         DndController.updateDndState(this)
+        DeviceOwnerManager.syncSuspensions(this)
         Log.d("MyAccessibilityService", "Auto-break started after ${intervalMinutes}m of focus")
         sendAutoBreakNotification(intervalMinutes, breakDuration)
     }
@@ -634,6 +641,7 @@ class MyAccessibilityService : AccessibilityService() {
         )
 
         DndController.updateDndState(this)
+        DeviceOwnerManager.syncSuspensions(this)
 
         sendRitualNotification(
             title = getString(R.string.ritual_started_title),
