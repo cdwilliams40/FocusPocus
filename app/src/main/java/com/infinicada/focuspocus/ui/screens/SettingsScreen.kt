@@ -1,6 +1,11 @@
 package com.infinicada.focuspocus.ui.screens
 
 import kotlin.math.roundToInt
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +20,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -73,6 +82,7 @@ fun SettingsScreen(
     isDeviceOwner: Boolean,
     deviceOwnerEnforcement: Boolean,
     onDeviceOwnerEnforcementChanged: (Boolean) -> Unit,
+    onRefreshDeviceOwner: () -> Unit,
     onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
@@ -390,24 +400,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        Text(
-                            stringResource(R.string.settings_device_owner_inactive_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.settings_device_owner_command_hint),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SelectionContainer {
-                            Text(
-                                DeviceOwnerManager.SET_DEVICE_OWNER_COMMAND,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        WardenSetupGuide(onRefreshDeviceOwner = onRefreshDeviceOwner)
                     }
                 }
             }
@@ -462,5 +455,129 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    }
+}
+
+/**
+ * Step-by-step provisioning guide shown while FocusPocus is not yet device owner:
+ * numbered instructions, tap-to-copy adb commands, a status re-check button, and
+ * troubleshooting for the "already some accounts on the device" error.
+ */
+@Composable
+private fun WardenSetupGuide(onRefreshDeviceOwner: () -> Unit) {
+    Text(
+        stringResource(R.string.settings_device_owner_inactive_desc),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    SetupStep(1, stringResource(R.string.settings_device_owner_step1))
+    SetupStep(2, stringResource(R.string.settings_device_owner_step2))
+    SetupStep(3, stringResource(R.string.settings_device_owner_step3))
+    AdbCommandRow(DeviceOwnerManager.SET_DEVICE_OWNER_COMMAND)
+    Spacer(modifier = Modifier.height(8.dp))
+
+    var checkedStatus by remember { mutableStateOf(false) }
+    OutlinedButton(
+        onClick = {
+            checkedStatus = true
+            onRefreshDeviceOwner()
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(stringResource(R.string.settings_device_owner_check_status))
+    }
+    // Only visible while still not device owner: on success the whole card
+    // switches to the active state instead.
+    if (checkedStatus) {
+        Text(
+            stringResource(R.string.settings_device_owner_not_detected),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    var showTroubleshooting by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showTroubleshooting = !showTroubleshooting },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            stringResource(R.string.settings_device_owner_troubleshoot_title),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            if (showTroubleshooting) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
+    if (showTroubleshooting) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.settings_device_owner_troubleshoot_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        AdbCommandRow(DeviceOwnerManager.LIST_ACCOUNTS_COMMAND)
+        Text(
+            stringResource(R.string.settings_device_owner_troubleshoot_fix),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SetupStep(number: Int, text: String) {
+    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(
+            "$number.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 6.dp)
+        )
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun AdbCommandRow(command: String) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SelectionContainer(modifier = Modifier.weight(1f)) {
+            Text(
+                command,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        IconButton(onClick = {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("adb command", command))
+            // Android 13+ shows its own clipboard confirmation overlay.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                Toast.makeText(context, R.string.settings_device_owner_copied, Toast.LENGTH_SHORT).show()
+            }
+        }) {
+            Icon(
+                Icons.Filled.ContentCopy,
+                contentDescription = stringResource(R.string.settings_device_owner_copy_command),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }

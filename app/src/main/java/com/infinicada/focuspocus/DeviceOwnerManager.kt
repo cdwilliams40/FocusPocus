@@ -31,6 +31,14 @@ object DeviceOwnerManager {
     const val SET_DEVICE_OWNER_COMMAND =
         "adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver"
 
+    /**
+     * Diagnostic command for the most common provisioning failure: Android refuses
+     * to set a device owner while *any* account is registered, and many apps
+     * (Instagram, WhatsApp, ...) register hidden accounts that never appear in the
+     * system account settings. This lists them all, per user.
+     */
+    const val LIST_ACCOUNTS_COMMAND = "adb shell dumpsys account"
+
     private val gson = Gson()
 
     fun getAdminComponent(context: Context): ComponentName =
