@@ -357,6 +357,11 @@
     <string name="time_limits_cooldown_label">Cooldown duration</string>
     <string name="time_limits_cooldown_desc">Session: %1$d min → %2$d min cooldown</string>
     <string name="time_limits_minutes_value">%d min</string>
+    <string name="time_limits_enable_pact">Pact Mode — sealed by default</string>
+    <string name="time_limits_enable_pact_desc">The app stays blocked until you consciously ask for time. Each pact grants a few minutes, then seals the app again.</string>
+    <string name="time_limits_pact_max_label">Longest pact</string>
+    <string name="time_limits_pact_seal_label">Seal duration after each pact</string>
+    <string name="time_limits_pact_desc">Pact Mode: up to %1$d min per pact → sealed %2$d min after</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
@@ -403,6 +408,12 @@
     <string name="overlay_cooldown_remaining">Cooldown: %d min remaining</string>
     <string name="overlay_level3_prompt">To close this overlay, type the phrase below:</string>
     <string name="overlay_level3_hint">Type the phrase to continue</string>
+    <string name="overlay_pact_prompt">%s is sealed. Make a pact: how much time do you truly need?</string>
+    <string name="overlay_pact_seal_desc">When your time runs out, %1$s seals itself again for %2$d minutes.</string>
+    <string name="overlay_pact_wait">You can choose in %d…</string>
+    <string name="overlay_pact_choice">%d minutes</string>
+    <string name="overlay_pact_decline">Never mind — I don\'t need it</string>
+    <string name="pact_ending_toast">Your pact is ending — %s seals in under a minute</string>
 
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituals</string>

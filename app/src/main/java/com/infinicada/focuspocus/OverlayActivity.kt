@@ -22,6 +22,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import com.google.gson.Gson
+import com.infinicada.focuspocus.limit.PactManager
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -107,6 +112,26 @@ class OverlayActivity : ComponentActivity() {
         val frictionLevelOrdinal = intent.getIntExtra("frictionLevel", -1)
         val cooldownExpiryMillis = intent.getLongExtra("cooldownExpiryMillis", 0L)
 
+        // Pact Mode: instead of a plain block, offer an allowance of the user's choosing.
+        val pactPackageName = intent.getStringExtra("pactPackageName")
+        val pactChoices = intent.getIntArrayExtra("pactChoices")
+        val pactSealMinutes = intent.getIntExtra("pactSealMinutes", 30)
+
+        if (pactPackageName != null && pactChoices != null && pactChoices.isNotEmpty()) {
+            setContent {
+                FocusPocusTheme(themeMode = themeMode) {
+                    PactOfferScreen(
+                        appName = appName,
+                        choicesMinutes = pactChoices.toList(),
+                        sealMinutes = pactSealMinutes,
+                        onPactChosen = { minutes -> grantPactAndLaunch(pactPackageName, minutes) },
+                        onDecline = { closeAndGoHome() }
+                    )
+                }
+            }
+            return
+        }
+
         val frictionLevel: FrictionLevel? = if (frictionLevelOrdinal in FrictionLevel.entries.indices) {
             FrictionLevel.entries[frictionLevelOrdinal]
         } else null
@@ -122,6 +147,17 @@ class OverlayActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun grantPactAndLaunch(packageName: String, minutes: Int) {
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        PactManager(prefs, Gson()).grantAllowance(packageName, minutes)
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+        }
+        finishAndRemoveTask()
     }
 }
 
@@ -300,6 +336,123 @@ fun OverlayScreen(
                     )
                 }
             }
+            }
+        }
+    }
+}
+
+/**
+ * Pact Mode offer: the app is blocked by default; the user consciously chooses an
+ * allowance, or walks away. The choice buttons stay disabled for a few seconds so
+ * muscle memory can't grant a pact before the urge has a chance to pass.
+ */
+@Composable
+fun PactOfferScreen(
+    appName: String,
+    choicesMinutes: List<Int>,
+    sealMinutes: Int,
+    onPactChosen: (Int) -> Unit,
+    onDecline: () -> Unit
+) {
+    val delaySeconds = 3
+    var remainingSeconds by remember { mutableIntStateOf(delaySeconds) }
+    var countdownDone by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        while (remainingSeconds > 0) {
+            delay(1000L)
+            remainingSeconds--
+        }
+        countdownDone = true
+    }
+
+    ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            GlassCard(
+                modifier = Modifier.padding(28.dp),
+                contentPadding = PaddingValues(28.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val sigilColor = MaterialTheme.colorScheme.primary
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    listOf(
+                                        sigilColor.copy(alpha = 0.28f),
+                                        sigilColor.copy(alpha = 0.06f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Timer,
+                            contentDescription = null,
+                            tint = sigilColor,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = stringResource(R.string.overlay_pact_prompt, appName),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (!countdownDone) {
+                        Text(
+                            text = stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    choicesMinutes.forEach { minutes ->
+                        OutlinedButton(
+                            onClick = { onPactChosen(minutes) },
+                            enabled = countdownDone,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.overlay_pact_choice, minutes))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onDecline,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.overlay_pact_decline))
+                    }
+                }
             }
         }
     }
