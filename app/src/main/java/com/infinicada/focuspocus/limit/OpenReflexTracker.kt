@@ -57,6 +57,9 @@ class OpenReflexTracker(
     fun getStats(packageName: String): AppOpenStats =
         loadForToday().stats[packageName] ?: AppOpenStats()
 
+    /** Today's stats for every tracked app that has been opened today. */
+    fun getAllStats(): Map<String, AppOpenStats> = loadForToday().stats
+
     private fun loadForToday(): Store {
         val type = object : TypeToken<Store>() {}.type
         val stored: Store? = PrefsHelper.load(prefs, gson, Constants.PrefsKeys.APP_OPEN_STATS, type)

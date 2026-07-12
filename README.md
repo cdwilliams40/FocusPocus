@@ -56,7 +56,8 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - The pact screen shows **the shape of today's habit**: how many times you've opened the app and how many opens were under-30-second reflexes
 - Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
-- Enable per app under Spellbook → Time Limits
+- Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
+- Managed on a dedicated **Pacts screen** (Spellbook → Pacts), with today's open/reflex counts per app front and center
 
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one
@@ -161,13 +162,11 @@ The app has three tabs, plus a Settings screen reached from the top bar.
 - Tap "Cast Spell" to start or "Dispel" to end
 
 ### Spellbook Tab
-Your grimoire of configuration, organized into sections:
-- **Enchantments**: create and manage blocklists of apps and websites
-- **Quick Spells**: create one-tap focus presets, with QR codes for sharing
-- **Rituals**: schedule automatic focus sessions by day and time
-- **Talismans**: manage your NFC tags and their bindings
-- **Time Limits**: set daily and per-session limits with cooldowns for individual apps, or seal an app behind Pact Mode
-- **Conditional Unlocks**: define productive-time requirements that unlock blocked apps
+Your grimoire of configuration, organized by how each protection applies:
+- **Pacts** (hero card): seal apps behind conscious, timed pacts — shows live open/reflex counts for the day
+- **Focus sessions**: **Enchantments** (blocklists of apps and websites) and **Rituals** (scheduled automatic sessions)
+- **Everyday guards**: **Time Limits** — daily and per-session limits with cooldowns, plus **earn-access rules** (conditional unlocks) that lift blocks after productive time
+- **Shortcuts & gear**: **Quick Spells** (one-tap presets, also on the Focus tab) and **Talismans** (NFC tags and bindings)
 
 ### Insights Tab
 - View session history and focus statistics

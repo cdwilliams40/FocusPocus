@@ -118,6 +118,21 @@
     <string name="spellbook_more_count">+%d more</string>
     <string name="spellbook_app_time_limit">%1$s - %2$d min/day</string>
     <string name="spellbook_breaks_suffix"> - Breaks</string>
+    <string name="spellbook_pacts">Pacts</string>
+    <string name="spellbook_pacts_tagline">Seal your most distracting apps behind conscious, timed pacts \u2014 the cure for reflexive scrolling.</string>
+    <string name="spellbook_pacts_stats">Today: %1$d opens \u00b7 %2$d reflexes caught</string>
+    <string name="spellbook_pact_app_line">%1$s \u2014 %2$d opens today</string>
+    <string name="spellbook_group_focus">Focus sessions</string>
+    <string name="spellbook_group_guards">Everyday guards</string>
+    <string name="spellbook_group_gear">Shortcuts &amp; gear</string>
+    <plurals name="spellbook_pact_app_count">
+        <item quantity="one">%d app under pact</item>
+        <item quantity="other">%d apps under pact</item>
+    </plurals>
+    <plurals name="spellbook_unlock_rule_count">
+        <item quantity="one">%d earn-access rule</item>
+        <item quantity="other">%d earn-access rules</item>
+    </plurals>
 
     <!-- Plurals for spellbook counts -->
     <plurals name="spellbook_app_count">
@@ -357,14 +372,25 @@
     <string name="time_limits_cooldown_label">Cooldown duration</string>
     <string name="time_limits_cooldown_desc">Session: %1$d min → %2$d min cooldown</string>
     <string name="time_limits_minutes_value">%d min</string>
-    <string name="time_limits_enable_pact">Pact Mode — sealed by default</string>
-    <string name="time_limits_enable_pact_desc">The app stays blocked until you consciously ask for time. Each pact grants a few minutes, then seals the app again.</string>
     <string name="time_limits_pact_max_label">Longest pact</string>
     <string name="time_limits_pact_seal_label">Seal duration after each pact</string>
-    <string name="time_limits_pact_desc">Pact Mode: up to %1$d min per pact → sealed %2$d min after</string>
     <string name="time_limits_pact_alternative_label">Suggest instead (optional)</string>
     <string name="time_limits_pact_alternative_none">No suggestion</string>
     <string name="time_limits_pact_alternative_clear">Remove suggestion</string>
+
+    <!-- PactsScreen -->
+    <string name="pacts_title">Pacts</string>
+    <string name="pacts_description">Apps under a pact are sealed by default, all day long. Opening one asks how much time you truly need — and when it runs out, the app seals itself again.</string>
+    <string name="pacts_empty">No pacts yet. Seal your most distracting app and watch the reflex count drop.</string>
+    <string name="pacts_add">Add a pact</string>
+    <string name="pacts_add_dialog_title">Add a Pact</string>
+    <string name="pacts_config_summary">Up to %1$d min per pact \u2192 sealed %2$d min after</string>
+    <string name="pacts_alternative_summary">Instead: %s</string>
+    <string name="pacts_backstop_summary">Daily backstop: %d min</string>
+    <string name="pacts_backstop_label">Daily backstop (optional)</string>
+    <string name="pacts_backstop_none">None</string>
+    <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
+    <string name="conditional_unlocks_pact_app_label">%s (Pact)</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
@@ -395,8 +421,6 @@
     <string name="conditional_unlocks_time_limit_apps_count">%d app timer(s) selected</string>
     <string name="conditional_unlocks_bypassed_timers">Bypassed timers: %s</string>
     <string name="conditional_unlocks_delete">Delete</string>
-    <string name="spellbook_conditional_unlocks">Conditional Unlocks</string>
-    <string name="spellbook_no_conditional_unlocks">No conditional unlocks yet. Reward yourself by unlocking apps after focused use of another.</string>
     <string name="toast_max_conditional_unlocks">Maximum of %d conditional unlocks reached</string>
 
     <!-- QrCodeDialog -->
