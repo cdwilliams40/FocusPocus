@@ -164,6 +164,38 @@ class TriggerHandlerTest {
     }
 
     @Test
+    fun `togglePreset TEMP_DISABLE freezes focus countdown for the break`() {
+        // A 25-minute timed session persists its wall-clock end timestamp.
+        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 25)
+        val focusEndBefore = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
+        assertTrue(focusEndBefore > 0L)
+
+        val preset = makePreset(action = PresetAction.TEMP_DISABLE, tempDurationMinutes = 10)
+        handler.togglePreset(preset, blockerLists)
+
+        // The countdown must be parked (end timestamp dropped, remaining seconds frozen)
+        // so the break-end path resumes from where the session left off instead of
+        // restarting the full duration from the stale value written at session start.
+        assertEquals(0L, prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L))
+        val frozenRemaining = prefs.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, -1)
+        assertTrue("Frozen remaining should be ~25min, was $frozenRemaining",
+            frozenRemaining in (25 * 60 - 5)..(25 * 60))
+    }
+
+    @Test
+    fun `togglePreset TEMP_DISABLE without timed session leaves focus countdown untouched`() {
+        // Unlimited session: no end timestamp exists and none must be invented.
+        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 0)
+        val preset = makePreset(action = PresetAction.TEMP_DISABLE, tempDurationMinutes = 10)
+
+        handler.togglePreset(preset, blockerLists)
+
+        assertTrue(prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false))
+        assertEquals(0L, prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L))
+        assertEquals(0, prefs.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, -1))
+    }
+
+    @Test
     fun `togglePreset TEMP_DISABLE when inactive returns Error`() {
         val preset = makePreset(action = PresetAction.TEMP_DISABLE)
         val result = handler.togglePreset(preset, blockerLists)

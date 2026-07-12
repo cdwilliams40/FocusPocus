@@ -36,10 +36,13 @@ object DndController {
         val sharedPreferences = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
         val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
         val muteEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
 
-        val focusModeActive = manualFocusMode || activeScheduleId != null
+        // A talisman (NFC tag) session counts as focus mode, matching the
+        // accessibility service and the notification listener.
+        val focusModeActive = manualFocusMode || activeScheduleId != null || focusTagId != null
         val shouldEnableDnd = focusModeActive && muteEnabled && !isOnBreak
         val appEnabledDnd = sharedPreferences.getBoolean(PREFS_DND_ENABLED_BY_APP, false)
 
