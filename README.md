@@ -48,6 +48,14 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - **Escalating friction**: each attempt to open a cooled-down app makes the block overlay harder to dismiss, from a short countdown up to typing a reflective phrase
 - View per-app usage statistics on the Insights screen
 
+### Pact Mode (Blocked by Default)
+- Flip the default for your worst distractions: the app is **sealed at all times**, not just during focus sessions
+- Opening it offers a *pact*: consciously choose how many minutes you need — after a short pause, so muscle memory can't answer for you
+- When your time is spent, the app seals itself again for a cooldown of your choosing, with the same escalating friction as session limits
+- A warning toast fires shortly before a pact lapses, so the seal never lands mid-scroll without notice
+- Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
+- Enable per app under Spellbook → Time Limits
+
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one
 - Example: unlock social media only after 30 minutes in a study app
@@ -156,7 +164,7 @@ Your grimoire of configuration, organized into sections:
 - **Quick Spells**: create one-tap focus presets, with QR codes for sharing
 - **Rituals**: schedule automatic focus sessions by day and time
 - **Talismans**: manage your NFC tags and their bindings
-- **Time Limits**: set daily and per-session limits with cooldowns for individual apps
+- **Time Limits**: set daily and per-session limits with cooldowns for individual apps, or seal an app behind Pact Mode
 - **Conditional Unlocks**: define productive-time requirements that unlock blocked apps
 
 ### Insights Tab

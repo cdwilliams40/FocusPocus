@@ -23,6 +23,7 @@ import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
@@ -142,6 +143,13 @@ class MyAccessibilityService : AccessibilityService() {
     // Session cooldown manager — tracks per-app usage sessions and cooldown state
     private lateinit var sessionCooldownManager: SessionCooldownManager
 
+    // Pact manager — tracks Pact Mode allowances (blocked-by-default apps)
+    private lateinit var pactManager: PactManager
+
+    // Pact expiry warnings already toasted, keyed by package -> allowance expiry.
+    // In-memory only; a duplicate toast after a service restart is harmless.
+    private val pactWarnedExpiries = HashMap<String, Long>()
+
     // Date string used to detect when a new day begins (format: "yyyyMMdd")
     @Volatile private var lastCooldownResetDate: String? = null
 
@@ -197,6 +205,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
             sessionCooldownManager.resetDailyCooldowns()
             pacingNotifiedToday.clear()
+            pactWarnedExpiries.clear()
             lastCooldownResetDate = SessionCooldownManager.todayString()
         }
 
@@ -205,6 +214,9 @@ class MyAccessibilityService : AccessibilityService() {
             val limit = getCachedTimeLimits()[pkg]
             if (limit != null) checkPacingNotification(pkg, limit)
         }
+
+        // Warn shortly before the foreground app's pact allowance lapses.
+        currentForegroundPackage?.let { maybeWarnPactEnding(it) }
 
         // Also enforce time limits on whichever app is currently in the foreground.
         // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
@@ -232,6 +244,7 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
+        pactManager = PactManager(sharedPreferences, gson)
         lastCooldownResetDate = SessionCooldownManager.todayString()
         Log.d("MyAccessibilityService", "Service connected")
 
@@ -816,7 +829,21 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 2. Per-session cooldown — active cooldown blocks the app with escalating friction.
+        val configs = getCachedTimeLimitConfigs()
+        val config = configs[packageName]
+
+        // 2. Pact Mode: a lapsed allowance seals the app — start the cooldown anchored
+        // at the moment the allowance expired, so returning long after the pact ended
+        // doesn't restart a full-length seal (it may even have fully elapsed already).
+        if (config != null && config.pactModeEnabled) {
+            val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
+            if (lapsedExpiry != null) {
+                sessionCooldownManager.startCooldown(packageName, config, lapsedExpiry)
+            }
+        }
+
+        // 3. Per-session cooldown — active cooldown blocks the app with escalating friction.
+        // Covers both passive session limits and the seal after a lapsed pact.
         if (sessionCooldownManager.isInCooldown(packageName, now)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
@@ -833,9 +860,23 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 3. Session limit — if the user has been in this app too long, start a cooldown.
-        val configs = getCachedTimeLimitConfigs()
-        val config = configs[packageName]
+        // 4. Pact gate: a pact-mode app with no active allowance is blocked by default —
+        // offer to make a pact. With an active allowance the app is simply allowed
+        // (the passive session limit below doesn't apply; the pact IS the session limit).
+        if (config != null && config.pactModeEnabled) {
+            if (pactManager.getAllowanceExpiry(packageName, now) != null) return
+            if (isTimeLimitConditionallyUnlocked(packageName)) return
+            val appName = AppUtils.getAppName(this, packageName)
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Pact gate: $appName blocked by default")
+            lastAppBlockTimes[packageName] = now
+            currentForegroundPackage = null
+            recordBlockEvent(packageName, "Pact Gate")
+            closeApp()
+            showPactOverlay(appName, packageName, config)
+            return
+        }
+
+        // 5. Session limit — if the user has been in this app too long, start a cooldown.
         if (config != null && config.sessionLimitMinutes > 0) {
             val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
             if (sessionMinutes >= config.sessionLimitMinutes) {
@@ -1232,6 +1273,35 @@ class MyAccessibilityService : AccessibilityService() {
         intent.putExtra("frictionLevel", frictionLevel.ordinal)
         intent.putExtra("cooldownExpiryMillis", cooldownExpiryMillis)
         startActivity(intent)
+    }
+
+    private fun showPactOverlay(appName: String, packageName: String, config: AppTimeLimit) {
+        val intent = Intent(this, OverlayActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.putExtra("appName", appName)
+        intent.putExtra("pactPackageName", packageName)
+        intent.putExtra("pactChoices", PactManager.choicesFor(config).toIntArray())
+        intent.putExtra("pactSealMinutes", config.cooldownMinutes)
+        startActivity(intent)
+    }
+
+    /**
+     * Fires a one-time toast when the foreground app's pact allowance is about to
+     * lapse, so the seal doesn't land mid-scroll without warning.
+     */
+    private fun maybeWarnPactEnding(packageName: String) {
+        val config = getCachedTimeLimitConfigs()[packageName] ?: return
+        if (!config.pactModeEnabled) return
+        val expiry = pactManager.getAllowanceExpiry(packageName) ?: return
+        val remainingMs = expiry - System.currentTimeMillis()
+        if (remainingMs in 1..90_000 && pactWarnedExpiries[packageName] != expiry) {
+            pactWarnedExpiries[packageName] = expiry
+            val appName = AppUtils.getAppName(this, packageName)
+            val message = getString(R.string.pact_ending_toast, appName)
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onInterrupt() {

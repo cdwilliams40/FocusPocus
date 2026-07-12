@@ -67,6 +67,9 @@ object Constants {
         // Active per-app cooldown states (expiry time, attempt counts)
         const val APP_COOLDOWN_STATES = "appCooldownStates"
 
+        // Active pact allowances (packageName -> allowance expiry epoch millis)
+        const val PACT_ALLOWANCES = "pactAllowances"
+
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 

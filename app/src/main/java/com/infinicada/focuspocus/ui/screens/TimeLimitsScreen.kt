@@ -144,7 +144,17 @@ fun TimeLimitsScreen(
                                     color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (config.sessionLimitMinutes > 0) {
+                                if (config.pactModeEnabled) {
+                                    Text(
+                                        stringResource(
+                                            R.string.time_limits_pact_desc,
+                                            if (config.pactMaxMinutes > 0) config.pactMaxMinutes else 15,
+                                            config.cooldownMinutes
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                } else if (config.sessionLimitMinutes > 0) {
                                     Text(
                                         stringResource(
                                             R.string.time_limits_cooldown_desc,
@@ -209,6 +219,13 @@ fun AddTimeLimitDialog(
     var sessionLimitExpanded by remember { mutableStateOf(false) }
     var cooldownDurationExpanded by remember { mutableStateOf(false) }
 
+    // Pact Mode settings (mutually exclusive with the passive session cooldown —
+    // in Pact Mode the chosen allowance IS the session limit)
+    var pactEnabled by remember { mutableStateOf(false) }
+    var pactMaxMinutes by remember { mutableIntStateOf(15) }
+    var pactMaxExpanded by remember { mutableStateOf(false) }
+    var pactSealExpanded by remember { mutableStateOf(false) }
+
     val availableApps = installedApps.filter { it.packageName !in existingLimits }
 
     val limitOptions = listOf(
@@ -236,6 +253,13 @@ fun AddTimeLimitDialog(
         45 to stringResource(R.string.time_limits_minutes_value, 45),
         60 to stringResource(R.string.duration_1_hour),
         90 to stringResource(R.string.time_limits_minutes_value, 90)
+    )
+
+    val pactMaxOptions = listOf(
+        5 to stringResource(R.string.duration_5_min),
+        10 to stringResource(R.string.duration_10_min),
+        15 to stringResource(R.string.duration_15_min),
+        30 to stringResource(R.string.duration_30_min)
     )
 
     AlertDialog(
@@ -308,6 +332,99 @@ fun AddTimeLimitDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Pact Mode toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.time_limits_enable_pact),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.time_limits_enable_pact_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = pactEnabled,
+                        onCheckedChange = {
+                            pactEnabled = it
+                            if (it) cooldownEnabled = false
+                        }
+                    )
+                }
+
+                if (pactEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Longest pact picker
+                    ExposedDropdownMenuBox(
+                        expanded = pactMaxExpanded,
+                        onExpandedChange = { pactMaxExpanded = !pactMaxExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = pactMaxOptions.find { it.first == pactMaxMinutes }?.second
+                                ?: stringResource(R.string.format_duration_minutes, pactMaxMinutes),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time_limits_pact_max_label)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = pactMaxExpanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = pactMaxExpanded,
+                            onDismissRequest = { pactMaxExpanded = false }
+                        ) {
+                            pactMaxOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        pactMaxMinutes = minutes
+                                        pactMaxExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Seal duration picker (cooldown after each pact)
+                    ExposedDropdownMenuBox(
+                        expanded = pactSealExpanded,
+                        onExpandedChange = { pactSealExpanded = !pactSealExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = cooldownDurationOptions.find { it.first == cooldownMinutes }?.second
+                                ?: stringResource(R.string.format_duration_minutes, cooldownMinutes),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time_limits_pact_seal_label)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = pactSealExpanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = pactSealExpanded,
+                            onDismissRequest = { pactSealExpanded = false }
+                        ) {
+                            cooldownDurationOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        cooldownMinutes = minutes
+                                        pactSealExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Session cooldown toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -326,7 +443,10 @@ fun AddTimeLimitDialog(
                     }
                     Switch(
                         checked = cooldownEnabled,
-                        onCheckedChange = { cooldownEnabled = it }
+                        onCheckedChange = {
+                            cooldownEnabled = it
+                            if (it) pactEnabled = false
+                        }
                     )
                 }
 
@@ -406,7 +526,9 @@ fun AddTimeLimitDialog(
                                 packageName = app.packageName,
                                 dailyLimitMinutes = limitMinutes,
                                 sessionLimitMinutes = if (cooldownEnabled) sessionLimitMinutes else 0,
-                                cooldownMinutes = cooldownMinutes
+                                cooldownMinutes = cooldownMinutes,
+                                pactModeEnabled = pactEnabled,
+                                pactMaxMinutes = pactMaxMinutes
                             )
                         )
                     }

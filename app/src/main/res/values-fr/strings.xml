@@ -344,6 +344,11 @@
     <string name="time_limits_select_app">Sélectionner une application</string>
     <string name="time_limits_app_label">Application</string>
     <string name="time_limits_daily_limit">Limite quotidienne : %s</string>
+    <string name="time_limits_enable_pact">Mode Pacte — scellée par défaut</string>
+    <string name="time_limits_enable_pact_desc">L\'application reste bloquée jusqu\'à ce que vous demandiez consciemment du temps. Chaque pacte accorde quelques minutes, puis scelle à nouveau l\'application.</string>
+    <string name="time_limits_pact_max_label">Pacte le plus long</string>
+    <string name="time_limits_pact_seal_label">Durée du sceau après chaque pacte</string>
+    <string name="time_limits_pact_desc">Mode Pacte : jusqu\'à %1$d min par pacte → scellée %2$d min ensuite</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">Code QR</string>
@@ -354,6 +359,12 @@
     <string name="overlay_app_blocked">%s est bloqué !</string>
     <string name="overlay_close">Fermer</string>
     <string name="overlay_wait">Attendez %ds\u2026</string>
+    <string name="overlay_pact_prompt">%s est scellée. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
+    <string name="overlay_pact_seal_desc">Quand votre temps est écoulé, %1$s se scelle à nouveau pendant %2$d minutes.</string>
+    <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
+    <string name="overlay_pact_choice">%d minutes</string>
+    <string name="overlay_pact_decline">Finalement, non — je n\'en ai pas besoin</string>
+    <string name="pact_ending_toast">Votre pacte se termine — %s se scelle dans moins d\'une minute</string>
 
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituels</string>
