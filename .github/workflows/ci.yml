@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, claude/ci-test-validation-b4js6k]
   pull_request:
   workflow_dispatch:
 
