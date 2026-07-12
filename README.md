@@ -73,13 +73,31 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
 - Fully reversible from Settings (but never mid-session)
 
-Provisioning requires a one-time `adb` command from a computer, and most devices require no accounts to be signed in when running it (add them back afterwards):
+Provisioning requires a one-time `adb` command from a computer (the same steps are shown in-app under Settings → Warden Mode, with tap-to-copy commands):
 
-```bash
-adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
-```
+1. Temporarily remove **all** accounts from the phone (Settings → Passwords & accounts). Every account can be added back as soon as setup is done.
+2. Enable USB debugging (Settings → Developer options) and connect the phone to a computer with `adb`.
+3. Run:
+
+   ```bash
+   adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
+   ```
 
 Then enable **Grey Out Blocked Apps** in Settings → Warden Mode. The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
+
+<details>
+<summary><strong>Troubleshooting: "Not allowed to set the device owner because there are already some accounts on the device"</strong></summary>
+
+Android refuses to set a device owner while *any* account is registered — including hidden ones that never appear in Settings. Apps like Instagram, WhatsApp, and Signal register accounts of their own, and OEM accounts (Samsung, Xiaomi, …) live outside the Google account list. To see what's actually left:
+
+```bash
+adb shell dumpsys account   # each "Account {name=..., type=...}" names the owning app
+adb shell pm list users     # extra users and work profiles count too
+```
+
+Uninstall (or clear the storage of) each app that still owns an account, remove extra users with `adb shell pm remove-user <id>`, reboot, and run the `set-device-owner` command again. As a last resort, a factory reset with every sign-in step skipped gives a clean slate. Nothing is lost permanently: once Warden Mode is active, all accounts and apps can be restored — the no-accounts rule only applies at the moment of provisioning.
+
+</details>
 
 ## Requirements
 

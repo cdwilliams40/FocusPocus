@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
@@ -300,9 +301,13 @@ fun FocusPocusApp(
     }
 
     if (showSettings) {
-        LaunchedEffect(Unit) {
+        // Re-check on every return to the foreground, so granting notification
+        // access or running the device-owner adb command is picked up as soon as
+        // the user comes back to this screen.
+        LifecycleResumeEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
             settingsVM.refreshDeviceOwnerState()
+            onPauseOrDispose { }
         }
         BackHandler { showSettings = false }
         SettingsScreen(
@@ -335,6 +340,7 @@ fun FocusPocusApp(
             isDeviceOwner = isDeviceOwner,
             deviceOwnerEnforcement = deviceOwnerEnforcement,
             onDeviceOwnerEnforcementChanged = { settingsVM.setDeviceOwnerEnforcement(it) },
+            onRefreshDeviceOwner = { settingsVM.refreshDeviceOwnerState() },
             onRemoveDeviceOwner = {
                 if (!settingsVM.removeDeviceOwner()) {
                     Toast.makeText(
