@@ -65,6 +65,13 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, enabled).apply()
     }
 
+    fun getDeviceOwnerEnforcement(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT, false)
+
+    fun setDeviceOwnerEnforcement(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT, enabled).apply()
+    }
+
     fun getBreakDurationMinutes(): Int =
         prefs.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5).coerceIn(1, 30)
 

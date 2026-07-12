@@ -12,6 +12,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED -> {
                 DndController.updateDndState(context)
+                DeviceOwnerManager.applySelfProtection(context)
+                DeviceOwnerManager.syncSuspensions(context)
             }
         }
     }

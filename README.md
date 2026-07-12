@@ -65,6 +65,20 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Disable DND during breaks
 - Respects your notification preferences
 
+### Warden Mode (Device Owner)
+- Optionally provision FocusPocus as the Android *device owner* for OS-level enforcement
+- Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the accessibility service
+- FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
+- Fully reversible from Settings (but never mid-session)
+
+Provisioning requires a one-time `adb` command from a computer, and most devices require no accounts to be signed in when running it (add them back afterwards):
+
+```bash
+adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
+```
+
+Then enable **Grey Out Blocked Apps** in Settings → Warden Mode. The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
+
 ## Requirements
 
 - Android 10.0 (API 29) or higher
@@ -83,6 +97,7 @@ Focus Pocus requires the following permissions:
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
 | **Camera** | Scan QR codes to activate Quick Spells |
+| **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |
 
 ## Installation
 
