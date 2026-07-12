@@ -70,6 +70,9 @@ object Constants {
         // Active pact allowances (packageName -> allowance expiry epoch millis)
         const val PACT_ALLOWANCES = "pactAllowances"
 
+        // Per-day open/reflex-open counters for tracked apps
+        const val APP_OPEN_STATS = "appOpenStats"
+
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 

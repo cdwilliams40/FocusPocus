@@ -53,6 +53,8 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Opening it offers a *pact*: consciously choose how many minutes you need — after a short pause, so muscle memory can't answer for you
 - When your time is spent, the app seals itself again for a cooldown of your choosing, with the same escalating friction as session limits
 - A warning toast fires shortly before a pact lapses, so the seal never lands mid-scroll without notice
+- The pact screen shows **the shape of today's habit**: how many times you've opened the app and how many opens were under-30-second reflexes
+- Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
 - Enable per app under Spellbook → Time Limits
 

@@ -362,6 +362,9 @@
     <string name="time_limits_pact_max_label">Longest pact</string>
     <string name="time_limits_pact_seal_label">Seal duration after each pact</string>
     <string name="time_limits_pact_desc">Pact Mode: up to %1$d min per pact → sealed %2$d min after</string>
+    <string name="time_limits_pact_alternative_label">Suggest instead (optional)</string>
+    <string name="time_limits_pact_alternative_none">No suggestion</string>
+    <string name="time_limits_pact_alternative_clear">Remove suggestion</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
@@ -413,6 +416,9 @@
     <string name="overlay_pact_wait">You can choose in %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
     <string name="overlay_pact_decline">Never mind — I don\'t need it</string>
+    <string name="overlay_pact_stats">This is open #%d today</string>
+    <string name="overlay_pact_stats_reflex">Open #%1$d today — %2$d were under-30-second reflexes</string>
+    <string name="overlay_pact_alternative">Open %s instead</string>
     <string name="pact_ending_toast">Your pact is ending — %s seals in under a minute</string>
 
     <!-- MyAccessibilityService -->

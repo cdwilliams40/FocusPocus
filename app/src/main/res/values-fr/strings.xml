@@ -349,6 +349,9 @@
     <string name="time_limits_pact_max_label">Pacte le plus long</string>
     <string name="time_limits_pact_seal_label">Durée du sceau après chaque pacte</string>
     <string name="time_limits_pact_desc">Mode Pacte : jusqu\'à %1$d min par pacte → scellée %2$d min ensuite</string>
+    <string name="time_limits_pact_alternative_label">Suggérer à la place (facultatif)</string>
+    <string name="time_limits_pact_alternative_none">Aucune suggestion</string>
+    <string name="time_limits_pact_alternative_clear">Retirer la suggestion</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">Code QR</string>
@@ -364,6 +367,9 @@
     <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
     <string name="overlay_pact_decline">Finalement, non — je n\'en ai pas besoin</string>
+    <string name="overlay_pact_stats">Ouverture n°%d aujourd\'hui</string>
+    <string name="overlay_pact_stats_reflex">Ouverture n°%1$d aujourd\'hui — %2$d réflexes de moins de 30 secondes</string>
+    <string name="overlay_pact_alternative">Ouvrir %s à la place</string>
     <string name="pact_ending_toast">Votre pacte se termine — %s se scelle dans moins d\'une minute</string>
 
     <!-- MyAccessibilityService -->
