@@ -163,6 +163,9 @@ class SessionRepository(
         } else {
             prefs.edit().remove(Constants.PrefsKeys.FOCUS_TAG_ID).apply()
         }
+        // Talisman sessions engage DND and device-owner suspensions like any other session.
+        DndController.updateDndState(context)
+        DeviceOwnerManager.syncSuspensions(context)
     }
 
     // Session history
