@@ -1,9 +1,139 @@
 package com.infinicada.focuspocus
 
+import android.app.usage.UsageEvents
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UsageStatsHelperTest {
+
+    // --- aggregateForegroundTime ---
+
+    private val windowStart = 1_000_000L
+    private val windowEnd = windowStart + 60 * 60_000L // one hour window
+
+    private fun resumed(pkg: String, t: Long) =
+        ForegroundEvent(pkg, UsageEvents.Event.ACTIVITY_RESUMED, t)
+
+    private fun paused(pkg: String, t: Long) =
+        ForegroundEvent(pkg, UsageEvents.Event.ACTIVITY_PAUSED, t)
+
+    private fun stopped(pkg: String, t: Long) =
+        ForegroundEvent(pkg, UsageEvents.Event.ACTIVITY_STOPPED, t)
+
+    private fun shutdown(t: Long) =
+        ForegroundEvent("", UsageEvents.Event.DEVICE_SHUTDOWN, t)
+
+    @Test
+    fun aggregate_resumePausePair_countsSessionDuration() {
+        val events = listOf(
+            resumed("com.app", windowStart + 5_000),
+            paused("com.app", windowStart + 65_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(60_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_multipleSessions_accumulate() {
+        val events = listOf(
+            resumed("com.app", windowStart + 1_000),
+            paused("com.app", windowStart + 11_000),
+            resumed("com.app", windowStart + 20_000),
+            paused("com.app", windowStart + 50_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(40_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_stillForegroundAtEnd_countsUpToWindowEnd() {
+        val events = listOf(resumed("com.app", windowEnd - 120_000))
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(120_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_pauseWithoutResume_countsFromWindowStart() {
+        // App was in the foreground when the window began (e.g. in use at midnight).
+        val events = listOf(paused("com.app", windowStart + 30_000))
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(30_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_stopWithoutResume_isIgnored() {
+        // App left the foreground before the window; only its late STOPPED landed inside.
+        val events = listOf(stopped("com.app", windowStart + 30_000))
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertFalse(totals.containsKey("com.app"))
+    }
+
+    @Test
+    fun aggregate_pauseAfterStop_doesNotDoubleCount() {
+        val events = listOf(
+            resumed("com.app", windowStart + 1_000),
+            stopped("com.app", windowStart + 11_000),
+            paused("com.app", windowStart + 12_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(10_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_duplicateResumes_keepEarliestStart() {
+        // Two activities of one app resuming back to back must not restart the session.
+        val events = listOf(
+            resumed("com.app", windowStart + 1_000),
+            resumed("com.app", windowStart + 5_000),
+            paused("com.app", windowStart + 11_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(10_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_deviceShutdown_closesOpenSessions() {
+        val events = listOf(
+            resumed("com.app", windowStart + 1_000),
+            shutdown(windowStart + 31_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(30_000L, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_eventsAfterWindowEnd_areIgnored() {
+        val events = listOf(
+            resumed("com.app", windowStart + 1_000),
+            paused("com.app", windowStart + 11_000),
+            resumed("com.other", windowEnd + 1_000),
+            paused("com.other", windowEnd + 60_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(10_000L, totals["com.app"])
+        assertFalse(totals.containsKey("com.other"))
+    }
+
+    @Test
+    fun aggregate_independentPackages_trackedSeparately() {
+        val events = listOf(
+            resumed("com.a", windowStart + 1_000),
+            paused("com.a", windowStart + 11_000),
+            resumed("com.b", windowStart + 11_000),
+            paused("com.b", windowStart + 41_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(10_000L, totals["com.a"])
+        assertEquals(30_000L, totals["com.b"])
+    }
+
+    @Test
+    fun aggregate_emptyEvents_returnsEmptyMap() {
+        val totals = UsageStatsHelper.aggregateForegroundTime(emptyList(), windowStart, windowEnd)
+        assertTrue(totals.isEmpty())
+    }
 
     @Test
     fun formatDuration_zeroMillis_returns0m() {
