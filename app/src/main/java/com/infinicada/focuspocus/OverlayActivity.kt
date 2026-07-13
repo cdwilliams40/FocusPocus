@@ -54,7 +54,6 @@ import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
-import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
 class OverlayActivity : ComponentActivity() {
@@ -102,12 +101,7 @@ class OverlayActivity : ComponentActivity() {
     }
 
     private fun renderOverlay(intent: Intent) {
-        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-        val themeMode = try {
-            ThemeMode.valueOf(prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.DARK.name) ?: ThemeMode.DARK.name)
-        } catch (e: IllegalArgumentException) {
-            ThemeMode.DARK
-        }
+        val themeMode = (application as FocusPocusApplication).container.settings.getThemeMode()
 
         val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
         val spellName = intent.getStringExtra("spellName")?.take(200)
