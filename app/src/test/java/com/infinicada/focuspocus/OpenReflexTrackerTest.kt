@@ -109,6 +109,17 @@ class OpenReflexTrackerTest {
     }
 
     @Test
+    fun `corrupt stored JSON yields empty stats instead of crashing`() {
+        prefs.putString(
+            Constants.PrefsKeys.APP_OPEN_STATS,
+            """{"days":{"20260712":{"$pkg":"not-an-object"}}}"""
+        )
+
+        assertEquals(AppOpenStats(0, 0), tracker.getStats(pkg))
+        assertEquals(emptyMap<String, Map<String, AppOpenStats>>(), tracker.getDailyStats())
+    }
+
+    @Test
     fun `stats survive a tracker restart via prefs`() {
         tracker.recordOpen(pkg)
         tracker.recordClose(pkg, dwellMs = 2_000L)
