@@ -609,4 +609,69 @@
     <string name="progression_intro_title">Se concentrer rapporte du mana</string>
     <string name="progression_intro_message">Chaque session de concentration rapporte du mana — une énergie à dépenser en faveurs : des récompenses que vous définissez vous-même. Des épreuves quotidiennes et des sceaux permanents jalonnent vos progrès.\n\nTout reste sur votre appareil. Vous pouvez tout désactiver dans les Réglages.</string>
     <string name="progression_intro_ok">Commencer à gagner</string>
+    <!-- Chaînes ajoutées : clés absentes de la traduction française -->
+    <string name="home_take_break_with_count">Prendre une pause (%1$d restantes)</string>
+    <string name="home_nfc_lock_active">Verrou talisman actif</string>
+    <string name="insights_daily_trend">Concentration quotidienne (7 derniers jours)</string>
+    <string name="rituals_conflict_warning">Attention : chevauchement avec \"%1$s\"</string>
+    <string name="rituals_overnight_info">Ce rituel s\'étend sur la nuit. Il commencera le soir et se terminera le lendemain matin.</string>
+
+    <!-- Limites de temps : limites de session et temps de repos -->
+    <string name="time_limits_daily_limit_label">Limite quotidienne</string>
+    <string name="time_limits_no_apps_found">Aucune application trouvée</string>
+    <string name="time_limits_enable_cooldown">Temps de repos par session</string>
+    <string name="time_limits_enable_cooldown_desc">Bloque l\'application pendant une période de repos après une utilisation continue</string>
+    <string name="time_limits_session_limit_label">Limite de session (par utilisation continue)</string>
+    <string name="time_limits_cooldown_label">Durée du temps de repos</string>
+    <string name="time_limits_cooldown_desc">Session : %1$d min → %2$d min de repos</string>
+    <string name="time_limits_minutes_value">%d min</string>
+
+    <!-- Déblocages conditionnels -->
+    <string name="conditional_unlocks_title">Déblocages conditionnels</string>
+    <string name="conditional_unlocks_description">Débloquez des applications bloquées en récompense du temps passé dans une autre application.</string>
+    <string name="conditional_unlocks_empty">Aucun déblocage conditionnel pour le moment.</string>
+    <string name="conditional_unlocks_add">Ajouter un déblocage conditionnel</string>
+    <string name="conditional_unlocks_rule_summary">Déblocage après %1$d min dans %2$s</string>
+    <string name="conditional_unlocks_unlocked_apps">Applications débloquées : %d</string>
+    <string name="conditional_unlocks_unlocked_enchantments">Débloque : %s</string>
+    <string name="conditional_unlocks_editor_title_create">Nouveau déblocage conditionnel</string>
+    <string name="conditional_unlocks_editor_title_edit">Modifier le déblocage conditionnel</string>
+    <string name="conditional_unlocks_name_label">Nom de la règle</string>
+    <string name="conditional_unlocks_name_placeholder">ex. Récompense de langue</string>
+    <string name="conditional_unlocks_required_app_label">Application requise</string>
+    <string name="conditional_unlocks_required_app_placeholder">Choisir l\'application à utiliser d\'abord</string>
+    <string name="conditional_unlocks_required_minutes_label">Temps requis</string>
+    <string name="conditional_unlocks_unlocked_apps_label">Applications à débloquer</string>
+    <string name="conditional_unlocks_unlocked_apps_placeholder">Choisir les applications à débloquer</string>
+    <string name="conditional_unlocks_unlocked_apps_count">%d application(s) sélectionnée(s)</string>
+    <string name="conditional_unlocks_enchantments_label">Enchantements à débloquer</string>
+    <string name="conditional_unlocks_enchantments_placeholder">Choisir les enchantements</string>
+    <string name="conditional_unlocks_enchantments_count">%d enchantement(s) sélectionné(s)</string>
+    <string name="conditional_unlocks_progress">%1$d / %2$d min aujourd\'hui</string>
+    <string name="conditional_unlocks_grant_usage">Accorder l\'accès à l\'utilisation</string>
+    <string name="conditional_unlocks_usage_required">L\'accès à l\'utilisation est nécessaire pour suivre le temps passé dans les applications</string>
+    <string name="conditional_unlocks_time_limit_apps_label">Minuteurs d\'applications à contourner</string>
+    <string name="conditional_unlocks_time_limit_apps_placeholder">Choisir les applications limitées</string>
+    <string name="conditional_unlocks_time_limit_apps_count">%d minuteur(s) sélectionné(s)</string>
+    <string name="conditional_unlocks_bypassed_timers">Minuteurs contournés : %s</string>
+    <string name="conditional_unlocks_delete">Supprimer</string>
+    <string name="toast_max_conditional_unlocks">Maximum de %d déblocages conditionnels atteint</string>
+
+    <!-- Superposition : temps de repos et friction de niveau 3 -->
+    <string name="overlay_cooldown_remaining">Repos : %d min restantes</string>
+    <string name="overlay_level3_prompt">Pour fermer cet écran, saisissez la phrase ci-dessous :</string>
+    <string name="overlay_level3_hint">Saisissez la phrase pour continuer</string>
+    <string name="overlay_level3_phrase">Je vais arrêter de scroller</string>
+
+    <!-- Alertes de rythme d\'utilisation -->
+    <string name="pacing_toast_50">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — à mi-chemin. Gardez-en pour plus tard !</string>
+    <string name="pacing_toast_75">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — plus que %4$d min.</string>
+    <string name="pacing_toast_90">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — presque épuisées !</string>
+
+    <!-- Dialogue de fin de session -->
+    <string name="session_complete_title">Session terminée !</string>
+    <string name="session_complete_duration">Temps de concentration : %1$d minutes</string>
+    <string name="session_complete_breaks">Pauses prises : %1$d</string>
+    <string name="session_complete_enchantment">Enchantement : %1$s</string>
+    <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
 </resources>

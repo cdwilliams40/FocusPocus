@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -97,8 +99,10 @@ fun QuickSpellEditorScreen(
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text(if (presetToEdit != null) stringResource(R.string.quick_spell_editor_edit_title) else stringResource(R.string.quick_spell_editor_create_title)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {

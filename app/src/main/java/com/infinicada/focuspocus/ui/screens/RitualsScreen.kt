@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
+import androidx.compose.ui.graphics.Color
 import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,7 @@ fun ScheduleListScreen(
     activeScheduleId: String? = null,
 ) {
     Scaffold(
+        containerColor = Color.Transparent,
         modifier = modifier,
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateClick) {

@@ -439,6 +439,7 @@
     <string name="overlay_cooldown_remaining">Cooldown: %d min remaining</string>
     <string name="overlay_level3_prompt">To close this overlay, type the phrase below:</string>
     <string name="overlay_level3_hint">Type the phrase to continue</string>
+    <string name="overlay_level3_phrase">I will stop scrolling</string>
     <string name="overlay_pact_prompt">%s is sealed. Make a pact: how much time do you truly need?</string>
     <string name="overlay_pact_seal_desc">When your time runs out, %1$s seals itself again for %2$d minutes.</string>
     <string name="overlay_pact_wait">You can choose in %d…</string>

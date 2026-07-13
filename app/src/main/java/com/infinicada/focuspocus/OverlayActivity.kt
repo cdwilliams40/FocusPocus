@@ -38,9 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -169,8 +169,16 @@ class OverlayActivity : ComponentActivity() {
     }
 }
 
-/** The phrase a Level-3 user must type exactly (case-insensitive) to dismiss the overlay. */
-private const val REQUIRED_PHRASE = "I will stop scrolling"
+/**
+ * Whole minutes left before [expiryMillis], rounded up; 0 once expired.
+ * The old floor-plus-one arithmetic reported "1 min remaining" for up to a
+ * minute after the cooldown had already ended.
+ */
+private fun cooldownMinutesRemaining(expiryMillis: Long): Int {
+    if (expiryMillis <= 0L) return 0
+    val msLeft = expiryMillis - System.currentTimeMillis()
+    return if (msLeft <= 0L) 0 else ((msLeft + 59_999) / 60_000).toInt()
+}
 
 @Composable
 fun OverlayScreen(
@@ -185,17 +193,15 @@ fun OverlayScreen(
     // Countdown seconds driven by friction level (or legacy 3-second default)
     val delaySeconds = frictionLevel?.countdownSeconds ?: 3
 
-    var remainingSeconds by remember { mutableIntStateOf(delaySeconds) }
-    var countdownDone by remember { mutableStateOf(false) }
-    var phraseInput by remember { mutableStateOf("") }
+    // The overlay deliberately survives rotation (see onStop), so the wait
+    // timer and any typed phrase must survive it too.
+    var remainingSeconds by rememberSaveable { mutableIntStateOf(delaySeconds) }
+    var countdownDone by rememberSaveable { mutableStateOf(false) }
+    var phraseInput by rememberSaveable { mutableStateOf("") }
 
     // Live cooldown timer (minutes remaining in the cooldown block)
     var cooldownMinutesLeft by remember {
-        mutableIntStateOf(
-            if (cooldownExpiryMillis > 0) {
-                maxOf(0, ((cooldownExpiryMillis - System.currentTimeMillis()) / 1000 / 60).toInt() + 1)
-            } else 0
-        )
+        mutableIntStateOf(cooldownMinutesRemaining(cooldownExpiryMillis))
     }
 
     // Countdown until the close button becomes active
@@ -212,11 +218,14 @@ fun OverlayScreen(
         if (cooldownExpiryMillis <= 0L) return@LaunchedEffect
         while (true) {
             delay(30_000L)
-            cooldownMinutesLeft = maxOf(0, ((cooldownExpiryMillis - System.currentTimeMillis()) / 1000 / 60).toInt() + 1)
+            cooldownMinutesLeft = cooldownMinutesRemaining(cooldownExpiryMillis)
         }
     }
 
-    val phraseMatches = phraseInput.trim().equals(REQUIRED_PHRASE, ignoreCase = true)
+    // The phrase a Level-3 user must type exactly (case-insensitive) to
+    // dismiss the overlay — localized, so users type it in their own language.
+    val requiredPhrase = stringResource(R.string.overlay_level3_phrase)
+    val phraseMatches = phraseInput.trim().equals(requiredPhrase, ignoreCase = true)
     val isCloseEnabled = countdownDone && (frictionLevel?.requiresPhrase != true || phraseMatches)
 
     ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
@@ -306,7 +315,7 @@ fun OverlayScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "\"$REQUIRED_PHRASE\"",
+                            text = "\"$requiredPhrase\"",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
                             textAlign = TextAlign.Center
@@ -367,8 +376,8 @@ fun PactOfferScreen(
     onDecline: () -> Unit
 ) {
     val delaySeconds = 3
-    var remainingSeconds by remember { mutableIntStateOf(delaySeconds) }
-    var countdownDone by remember { mutableStateOf(false) }
+    var remainingSeconds by rememberSaveable { mutableIntStateOf(delaySeconds) }
+    var countdownDone by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         while (remainingSeconds > 0) {

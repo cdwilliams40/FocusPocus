@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +61,7 @@ fun BlockerListScreen(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
+        containerColor = Color.Transparent,
         modifier = modifier,
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateClick) {

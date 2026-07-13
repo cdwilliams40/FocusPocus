@@ -377,8 +377,8 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun createNotificationChannel() {
         try {
-            val name = "Rituals"
-            val descriptionText = "Notifications for scheduled rituals"
+            val name = getString(R.string.rituals_channel_name)
+            val descriptionText = getString(R.string.rituals_channel_description)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(Constants.RITUALS_CHANNEL_ID, name, importance).apply {
                 description = descriptionText

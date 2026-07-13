@@ -153,7 +153,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
         }
 
-        handleIntent(intent)
+        // Only on a fresh launch: re-running this on recreation (rotation,
+        // process death) would re-show the deep-link confirmation for a link
+        // the user already answered. Warm relaunches come in via onNewIntent.
+        if (savedInstanceState == null) {
+            handleIntent(intent)
+        }
     }
 
     private fun handleQrResult(contents: String) {
