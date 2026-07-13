@@ -256,6 +256,36 @@ class ProgressionTest {
         assertEquals(LedgerKind.PERK, ledger().last().kind)
     }
 
+    // ── stored-data corruption guards ──
+    // Records written by a build with broken R8 keep rules (v1.4) carry
+    // obfuscated enum constant names; Gson maps those to null even in fields
+    // whose Kotlin types are non-null. Loaders must drop such records instead
+    // of letting the null NPE later (e.g. TrialEngine.isEnded on trial.period).
+
+    @Test
+    fun `trials with unmappable enum names are dropped on load`() {
+        prefs.putString(
+            Constants.PrefsKeys.TRIALS,
+            """[
+              {"id":"bad","type":"a","target":2,"progress":0,"period":"b","periodKey":"20260713","rewardMana":40,"claimed":false,"param":0},
+              {"id":"good","type":"COMPLETE_SESSIONS","target":2,"progress":0,"period":"DAILY","periodKey":"20260713","rewardMana":40,"claimed":false,"param":0}
+            ]"""
+        )
+        assertEquals(listOf("good"), trials().map { it.id })
+    }
+
+    @Test
+    fun `ledger entries with unmappable kind are dropped on load`() {
+        prefs.putString(
+            Constants.PrefsKeys.MANA_LEDGER,
+            """[
+              {"timestampMillis":1,"amount":40,"kind":"z"},
+              {"timestampMillis":2,"amount":50,"kind":"SESSION","minutes":25,"title":"","refId":"","packageName":"","dateKey":"20260713"}
+            ]"""
+        )
+        assertEquals(listOf(50L), Progression.loadLedger(prefs, gson).map { it.amount })
+    }
+
     @Test
     fun `lifetime earned tracks credits not debits`() {
         val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()

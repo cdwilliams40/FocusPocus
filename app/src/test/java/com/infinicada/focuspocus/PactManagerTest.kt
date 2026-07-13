@@ -111,6 +111,18 @@ class PactManagerTest {
     }
 
     @Test
+    fun `groups stored without a blockerName are dropped on load`() {
+        // Simulates records written by a build with broken R8 keep rules (v1.4):
+        // Gson instantiates via Unsafe, so a missing field stays null even though
+        // the Kotlin type is non-null.
+        prefs.putString(
+            Constants.PrefsKeys.PACT_GROUPS,
+            """[{"pactMaxMinutes":15},{"blockerName":"Social","pactMaxMinutes":10}]"""
+        )
+        assertEquals(listOf("Social"), manager.getGroups().map { it.blockerName })
+    }
+
+    @Test
     fun `groups survive a manager restart via prefs`() {
         manager.saveGroup(PactGroup(blockerName = "Doomscroll"))
 

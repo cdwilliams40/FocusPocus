@@ -286,10 +286,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (todaySessions.isEmpty()) return
         val reclaimedMinutes = todaySessions.sumOf { it.durationMinutes }
 
-        val ledger: List<com.infinicada.focuspocus.model.ManaLedgerEntry> = PrefsHelper.load(
-            sharedPreferences, gson, Constants.PrefsKeys.MANA_LEDGER,
-            object : com.google.gson.reflect.TypeToken<List<com.infinicada.focuspocus.model.ManaLedgerEntry>>() {}.type
-        ) ?: emptyList()
+        val ledger = Progression.loadLedger(sharedPreferences, gson)
         val manaToday = ledger.filter { it.dateKey == todayKey && it.amount > 0 }.sumOf { it.amount }
 
         ProgressionNotifier.postDailyWrapup(
