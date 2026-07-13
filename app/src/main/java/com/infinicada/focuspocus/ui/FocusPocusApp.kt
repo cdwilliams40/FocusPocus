@@ -61,6 +61,7 @@ import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
+import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
@@ -144,6 +145,7 @@ fun FocusPocusApp(
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
+    val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
     val analyticsConsent by settingsVM.analyticsConsent.collectAsStateWithLifecycle()
     val onboardingCompleted by settingsVM.onboardingCompleted.collectAsStateWithLifecycle()
@@ -153,6 +155,7 @@ fun FocusPocusApp(
     val insightsFocusSessions by insightsVM.focusSessions.collectAsStateWithLifecycle()
     val currentStreak by insightsVM.currentStreak.collectAsStateWithLifecycle()
     val insightsLongestStreak by insightsVM.longestStreak.collectAsStateWithLifecycle()
+    val appOpenDailyStats by insightsVM.appOpenDailyStats.collectAsStateWithLifecycle()
 
     // Sync on NFC/QR external triggers
     LaunchedEffect(nfcTriggerCount) {
@@ -496,8 +499,10 @@ fun FocusPocusApp(
                             appTimeLimitConfigs = appTimeLimitConfigs,
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
+                            pactGroups = pactGroups,
                             pactOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
                             onNavigateToPacts = { spellbookVM.navigateTo(SpellbookRoute.Pacts) },
+                            onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
                             onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
@@ -626,12 +631,8 @@ fun FocusPocusApp(
                         is SpellbookRoute.TimeLimits -> TimeLimitsScreen(
                             installedApps = installedApps,
                             appTimeLimits = appTimeLimitConfigs,
-                            conditionalUnlocks = conditionalUnlocks,
-                            blockerLists = blockerLists,
                             onSaveAppTimeLimit = { config -> spellbookVM.saveAppTimeLimitConfig(config) },
                             onDeleteAppTimeLimit = { spellbookVM.deleteAppTimeLimit(it) },
-                            onSaveRule = { spellbookVM.saveConditionalUnlock(it) },
-                            onDeleteRule = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )
@@ -639,9 +640,25 @@ fun FocusPocusApp(
                         is SpellbookRoute.Pacts -> PactsScreen(
                             installedApps = installedApps,
                             appTimeLimitConfigs = appTimeLimitConfigs,
+                            blockerLists = blockerLists,
+                            pactGroups = pactGroups,
                             todayOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
                             onSaveConfig = { spellbookVM.saveAppTimeLimitConfig(it) },
                             onDeleteConfig = { spellbookVM.deleteAppTimeLimit(it) },
+                            onSaveGroup = { spellbookVM.savePactGroup(it) },
+                            onDeleteGroup = { spellbookVM.deletePactGroup(it) },
+                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
+                            modifier = contentModifier
+                        )
+
+                        is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
+                            conditionalUnlocks = conditionalUnlocks,
+                            installedApps = installedApps,
+                            blockerLists = blockerLists,
+                            appTimeLimits = appTimeLimits,
+                            pactPackages = appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys,
+                            onSave = { spellbookVM.saveConditionalUnlock(it) },
+                            onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )
@@ -657,6 +674,7 @@ fun FocusPocusApp(
                         longestStreak = insightsLongestStreak,
                         blockEvents = blockEvents,
                         appTimeLimits = appTimeLimits,
+                        openDailyStats = appOpenDailyStats,
                         modifier = contentModifier
                     )
                 }

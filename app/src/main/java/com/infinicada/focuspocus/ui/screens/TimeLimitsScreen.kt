@@ -36,18 +36,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
@@ -57,12 +54,8 @@ import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 fun TimeLimitsScreen(
     installedApps: List<AppInfo>,
     appTimeLimits: Map<String, AppTimeLimit>,
-    conditionalUnlocks: List<ConditionalUnlock>,
-    blockerLists: List<Blocker>,
     onSaveAppTimeLimit: (AppTimeLimit) -> Unit,
     onDeleteAppTimeLimit: (String) -> Unit,
-    onSaveRule: (ConditionalUnlock) -> Unit,
-    onDeleteRule: (ConditionalUnlock) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -74,37 +67,6 @@ fun TimeLimitsScreen(
     // plain daily/session limits plus the earn-access rules that modify them.
     val visibleLimits = appTimeLimits.filterValues { !it.pactModeEnabled }
 
-    var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
-    var showRuleEditor by rememberSaveable { mutableStateOf(false) }
-
-    if (showRuleEditor) {
-        ConditionalUnlockEditorScreen(
-            ruleToEdit = editingRule,
-            installedApps = installedApps,
-            blockerLists = blockerLists,
-            appTimeLimits = appTimeLimits.mapValues { it.value.dailyLimitMinutes },
-            pactPackages = appTimeLimits.filterValues { it.pactModeEnabled }.keys,
-            onSave = { rule ->
-                onSaveRule(rule)
-                showRuleEditor = false
-                editingRule = null
-            },
-            onDelete = if (editingRule != null) {
-                { rule ->
-                    onDeleteRule(rule)
-                    showRuleEditor = false
-                    editingRule = null
-                }
-            } else null,
-            onCancel = {
-                showRuleEditor = false
-                editingRule = null
-            },
-            modifier = modifier
-        )
-        return
-    }
-
     if (showAddDialog) {
         AddTimeLimitDialog(
             installedApps = installedApps,
@@ -115,43 +77,6 @@ fun TimeLimitsScreen(
             },
             onDismiss = { showAddDialog = false }
         )
-    }
-
-    val ruleCardContent: @Composable (ConditionalUnlock) -> Unit = { rule ->
-        val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
-            ?: rule.requiredAppPackage
-        val usedMinutes = remember(rule.requiredAppPackage) {
-            AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
-        }
-        val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
-        val conditionMet = usedMinutes >= rule.requiredMinutes
-
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(rule.name, style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.conditional_unlocks_rule_summary, rule.requiredMinutes, requiredAppName),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (hasUsagePermission) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.conditional_unlocks_progress, usedMinutes, rule.requiredMinutes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (conditionMet) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    color = if (conditionMet) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.secondary,
-                )
-            }
-        }
     }
 
     Scaffold(
@@ -264,50 +189,6 @@ fun TimeLimitsScreen(
                     }
                 }
 
-                // Earn access (conditional unlocks) — rules that lift blocks after
-                // productive time, folded in here so all everyday guardrails live
-                // on one screen.
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        stringResource(R.string.conditional_unlocks_title),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.conditional_unlocks_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                items(conditionalUnlocks) { rule ->
-                    ElevatedCard(
-                        onClick = {
-                            editingRule = rule
-                            showRuleEditor = true
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        ruleCardContent(rule)
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = {
-                            editingRule = null
-                            showRuleEditor = true
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.conditional_unlocks_add))
-                    }
-                }
             }
         }
     }

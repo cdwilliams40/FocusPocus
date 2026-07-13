@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
+import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
@@ -85,7 +86,8 @@ fun UsageStatsScreen(
     currentStreak: Int = 0,
     longestStreak: Int = 0,
     blockEvents: List<BlockEvent> = emptyList(),
-    appTimeLimits: Map<String, Int> = emptyMap()
+    appTimeLimits: Map<String, Int> = emptyMap(),
+    openDailyStats: Map<String, Map<String, AppOpenStats>> = emptyMap()
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
@@ -133,6 +135,24 @@ fun UsageStatsScreen(
 
     val filteredBlockEvents = remember(blockEvents, rangeStart) {
         blockEvents.filter { it.timestamp >= rangeStart }
+    }
+
+    // App opens within the selected range, aggregated per app ("yyyyMMdd" keys
+    // sort lexicographically, so string comparison against the cutoff is safe).
+    val openStatsInRange = remember(openDailyStats, rangeStart) {
+        val cutoff = if (rangeStart == 0L) "00000000"
+        else SimpleDateFormat("yyyyMMdd", Locale.US).format(Date(rangeStart))
+        val aggregated = mutableMapOf<String, AppOpenStats>()
+        openDailyStats.filterKeys { it >= cutoff }.values.forEach { day ->
+            day.forEach { (pkg, stats) ->
+                val current = aggregated[pkg] ?: AppOpenStats()
+                aggregated[pkg] = AppOpenStats(
+                    opens = current.opens + stats.opens,
+                    reflexOpens = current.reflexOpens + stats.reflexOpens
+                )
+            }
+        }
+        aggregated.entries.sortedByDescending { it.value.opens }
     }
 
     // Focus stats
@@ -416,6 +436,75 @@ fun UsageStatsScreen(
                                 }
                             }
                         }
+                }
+            }
+        }
+
+        // App Opens Card: how often tracked apps were opened and how many opens
+        // were under-30-second reflexes, within the selected time range.
+        if (openStatsInRange.isNotEmpty()) {
+            item {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.insights_app_opens),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val totalOpens = openStatsInRange.sumOf { it.value.opens }
+                    val totalReflexes = openStatsInRange.sumOf { it.value.reflexOpens }
+                    val reflexPercent = if (totalOpens > 0) (totalReflexes * 100) / totalOpens else 0
+                    Text(
+                        stringResource(R.string.insights_total_opens, totalOpens),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        stringResource(R.string.insights_reflex_summary, totalReflexes, reflexPercent),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val maxOpens = openStatsInRange.first().value.opens.coerceAtLeast(1)
+                    openStatsInRange.take(8).forEach { (pkg, stats) ->
+                        val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                appName,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                modifier = Modifier.width(96.dp)
+                            )
+                            MagnitudeBar(
+                                fraction = stats.opens.toFloat() / maxOpens,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp)
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.insights_opens_row_count,
+                                    stats.opens, stats.reflexOpens
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.width(64.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        stringResource(R.string.insights_reflex_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

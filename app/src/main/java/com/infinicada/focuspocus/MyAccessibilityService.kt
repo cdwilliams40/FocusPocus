@@ -161,6 +161,11 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var openTrackingPackage: String? = null
     @Volatile private var openTrackingSince: Long = 0L
 
+    // Per-package pact configs synthesized from pact groups, recomputed only when
+    // the groups or the enchantments they point at change.
+    @Volatile private var pactGroupCacheKey: Pair<String?, String?>? = null
+    @Volatile private var cachedPactGroupConfigs: Map<String, AppTimeLimit> = emptyMap()
+
     // Date string used to detect when a new day begins (format: "yyyyMMdd")
     @Volatile private var lastCooldownResetDate: String? = null
 
@@ -268,6 +273,10 @@ class MyAccessibilityService : AccessibilityService() {
             enforceTimedSessionExpiry()
             checkMissedScheduleActivation()
             DeviceOwnerManager.syncSuspensions(this)
+            // Re-assert uninstall protection on every service start: provisioning
+            // can happen while the app is already running (adb), in which case
+            // Application.onCreate never sees device-owner state.
+            DeviceOwnerManager.applySelfProtection(this)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error reconciling state on service start", e)
             reportNonFatal(e)
@@ -828,12 +837,16 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
 
-        val timeLimits = getCachedTimeLimits()
-        val limit = timeLimits[packageName] ?: return
+        // Per-app entries live in the flat map; apps covered only by a pact group
+        // have no entry there, so their pact config supplies the daily cap.
+        val limit = getCachedTimeLimits()[packageName]
+        val pactConfig = resolvePactConfig(packageName)
+        if (limit == null && pactConfig == null) return
 
         // 1. Daily limit — always takes precedence; no cooldown interaction.
         // A limit of 0 means "no daily cap" (pacts without a daily backstop).
-        if (limit > 0 && timeLimitChecker.shouldBlock(packageName, limit)) {
+        val dailyLimit = limit ?: pactConfig?.dailyLimitMinutes ?: 0
+        if (dailyLimit > 0 && timeLimitChecker.shouldBlock(packageName, dailyLimit)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
@@ -845,16 +858,13 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        val configs = getCachedTimeLimitConfigs()
-        val config = configs[packageName]
-
         // 2. Pact Mode: a lapsed allowance seals the app — start the cooldown anchored
         // at the moment the allowance expired, so returning long after the pact ended
         // doesn't restart a full-length seal (it may even have fully elapsed already).
-        if (config != null && config.pactModeEnabled) {
+        if (pactConfig != null) {
             val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
             if (lapsedExpiry != null) {
-                sessionCooldownManager.startCooldown(packageName, config, lapsedExpiry)
+                sessionCooldownManager.startCooldown(packageName, pactConfig, lapsedExpiry)
             }
         }
 
@@ -876,10 +886,11 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 4. Pact gate: a pact-mode app with no active allowance is blocked by default —
-        // offer to make a pact. With an active allowance the app is simply allowed
-        // (the passive session limit below doesn't apply; the pact IS the session limit).
-        if (config != null && config.pactModeEnabled) {
+        // 4. Pact gate: a pact-gated app (per-app config or pact group) with no active
+        // allowance is blocked by default — offer to make a pact. With an active
+        // allowance the app is simply allowed (the passive session limit below
+        // doesn't apply; the pact IS the session limit).
+        if (pactConfig != null) {
             if (pactManager.getAllowanceExpiry(packageName, now) != null) return
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
@@ -888,11 +899,12 @@ class MyAccessibilityService : AccessibilityService() {
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Pact Gate")
             closeApp()
-            showPactOverlay(appName, packageName, config)
+            showPactOverlay(appName, packageName, pactConfig)
             return
         }
 
         // 5. Session limit — if the user has been in this app too long, start a cooldown.
+        val config = getCachedTimeLimitConfigs()[packageName]
         if (config != null && config.sessionLimitMinutes > 0) {
             val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
             if (sessionMinutes >= config.sessionLimitMinutes) {
@@ -1335,7 +1347,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
         if (packageName == openTrackingPackage) return
         openTrackingPackage?.let { finishOpenTracking(it, now) }
-        if (getCachedTimeLimitConfigs().containsKey(packageName)) {
+        if (isOpenTracked(packageName)) {
             openReflexTracker.recordOpen(packageName)
         }
         openTrackingPackage = packageName
@@ -1343,10 +1355,51 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun finishOpenTracking(packageName: String, now: Long) {
-        if (getCachedTimeLimitConfigs().containsKey(packageName)) {
+        if (isOpenTracked(packageName)) {
             openReflexTracker.recordClose(packageName, now - openTrackingSince)
         }
         openTrackingPackage = null
+    }
+
+    /** Apps whose opens/reflexes we count: any with a config or in a pact group. */
+    private fun isOpenTracked(packageName: String): Boolean =
+        getCachedTimeLimitConfigs().containsKey(packageName) ||
+            getPactGroupConfigs().containsKey(packageName)
+
+    /**
+     * The pact settings governing [packageName], if any. An explicit per-app config
+     * wins outright: a pact config applies as itself, and a plain limit config means
+     * the app is limit-managed and never group-gated. Otherwise membership in a
+     * pact group's enchantment applies.
+     */
+    private fun resolvePactConfig(packageName: String): AppTimeLimit? {
+        val config = getCachedTimeLimitConfigs()[packageName]
+        if (config != null) return if (config.pactModeEnabled) config else null
+        return getPactGroupConfigs()[packageName]
+    }
+
+    private fun getPactGroupConfigs(): Map<String, AppTimeLimit> {
+        val groupsJson = sharedPreferences.getString(Constants.PrefsKeys.PACT_GROUPS, null)
+        val blockersJson = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
+        val key = groupsJson to blockersJson
+        if (key == pactGroupCacheKey) return cachedPactGroupConfigs
+
+        val result = mutableMapOf<String, AppTimeLimit>()
+        if (groupsJson != null) {
+            val groups = pactManager.getGroups()
+            if (groups.isNotEmpty()) {
+                val blockers = BlockerRepository.getBlockers(sharedPreferences)
+                for (group in groups) {
+                    val blocker = blockers.find { it.name == group.blockerName } ?: continue
+                    for (pkg in blocker.effectiveApps) {
+                        if (pkg !in result) result[pkg] = group.toAppTimeLimit(pkg)
+                    }
+                }
+            }
+        }
+        pactGroupCacheKey = key
+        cachedPactGroupConfigs = result
+        return result
     }
 
     /**
@@ -1354,8 +1407,7 @@ class MyAccessibilityService : AccessibilityService() {
      * lapse, so the seal doesn't land mid-scroll without warning.
      */
     private fun maybeWarnPactEnding(packageName: String) {
-        val config = getCachedTimeLimitConfigs()[packageName] ?: return
-        if (!config.pactModeEnabled) return
+        resolvePactConfig(packageName) ?: return
         val expiry = pactManager.getAllowanceExpiry(packageName) ?: return
         val remainingMs = expiry - System.currentTimeMillis()
         if (remainingMs in 1..90_000 && pactWarnedExpiries[packageName] != expiry) {

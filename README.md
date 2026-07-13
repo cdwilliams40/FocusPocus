@@ -58,6 +58,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
 - Managed on a dedicated **Pacts screen** (Spellbook → Pacts), with today's open/reflex counts per app front and center
+- **Pact groups**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
 
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one
@@ -72,6 +73,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Track completed focus sessions with start time, duration, and breaks used
 - View daily app usage trends and per-app statistics
 - Monitor block events to understand your distraction patterns
+- **App Opens**: per-app open counts with reflex-open breakdown (opens abandoned within 30 seconds), filterable by day/week/month, with 30 days of history
 
 ### Do Not Disturb Integration
 - Automatically enable DND when focus mode is active
@@ -95,6 +97,8 @@ Provisioning requires a one-time `adb` command from a computer (the same steps a
    ```
 
 Then enable **Grey Out Blocked Apps** in Settings → Warden Mode. The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
+
+> **⚠️ Uninstall protection and Android Studio builds:** apps deployed with Android Studio's *Run* button are flagged **test-only**, and Android deliberately allows removing a test-only device owner — so FocusPocus *can* still be uninstalled in that setup, Warden Mode or not. For real uninstall protection, install a normal build instead: `./gradlew assembleDebug && adb install app/build/outputs/apk/debug/app-debug.apk` (or a release build). The app shows a warning in Settings → Warden Mode when it detects a test-only install.
 
 <details>
 <summary><strong>Troubleshooting: "Not allowed to set the device owner because there are already some accounts on the device"</strong></summary>
@@ -162,11 +166,10 @@ The app has three tabs, plus a Settings screen reached from the top bar.
 - Tap "Cast Spell" to start or "Dispel" to end
 
 ### Spellbook Tab
-Your grimoire of configuration, organized by how each protection applies:
-- **Pacts** (hero card): seal apps behind conscious, timed pacts — shows live open/reflex counts for the day
+Your grimoire of configuration, organized by when each protection applies:
+- **Everyday guards**: **Pacts** (seal apps or whole enchantments behind conscious, timed pacts, with live open/reflex counts) and **Time Limits** (daily and per-session limits with cooldowns)
 - **Focus sessions**: **Enchantments** (blocklists of apps and websites) and **Rituals** (scheduled automatic sessions)
-- **Everyday guards**: **Time Limits** — daily and per-session limits with cooldowns, plus **earn-access rules** (conditional unlocks) that lift blocks after productive time
-- **Shortcuts & gear**: **Quick Spells** (one-tap presets, also on the Focus tab) and **Talismans** (NFC tags and bindings)
+- **More magic**: **Quick Spells** (one-tap presets, also on the Focus tab), **Talismans** (NFC tags and bindings), and **Conditional Unlocks** (earn access after productive time)
 
 ### Insights Tab
 - View session history and focus statistics

@@ -73,6 +73,9 @@ object Constants {
         // Per-day open/reflex-open counters for tracked apps
         const val APP_OPEN_STATS = "appOpenStats"
 
+        // Pact groups: pact settings bound to a blacklist enchantment
+        const val PACT_GROUPS = "pactGroups"
+
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 

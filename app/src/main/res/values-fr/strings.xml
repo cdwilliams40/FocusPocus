@@ -122,15 +122,8 @@
     <string name="spellbook_pact_app_line">%1$s \u2014 %2$d ouvertures aujourd\'hui</string>
     <string name="spellbook_group_focus">Sessions de concentration</string>
     <string name="spellbook_group_guards">Gardes du quotidien</string>
-    <string name="spellbook_group_gear">Raccourcis et accessoires</string>
-    <plurals name="spellbook_pact_app_count">
-        <item quantity="one">%d application sous pacte</item>
-        <item quantity="other">%d applications sous pacte</item>
-    </plurals>
-    <plurals name="spellbook_unlock_rule_count">
-        <item quantity="one">%d r\u00e8gle d\'acc\u00e8s m\u00e9rit\u00e9</item>
-        <item quantity="other">%d r\u00e8gles d\'acc\u00e8s m\u00e9rit\u00e9</item>
-    </plurals>
+    <string name="spellbook_group_gear">Autres magies</string>
+    <string name="spellbook_pact_group_line">%1$s \u2014 %2$d applications</string>
 
     <!-- Plurals for spellbook counts -->
     <plurals name="spellbook_app_count">
@@ -378,6 +371,11 @@
     <string name="pacts_backstop_none">Aucun</string>
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
     <string name="conditional_unlocks_pact_app_label">%s (Pacte)</string>
+    <string name="pacts_group_summary">Pacte d\'enchantement \u00b7 %d applications</string>
+    <string name="pacts_target_app">Une seule application</string>
+    <string name="pacts_target_enchantment">Tout un enchantement (liste noire)</string>
+    <string name="pacts_enchantment_label">Enchantement</string>
+    <string name="pacts_no_blacklists">Aucun enchantement en liste noire disponible \u2014 cr\u00e9ez-en un d\'abord dans Enchantements.</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">Code QR</string>
@@ -465,4 +463,12 @@
     <string name="consent_dialog_message">Souhaitez-vous partager des rapports de plantage anonymes et des statistiques d\'utilisation ? Cela nous aide à corriger les bugs et à améliorer l\'application. Aucune donnée personnelle n\'est collectée.\n\nVous pouvez modifier ce choix à tout moment dans les paramètres.</string>
     <string name="consent_dialog_accept">Partager les analyses</string>
     <string name="consent_dialog_decline">Non merci</string>
+
+    <!-- Ajouts récents (traductions) -->
+    <string name="settings_device_owner_testonly_warning">Cette version a été déployée depuis Android Studio et est marquée test-only — Android autorise la suppression des propriétaires d\'appareil test-only, la protection contre la désinstallation n\'est donc PAS active. Installez avec adb (gradlew assembleDebug) pour une protection complète.</string>
+    <string name="insights_app_opens">Ouvertures d\'applications</string>
+    <string name="insights_total_opens">%d ouvertures</string>
+    <string name="insights_reflex_summary">%1$d étaient des réflexes de moins de 30 secondes (%2$d%%)</string>
+    <string name="insights_opens_row_count">%1$d · %2$d rfx</string>
+    <string name="insights_reflex_hint">Réflexe = abandonnée dans les 30 secondes suivant l\'ouverture</string>
 </resources>

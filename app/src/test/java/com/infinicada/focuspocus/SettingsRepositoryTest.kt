@@ -97,8 +97,8 @@ class SettingsRepositoryTest {
     // ── themeMode ──
 
     @Test
-    fun `getThemeMode returns SYSTEM by default`() {
-        assertEquals(ThemeMode.SYSTEM, repo.getThemeMode())
+    fun `getThemeMode returns DARK by default`() {
+        assertEquals(ThemeMode.DARK, repo.getThemeMode())
     }
 
     @Test
@@ -108,9 +108,9 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun `getThemeMode returns SYSTEM for invalid value`() {
+    fun `getThemeMode returns DARK for invalid value`() {
         prefs.putString(Constants.PrefsKeys.THEME_MODE, "INVALID_GARBAGE")
-        assertEquals(ThemeMode.SYSTEM, repo.getThemeMode())
+        assertEquals(ThemeMode.DARK, repo.getThemeMode())
     }
 
     @Test

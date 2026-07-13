@@ -2,11 +2,12 @@ package com.infinicada.focuspocus.limit
 
 import android.content.SharedPreferences
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
-import com.infinicada.focuspocus.PrefsHelper
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
-/** Today's open counts for one app. */
+/** One day's open counts for one app. */
 data class AppOpenStats(
     val opens: Int = 0,
     /** Opens the user abandoned within [OpenReflexTracker.REFLEX_THRESHOLD_MS]. */
@@ -14,13 +15,12 @@ data class AppOpenStats(
 )
 
 /**
- * Counts how many times each tracked app was opened today and how many of those
- * opens were "reflexes" — abandoned in under 30 seconds. Surfaced on the pact
- * overlay so the user sees the shape of the habit at the exact moment the urge
- * fires ("this is open #14 today...").
+ * Counts how many times each tracked app was opened per day and how many of those
+ * opens were "reflexes" — abandoned in under 30 seconds. Today's numbers are
+ * surfaced on the pact overlay ("this is open #14 today..."); the retained
+ * [RETENTION_DAYS]-day history feeds the Insights screen.
  *
- * Counters are persisted per calendar day and reset lazily when the date rolls
- * over. Dwell times are measured by the accessibility service from foreground
+ * Dwell times are measured by the accessibility service from foreground
  * transitions, so they're approximate (e.g. screen-off time inside an app counts
  * as dwell) — good enough for awareness, not billing.
  */
@@ -30,13 +30,23 @@ class OpenReflexTracker(
     private val today: () -> String = { SessionCooldownManager.todayString() }
 ) {
 
-    private data class Store(val date: String, val stats: Map<String, AppOpenStats>)
+    /**
+     * Persisted shape: [days] maps "yyyyMMdd" to per-package stats. The [date] and
+     * [stats] fields exist only to migrate the original single-day shape.
+     */
+    private data class Store(
+        val days: Map<String, Map<String, AppOpenStats>>? = null,
+        val date: String? = null,
+        val stats: Map<String, AppOpenStats>? = null
+    )
 
     /** Call when a tracked app comes to the foreground. */
     fun recordOpen(packageName: String) {
-        val store = loadForToday()
-        val current = store.stats[packageName] ?: AppOpenStats()
-        save(store.copy(stats = store.stats + (packageName to current.copy(opens = current.opens + 1))))
+        val days = loadDays()
+        val todayStr = today()
+        val todayStats = days[todayStr] ?: emptyMap()
+        val current = todayStats[packageName] ?: AppOpenStats()
+        save(days + (todayStr to (todayStats + (packageName to current.copy(opens = current.opens + 1)))))
     }
 
     /**
@@ -47,32 +57,63 @@ class OpenReflexTracker(
      */
     fun recordClose(packageName: String, dwellMs: Long) {
         if (dwellMs < 0 || dwellMs >= REFLEX_THRESHOLD_MS) return
-        val store = loadForToday()
-        val current = store.stats[packageName] ?: return
+        val days = loadDays()
+        val todayStr = today()
+        val todayStats = days[todayStr] ?: return
+        val current = todayStats[packageName] ?: return
         if (current.opens <= 0) return
-        save(store.copy(stats = store.stats + (packageName to current.copy(reflexOpens = current.reflexOpens + 1))))
+        save(days + (todayStr to (todayStats + (packageName to current.copy(reflexOpens = current.reflexOpens + 1)))))
     }
 
     /** Today's stats for [packageName]; zeros if it hasn't been opened today. */
     fun getStats(packageName: String): AppOpenStats =
-        loadForToday().stats[packageName] ?: AppOpenStats()
+        loadDays()[today()]?.get(packageName) ?: AppOpenStats()
 
     /** Today's stats for every tracked app that has been opened today. */
-    fun getAllStats(): Map<String, AppOpenStats> = loadForToday().stats
+    fun getAllStats(): Map<String, AppOpenStats> = loadDays()[today()] ?: emptyMap()
 
-    private fun loadForToday(): Store {
-        val type = object : TypeToken<Store>() {}.type
-        val stored: Store? = PrefsHelper.load(prefs, gson, Constants.PrefsKeys.APP_OPEN_STATS, type)
-        val todayStr = today()
-        return if (stored != null && stored.date == todayStr) stored else Store(todayStr, emptyMap())
+    /** Full retained history: "yyyyMMdd" date -> package -> stats. */
+    fun getDailyStats(): Map<String, Map<String, AppOpenStats>> = loadDays()
+
+    private fun loadDays(): Map<String, Map<String, AppOpenStats>> {
+        val json = prefs.getString(Constants.PrefsKeys.APP_OPEN_STATS, null) ?: return emptyMap()
+        return try {
+            val store = gson.fromJson(json, Store::class.java)
+            when {
+                store?.days != null -> store.days
+                // Migration from the original single-day shape
+                store?.date != null && store.stats != null -> mapOf(store.date to store.stats)
+                else -> emptyMap()
+            }
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
-    private fun save(store: Store) {
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.APP_OPEN_STATS, store)
+    private fun save(days: Map<String, Map<String, AppOpenStats>>) {
+        val cutoff = retentionCutoff(today())
+        val pruned = days.filterKeys { it >= cutoff }
+        prefs.edit()
+            .putString(Constants.PrefsKeys.APP_OPEN_STATS, gson.toJson(Store(days = pruned)))
+            .apply()
+    }
+
+    /** Oldest "yyyyMMdd" date to retain, relative to [todayStr] (lexicographic compare is safe). */
+    private fun retentionCutoff(todayStr: String): String = try {
+        val format = SimpleDateFormat("yyyyMMdd", Locale.US)
+        val cal = Calendar.getInstance()
+        cal.time = format.parse(todayStr)!!
+        cal.add(Calendar.DAY_OF_YEAR, -(RETENTION_DAYS - 1))
+        format.format(cal.time)
+    } catch (e: Exception) {
+        todayStr
     }
 
     companion object {
         /** An open shorter than this counts as a reflex check rather than real use. */
         const val REFLEX_THRESHOLD_MS = 30_000L
+
+        /** How many days of per-app open history to retain. */
+        const val RETENTION_DAYS = 30
     }
 }
