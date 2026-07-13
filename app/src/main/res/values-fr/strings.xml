@@ -584,6 +584,7 @@
     <string name="perk_buy">Acheter</string>
     <string name="perk_pick_app">Choisir l\'application</string>
     <string name="perk_extra_break_inactive">Disponible pendant une session de concentration</string>
+    <string name="perk_extra_break_no_breaks">Les pauses sont désactivées pour cette session</string>
     <string name="perk_sealed_none">Aucune application sous pacte</string>
     <string name="perk_sealed_used_today">Déjà utilisé pour cette application aujourd\'hui</string>
     <string name="perk_sealed_over_limit">Limite quotidienne déjà épuisée</string>

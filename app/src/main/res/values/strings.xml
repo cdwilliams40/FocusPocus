@@ -648,6 +648,7 @@
     <string name="perk_buy">Buy</string>
     <string name="perk_pick_app">Choose app</string>
     <string name="perk_extra_break_inactive">Available during a focus session</string>
+    <string name="perk_extra_break_no_breaks">Breaks are disabled for this session</string>
     <string name="perk_sealed_none">No pacted apps yet</string>
     <string name="perk_sealed_used_today">Already used for this app today</string>
     <string name="perk_sealed_over_limit">Daily limit already spent</string>

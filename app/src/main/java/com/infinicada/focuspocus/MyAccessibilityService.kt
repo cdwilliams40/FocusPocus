@@ -196,13 +196,24 @@ class MyAccessibilityService : AccessibilityService() {
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_TIME_TICK) {
-                try {
+            when (intent?.action) {
+                Intent.ACTION_TIME_TICK -> try {
                     onMinuteTick()
                 } catch (e: Exception) {
                     // The minute tick must never take the service down — blocking,
                     // schedule enforcement, and limits all depend on it staying alive.
                     Log.e("MyAccessibilityService", "Error in minute tick", e)
+                    reportNonFatal(e)
+                }
+                Intent.ACTION_SCREEN_OFF -> try {
+                    // Screen off ends the foreground app's continuous-use
+                    // session — otherwise idle screen-off time keeps counting
+                    // toward the session limit and triggers a cooldown for
+                    // use that never happened.
+                    currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
+                    currentForegroundPackage = null
+                } catch (e: Exception) {
+                    Log.e("MyAccessibilityService", "Error handling screen off", e)
                     reportNonFatal(e)
                 }
             }
@@ -328,7 +339,9 @@ class MyAccessibilityService : AccessibilityService() {
             reportNonFatal(e)
         }
 
-        val filter = IntentFilter(Intent.ACTION_TIME_TICK)
+        val filter = IntentFilter(Intent.ACTION_TIME_TICK).apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeTickReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
@@ -819,7 +832,18 @@ class MyAccessibilityService : AccessibilityService() {
 
         trackOpenTransition(packageName)
 
-        if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
+        if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) {
+            // Going home (or into FocusPocus itself) ends the previous app's
+            // continuous-use session — otherwise launcher time keeps counting
+            // toward the session limit. SystemUI and the IME stay neutral: a
+            // notification-shade pull or the keyboard opening doesn't mean
+            // the user left the app beneath.
+            if (packageName == this.packageName || isLauncher(packageName)) {
+                currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
+                currentForegroundPackage = null
+            }
+            return
+        }
 
         // End expired breaks / timed sessions before reading focus state below, so
         // blocking resumes (or stops) immediately on an app switch rather than

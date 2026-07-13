@@ -427,8 +427,15 @@ fun FocusPocusApp(
     // on the main scaffold, so the two flags can't both be set)
     if (showBoons) {
         BackHandler { showBoons = false }
-        val pactedPackages = remember(appTimeLimitConfigs) {
-            appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys
+        val pactedPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
+            // Pact groups gate every app in their enchantment, so those apps can
+            // buy sealed minutes too. An explicit per-app config always wins —
+            // even one with pacts disabled — mirroring the service's
+            // resolvePactConfig precedence.
+            val fromGroups = pactGroups.flatMap { group ->
+                blockerLists.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
+            }.filter { it !in appTimeLimitConfigs }
+            appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys + fromGroups
         }
         val pactedApps = remember(installedApps, pactedPackages) {
             installedApps.filter { it.packageName in pactedPackages }
@@ -436,7 +443,8 @@ fun FocusPocusApp(
         BoonsScreen(
             balance = manaBalance,
             boons = boons,
-            manualFocusMode = manualFocusMode,
+            sessionActive = focusMode,
+            breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled,
             pactedApps = pactedApps,
             isSealedAvailableToday = { pkg -> progressionVM.isSealedMinutesAvailableToday(pkg) },
             isSealedOverDailyLimit = { pkg ->
