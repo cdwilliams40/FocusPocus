@@ -26,22 +26,22 @@
 -keep,allowobfuscation class * extends com.google.gson.reflect.TypeToken { *; }
 
 # Keep all data classes serialized/deserialized with Gson.
-# R8 can strip or rename fields that Gson accesses via reflection.
+# R8 can strip or rename fields that Gson accesses via reflection, and R8 full
+# mode strips the generic Signature attribute from non-kept classes — Gson then
+# fills Map/List fields with LinkedTreeMap instead of the declared type, which
+# crashes with a ClassCastException far from the parse site (e.g. the 1.4
+# LinkedTreeMap-cannot-be-cast-to-AppOpenStats crashes on the Insights and
+# Spellbook screens). A hand-maintained per-class list already rotted twice, so
+# keep the whole model package plus every serialized class outside it.
+-keep class com.infinicada.focuspocus.model.** { *; }
 -keep class com.infinicada.focuspocus.Blocker { *; }
 -keep class com.infinicada.focuspocus.BlockerMode { *; }
 -keep class com.infinicada.focuspocus.BlockEvent { *; }
 -keep class com.infinicada.focuspocus.FocusSession { *; }
 -keep class com.infinicada.focuspocus.NamedTag { *; }
-# Model classes live in the .model sub-package — the old rules below targeted the wrong package
-# and had no effect, leaving fields vulnerable to R8 obfuscation.
--keep class com.infinicada.focuspocus.model.Schedule { *; }
--keep class com.infinicada.focuspocus.model.FocusPreset { *; }
--keep class com.infinicada.focuspocus.model.DayOfWeek { *; }
--keep class com.infinicada.focuspocus.model.PresetAction { *; }
--keep class com.infinicada.focuspocus.model.ConditionalUnlock { *; }
--keep class com.infinicada.focuspocus.model.AppInfo { *; }
--keep class com.infinicada.focuspocus.model.AppTimeLimit { *; }
 -keep class com.infinicada.focuspocus.limit.CooldownState { *; }
+-keep class com.infinicada.focuspocus.limit.AppOpenStats { *; }
+-keep class com.infinicada.focuspocus.limit.OpenReflexTracker$Store { *; }
 
 # --- ZXing (QR code library) ---
 -keep class com.google.zxing.** { *; }

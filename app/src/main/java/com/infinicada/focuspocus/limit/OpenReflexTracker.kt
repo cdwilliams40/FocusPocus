@@ -79,16 +79,29 @@ class OpenReflexTracker(
         val json = prefs.getString(Constants.PrefsKeys.APP_OPEN_STATS, null) ?: return emptyMap()
         return try {
             val store = gson.fromJson(json, Store::class.java)
-            when {
+            val days = when {
                 store?.days != null -> store.days
                 // Migration from the original single-day shape
                 store?.date != null && store.stats != null -> mapOf(store.date to store.stats)
                 else -> emptyMap()
             }
+            // If R8 strips the generic signatures of Store's fields (as in release
+            // 1.4), Gson fills these maps with LinkedTreeMap instead of AppOpenStats
+            // and the cast only explodes later, mid-composition on the Insights and
+            // Spellbook screens. Treat such data as corrupt rather than crash.
+            if (days.values.any(::hasPoisonedValues)) emptyMap() else days
         } catch (e: Exception) {
             emptyMap()
         }
     }
+
+    /**
+     * True when a per-day stats map deserialized by Gson doesn't actually contain
+     * [AppOpenStats] values (generic type info lost — see [loadDays]). Takes [Any]?
+     * so the check happens before any implicit cast to the declared map type.
+     */
+    private fun hasPoisonedValues(stats: Any?): Boolean =
+        stats !is Map<*, *> || stats.values.any { it !is AppOpenStats }
 
     private fun save(days: Map<String, Map<String, AppOpenStats>>) {
         val cutoff = retentionCutoff(today())
