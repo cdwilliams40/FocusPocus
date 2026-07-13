@@ -40,10 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.RadioButton
+import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
+import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 
 /**
@@ -57,9 +61,13 @@ import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 fun PactsScreen(
     installedApps: List<AppInfo>,
     appTimeLimitConfigs: Map<String, AppTimeLimit>,
+    blockerLists: List<Blocker>,
+    pactGroups: List<PactGroup>,
     todayOpenStats: Map<String, AppOpenStats>,
     onSaveConfig: (AppTimeLimit) -> Unit,
     onDeleteConfig: (String) -> Unit,
+    onSaveGroup: (PactGroup) -> Unit,
+    onDeleteGroup: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -70,8 +78,14 @@ fun PactsScreen(
         AddPactDialog(
             installedApps = installedApps,
             existingConfigs = appTimeLimitConfigs,
+            blockerLists = blockerLists,
+            pactGroups = pactGroups,
             onSave = { config ->
                 onSaveConfig(config)
+                showAddDialog = false
+            },
+            onSaveGroup = { group ->
+                onSaveGroup(group)
                 showAddDialog = false
             },
             onDismiss = { showAddDialog = false }
@@ -103,6 +117,65 @@ fun PactsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            items(pactGroups) { group ->
+                val memberApps = blockerLists.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
+                val groupOpens = memberApps.sumOf { todayOpenStats[it]?.opens ?: 0 }
+                val groupReflexes = memberApps.sumOf { todayOpenStats[it]?.reflexOpens ?: 0 }
+                val alternativeName = group.pactAlternativePackage?.let { altPkg ->
+                    installedApps.find { it.packageName == altPkg }?.name
+                }
+
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(group.blockerName, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                stringResource(R.string.pacts_group_summary, memberApps.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.pacts_config_summary,
+                                    if (group.pactMaxMinutes > 0) group.pactMaxMinutes else 15,
+                                    group.cooldownMinutes
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (alternativeName != null) {
+                                Text(
+                                    stringResource(R.string.pacts_alternative_summary, alternativeName),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                stringResource(R.string.pacts_today_stats, groupOpens, groupReflexes),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                        Button(
+                            onClick = { onDeleteGroup(group.blockerName) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(stringResource(R.string.action_remove))
+                        }
+                    }
+                }
             }
 
             items(pactConfigs.entries.toList()) { (pkg, config) ->
@@ -165,7 +238,7 @@ fun PactsScreen(
                 }
             }
 
-            if (pactConfigs.isEmpty()) {
+            if (pactConfigs.isEmpty() && pactGroups.isEmpty()) {
                 item {
                     Text(
                         stringResource(R.string.pacts_empty),
@@ -193,7 +266,10 @@ fun PactsScreen(
 fun AddPactDialog(
     installedApps: List<AppInfo>,
     existingConfigs: Map<String, AppTimeLimit>,
+    blockerLists: List<Blocker>,
+    pactGroups: List<PactGroup>,
     onSave: (AppTimeLimit) -> Unit,
+    onSaveGroup: (PactGroup) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
@@ -207,9 +283,17 @@ fun AddPactDialog(
     var alternativeApp by remember { mutableStateOf<AppInfo?>(null) }
     var showAlternativePicker by remember { mutableStateOf(false) }
 
+    // Target: a single app, or every app in a blacklist enchantment (live membership).
+    var useEnchantment by remember { mutableStateOf(false) }
+    var targetEnchantment by remember { mutableStateOf<Blocker?>(null) }
+    var enchantmentExpanded by remember { mutableStateOf(false) }
+
     // An app is either pact-managed or limit-managed, never both: converting means
     // removing it from the other screen first.
     val availableApps = installedApps.filter { it.packageName !in existingConfigs }
+    val availableBlacklists = blockerLists.filter { blocker ->
+        blocker.mode == BlockerMode.BLACKLIST && pactGroups.none { it.blockerName == blocker.name }
+    }
 
     val pactMaxOptions = listOf(
         5 to stringResource(R.string.duration_5_min),
@@ -237,6 +321,69 @@ fun AddPactDialog(
         title = { Text(stringResource(R.string.pacts_add_dialog_title)) },
         text = {
             Column {
+                // Target selector: one app, or a whole blacklist enchantment
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = !useEnchantment, onClick = { useEnchantment = false })
+                    Text(
+                        stringResource(R.string.pacts_target_app),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable { useEnchantment = false }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = useEnchantment, onClick = { useEnchantment = true })
+                    Text(
+                        stringResource(R.string.pacts_target_enchantment),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable { useEnchantment = true }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (useEnchantment) {
+                    if (availableBlacklists.isEmpty()) {
+                        Text(
+                            stringResource(R.string.pacts_no_blacklists),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        ExposedDropdownMenuBox(
+                            expanded = enchantmentExpanded,
+                            onExpandedChange = { enchantmentExpanded = !enchantmentExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = targetEnchantment?.name ?: "",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(stringResource(R.string.pacts_enchantment_label)) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = enchantmentExpanded) },
+                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = enchantmentExpanded,
+                                onDismissRequest = { enchantmentExpanded = false }
+                            ) {
+                                availableBlacklists.forEach { blocker ->
+                                    DropdownMenuItem(
+                                        text = { Text("${blocker.name} (${blocker.effectiveApps.size})") },
+                                        onClick = {
+                                            targetEnchantment = blocker
+                                            enchantmentExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
                 // App picker
                 Box {
                     OutlinedTextField(
@@ -266,6 +413,7 @@ fun AddPactDialog(
                         },
                         onDismiss = { showAppPicker = false }
                     )
+                }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -342,21 +490,35 @@ fun AddPactDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    selectedApp?.let { app ->
-                        onSave(
-                            AppTimeLimit(
-                                packageName = app.packageName,
-                                dailyLimitMinutes = backstopMinutes,
-                                sessionLimitMinutes = 0,
-                                cooldownMinutes = sealMinutes,
-                                pactModeEnabled = true,
-                                pactMaxMinutes = pactMaxMinutes,
-                                pactAlternativePackage = alternativeApp?.packageName
+                    if (useEnchantment) {
+                        targetEnchantment?.let { blocker ->
+                            onSaveGroup(
+                                PactGroup(
+                                    blockerName = blocker.name,
+                                    pactMaxMinutes = pactMaxMinutes,
+                                    cooldownMinutes = sealMinutes,
+                                    pactAlternativePackage = alternativeApp?.packageName,
+                                    dailyLimitMinutes = backstopMinutes
+                                )
                             )
-                        )
+                        }
+                    } else {
+                        selectedApp?.let { app ->
+                            onSave(
+                                AppTimeLimit(
+                                    packageName = app.packageName,
+                                    dailyLimitMinutes = backstopMinutes,
+                                    sessionLimitMinutes = 0,
+                                    cooldownMinutes = sealMinutes,
+                                    pactModeEnabled = true,
+                                    pactMaxMinutes = pactMaxMinutes,
+                                    pactAlternativePackage = alternativeApp?.packageName
+                                )
+                            )
+                        }
                     }
                 },
-                enabled = selectedApp != null
+                enabled = if (useEnchantment) targetEnchantment != null else selectedApp != null
             ) {
                 Text(stringResource(R.string.action_save))
             }

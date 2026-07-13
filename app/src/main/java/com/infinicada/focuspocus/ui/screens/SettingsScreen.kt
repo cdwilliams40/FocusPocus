@@ -386,6 +386,19 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
+                        val warnContext = LocalContext.current
+                        val isTestOnlyBuild = remember {
+                            DeviceOwnerManager.isTestOnlyBuild(warnContext)
+                        }
+                        if (isTestOnlyBuild) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                stringResource(R.string.settings_device_owner_testonly_warning),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(
                             onClick = { showRemoveWardenDialog = true },

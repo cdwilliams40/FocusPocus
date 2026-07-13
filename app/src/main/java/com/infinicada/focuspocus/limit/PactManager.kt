@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.PrefsHelper
 import com.infinicada.focuspocus.model.AppTimeLimit
+import com.infinicada.focuspocus.model.PactGroup
 
 /**
  * Manages Pact Mode allowances.
@@ -54,6 +55,29 @@ class PactManager(
         saveAllowances(allowances - packageName)
         Log.d(tag, "Pact lapsed for $packageName")
         return expiry
+    }
+
+    // -------------------------------------------------------------------------
+    // Pact groups (pact settings bound to a blacklist enchantment)
+    // -------------------------------------------------------------------------
+
+    fun getGroups(): List<PactGroup> {
+        val type = object : TypeToken<List<PactGroup>>() {}.type
+        return PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, type)
+            ?: emptyList()
+    }
+
+    /** Adds or replaces the group bound to the same enchantment. */
+    fun saveGroup(group: PactGroup) {
+        val updated = getGroups().filter { it.blockerName != group.blockerName } + group
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, updated)
+        Log.d(tag, "Pact group saved for enchantment ${group.blockerName}")
+    }
+
+    fun deleteGroup(blockerName: String) {
+        val updated = getGroups().filter { it.blockerName != blockerName }
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, updated)
+        Log.d(tag, "Pact group removed for enchantment $blockerName")
     }
 
     private fun loadAllowances(): Map<String, Long> {

@@ -8,11 +8,11 @@ class SettingsRepository(private val prefs: SharedPreferences) {
 
     fun getThemeMode(): ThemeMode = try {
         ThemeMode.valueOf(
-            prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.SYSTEM.name)
-                ?: ThemeMode.SYSTEM.name
+            prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.DARK.name)
+                ?: ThemeMode.DARK.name
         )
     } catch (e: IllegalArgumentException) {
-        ThemeMode.SYSTEM
+        ThemeMode.DARK
     }
 
     fun setThemeMode(mode: ThemeMode) {

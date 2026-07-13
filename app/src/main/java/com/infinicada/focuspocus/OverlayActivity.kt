@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +61,7 @@ class OverlayActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         // Disable back button
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -102,9 +104,9 @@ class OverlayActivity : ComponentActivity() {
     private fun renderOverlay(intent: Intent) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         val themeMode = try {
-            ThemeMode.valueOf(prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
+            ThemeMode.valueOf(prefs.getString(Constants.PrefsKeys.THEME_MODE, ThemeMode.DARK.name) ?: ThemeMode.DARK.name)
         } catch (e: IllegalArgumentException) {
-            ThemeMode.SYSTEM
+            ThemeMode.DARK
         }
 
         val appName = intent.getStringExtra("appName")?.take(200) ?: "App"

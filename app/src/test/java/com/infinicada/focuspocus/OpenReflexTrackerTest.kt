@@ -69,7 +69,7 @@ class OpenReflexTrackerTest {
     }
 
     @Test
-    fun `counters reset when the date rolls over`() {
+    fun `today's counters reset when the date rolls over, history is retained`() {
         tracker.recordOpen(pkg)
         tracker.recordClose(pkg, dwellMs = 1_000L)
         assertEquals(AppOpenStats(1, 1), tracker.getStats(pkg))
@@ -79,6 +79,33 @@ class OpenReflexTrackerTest {
         assertEquals(AppOpenStats(0, 0), tracker.getStats(pkg))
         tracker.recordOpen(pkg)
         assertEquals(AppOpenStats(1, 0), tracker.getStats(pkg))
+
+        val history = tracker.getDailyStats()
+        assertEquals(AppOpenStats(1, 1), history["20260712"]?.get(pkg))
+        assertEquals(AppOpenStats(1, 0), history["20260713"]?.get(pkg))
+    }
+
+    @Test
+    fun `history older than the retention window is pruned on write`() {
+        tracker.recordOpen(pkg)
+
+        today = "20270101" // far beyond the 30-day window
+
+        tracker.recordOpen(pkg)
+        val history = tracker.getDailyStats()
+        assertEquals(setOf("20270101"), history.keys)
+    }
+
+    @Test
+    fun `legacy single-day storage shape is migrated`() {
+        prefs.putString(
+            Constants.PrefsKeys.APP_OPEN_STATS,
+            """{"date":"20260712","stats":{"$pkg":{"opens":4,"reflexOpens":2}}}"""
+        )
+
+        assertEquals(AppOpenStats(4, 2), tracker.getStats(pkg))
+        tracker.recordOpen(pkg)
+        assertEquals(AppOpenStats(5, 2), tracker.getStats(pkg))
     }
 
     @Test

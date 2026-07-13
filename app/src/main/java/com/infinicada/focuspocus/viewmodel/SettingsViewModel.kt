@@ -109,6 +109,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshDeviceOwnerState() {
         _isDeviceOwner.value = DeviceOwnerManager.isDeviceOwner(getApplication())
+        // The moment we learn we're device owner (e.g. right after the adb
+        // command), lock down uninstall — don't wait for the next app start.
+        if (_isDeviceOwner.value) {
+            DeviceOwnerManager.applySelfProtection(getApplication())
+        }
     }
 
     fun setDeviceOwnerEnforcement(enabled: Boolean) {

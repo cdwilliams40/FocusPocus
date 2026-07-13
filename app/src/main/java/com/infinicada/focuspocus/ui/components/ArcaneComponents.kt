@@ -82,6 +82,11 @@ fun GlassCard(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
         color = scheme.surfaceContainerLow.copy(alpha = 0.78f),
+        // The alpha-modified color can't be resolved by contentColorFor, whose
+        // fallback is LocalContentColor -- black when no Surface sits above us
+        // (the overlay activity), turning default-colored text invisible in
+        // dark mode. Pin the content color explicitly.
+        contentColor = scheme.onSurface,
         border = BorderStroke(
             width = 1.dp,
             brush = Brush.linearGradient(

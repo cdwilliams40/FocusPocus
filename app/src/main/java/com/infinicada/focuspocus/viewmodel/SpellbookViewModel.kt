@@ -13,6 +13,8 @@ import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.OpenReflexTracker
+import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.InsightsRepository
@@ -35,13 +37,29 @@ import kotlinx.coroutines.withContext
 class SpellbookViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as FocusPocusApplication).container
 
-    private val openReflexTracker = OpenReflexTracker(
-        application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE),
-        Gson()
-    )
+    private val appPrefs =
+        application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
 
-    /** Today's open/reflex counters per package, for the Spellbook Pacts hero and Pacts screen. */
+    private val openReflexTracker = OpenReflexTracker(appPrefs, Gson())
+    private val pactManager = PactManager(appPrefs, Gson())
+
+    /** Today's open/reflex counters per package, for the Spellbook Pacts card and Pacts screen. */
     fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
+
+    private val _pactGroups = MutableStateFlow(pactManager.getGroups())
+    val pactGroups: StateFlow<List<PactGroup>> = _pactGroups.asStateFlow()
+
+    fun savePactGroup(group: PactGroup) {
+        pactManager.saveGroup(group)
+        _pactGroups.value = pactManager.getGroups()
+        _dataVersion.value++
+    }
+
+    fun deletePactGroup(blockerName: String) {
+        pactManager.deleteGroup(blockerName)
+        _pactGroups.value = pactManager.getGroups()
+        _dataVersion.value++
+    }
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
     private val presetRepo: PresetRepository = container.presets

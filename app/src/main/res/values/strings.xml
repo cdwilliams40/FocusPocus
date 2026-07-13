@@ -124,15 +124,8 @@
     <string name="spellbook_pact_app_line">%1$s \u2014 %2$d opens today</string>
     <string name="spellbook_group_focus">Focus sessions</string>
     <string name="spellbook_group_guards">Everyday guards</string>
-    <string name="spellbook_group_gear">Shortcuts &amp; gear</string>
-    <plurals name="spellbook_pact_app_count">
-        <item quantity="one">%d app under pact</item>
-        <item quantity="other">%d apps under pact</item>
-    </plurals>
-    <plurals name="spellbook_unlock_rule_count">
-        <item quantity="one">%d earn-access rule</item>
-        <item quantity="other">%d earn-access rules</item>
-    </plurals>
+    <string name="spellbook_group_gear">More magic</string>
+    <string name="spellbook_pact_group_line">%1$s \u2014 %2$d apps</string>
 
     <!-- Plurals for spellbook counts -->
     <plurals name="spellbook_app_count">
@@ -205,6 +198,7 @@
     <string name="settings_device_owner_troubleshoot_title">Getting \"there are already some accounts on the device\"?</string>
     <string name="settings_device_owner_troubleshoot_body">Some apps (Instagram, WhatsApp, Signal…) register hidden accounts that never show up in Android\'s account settings. List every account on the device with:</string>
     <string name="settings_device_owner_troubleshoot_fix">In the output, each account\'s \"type\" names the app that owns it. Uninstall that app (or clear its storage), reboot, and run the setup command again. Extra users and work profiles count too — remove them as well. Once Warden Mode is active, reinstall and sign back in to everything.</string>
+    <string name="settings_device_owner_testonly_warning">This build was deployed from Android Studio and is marked test-only \u2014 Android allows removing test-only device owners, so uninstall protection is NOT active. Install with adb (gradlew assembleDebug) for full protection.</string>
     <string name="settings_device_owner_remove">Remove Warden Mode</string>
     <string name="settings_device_owner_remove_desc">Ends uninstall protection and app greying. Not available during a focus session.</string>
     <string name="settings_device_owner_remove_confirm_title">Remove Warden Mode?</string>
@@ -232,6 +226,11 @@
     <string name="insights_total_focus">Total Focus</string>
     <string name="insights_avg_session">Avg Session</string>
     <string name="insights_sessions">Sessions</string>
+    <string name="insights_app_opens">App Opens</string>
+    <string name="insights_total_opens">%d opens</string>
+    <string name="insights_reflex_summary">%1$d were under-30-second reflexes (%2$d%%)</string>
+    <string name="insights_opens_row_count">%1$d \u00b7 %2$d rfx</string>
+    <string name="insights_reflex_hint">Reflex = abandoned within 30 seconds of opening</string>
     <string name="insights_blocking_stats">Blocking Stats</string>
     <string name="insights_total_blocks">%d total blocks</string>
     <string name="insights_most_blocked">Most Blocked</string>
@@ -391,6 +390,11 @@
     <string name="pacts_backstop_none">None</string>
     <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
     <string name="conditional_unlocks_pact_app_label">%s (Pact)</string>
+    <string name="pacts_group_summary">Enchantment pact \u00b7 %d apps</string>
+    <string name="pacts_target_app">Single app</string>
+    <string name="pacts_target_enchantment">Whole enchantment (blacklist)</string>
+    <string name="pacts_enchantment_label">Enchantment</string>
+    <string name="pacts_no_blacklists">No blacklist enchantments available \u2014 create one under Enchantments first.</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>

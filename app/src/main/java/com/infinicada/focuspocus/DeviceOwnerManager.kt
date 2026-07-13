@@ -55,6 +55,16 @@ object DeviceOwnerManager {
     }
 
     /**
+     * True for builds deployed straight from Android Studio's Run button, which
+     * are flagged test-only. Android deliberately allows removing a test-only
+     * device owner (so developers can't brick their phones) — meaning uninstall
+     * protection does NOT hold for such builds and the user should install a
+     * normal build instead.
+     */
+    fun isTestOnlyBuild(context: Context): Boolean =
+        (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_TEST_ONLY) != 0
+
+    /**
      * Blocks uninstall of FocusPocus itself. Device-owner apps can't be uninstalled
      * anyway, but the explicit flag also survives edge cases (e.g. work-profile
      * removal flows) and makes the intent unambiguous.

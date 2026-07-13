@@ -22,4 +22,6 @@ sealed class SpellbookRoute {
     object TimeLimits : SpellbookRoute()
     // Pacts
     object Pacts : SpellbookRoute()
+    // Conditional Unlocks
+    object ConditionalUnlocks : SpellbookRoute()
 }
