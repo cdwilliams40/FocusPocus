@@ -73,6 +73,12 @@ fun SettingsScreen(
     onAutoBreakIntervalChanged: (Int) -> Unit,
     hideStopButton: Boolean,
     onHideStopButtonChanged: (Boolean) -> Unit,
+    progressionEnabled: Boolean,
+    onProgressionEnabledChanged: (Boolean) -> Unit,
+    wrapupEnabled: Boolean,
+    onWrapupEnabledChanged: (Boolean) -> Unit,
+    trialAlertsEnabled: Boolean,
+    onTrialAlertsEnabledChanged: (Boolean) -> Unit,
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
@@ -265,6 +271,78 @@ fun SettingsScreen(
                             checked = hideStopButton,
                             onCheckedChange = onHideStopButtonChanged,
                             enabled = !focusMode
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Progression Card
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_progression_title), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_progression_toggle))
+                            Text(
+                                stringResource(R.string.settings_progression_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = progressionEnabled,
+                            onCheckedChange = onProgressionEnabledChanged
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_wrapup_toggle))
+                            Text(
+                                stringResource(R.string.settings_wrapup_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = wrapupEnabled,
+                            onCheckedChange = onWrapupEnabledChanged,
+                            enabled = progressionEnabled
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_trial_alerts_toggle))
+                            Text(
+                                stringResource(R.string.settings_trial_alerts_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = trialAlertsEnabled,
+                            onCheckedChange = onTrialAlertsEnabledChanged,
+                            enabled = progressionEnabled
                         )
                     }
                 }

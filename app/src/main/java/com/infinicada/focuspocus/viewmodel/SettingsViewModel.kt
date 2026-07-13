@@ -6,9 +6,12 @@ import androidx.lifecycle.AndroidViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
+import com.infinicada.focuspocus.Progression
 import com.infinicada.focuspocus.data.SettingsRepository
+import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -62,6 +65,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     )
     val showAnalyticsConsentDialog: StateFlow<Boolean> = _showAnalyticsConsentDialog.asStateFlow()
 
+    private val _progressionEnabled = MutableStateFlow(repo.getProgressionEnabled())
+    val progressionEnabled: StateFlow<Boolean> = _progressionEnabled.asStateFlow()
+
+    private val _wrapupEnabled = MutableStateFlow(repo.getWrapupEnabled())
+    val wrapupEnabled: StateFlow<Boolean> = _wrapupEnabled.asStateFlow()
+
+    private val _trialAlertsEnabled = MutableStateFlow(repo.getTrialAlertsEnabled())
+    val trialAlertsEnabled: StateFlow<Boolean> = _trialAlertsEnabled.asStateFlow()
+
+    // One-time "focusing now earns mana" intro for existing users (the
+    // analytics-consent dialog pattern). New users learn about it organically;
+    // the flag is set on onboarding completion too.
+    private val _showProgressionIntroDialog = MutableStateFlow(
+        repo.isOnboardingCompleted() && !repo.isProgressionIntroShown() && repo.getProgressionEnabled()
+    )
+    val showProgressionIntroDialog: StateFlow<Boolean> = _showProgressionIntroDialog.asStateFlow()
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         repo.setThemeMode(mode)
@@ -113,6 +133,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         // command), lock down uninstall — don't wait for the next app start.
         if (_isDeviceOwner.value) {
             DeviceOwnerManager.applySelfProtection(getApplication())
+            // Provisioning happens outside the app (adb), so this recheck is
+            // one of the two places the Warden sigil can be observed earned.
+            val app = getApplication<Application>()
+            Progression.unlockSigils(
+                app.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE),
+                com.google.gson.Gson(),
+                listOf(SigilCatalog.WARDEN)
+            )
         }
     }
 
@@ -146,11 +174,33 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun completeOnboarding() {
         _onboardingCompleted.value = true
         repo.setOnboardingCompleted()
+        // Fresh installs meet progression from the start — no intro dialog later.
+        repo.setProgressionIntroShown()
     }
 
     fun dismissAnalyticsConsentDialog(accepted: Boolean) {
         applyAnalyticsConsent(accepted)
         repo.setAnalyticsConsentShown()
         _showAnalyticsConsentDialog.value = false
+    }
+
+    fun setProgressionEnabled(enabled: Boolean) {
+        _progressionEnabled.value = enabled
+        repo.setProgressionEnabled(enabled)
+    }
+
+    fun setWrapupEnabled(enabled: Boolean) {
+        _wrapupEnabled.value = enabled
+        repo.setWrapupEnabled(enabled)
+    }
+
+    fun setTrialAlertsEnabled(enabled: Boolean) {
+        _trialAlertsEnabled.value = enabled
+        repo.setTrialAlertsEnabled(enabled)
+    }
+
+    fun dismissProgressionIntroDialog() {
+        repo.setProgressionIntroShown()
+        _showProgressionIntroDialog.value = false
     }
 }

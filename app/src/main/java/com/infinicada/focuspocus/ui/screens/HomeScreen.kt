@@ -75,8 +75,12 @@ import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.GlassCard
+import com.infinicada.focuspocus.ui.components.ManaChip
+import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.formatClock
 
 @Composable
@@ -104,6 +108,10 @@ fun Greeting(
     emergencyBreakAvailable: Boolean = false,
     emergencyBreakDaysRemaining: Int = 0,
     currentStreak: Int = 0,
+    progressionEnabled: Boolean = false,
+    manaBalance: Long = 0L,
+    trials: List<Trial> = emptyList(),
+    canAffordExtraBreak: Boolean = false,
     onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
@@ -114,6 +122,9 @@ fun Greeting(
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit = {},
     onScanQrCode: () -> Unit = {},
+    onOpenBoons: () -> Unit = {},
+    onClaimTrial: (Trial) -> Unit = {},
+    onBuyExtraBreak: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
@@ -150,11 +161,14 @@ fun Greeting(
                     activeTagId = activeTagId,
                     activeTagName = activeTagName,
                     boundTalismanName = boundTalismanName,
+                    progressionEnabled = progressionEnabled,
+                    canAffordExtraBreak = canAffordExtraBreak,
                     onStartClicked = onStartClicked,
                     onTakeBreak = onTakeBreak,
                     onEndBreak = onEndBreak,
                     onEmergencyStop = onEmergencyStop,
-                    onScanQrCode = onScanQrCode
+                    onScanQrCode = onScanQrCode,
+                    onBuyExtraBreak = onBuyExtraBreak
                 )
             } else {
                 // ── IDLE STATE ──
@@ -167,12 +181,17 @@ fun Greeting(
                     focusDurationMinutes = focusDurationMinutes,
                     sessionBreaksEnabled = sessionBreaksEnabled,
                     currentStreak = currentStreak,
+                    progressionEnabled = progressionEnabled,
+                    manaBalance = manaBalance,
+                    trials = trials,
                     onPresetSelected = onPresetSelected,
                     onBlockerToggled = onBlockerToggled,
                     onDurationSelected = onDurationSelected,
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
-                    onScanQrCode = onScanQrCode
+                    onScanQrCode = onScanQrCode,
+                    onOpenBoons = onOpenBoons,
+                    onClaimTrial = onClaimTrial
                 )
             }
         }
@@ -193,14 +212,19 @@ private fun IdleContent(
     focusDurationMinutes: Int,
     sessionBreaksEnabled: Boolean,
     currentStreak: Int,
+    progressionEnabled: Boolean,
+    manaBalance: Long,
+    trials: List<Trial>,
     onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
-    onScanQrCode: () -> Unit
+    onScanQrCode: () -> Unit,
+    onOpenBoons: () -> Unit,
+    onClaimTrial: (Trial) -> Unit
 ) {
-    // Top: Status + streak
+    // Top: Status + mana + streak
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -211,8 +235,16 @@ private fun IdleContent(
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onBackground
         )
-        if (currentStreak > 0) {
-            StreakBadge(currentStreak)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (progressionEnabled) {
+                ManaChip(balance = manaBalance, onClick = onOpenBoons)
+            }
+            if (currentStreak > 0) {
+                StreakBadge(currentStreak)
+            }
         }
     }
 
@@ -306,6 +338,25 @@ private fun IdleContent(
         Spacer(modifier = Modifier.height(20.dp))
     }
 
+    // Today's trials — the daily carrot, right where the casting happens
+    if (progressionEnabled && trials.isNotEmpty()) {
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.home_trials_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            trials.forEachIndexed { index, trial ->
+                TrialRow(trial = trial, onClaim = onClaimTrial)
+                if (index != trials.lastIndex) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+
     // QR scan button
     OutlinedButton(onClick = onScanQrCode) {
         Text(stringResource(R.string.home_scan_qr_code))
@@ -338,11 +389,14 @@ private fun ActiveSessionContent(
     activeTagId: String?,
     activeTagName: String?,
     boundTalismanName: String?,
+    progressionEnabled: Boolean,
+    canAffordExtraBreak: Boolean,
     onStartClicked: () -> Unit,
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit,
-    onScanQrCode: () -> Unit
+    onScanQrCode: () -> Unit,
+    onBuyExtraBreak: () -> Unit
 ) {
     // Status header
     val statusColor by animateColorAsState(
@@ -463,6 +517,18 @@ private fun ActiveSessionContent(
             Text(stringResource(R.string.home_take_break_with_count, breaksRemaining))
         }
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Extra-break perk: when breaks are spent, mana can buy one more.
+    // (A successful purchase raises the effective max, so the take-break
+    // button above reappears on the next recomposition.)
+    if (progressionEnabled && canAffordExtraBreak && !isOnBreak &&
+        breaksAllowed && breaksUsedThisSession >= maxBreaksPerSession
+    ) {
+        FilledTonalButton(onClick = onBuyExtraBreak) {
+            Text(stringResource(R.string.home_extra_break_button, Perk.EXTRA_BREAK.costMana))
+        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 
     // Emergency stop
