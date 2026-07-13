@@ -27,8 +27,6 @@ class ProgressionRepository(
 
     fun getBalance(): Long = prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L)
 
-    fun getLifetimeEarned(): Long = prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L)
-
     fun getLedger(): List<ManaLedgerEntry> =
         PrefsHelper.load(prefs, gson, Constants.PrefsKeys.MANA_LEDGER,
             object : TypeToken<List<ManaLedgerEntry>>() {}.type) ?: emptyList()

@@ -521,7 +521,6 @@
     <!-- Progression : épreuves -->
     <string name="trials_header">Épreuves — défis du jour et de la semaine</string>
     <string name="home_trials_title">Épreuves du jour</string>
-    <string name="trials_empty">De nouvelles épreuves arrivent chaque jour.</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Lancez %1$d sortilège aujourd\'hui</item>
         <item quantity="many">Lancez %1$d sortilèges aujourd\'hui</item>

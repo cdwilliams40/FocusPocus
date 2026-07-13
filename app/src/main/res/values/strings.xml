@@ -585,7 +585,6 @@
     <!-- Progression: trials -->
     <string name="trials_header">Trials — daily &amp; weekly challenges</string>
     <string name="home_trials_title">Today\'s Trials</string>
-    <string name="trials_empty">New trials arrive each day.</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Cast %1$d spell today</item>
         <item quantity="other">Cast %1$d spells today</item>
