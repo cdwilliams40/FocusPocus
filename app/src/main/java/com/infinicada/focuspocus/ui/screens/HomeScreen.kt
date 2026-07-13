@@ -61,6 +61,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.pluralStringResource
@@ -750,8 +751,11 @@ private fun CastSpellButton(
                     .fillMaxSize()
                     .background(
                         brush = if (enabled) {
+                            // Stop the blend well short of primaryContainer: the
+                            // label sits low on the orb, and a full blend leaves
+                            // onPrimary text below 3:1 contrast in both themes.
                             Brush.verticalGradient(
-                                listOf(primary, scheme.primaryContainer)
+                                listOf(primary, lerp(primary, scheme.primaryContainer, 0.35f))
                             )
                         } else {
                             Brush.verticalGradient(

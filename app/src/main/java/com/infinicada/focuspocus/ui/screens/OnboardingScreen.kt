@@ -15,11 +15,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,8 +86,9 @@ fun OnboardingScreen(
 ) {
     val context = LocalContext.current
     val totalSteps = 7
-    var localAnalyticsConsent by remember { mutableStateOf(analyticsConsent) }
-    var currentStep by remember { mutableIntStateOf(0) }
+    // Saveable so rotation or process recreation doesn't restart the wizard.
+    var localAnalyticsConsent by rememberSaveable { mutableStateOf(analyticsConsent) }
+    var currentStep by rememberSaveable { mutableIntStateOf(0) }
 
     // Re-check permissions on resume
     var accessibilityEnabled by remember { mutableStateOf(isServiceEnabled) }
@@ -113,6 +118,9 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // No Scaffold here, so under edge-to-edge the wizard must keep
+                // itself out from behind the status and navigation bars.
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

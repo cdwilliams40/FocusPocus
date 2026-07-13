@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Build
@@ -23,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -35,7 +38,10 @@ import com.infinicada.focuspocus.handler.TriggerHandler
 import com.infinicada.focuspocus.handler.TriggerResult
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.ui.FocusPocusApp
+import com.infinicada.focuspocus.ui.theme.DarkBackground
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
+import com.infinicada.focuspocus.ui.theme.LightBackground
+import com.infinicada.focuspocus.ui.theme.ThemeMode
 import com.infinicada.focuspocus.viewmodel.SessionViewModel
 import com.infinicada.focuspocus.viewmodel.SettingsViewModel
 import com.infinicada.focuspocus.viewmodel.SpellbookViewModel
@@ -90,6 +96,21 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
         // Run data cleanup via repositories
         val container = (application as FocusPocusApplication).container
+
+        // The manifest theme resolves the window background from the *system*
+        // day/night setting, but the in-app theme (default DARK) can disagree —
+        // repaint the window before Compose attaches so launch doesn't flash
+        // the wrong background.
+        val systemNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val windowNight = when (container.settings.getThemeMode()) {
+            ThemeMode.DARK -> true
+            ThemeMode.LIGHT -> false
+            ThemeMode.SYSTEM -> systemNight
+        }
+        window.setBackgroundDrawable(
+            ColorDrawable((if (windowNight) DarkBackground else LightBackground).toArgb())
+        )
         container.session.clearDanglingActiveBlocker(
             container.blockers.getBlockers().map { it.name }.toSet()
         )
@@ -132,7 +153,12 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
         }
 
-        handleIntent(intent)
+        // Only on a fresh launch: re-running this on recreation (rotation,
+        // process death) would re-show the deep-link confirmation for a link
+        // the user already answered. Warm relaunches come in via onNewIntent.
+        if (savedInstanceState == null) {
+            handleIntent(intent)
+        }
     }
 
     private fun handleQrResult(contents: String) {
@@ -141,7 +167,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             contents,
             container.presets.getPresets(),
             container.talismans.getNamedTags(),
-            container.blockers.getBlockers()
+            container.blockers.getBlockers(),
+            container.schedules.getSchedules()
         )
         when (result) {
             is TriggerResult.Success -> {
@@ -172,7 +199,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun confirmDeepLinkAction() {
         pendingDeepLinkPreset?.let { preset ->
             val container = (application as FocusPocusApplication).container
-            val result = triggerHandler.togglePreset(preset, container.blockers.getBlockers())
+            val result = triggerHandler.togglePreset(
+                preset,
+                container.blockers.getBlockers(),
+                container.schedules.getSchedules()
+            )
             when (result) {
                 is TriggerResult.Success -> {
                     Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()

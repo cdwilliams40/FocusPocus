@@ -14,8 +14,15 @@ class BlockerListRepository(
 ) {
     fun getBlockers(): List<Blocker> {
         val type = object : TypeToken<List<Blocker>>() {}.type
-        return PrefsHelper.load<List<Blocker>>(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, type)
-            ?: listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
+        val stored = PrefsHelper.load<List<Blocker>>(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, type)
+        if (stored != null) return stored
+        // First run: persist the starter blocker instead of synthesizing it on
+        // every read. The accessibility service reads the same key through
+        // BlockerRepository and synthesizes nothing, so an unpersisted default
+        // is shown in the UI as activatable but never actually enforced.
+        val defaults = listOf(Blocker("Default", BlockerMode.BLACKLIST, setOf("com.google.android.youtube")))
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, defaults)
+        return defaults
     }
 
     /**

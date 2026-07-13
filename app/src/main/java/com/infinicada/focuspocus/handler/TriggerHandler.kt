@@ -33,7 +33,22 @@ class TriggerHandler(
      * Core preset toggle logic used by NFC, QR, and deep links.
      * Returns a TriggerResult describing what happened.
      */
-    fun togglePreset(preset: FocusPreset, blockerLists: List<Blocker>): TriggerResult {
+    fun togglePreset(
+        preset: FocusPreset,
+        blockerLists: List<Blocker>,
+        schedules: List<Schedule> = emptyList()
+    ): TriggerResult {
+        // A ritual bound to an unbinding talisman is locked against every
+        // other trigger. The NFC path enforces this before reaching here; QR
+        // and deep links funnel through this gate instead — otherwise any
+        // preset toggle could dispel or overwrite a talisman-locked session.
+        val activeScheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        if (activeScheduleId != null &&
+            schedules.find { it.id == activeScheduleId }?.unbindingTalismanId != null
+        ) {
+            return TriggerResult.Error(R.string.toast_ritual_locked)
+        }
+
         val isActive = SessionManager.isSessionActive(prefs)
         val tempDuration = preset.tempDurationMinutes ?: 30
 
@@ -41,6 +56,12 @@ class TriggerHandler(
             PresetAction.TEMP_ENABLE -> {
                 val validNames = preset.effectiveBlockerNames.filter { name -> blockerLists.any { it.name == name } }
                 if (validNames.isNotEmpty()) {
+                    // Record any in-progress session before replacing it — the
+                    // bare overwrite silently discarded its accrued focus time
+                    // and left a scheduled session half-cleared.
+                    if (isActive) {
+                        SessionManager.stopSession(context, prefs, gson)
+                    }
                     SessionManager.startSession(
                         sharedPreferences = prefs,
                         blockerNames = validNames,
@@ -110,7 +131,8 @@ class TriggerHandler(
         contents: String,
         focusPresets: List<FocusPreset>,
         namedTags: List<NamedTag>,
-        blockerLists: List<Blocker>
+        blockerLists: List<Blocker>,
+        schedules: List<Schedule> = emptyList()
     ): TriggerResult {
         val presetPrefix = "focuspocus://preset/"
         val talismanPrefix = "focuspocus://talisman/"
@@ -123,7 +145,7 @@ class TriggerHandler(
                 }
                 val preset = focusPresets.find { it.id == presetId }
                     ?: return TriggerResult.Error(R.string.toast_quick_spell_not_found)
-                togglePreset(preset, blockerLists)
+                togglePreset(preset, blockerLists, schedules)
             }
             contents.startsWith(talismanPrefix) -> {
                 val talismanId = contents.removePrefix(talismanPrefix)
@@ -134,7 +156,7 @@ class TriggerHandler(
                     ?: return TriggerResult.Error(R.string.toast_talisman_not_found)
                 val boundPreset = focusPresets.find { it.talismanId == talismanId }
                 if (boundPreset != null) {
-                    togglePreset(boundPreset, blockerLists)
+                    togglePreset(boundPreset, blockerLists, schedules)
                 } else {
                     TriggerResult.Error(R.string.toast_no_quick_spell_bound, listOf(talisman.name))
                 }
@@ -169,7 +191,7 @@ class TriggerHandler(
         // Check if a preset is bound to this talisman
         val boundPreset = focusPresets.find { it.talismanId == tagId }
         if (boundPreset != null) {
-            val result = togglePreset(boundPreset, blockerLists)
+            val result = togglePreset(boundPreset, blockerLists, schedules)
             return NfcResult.PresetToggled(result)
         }
 

@@ -173,6 +173,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteBlocker(blocker: Blocker) {
         _blockerLists.value = blockerRepo.deleteBlocker(blocker, _blockerLists.value)
+        // A pact group is bound to its enchantment by name; deleting the
+        // enchantment would leave the group behind, silently gating nothing.
+        if (pactManager.getGroups().any { it.blockerName == blocker.name }) {
+            pactManager.deleteGroup(blocker.name)
+            _pactGroups.value = pactManager.getGroups()
+        }
         _dataVersion.value++
     }
 

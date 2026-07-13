@@ -63,7 +63,8 @@ import java.util.UUID
 fun BoonsScreen(
     balance: Long,
     boons: List<Boon>,
-    manualFocusMode: Boolean,
+    sessionActive: Boolean,
+    breaksAllowed: Boolean,
     pactedApps: List<AppInfo>,
     isSealedAvailableToday: (String) -> Boolean,
     isSealedOverDailyLimit: (String) -> Boolean,
@@ -278,9 +279,15 @@ fun BoonsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (!manualFocusMode) {
+                            if (!sessionActive) {
                                 Text(
                                     stringResource(R.string.perk_extra_break_inactive),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            } else if (!breaksAllowed) {
+                                Text(
+                                    stringResource(R.string.perk_extra_break_no_breaks),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
@@ -297,7 +304,7 @@ fun BoonsScreen(
                                     ).show()
                                 }
                             },
-                            enabled = manualFocusMode && balance >= Perk.EXTRA_BREAK.costMana
+                            enabled = sessionActive && breaksAllowed && balance >= Perk.EXTRA_BREAK.costMana
                         ) {
                             Text(
                                 stringResource(R.string.perk_buy) + " · " +

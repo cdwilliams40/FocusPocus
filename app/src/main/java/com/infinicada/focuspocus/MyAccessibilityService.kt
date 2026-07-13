@@ -196,13 +196,24 @@ class MyAccessibilityService : AccessibilityService() {
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_TIME_TICK) {
-                try {
+            when (intent?.action) {
+                Intent.ACTION_TIME_TICK -> try {
                     onMinuteTick()
                 } catch (e: Exception) {
                     // The minute tick must never take the service down — blocking,
                     // schedule enforcement, and limits all depend on it staying alive.
                     Log.e("MyAccessibilityService", "Error in minute tick", e)
+                    reportNonFatal(e)
+                }
+                Intent.ACTION_SCREEN_OFF -> try {
+                    // Screen off ends the foreground app's continuous-use
+                    // session — otherwise idle screen-off time keeps counting
+                    // toward the session limit and triggers a cooldown for
+                    // use that never happened.
+                    currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
+                    currentForegroundPackage = null
+                } catch (e: Exception) {
+                    Log.e("MyAccessibilityService", "Error handling screen off", e)
                     reportNonFatal(e)
                 }
             }
@@ -328,7 +339,9 @@ class MyAccessibilityService : AccessibilityService() {
             reportNonFatal(e)
         }
 
-        val filter = IntentFilter(Intent.ACTION_TIME_TICK)
+        val filter = IntentFilter(Intent.ACTION_TIME_TICK).apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeTickReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
@@ -377,8 +390,8 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun createNotificationChannel() {
         try {
-            val name = "Rituals"
-            val descriptionText = "Notifications for scheduled rituals"
+            val name = getString(R.string.rituals_channel_name)
+            val descriptionText = getString(R.string.rituals_channel_description)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(Constants.RITUALS_CHANNEL_ID, name, importance).apply {
                 description = descriptionText
@@ -439,23 +452,30 @@ class MyAccessibilityService : AccessibilityService() {
                 val endMinute = endParts[1].toIntOrNull() ?: continue
                 if (startHour !in 0..23 || startMinute !in 0..59 || endHour !in 0..23 || endMinute !in 0..59) continue
 
-                val inWindow = when {
-                    // Same-day schedule active today
-                    schedule.effectiveDays.contains(currentDay) ->
-                        isWithinScheduleWindow(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)
+                val startMins = startHour * 60 + startMinute
+                val endMins = endHour * 60 + endMinute
+                val currentMins = currentHour * 60 + currentMinute
+                // Overnight = end is before start (wraps past midnight).
+                val overnight = endMins < startMins
 
-                    // Overnight schedule that started yesterday and carries over into today
-                    previousDay != null && schedule.effectiveDays.contains(previousDay) -> {
-                        val startMins = startHour * 60 + startMinute
-                        val endMins = endHour * 60 + endMinute
-                        val currentMins = currentHour * 60 + currentMinute
-                        // Overnight = end is before start (wraps past midnight).
-                        // We're in the carry-over window when it's still before the end time.
-                        endMins < startMins && currentMins < endMins
+                // A window that opened today. For overnight schedules only the
+                // evening part counts on the scheduled day itself — the early
+                // morning hours belong to the *previous* day's session, so a
+                // Friday-only 22:00–06:00 schedule must not light up Friday at
+                // 03:00.
+                val activeFromToday = schedule.effectiveDays.contains(currentDay) &&
+                    if (overnight) {
+                        currentMins >= startMins
+                    } else {
+                        currentMins >= startMins && currentMins < endMins
                     }
 
-                    else -> false
-                }
+                // An overnight window that opened yesterday and carries over
+                // into this morning.
+                val activeFromYesterday = overnight && previousDay != null &&
+                    schedule.effectiveDays.contains(previousDay) && currentMins < endMins
+
+                val inWindow = activeFromToday || activeFromYesterday
 
                 if (inWindow) {
                     Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
@@ -535,8 +555,13 @@ class MyAccessibilityService : AccessibilityService() {
         val activeSchedule = if (activeScheduleId != null) cachedSchedules.find { it.id == activeScheduleId } else null
         if (activeSchedule?.breaksEnabled == false) return
 
+        // Extra-break perk tokens raise the session's effective quota, exactly
+        // as the UI computes it — otherwise auto-breaks stop one break early
+        // for users who bought one.
+        val extraTokens = sharedPreferences.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0)
         val maxBreaks = (activeSchedule?.maxBreaksPerSession
-            ?: sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3)).coerceAtLeast(1)
+            ?: sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3)).coerceAtLeast(1) +
+            extraTokens
         val breaksUsed = sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
         if (breaksUsed >= maxBreaks) return
 
@@ -713,6 +738,12 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
+        // Record any manual session in progress before the ritual replaces
+        // it — the bare overwrite discarded its accrued focus time.
+        if (SessionManager.isSessionActive(sharedPreferences)) {
+            SessionManager.stopSession(this, sharedPreferences, gson)
+        }
+
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
             blockerNames = validNames,
@@ -801,7 +832,18 @@ class MyAccessibilityService : AccessibilityService() {
 
         trackOpenTransition(packageName)
 
-        if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) return
+        if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) {
+            // Going home (or into FocusPocus itself) ends the previous app's
+            // continuous-use session — otherwise launcher time keeps counting
+            // toward the session limit. SystemUI and the IME stay neutral: a
+            // notification-shade pull or the keyboard opening doesn't mean
+            // the user left the app beneath.
+            if (packageName == this.packageName || isLauncher(packageName)) {
+                currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
+                currentForegroundPackage = null
+            }
+            return
+        }
 
         // End expired breaks / timed sessions before reading focus state below, so
         // blocking resumes (or stops) immediately on an app switch rather than
@@ -1155,12 +1197,17 @@ class MyAccessibilityService : AccessibilityService() {
 
         val matchedDomain = allBlockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
+            // Mirror the app-blocking path: a conditionally-unlocked blocker's
+            // websites are unlocked along with its apps. Only enforce when a
+            // still-locked blocker matches this domain. (Checked here, on the
+            // rare block path, because the unlock test queries usage stats.)
+            val matchingBlocker = activeBlockers.find { blocker ->
+                blocker.effectiveWebsites.any { domainMatches(domain, it) } &&
+                    !isConditionallyUnlocked(blocker.name)
+            } ?: return
             lastWebsiteBlockTime = now
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
-            val matchingBlockerName = activeBlockers.find { blocker ->
-                blocker.effectiveWebsites.any { domainMatches(domain, it) }
-            }?.name ?: activeBlockerNames.first()
-            recordBlockEvent(matchedDomain, matchingBlockerName)
+            recordBlockEvent(matchedDomain, matchingBlocker.name)
             closeApp()
             showOverlay(matchedDomain, activeBlockerNames.joinToString(", "))
         }
@@ -1304,7 +1351,10 @@ class MyAccessibilityService : AccessibilityService() {
         val notified = pacingNotifiedToday.getOrPut(packageName) { mutableSetOf() }
         for (threshold in intArrayOf(90, 75, 50)) {
             if (percentUsed >= threshold && threshold !in notified) {
-                notified.add(threshold)
+                // Crossing a threshold retires the lower ones too — otherwise
+                // a jump straight past 90% replays the stale "75%" and
+                // "halfway" toasts on the following minutes.
+                notified.addAll(listOf(90, 75, 50).filter { it <= threshold })
                 val appName = AppUtils.getAppName(this, packageName)
                 val remaining = (limitMinutes - usedMinutes).coerceAtLeast(0)
                 showPacingToast(appName, usedMinutes, limitMinutes, remaining, threshold)

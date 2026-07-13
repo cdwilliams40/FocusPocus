@@ -439,6 +439,7 @@
     <string name="overlay_cooldown_remaining">Cooldown: %d min remaining</string>
     <string name="overlay_level3_prompt">To close this overlay, type the phrase below:</string>
     <string name="overlay_level3_hint">Type the phrase to continue</string>
+    <string name="overlay_level3_phrase">I will stop scrolling</string>
     <string name="overlay_pact_prompt">%s is sealed. Make a pact: how much time do you truly need?</string>
     <string name="overlay_pact_seal_desc">When your time runs out, %1$s seals itself again for %2$d minutes.</string>
     <string name="overlay_pact_wait">You can choose in %d…</string>
@@ -513,6 +514,7 @@
     <string name="toast_no_quick_spell_bound">No Quick Spell bound to %s</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
+    <string name="toast_ritual_locked">This ritual is bound to a talisman — scan it to dispel</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
     <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
 
@@ -646,6 +648,7 @@
     <string name="perk_buy">Buy</string>
     <string name="perk_pick_app">Choose app</string>
     <string name="perk_extra_break_inactive">Available during a focus session</string>
+    <string name="perk_extra_break_no_breaks">Breaks are disabled for this session</string>
     <string name="perk_sealed_none">No pacted apps yet</string>
     <string name="perk_sealed_used_today">Already used for this app today</string>
     <string name="perk_sealed_over_limit">Daily limit already spent</string>

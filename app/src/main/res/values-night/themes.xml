@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.FocusPocus" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Matches LightBackground in ui/theme/Color.kt so the pre-Compose
+    <style name="Theme.FocusPocus" parent="android:Theme.Material.NoActionBar">
+        <!-- Matches DarkBackground in ui/theme/Color.kt so the pre-Compose
              window frame doesn't flash a mismatched color. -->
         <item name="android:windowBackground">@color/window_background</item>
     </style>

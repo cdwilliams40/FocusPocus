@@ -191,7 +191,14 @@ object Progression {
         if (!isEnabled(prefs)) return false
         when (perk) {
             Perk.EXTRA_BREAK -> {
-                if (!prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) return false
+                // A talisman can hold a session open with manual mode off, so
+                // manual mode alone isn't "session active". And a token is
+                // worthless when the running session disallows breaks — refuse
+                // up front instead of silently burning the mana.
+                val sessionActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
+                    prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
+                if (!sessionActive) return false
+                if (!breaksAllowedNow(prefs, gson)) return false
                 if (!debit(prefs, gson, perk.costMana, perkEntry(perk, ""))) return false
                 prefs.edit()
                     .putInt(
@@ -214,6 +221,22 @@ object Progression {
             }
         }
         return true
+    }
+
+    /**
+     * Whether the running session permits breaks: the active schedule's
+     * override when a ritual is running, the session toggle otherwise.
+     * Mirrors the effective-breaks logic in the Home screen and the service.
+     */
+    private fun breaksAllowedNow(prefs: SharedPreferences, gson: Gson): Boolean {
+        val scheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        if (scheduleId != null) {
+            val type = object : TypeToken<List<Schedule>>() {}.type
+            val schedules = PrefsHelper.load<List<Schedule>>(prefs, gson, Constants.PrefsKeys.SCHEDULES, type)
+            val schedule = schedules?.find { it.id == scheduleId }
+            if (schedule != null) return schedule.breaksEnabled
+        }
+        return prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
     }
 
     /**

@@ -1,14 +1,22 @@
 package com.infinicada.focuspocus.ui.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 
 enum class ThemeMode {
     LIGHT, DARK, SYSTEM
@@ -124,10 +132,39 @@ fun FocusPocusTheme(
     }
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
+    // enableEdgeToEdge() picks system-bar icon contrast from the *system*
+    // dark-mode setting, but the in-app theme can disagree with it (the app
+    // defaults to DARK). Re-pin the bar appearance to the resolved theme so
+    // status/navigation icons stay legible either way.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            view.context.findActivity()?.window?.let { window ->
+                val insets = WindowCompat.getInsetsController(window, view)
+                insets.isAppearanceLightStatusBars = !darkTheme
+                insets.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        shapes = AppShapes,
-        content = content
-    )
+        shapes = AppShapes
+    ) {
+        // Screens draw directly on the ArcaneBackground gradient rather than a
+        // Surface, so nothing provides LocalContentColor and Compose's default
+        // (black) makes default-colored text invisible in dark mode. Anchor the
+        // default to onBackground; Surfaces/cards below still override locally.
+        CompositionLocalProvider(
+            LocalContentColor provides colorScheme.onBackground,
+            content = content
+        )
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
