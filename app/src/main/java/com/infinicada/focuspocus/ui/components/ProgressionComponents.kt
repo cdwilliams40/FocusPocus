@@ -70,7 +70,8 @@ fun ManaChip(balance: Long, onClick: () -> Unit, modifier: Modifier = Modifier) 
         label = {
             Text(
                 stringResource(R.string.mana_chip, balance),
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1
             )
         },
         leadingIcon = {
