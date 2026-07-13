@@ -27,13 +27,18 @@ class ProgressionRepository(
 
     fun getBalance(): Long = prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L)
 
-    fun getLedger(): List<ManaLedgerEntry> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.MANA_LEDGER,
-            object : TypeToken<List<ManaLedgerEntry>>() {}.type) ?: emptyList()
+    fun getLedger(): List<ManaLedgerEntry> = Progression.loadLedger(prefs, gson)
 
     fun getBoons(): List<Boon> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.BOONS,
-            object : TypeToken<List<Boon>>() {}.type) ?: emptyList()
+        (PrefsHelper.load(prefs, gson, Constants.PrefsKeys.BOONS,
+            object : TypeToken<List<Boon>>() {}.type) ?: emptyList<Boon>())
+            .filterNotNull().filter(::isIntact)
+
+    /** Gson fills fields via Unsafe, so boons stored by a build with broken R8
+     *  keep rules (v1.4) can come back with null Strings in non-null fields. */
+    @Suppress("SENSELESS_COMPARISON")
+    private fun isIntact(boon: Boon): Boolean =
+        boon.id != null && boon.title != null && boon.note != null
 
     /**
      * Active trials. Refreshes the usage-permission snapshot and rotates the
