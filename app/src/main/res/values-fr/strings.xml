@@ -447,6 +447,7 @@
     <string name="toast_no_quick_spell_bound">Aucun sort rapide lié à %s</string>
     <string name="toast_ritual_dispelled">Rituel dissipé !</string>
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
+    <string name="toast_ritual_locked">Ce rituel est lié à un talisman — scannez-le pour le dissiper</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
     <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
 

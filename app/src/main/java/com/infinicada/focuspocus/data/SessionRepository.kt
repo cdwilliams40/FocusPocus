@@ -154,11 +154,25 @@ class SessionRepository(
         prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
 
     fun setFocusTagId(tagId: String?) {
+        val editor = prefs.edit()
         if (tagId != null) {
-            prefs.edit().putString(Constants.PrefsKeys.FOCUS_TAG_ID, tagId).apply()
+            editor.putString(Constants.PrefsKeys.FOCUS_TAG_ID, tagId)
         } else {
-            prefs.edit().remove(Constants.PrefsKeys.FOCUS_TAG_ID).apply()
+            editor.remove(Constants.PrefsKeys.FOCUS_TAG_ID)
         }
+        // When the talisman is the only session anchor, toggling it is a
+        // session boundary: clear leftover break bookkeeping so the next
+        // session doesn't inherit a live break or a spent quota. With a
+        // manual session also running, that session's break state stays.
+        if (!prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) {
+            editor.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
+                .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                // Extra-break perk tokens are session-scoped; never inherit one
+                .remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
+        }
+        editor.apply()
         // Talisman sessions engage DND and device-owner suspensions like any other session.
         DndController.updateDndState(context)
         DeviceOwnerManager.syncSuspensions(context)
@@ -183,11 +197,15 @@ class SessionRepository(
             ?: emptyList()
     }
 
-    // Batch write for focus mode state changes
+    // Batch write for focus mode state changes.
+    // [sessionActive] distinguishes "manual mode off" from "no session at all":
+    // a talisman can hold a session open with manual mode off, and its break
+    // bookkeeping must survive this write.
     fun writeFocusModeState(
         manualFocusMode: Boolean,
         activeBlockerNames: List<String>,
         activeScheduleId: String?,
+        sessionActive: Boolean = manualFocusMode,
         isOnBreak: Boolean = false,
         breakTimeRemaining: Int = 0,
         breaksUsedThisSession: Int = 0,
@@ -201,7 +219,7 @@ class SessionRepository(
             editor.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeBlockerNames.firstOrNull())
         }
 
-        if (!manualFocusMode) {
+        if (!sessionActive) {
             editor
                 .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsedThisSession)
                 .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)

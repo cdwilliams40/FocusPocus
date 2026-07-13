@@ -167,7 +167,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             contents,
             container.presets.getPresets(),
             container.talismans.getNamedTags(),
-            container.blockers.getBlockers()
+            container.blockers.getBlockers(),
+            container.schedules.getSchedules()
         )
         when (result) {
             is TriggerResult.Success -> {
@@ -198,7 +199,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun confirmDeepLinkAction() {
         pendingDeepLinkPreset?.let { preset ->
             val container = (application as FocusPocusApplication).container
-            val result = triggerHandler.togglePreset(preset, container.blockers.getBlockers())
+            val result = triggerHandler.togglePreset(
+                preset,
+                container.blockers.getBlockers(),
+                container.schedules.getSchedules()
+            )
             when (result) {
                 is TriggerResult.Success -> {
                     Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()

@@ -27,9 +27,11 @@ class ScheduleUtilsTest {
     }
 
     @Test
-    fun `shouldDeactivate sameDay - before start time returns false`() {
-        // Schedule 09:00–17:00, current 08:00
-        assertFalse(shouldDeactivateSchedule(8, 0, 9, 0, 17, 0))
+    fun `shouldDeactivate sameDay - before start time returns true (missed end across midnight)`() {
+        // Schedule 09:00–17:00, current 08:00. The check only runs while the
+        // schedule is active, so a pre-start time means yesterday's end was
+        // missed (e.g. phone off overnight) and the block must lift now.
+        assertTrue(shouldDeactivateSchedule(8, 0, 9, 0, 17, 0))
     }
 
     @Test

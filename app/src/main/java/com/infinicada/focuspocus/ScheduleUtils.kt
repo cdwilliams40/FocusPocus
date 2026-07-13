@@ -19,8 +19,12 @@ fun shouldDeactivateSchedule(
     val endMins = endHour * 60 + endMinute
 
     return if (endMins > startMins) {
-        // Same-day schedule: deactivate at or past end time
-        currentMins >= endMins
+        // Same-day schedule: deactivate whenever we're outside the active
+        // window. This check only runs while the schedule is active, so a
+        // current time before the start means the end was missed across
+        // midnight (phone off overnight) — without the second clause the
+        // block would persist until the *next* day's end time.
+        currentMins >= endMins || currentMins < startMins
     } else {
         // Overnight schedule: deactivate when past end time AND before start time
         // (i.e., in the "morning after" window, not the "active evening" window)

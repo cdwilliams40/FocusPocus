@@ -66,7 +66,12 @@ object TrialEngine {
     fun weekKeyForDay(dayKey: String): String = try {
         val date = LocalDate.parse(dayKey, BASIC_DATE)
         val wf = WeekFields.ISO
-        "%04d-W%02d".format(date.get(wf.weekBasedYear()), date.get(wf.weekOfWeekBasedYear()))
+        // Locale.ROOT: default-locale digits (e.g. Persian) would change the
+        // key when the device language changes, orphaning stored weekly keys.
+        String.format(
+            java.util.Locale.ROOT, "%04d-W%02d",
+            date.get(wf.weekBasedYear()), date.get(wf.weekOfWeekBasedYear())
+        )
     } catch (e: Exception) {
         dayKey
     }

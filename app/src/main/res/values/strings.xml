@@ -514,6 +514,7 @@
     <string name="toast_no_quick_spell_bound">No Quick Spell bound to %s</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
+    <string name="toast_ritual_locked">This ritual is bound to a talisman — scan it to dispel</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
     <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
 

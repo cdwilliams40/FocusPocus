@@ -369,16 +369,21 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun writeFocusModeState() {
+        // A talisman can hold a session open with manual mode off, so "manual
+        // mode off" is not "no session" — only clear break/countdown state
+        // when neither anchor is active.
+        val sessionActive = _manualFocusMode.value || _focusTagId.value != null
         repo.writeFocusModeState(
             manualFocusMode = _manualFocusMode.value,
             activeBlockerNames = _activeBlockerNames.value,
             activeScheduleId = _activeScheduleId.value,
-            isOnBreak = if (!_manualFocusMode.value) false else _isOnBreak.value,
-            breakTimeRemaining = if (!_manualFocusMode.value) 0 else _breakTimeRemaining.value,
-            breaksUsedThisSession = if (!_manualFocusMode.value) 0 else _breaksUsedThisSession.value,
-            focusTimeRemaining = if (!_manualFocusMode.value) 0 else _focusTimeRemaining.value
+            sessionActive = sessionActive,
+            isOnBreak = if (!sessionActive) false else _isOnBreak.value,
+            breakTimeRemaining = if (!sessionActive) 0 else _breakTimeRemaining.value,
+            breaksUsedThisSession = if (!sessionActive) 0 else _breaksUsedThisSession.value,
+            focusTimeRemaining = if (!sessionActive) 0 else _focusTimeRemaining.value
         )
-        if (!_manualFocusMode.value) {
+        if (!sessionActive) {
             _breaksUsedThisSession.value = 0
             _isOnBreak.value = false
             _breakTimeRemaining.value = 0
