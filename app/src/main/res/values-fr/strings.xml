@@ -463,4 +463,12 @@
     <string name="consent_dialog_message">Souhaitez-vous partager des rapports de plantage anonymes et des statistiques d\'utilisation ? Cela nous aide à corriger les bugs et à améliorer l\'application. Aucune donnée personnelle n\'est collectée.\n\nVous pouvez modifier ce choix à tout moment dans les paramètres.</string>
     <string name="consent_dialog_accept">Partager les analyses</string>
     <string name="consent_dialog_decline">Non merci</string>
+
+    <!-- Ajouts récents (traductions) -->
+    <string name="settings_device_owner_testonly_warning">Cette version a été déployée depuis Android Studio et est marquée test-only — Android autorise la suppression des propriétaires d\'appareil test-only, la protection contre la désinstallation n\'est donc PAS active. Installez avec adb (gradlew assembleDebug) pour une protection complète.</string>
+    <string name="insights_app_opens">Ouvertures d\'applications</string>
+    <string name="insights_total_opens">%d ouvertures</string>
+    <string name="insights_reflex_summary">%1$d étaient des réflexes de moins de 30 secondes (%2$d%%)</string>
+    <string name="insights_opens_row_count">%1$d · %2$d rfx</string>
+    <string name="insights_reflex_hint">Réflexe = abandonnée dans les 30 secondes suivant l\'ouverture</string>
 </resources>
