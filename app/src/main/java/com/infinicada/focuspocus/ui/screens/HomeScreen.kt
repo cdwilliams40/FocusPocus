@@ -225,19 +225,20 @@ private fun IdleContent(
     onOpenBoons: () -> Unit,
     onClaimTrial: (Trial) -> Unit
 ) {
-    // Top: Status + mana + streak
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.home_status_ready),
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+    // Top: Status on its own line, mana + streak chips beneath it. Never share a
+    // row with the headline: on narrow screens the chips get squeezed and their
+    // labels wrap into tall bars.
+    Text(
+        text = stringResource(R.string.home_status_ready),
+        style = MaterialTheme.typography.headlineLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.fillMaxWidth()
+    )
+    if (progressionEnabled || currentStreak > 0) {
+        Spacer(modifier = Modifier.height(8.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (progressionEnabled) {
@@ -966,7 +967,8 @@ private fun StreakBadge(streak: Int) {
         label = {
             Text(
                 stringResource(R.string.home_day_streak, streak),
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1
             )
         },
         leadingIcon = {
