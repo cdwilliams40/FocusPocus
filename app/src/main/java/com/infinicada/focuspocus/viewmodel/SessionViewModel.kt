@@ -7,9 +7,11 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.FocusSession
+import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.data.SessionRepository
 import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.model.Sigil
+import com.infinicada.focuspocus.model.Trial
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,7 +63,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _focusTagId = MutableStateFlow(repo.getFocusTagId())
     val focusTagId: StateFlow<String?> = _focusTagId.asStateFlow()
 
-    // Session summary dialog
+    // Session summary dialog — populated from the RecordResult a stop returns,
+    // so the dialog and the persisted record can never disagree.
     private val _showSessionSummary = MutableStateFlow(false)
     val showSessionSummary: StateFlow<Boolean> = _showSessionSummary.asStateFlow()
 
@@ -73,6 +76,21 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     private val _sessionSummaryBlocker = MutableStateFlow("")
     val sessionSummaryBlocker: StateFlow<String> = _sessionSummaryBlocker.asStateFlow()
+
+    private val _sessionSummaryMana = MutableStateFlow(0L)
+    val sessionSummaryMana: StateFlow<Long> = _sessionSummaryMana.asStateFlow()
+
+    private val _sessionSummaryMilestoneBonus = MutableStateFlow(0L)
+    val sessionSummaryMilestoneBonus: StateFlow<Long> = _sessionSummaryMilestoneBonus.asStateFlow()
+
+    private val _sessionSummaryStreak = MutableStateFlow(0)
+    val sessionSummaryStreak: StateFlow<Int> = _sessionSummaryStreak.asStateFlow()
+
+    private val _sessionSummaryTrials = MutableStateFlow<List<Trial>>(emptyList())
+    val sessionSummaryTrials: StateFlow<List<Trial>> = _sessionSummaryTrials.asStateFlow()
+
+    private val _sessionSummarySigils = MutableStateFlow<List<Sigil>>(emptyList())
+    val sessionSummarySigils: StateFlow<List<Sigil>> = _sessionSummarySigils.asStateFlow()
 
     // Session history
     private val _focusSessions = MutableStateFlow(repo.getFocusSessions())
@@ -196,19 +214,30 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun handleTimerExpired() {
-        val startTime = repo.getSessionStartTime()
-        val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
-        _sessionSummaryDuration.value = durationMin
-        _sessionSummaryBreaks.value = _breaksUsedThisSession.value
-        _sessionSummaryBlocker.value = repo.getActiveBlockerNames().joinToString(", ").ifEmpty { "" }
-        if (durationMin >= 1) {
-            _showSessionSummary.value = true
-        }
-
-        repo.stopSession()
+        val result = repo.stopSession()
+        showSummaryFor(result)
         DndController.updateDndState(getApplication())
         syncFromPrefs()
         _manualFocusMode.value = false
+    }
+
+    /**
+     * Shows the end-of-session dialog for a recorded session. Discarded
+     * sessions (recorded == null, e.g. under a minute — or the empty result of
+     * the second stop call on the emergency path) show nothing, which also
+     * preserves the old duration >= 1 gate.
+     */
+    private fun showSummaryFor(result: RecordResult) {
+        val recorded = result.recorded ?: return
+        _sessionSummaryDuration.value = recorded.durationMinutes
+        _sessionSummaryBreaks.value = recorded.breaksUsed
+        _sessionSummaryBlocker.value = recorded.blockerName
+        _sessionSummaryMana.value = result.manaEarned
+        _sessionSummaryMilestoneBonus.value = result.milestoneBonus
+        _sessionSummaryStreak.value = result.newStreak
+        _sessionSummaryTrials.value = result.completedTrials
+        _sessionSummarySigils.value = result.unlockedSigils
+        _showSessionSummary.value = true
     }
 
     fun dismissSessionSummary() {
@@ -261,23 +290,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         syncFromPrefs()
     }
 
-    fun stopSessionWithSummary(activeSchedule: Schedule?) {
-        val startTime = repo.getSessionStartTime()
-        val durationMin = if (startTime > 0) ((System.currentTimeMillis() - startTime) / 60000).toInt() else 0
-        _sessionSummaryDuration.value = durationMin
-        _sessionSummaryBreaks.value = _breaksUsedThisSession.value
-        _sessionSummaryBlocker.value = _activeBlockerNames.value.joinToString(", ").ifEmpty {
-            activeSchedule?.effectiveBlockerNames?.joinToString(", ") ?: ""
-        }
-        if (durationMin >= 1) {
-            _showSessionSummary.value = true
-        }
-    }
-
     fun stopSession() {
         focusTimerJob?.cancel()
         breakTimerJob?.cancel()
-        repo.stopSession()
+        showSummaryFor(repo.stopSession())
         syncFromPrefs()
         _manualFocusMode.value = false
     }
@@ -286,7 +302,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         focusTimerJob?.cancel()
         breakTimerJob?.cancel()
         _activeScheduleId.value = null
-        repo.stopSession()
+        showSummaryFor(repo.stopSession())
         syncFromPrefs()
         _manualFocusMode.value = false
     }

@@ -20,6 +20,15 @@ class FocusDeviceAdminReceiver : DeviceAdminReceiver() {
         Log.d(TAG, "Device admin enabled")
         DeviceOwnerManager.applySelfProtection(context)
         DeviceOwnerManager.syncSuspensions(context)
+        // onEnabled also fires for plain device-admin activation, so gate the
+        // Warden sigil on actual device-owner status.
+        if (DeviceOwnerManager.isDeviceOwner(context)) {
+            Progression.unlockSigils(
+                context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE),
+                com.google.gson.Gson(),
+                listOf(com.infinicada.focuspocus.model.SigilCatalog.WARDEN)
+            )
+        }
     }
 
     /**

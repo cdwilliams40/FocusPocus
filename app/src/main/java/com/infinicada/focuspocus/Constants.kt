@@ -92,6 +92,26 @@ object Constants {
 
         // Insights
         const val INSIGHTS_TIME_RANGE = "insightsTimeRange"
+
+        // Progression (mana, boons, trials, sigils)
+        const val PROGRESSION_ENABLED = "progressionEnabled"
+        const val PROGRESSION_INTRO_SHOWN = "progressionIntroShown"
+        const val MANA_BALANCE = "manaBalance"
+        const val MANA_LIFETIME_EARNED = "manaLifetimeEarned"
+        const val MANA_LEDGER = "manaLedger"
+        const val BOONS = "boons"
+        const val TRIALS = "trials"
+        const val UNLOCKED_SIGILS = "unlockedSigils"
+        const val HIGHEST_STREAK_MILESTONE_PAID = "highestStreakMilestonePaid"
+        const val EXTRA_BREAK_TOKENS = "extraBreakTokens"
+        const val LAST_SESSION_RECORDED_DATE = "lastSessionRecordedDate"
+        const val LAST_WRAPUP_DATE = "lastWrapupDate"
+        const val WRAPUP_ENABLED = "wrapupEnabled"
+        const val TRIAL_ALERTS_ENABLED = "trialAlertsEnabled"
+        // Snapshot of the usage-stats permission, refreshed whenever a Context is
+        // available, so Context-free code (SessionRecorder's award path) can gate
+        // usage-dependent trial templates deterministically.
+        const val USAGE_PERMISSION_SNAPSHOT = "usagePermissionSnapshot"
     }
 
     object Defaults {
@@ -122,11 +142,15 @@ object Constants {
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_APP_TIME_LIMITS = 100
     const val MAX_CONDITIONAL_UNLOCKS = 50
+    const val MAX_BOONS = 50
+    const val MAX_MANA_LEDGER = 300
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
-    const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_session"
+    const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
+    const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
+    const val DAILY_WRAPUP_NOTIFICATION_ID = 9003
 }

@@ -10,8 +10,8 @@ import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.PrefsHelper
+import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.SessionManager
-import com.infinicada.focuspocus.SessionRecorder
 import com.infinicada.focuspocus.calculateCurrentStreak
 
 class SessionRepository(
@@ -25,13 +25,9 @@ class SessionRepository(
         DeviceOwnerManager.syncSuspensions(context)
     }
 
-    fun stopSession() {
-        SessionManager.stopSession(context, prefs, gson)
-    }
+    fun stopSession(): RecordResult = SessionManager.stopSession(context, prefs, gson)
 
     fun isSessionActive(): Boolean = SessionManager.isSessionActive(prefs)
-
-    fun recordSession(): List<FocusSession> = SessionRecorder.record(prefs, gson)
 
     // Session state
     fun getManualFocusMode(): Boolean =

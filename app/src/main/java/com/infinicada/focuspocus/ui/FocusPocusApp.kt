@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Coffee
@@ -59,8 +60,11 @@ import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
 import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
+import com.infinicada.focuspocus.model.Perk
+import com.infinicada.focuspocus.ui.components.trialTitle
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
+import com.infinicada.focuspocus.ui.screens.BoonsScreen
 import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
@@ -77,6 +81,7 @@ import com.infinicada.focuspocus.ui.screens.TalismansScreen
 import com.infinicada.focuspocus.ui.screens.TimeLimitsScreen
 import com.infinicada.focuspocus.ui.screens.UsageStatsScreen
 import com.infinicada.focuspocus.viewmodel.InsightsViewModel
+import com.infinicada.focuspocus.viewmodel.ProgressionViewModel
 import com.infinicada.focuspocus.viewmodel.SessionViewModel
 import com.infinicada.focuspocus.viewmodel.SettingsViewModel
 import com.infinicada.focuspocus.viewmodel.SpellbookViewModel
@@ -99,6 +104,7 @@ fun FocusPocusApp(
     val spellbookVM: SpellbookViewModel = viewModel()
     val settingsVM: SettingsViewModel = viewModel()
     val insightsVM: InsightsViewModel = viewModel()
+    val progressionVM: ProgressionViewModel = viewModel()
 
     val context = LocalContext.current
 
@@ -157,17 +163,38 @@ fun FocusPocusApp(
     val insightsLongestStreak by insightsVM.longestStreak.collectAsStateWithLifecycle()
     val appOpenDailyStats by insightsVM.appOpenDailyStats.collectAsStateWithLifecycle()
 
-    // Sync on NFC/QR external triggers
+    val progressionEnabled by settingsVM.progressionEnabled.collectAsStateWithLifecycle()
+    val wrapupEnabled by settingsVM.wrapupEnabled.collectAsStateWithLifecycle()
+    val trialAlertsEnabled by settingsVM.trialAlertsEnabled.collectAsStateWithLifecycle()
+    val showProgressionIntroDialog by settingsVM.showProgressionIntroDialog.collectAsStateWithLifecycle()
+    val manaBalance by progressionVM.balance.collectAsStateWithLifecycle()
+    val trials by progressionVM.trials.collectAsStateWithLifecycle()
+    val boons by progressionVM.boons.collectAsStateWithLifecycle()
+    val manaLedger by progressionVM.ledger.collectAsStateWithLifecycle()
+    val unlockedSigilIds by progressionVM.unlockedSigilIds.collectAsStateWithLifecycle()
+    val extraBreakTokens by progressionVM.extraBreakTokens.collectAsStateWithLifecycle()
+    val manaEarnedThisWeek by progressionVM.manaEarnedThisWeek.collectAsStateWithLifecycle()
+    val sessionSummaryMana by sessionVM.sessionSummaryMana.collectAsStateWithLifecycle()
+    val sessionSummaryMilestoneBonus by sessionVM.sessionSummaryMilestoneBonus.collectAsStateWithLifecycle()
+    val sessionSummaryStreak by sessionVM.sessionSummaryStreak.collectAsStateWithLifecycle()
+    val sessionSummaryTrials by sessionVM.sessionSummaryTrials.collectAsStateWithLifecycle()
+    val sessionSummarySigils by sessionVM.sessionSummarySigils.collectAsStateWithLifecycle()
+
+    // Sync on NFC/QR external triggers. MainActivity bumps nfcTriggerCount on
+    // every onResume and on session-pref changes, so this effect is also what
+    // refreshes progression after service-side and trigger-driven stops.
     LaunchedEffect(nfcTriggerCount) {
         if (nfcTriggerCount > 0) {
             sessionVM.syncFromPrefs()
             insightsVM.refresh()
+            progressionVM.refresh()
         }
     }
     LaunchedEffect(qrTriggerCount) {
         if (qrTriggerCount > 0) {
             sessionVM.syncFromPrefs()
             insightsVM.refresh()
+            progressionVM.refresh()
         }
     }
 
@@ -176,6 +203,15 @@ fun FocusPocusApp(
         if (dataVersion != 0) {
             sessionVM.syncFromPrefs()
             insightsVM.refresh()
+            progressionVM.refresh()
+        }
+    }
+
+    // Any freshly shown summary means a session just recorded — pick up the
+    // new balance/trials no matter which path stopped the session.
+    LaunchedEffect(showSessionSummary) {
+        if (showSessionSummary) {
+            progressionVM.refresh()
         }
     }
 
@@ -254,6 +290,20 @@ fun FocusPocusApp(
         )
     }
 
+    // One-time progression intro for users updating into the mana layer
+    if (showProgressionIntroDialog && !showAnalyticsConsentDialog) {
+        AlertDialog(
+            onDismissRequest = { settingsVM.dismissProgressionIntroDialog() },
+            title = { Text(stringResource(R.string.progression_intro_title)) },
+            text = { Text(stringResource(R.string.progression_intro_message)) },
+            confirmButton = {
+                Button(onClick = { settingsVM.dismissProgressionIntroDialog() }) {
+                    Text(stringResource(R.string.progression_intro_ok))
+                }
+            }
+        )
+    }
+
     // Accessibility service required dialog
     if (!isServiceEnabled) {
         AlertDialog(
@@ -277,6 +327,7 @@ fun FocusPocusApp(
     // process recreation instead of snapping back to Home.
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showBoons by rememberSaveable { mutableStateOf(false) }
 
     val activeManualBlockers = remember(activeBlockerNames, blockerLists) {
         blockerLists.filter { it.name in activeBlockerNames }
@@ -357,7 +408,48 @@ fun FocusPocusApp(
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
             namedTags = namedTags,
             focusMode = focusMode,
+            progressionEnabled = progressionEnabled,
+            onProgressionEnabledChanged = {
+                settingsVM.setProgressionEnabled(it)
+                progressionVM.refresh()
+            },
+            wrapupEnabled = wrapupEnabled,
+            onWrapupEnabledChanged = { settingsVM.setWrapupEnabled(it) },
+            trialAlertsEnabled = trialAlertsEnabled,
+            onTrialAlertsEnabledChanged = { settingsVM.setTrialAlertsEnabled(it) },
             onNavigateBack = { showSettings = false },
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    // Boons screen (same full-screen pattern as Settings; the gear only exists
+    // on the main scaffold, so the two flags can't both be set)
+    if (showBoons) {
+        BackHandler { showBoons = false }
+        val pactedPackages = remember(appTimeLimitConfigs) {
+            appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys
+        }
+        val pactedApps = remember(installedApps, pactedPackages) {
+            installedApps.filter { it.packageName in pactedPackages }
+        }
+        BoonsScreen(
+            balance = manaBalance,
+            boons = boons,
+            manualFocusMode = manualFocusMode,
+            pactedApps = pactedApps,
+            isSealedAvailableToday = { pkg -> progressionVM.isSealedMinutesAvailableToday(pkg) },
+            isSealedOverDailyLimit = { pkg ->
+                val limit = appTimeLimitConfigs[pkg]?.dailyLimitMinutes ?: 0
+                limit > 0 && com.infinicada.focuspocus.AppTimeLimitManager
+                    .getUsedMinutesToday(context, pkg) >= limit
+            },
+            onRedeemBoon = { boon -> progressionVM.redeemBoon(boon) },
+            onSaveBoon = { boon -> progressionVM.saveBoon(boon) },
+            onDeleteBoon = { boonId -> progressionVM.deleteBoon(boonId) },
+            onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
+            onBuySealedMinutes = { pkg -> progressionVM.redeemPerk(Perk.SEALED_MINUTES, pkg) },
+            onNavigateBack = { showBoons = false },
             modifier = modifier.fillMaxSize()
         )
         return
@@ -412,7 +504,11 @@ fun FocusPocusApp(
                 AppDestinations.HOME -> {
                     val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
                     val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
-                    val effectiveMaxBreaks = activeSchedule?.maxBreaksPerSession?.coerceAtLeast(1) ?: maxBreaksPerSession
+                    // Extra-break perk tokens raise the effective max for this
+                    // session, which consistently drives the take-break gate,
+                    // button visibility, and the "x/y breaks" label below.
+                    val effectiveMaxBreaks = (activeSchedule?.maxBreaksPerSession?.coerceAtLeast(1) ?: maxBreaksPerSession) +
+                        extraBreakTokens
                     val emergencyBreakAvailable = System.currentTimeMillis() >= lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
                     val emergencyBreakDaysRemaining = if (!emergencyBreakAvailable) {
                         val nextAvailable = lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
@@ -443,20 +539,26 @@ fun FocusPocusApp(
                         emergencyBreakAvailable = emergencyBreakAvailable,
                         emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
                         currentStreak = currentStreak,
+                        progressionEnabled = progressionEnabled,
+                        manaBalance = manaBalance,
+                        trials = trials,
+                        canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
                         onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
                         onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
                         onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
                         onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
                         onStartClicked = {
                             if (focusMode) {
+                                // Stops populate the summary dialog from their
+                                // RecordResult, so no separate pre-capture step.
                                 if (activeSchedule != null) {
                                     if (activeSchedule.unbindingTalismanId == null) {
-                                        sessionVM.stopSessionWithSummary(activeSchedule)
                                         sessionVM.dispelSchedule()
+                                        progressionVM.refresh()
                                     }
                                 } else {
-                                    sessionVM.stopSessionWithSummary(null)
                                     sessionVM.stopSession()
+                                    progressionVM.refresh()
                                 }
                             } else {
                                 if (activeManualBlockers.isNotEmpty()) {
@@ -481,10 +583,16 @@ fun FocusPocusApp(
                         onEndBreak = { sessionVM.endBreak() },
                         onScanQrCode = onScanQrCode,
                         onEmergencyStop = {
+                            // Deliberately dialog-free: the first stop records
+                            // (and quietly earns); the second returns empty.
                             sessionVM.emergencyStop()
                             sessionVM.dispelSchedule()
+                            progressionVM.refresh()
                             Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
                         },
+                        onOpenBoons = { showBoons = true },
+                        onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
+                        onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
                         modifier = contentModifier
                     )
                 }
@@ -675,6 +783,14 @@ fun FocusPocusApp(
                         blockEvents = blockEvents,
                         appTimeLimits = appTimeLimits,
                         openDailyStats = appOpenDailyStats,
+                        progressionEnabled = progressionEnabled,
+                        manaBalance = manaBalance,
+                        manaEarnedThisWeek = manaEarnedThisWeek,
+                        trials = trials,
+                        ledger = manaLedger,
+                        unlockedSigilIds = unlockedSigilIds,
+                        onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
+                        onOpenBoons = { showBoons = true },
                         modifier = contentModifier
                     )
                 }
@@ -764,6 +880,65 @@ fun FocusPocusApp(
                                     stringResource(R.string.session_complete_enchantment, sessionSummaryBlocker),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+
+                    // Progression lines — rendered only when something was earned,
+                    // so a disabled progression layer leaves the dialog untouched.
+                    if (sessionSummaryMana > 0) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(
+                                    stringResource(R.string.summary_mana_earned, sessionSummaryMana),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                if (sessionSummaryStreak > 0) {
+                                    Spacer(modifier = Modifier.size(8.dp))
+                                    Text(
+                                        stringResource(R.string.home_day_streak, sessionSummaryStreak),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (sessionSummaryMilestoneBonus > 0) {
+                                Text(
+                                    stringResource(R.string.summary_milestone_bonus, sessionSummaryMilestoneBonus),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                            sessionSummaryTrials.forEach { trial ->
+                                Text(
+                                    stringResource(R.string.summary_trial_complete, trialTitle(trial)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            // Cap unlock lines so a retroactive first run
+                            // celebrates without scrolling.
+                            sessionSummarySigils.take(3).forEach { sigil ->
+                                Text(
+                                    stringResource(R.string.summary_sigil_unlocked, stringResource(sigil.titleRes)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (sessionSummarySigils.size > 3) {
+                                Text(
+                                    stringResource(R.string.summary_more_unlocks, sessionSummarySigils.size - 3),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

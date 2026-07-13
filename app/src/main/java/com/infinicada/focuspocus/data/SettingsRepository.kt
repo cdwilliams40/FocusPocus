@@ -106,4 +106,34 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     fun setEmergencyBreakCadenceWeeks(weeks: Int) {
         prefs.edit().putInt(Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS, weeks.coerceIn(2, 8)).apply()
     }
+
+    // ── Progression ──
+
+    fun getProgressionEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, true)
+
+    fun setProgressionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, enabled).apply()
+    }
+
+    fun getWrapupEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.WRAPUP_ENABLED, true)
+
+    fun setWrapupEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.WRAPUP_ENABLED, enabled).apply()
+    }
+
+    fun getTrialAlertsEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.TRIAL_ALERTS_ENABLED, true)
+
+    fun setTrialAlertsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.TRIAL_ALERTS_ENABLED, enabled).apply()
+    }
+
+    fun isProgressionIntroShown(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, false)
+
+    fun setProgressionIntroShown() {
+        prefs.edit().putBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, true).apply()
+    }
 }

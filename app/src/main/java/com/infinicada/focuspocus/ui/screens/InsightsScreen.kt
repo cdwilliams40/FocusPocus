@@ -65,10 +65,16 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.model.ManaLedgerEntry
+import com.infinicada.focuspocus.model.SigilCatalog
+import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.SectionHeader
+import com.infinicada.focuspocus.ui.components.SigilTile
 import com.infinicada.focuspocus.ui.components.StatTile
+import com.infinicada.focuspocus.ui.components.TrialRow
+import com.infinicada.focuspocus.ui.components.ledgerReason
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -87,7 +93,17 @@ fun UsageStatsScreen(
     longestStreak: Int = 0,
     blockEvents: List<BlockEvent> = emptyList(),
     appTimeLimits: Map<String, Int> = emptyMap(),
-    openDailyStats: Map<String, Map<String, AppOpenStats>> = emptyMap()
+    openDailyStats: Map<String, Map<String, AppOpenStats>> = emptyMap(),
+    // Progression sections (independent of the time-range tabs above:
+    // trials carry their own periods and sigils are lifetime)
+    progressionEnabled: Boolean = false,
+    manaBalance: Long = 0L,
+    manaEarnedThisWeek: Long = 0L,
+    trials: List<Trial> = emptyList(),
+    ledger: List<ManaLedgerEntry> = emptyList(),
+    unlockedSigilIds: Set<String> = emptySet(),
+    onClaimTrial: (Trial) -> Unit = {},
+    onOpenBoons: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
@@ -273,6 +289,125 @@ fun UsageStatsScreen(
                         accent = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+        // ── Progression: mana ──
+        if (progressionEnabled) {
+            item {
+                SectionHeader(stringResource(R.string.insights_mana_header))
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatTile(
+                        value = "$manaBalance",
+                        label = stringResource(R.string.insights_mana_balance_label),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = "+$manaEarnedThisWeek",
+                        label = stringResource(R.string.insights_mana_week_label),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        value = "${unlockedSigilIds.size}/${SigilCatalog.ALL.size}",
+                        label = stringResource(R.string.insights_sigils_label),
+                        accent = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            item {
+                Button(
+                    onClick = onOpenBoons,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.insights_manage_boons))
+                }
+            }
+            if (ledger.isNotEmpty()) {
+                item {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.insights_recent_ledger),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val recent = ledger.takeLast(5).reversed()
+                        recent.forEach { entry ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    ledgerReason(entry),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = if (entry.amount >= 0) "+${entry.amount}" else "${entry.amount}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (entry.amount >= 0) MaterialTheme.colorScheme.tertiary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Progression: trials ──
+            if (trials.isNotEmpty()) {
+                item {
+                    SectionHeader(stringResource(R.string.trials_header))
+                }
+                item {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        trials.forEachIndexed { index, trial ->
+                            TrialRow(trial = trial, onClaim = onClaimTrial)
+                            if (index != trials.lastIndex) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Progression: sigils ──
+            item {
+                SectionHeader(stringResource(R.string.insights_sigils_header))
+            }
+            items(SigilCatalog.ALL.chunked(3)) { rowSigils ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    rowSigils.forEach { sigil ->
+                        SigilTile(
+                            sigil = sigil,
+                            unlocked = sigil.id in unlockedSigilIds,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    repeat(3 - rowSigils.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }

@@ -239,9 +239,55 @@ class MyAccessibilityService : AccessibilityService() {
         // could stay inside an app past its daily limit indefinitely.
         currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
 
+        // Evening progression wrap-up (best effort — a persisted date guard means
+        // a service restart at 21:30 still sends it on the next tick, while a
+        // fully-down service just skips the day).
+        maybeSendDailyWrapup()
+
         // Device owner: catch-all reconciliation for anything the event-driven sync
         // points missed (conditional unlocks flipping, apps installed mid-session).
         DeviceOwnerManager.syncSuspensions(this)
+    }
+
+    /**
+     * Posts the "you reclaimed 2h 15m today" note once per active evening. The
+     * cheap LAST_SESSION_RECORDED_DATE string comparison inside shouldSendWrapup
+     * short-circuits inactive days before any JSON parsing happens, so this
+     * costs the minute tick nothing on quiet days.
+     */
+    private fun maybeSendDailyWrapup() {
+        val todayKey = SessionCooldownManager.todayString()
+        val shouldSend = ProgressionMath.shouldSendWrapup(
+            hourOfDay = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY),
+            todayKey = todayKey,
+            lastWrapupDate = sharedPreferences.getString(Constants.PrefsKeys.LAST_WRAPUP_DATE, null),
+            lastSessionRecordedDate = sharedPreferences.getString(Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE, null),
+            wrapupEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.WRAPUP_ENABLED, true),
+            progressionEnabled = sharedPreferences.getBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, true)
+        )
+        if (!shouldSend) return
+
+        val sessions: List<FocusSession> = PrefsHelper.load(
+            sharedPreferences, gson, Constants.PrefsKeys.FOCUS_SESSIONS,
+            object : com.google.gson.reflect.TypeToken<List<FocusSession>>() {}.type
+        ) ?: emptyList()
+        val todaySessions = sessions.filter { TrialEngine.dateKeyOf(it.endTimeMillis) == todayKey }
+        if (todaySessions.isEmpty()) return
+        val reclaimedMinutes = todaySessions.sumOf { it.durationMinutes }
+
+        val ledger: List<com.infinicada.focuspocus.model.ManaLedgerEntry> = PrefsHelper.load(
+            sharedPreferences, gson, Constants.PrefsKeys.MANA_LEDGER,
+            object : com.google.gson.reflect.TypeToken<List<com.infinicada.focuspocus.model.ManaLedgerEntry>>() {}.type
+        ) ?: emptyList()
+        val manaToday = ledger.filter { it.dateKey == todayKey && it.amount > 0 }.sumOf { it.amount }
+
+        ProgressionNotifier.postDailyWrapup(
+            this,
+            reclaimedMinutes = reclaimedMinutes,
+            manaToday = manaToday,
+            streak = calculateCurrentStreak(sessions)
+        )
+        sharedPreferences.edit().putString(Constants.PrefsKeys.LAST_WRAPUP_DATE, todayKey).apply()
     }
 
     /**
