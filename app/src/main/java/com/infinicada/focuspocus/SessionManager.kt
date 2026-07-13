@@ -28,6 +28,8 @@ object SessionManager {
             .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
             .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
             .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+            // Extra-break perk tokens are session-scoped; never inherit one
+            .remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
 
         if (scheduleId != null) {
             editor.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, scheduleId)
@@ -62,9 +64,10 @@ object SessionManager {
         context: Context,
         sharedPreferences: SharedPreferences,
         gson: Gson
-    ) {
-        // Record completed session
-        SessionRecorder.record(sharedPreferences, gson)
+    ): RecordResult {
+        // Record completed session (and run the progression award step) before
+        // the session prefs it reads are cleared below.
+        val result: RecordResult? = SessionRecorder.record(sharedPreferences, gson)
 
         sharedPreferences.edit()
             .putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
@@ -80,10 +83,16 @@ object SessionManager {
             .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
             .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
             .remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
+            .remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
             .apply()
 
         DndController.updateDndState(context)
         DeviceOwnerManager.syncSuspensions(context)
+
+        // Null tolerance is for unit tests that static-mock SessionRecorder.
+        val recordResult = result ?: RecordResult(emptyList())
+        ProgressionNotifier.postTrialCompletions(context, sharedPreferences, recordResult.completedTrials)
+        return recordResult
     }
 
     fun isSessionActive(sharedPreferences: SharedPreferences): Boolean {

@@ -129,6 +129,21 @@ class SessionCooldownManager(
     }
 
     /**
+     * Removes [packageName]'s cooldown outright (whether or not it has expired)
+     * and forgets its in-session start time so the next visit counts as a fresh
+     * session. Used by the sealed-minutes perk, where the user pays mana to
+     * re-enter a sealed app before its cooldown lapses.
+     */
+    fun clearCooldown(packageName: String) {
+        val states = loadCooldownStates()
+        if (packageName in states) {
+            saveCooldownStates(states - packageName)
+            Log.d(tag, "Cooldown cleared for $packageName (perk)")
+        }
+        sessionStartTimes.remove(packageName)
+    }
+
+    /**
      * Removes all cooldown entries whose expiry has passed.
      * Call on every minute tick.
      */

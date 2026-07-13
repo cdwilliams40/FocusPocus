@@ -145,4 +145,32 @@ class SettingsRepositoryTest {
     fun `nfcLockMode defaults to false`() {
         assertFalse(repo.getNfcLockMode())
     }
+
+    // ── progression toggles ──
+
+    @Test
+    fun `progression is on by default with a working toggle`() {
+        assertTrue(repo.getProgressionEnabled())
+        repo.setProgressionEnabled(false)
+        assertFalse(repo.getProgressionEnabled())
+        repo.setProgressionEnabled(true)
+        assertTrue(repo.getProgressionEnabled())
+    }
+
+    @Test
+    fun `wrapup and trial alerts default on and toggle`() {
+        assertTrue(repo.getWrapupEnabled())
+        assertTrue(repo.getTrialAlertsEnabled())
+        repo.setWrapupEnabled(false)
+        repo.setTrialAlertsEnabled(false)
+        assertFalse(repo.getWrapupEnabled())
+        assertFalse(repo.getTrialAlertsEnabled())
+    }
+
+    @Test
+    fun `progression intro is shown once`() {
+        assertFalse(repo.isProgressionIntroShown())
+        repo.setProgressionIntroShown()
+        assertTrue(repo.isProgressionIntroShown())
+    }
 }

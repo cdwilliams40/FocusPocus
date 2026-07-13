@@ -3,6 +3,29 @@ package com.infinicada.focuspocus
 import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
+import com.infinicada.focuspocus.model.Sigil
+import com.infinicada.focuspocus.model.Trial
+
+/**
+ * Everything one call to [SessionRecorder.record] produced. Callers that only
+ * ever cared about the session list keep working through [sessions]; the
+ * enriched session-summary dialog and trial notifications read the rest.
+ */
+data class RecordResult(
+    /** The updated (pruned) session list — empty when nothing was recorded. */
+    val sessions: List<FocusSession>,
+    /** The session that was just recorded, or null when it was discarded. */
+    val recorded: FocusSession? = null,
+    /** Mana earned by the session itself (0 when progression is disabled). */
+    val manaEarned: Long = 0L,
+    /** One-time streak milestone bonus paid out by this recording, if any. */
+    val milestoneBonus: Long = 0L,
+    val newStreak: Int = 0,
+    /** Trials whose target was crossed by this session (unclaimed). */
+    val completedTrials: List<Trial> = emptyList(),
+    /** Sigils newly unlocked by this session. */
+    val unlockedSigils: List<Sigil> = emptyList()
+)
 
 /**
  * Shared utility for recording completed focus sessions to SharedPreferences.
@@ -13,19 +36,22 @@ object SessionRecorder {
      * Records the current focus session using state already stored in SharedPreferences
      * (SESSION_START_TIME, ACTIVE_BLOCKERS/ACTIVE_BLOCKER, BREAKS_USED_THIS_SESSION).
      *
-     * Also updates LONGEST_STREAK if the new streak exceeds it.
+     * Also updates LONGEST_STREAK if the new streak exceeds it, and runs the
+     * progression award step (mana, trials, sigils, milestones) exactly once
+     * per recorded session — this is the single choke point every session-stop
+     * path funnels through.
      *
-     * @return The updated session list, or an empty list if nothing was recorded
-     *         (e.g. session was too short or start time was missing).
+     * @return A [RecordResult]; its [RecordResult.recorded] is null if nothing
+     *         was recorded (e.g. session was too short or start time was missing).
      */
     @Synchronized
-    fun record(prefs: SharedPreferences, gson: Gson): List<FocusSession> {
+    fun record(prefs: SharedPreferences, gson: Gson): RecordResult {
         val startTime = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-        if (startTime == 0L) return emptyList()
+        if (startTime == 0L) return RecordResult(emptyList())
 
         val endTime = System.currentTimeMillis()
         val durationMin = ((endTime - startTime) / 60000).toInt()
-        if (durationMin < 1) return emptyList()
+        if (durationMin < 1) return RecordResult(emptyList())
 
         val blockerName = run {
             val blockersJson = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
@@ -72,6 +98,19 @@ object SessionRecorder {
         }
         editor.apply()
 
-        return pruned
+        // Award after the session list is committed, while ACTIVE_SCHEDULE_ID
+        // and HIDE_STOP_BUTTON still describe this session (SessionManager
+        // clears session prefs only after record() returns).
+        val award = Progression.awardForSession(prefs, gson, session, newStreak)
+
+        return RecordResult(
+            sessions = pruned,
+            recorded = session,
+            manaEarned = award.manaEarned,
+            milestoneBonus = award.milestoneBonus,
+            newStreak = newStreak,
+            completedTrials = award.completedTrials,
+            unlockedSigils = award.unlockedSigils
+        )
     }
 }

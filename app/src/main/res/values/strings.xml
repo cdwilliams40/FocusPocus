@@ -536,4 +536,141 @@
     <string name="consent_dialog_message">Would you like to share anonymous crash reports and usage statistics? This helps us fix bugs and improve the app. No personal data is collected.\n\nYou can change this anytime in Settings.</string>
     <string name="consent_dialog_accept">Share Analytics</string>
     <string name="consent_dialog_decline">No Thanks</string>
+
+    <!-- Progression: general -->
+    <string name="progression_channel_name">Progression</string>
+    <string name="progression_channel_desc">Mana, trials and daily wrap-ups</string>
+    <string name="mana_chip">%1$d mana</string>
+    <string name="mana_chip_desc">Mana balance: %1$d. Opens boons.</string>
+
+    <!-- Progression: notifications -->
+    <string name="trial_complete_notification_title">Trial complete!</string>
+    <plurals name="trial_complete_notification_text">
+        <item quantity="one">A trial is complete — claim your %2$d mana.</item>
+        <item quantity="other">%1$d trials are complete — claim your %2$d mana.</item>
+    </plurals>
+    <string name="wrapup_notification_title">Time reclaimed today</string>
+    <string name="wrapup_notification_text">You reclaimed %1$s · +%2$d mana · %3$d-day streak</string>
+    <string name="wrapup_time_hours_minutes">%1$dh %2$dm</string>
+    <string name="wrapup_time_minutes">%1$d min</string>
+
+    <!-- Progression: sigils -->
+    <string name="sigil_first_spell_title">First Casting</string>
+    <string name="sigil_first_spell_desc">Complete your first focus session.</string>
+    <string name="sigil_ritual_kept_title">Ritual Kept</string>
+    <string name="sigil_ritual_kept_desc">Complete a scheduled ritual.</string>
+    <string name="sigil_iron_will_title">Iron Will</string>
+    <string name="sigil_iron_will_desc">Finish a session with the stop button hidden.</string>
+    <string name="sigil_deep_trance_title">Deep Trance</string>
+    <string name="sigil_deep_trance_desc">Focus for 4 hours in a single session.</string>
+    <string name="sigil_ten_hour_week_title">Ten-Hour Week</string>
+    <string name="sigil_ten_hour_week_desc">Focus for 10 hours within one week.</string>
+    <string name="sigil_hundred_castings_title">Hundred Castings</string>
+    <string name="sigil_hundred_castings_desc">Complete 100 focus sessions.</string>
+    <string name="sigil_streak_7_title">Seven Nights</string>
+    <string name="sigil_streak_7_desc">Reach a 7-day streak.</string>
+    <string name="sigil_streak_30_title">Thirty Nights</string>
+    <string name="sigil_streak_30_desc">Reach a 30-day streak.</string>
+    <string name="sigil_streak_100_title">Hundred Nights</string>
+    <string name="sigil_streak_100_desc">Reach a 100-day streak.</string>
+    <string name="sigil_warden_title">The Warden</string>
+    <string name="sigil_warden_desc">Provision Warden Mode enforcement.</string>
+    <string name="sigil_first_boon_title">First Boon</string>
+    <string name="sigil_first_boon_desc">Redeem your first boon.</string>
+    <string name="sigil_font_of_mana_title">Font of Mana</string>
+    <string name="sigil_font_of_mana_desc">Earn 1,000 lifetime mana.</string>
+    <string name="sigil_state_locked">Locked</string>
+    <string name="sigil_state_unlocked">Unlocked</string>
+
+    <!-- Progression: trials -->
+    <string name="trials_header">Trials — daily &amp; weekly challenges</string>
+    <string name="home_trials_title">Today\'s Trials</string>
+    <string name="trials_empty">New trials arrive each day.</string>
+    <plurals name="trial_sessions_daily">
+        <item quantity="one">Cast %1$d spell today</item>
+        <item quantity="other">Cast %1$d spells today</item>
+    </plurals>
+    <string name="trial_minutes_daily">Focus for %1$d minutes today</string>
+    <string name="trial_ritual_daily">Complete a scheduled ritual today</string>
+    <string name="trial_under_limits_daily">Stay under every app limit today</string>
+    <string name="trial_minutes_weekly">Focus for %1$d minutes this week</string>
+    <string name="trial_reflex_weekly">Keep reflex opens under %1$d this week</string>
+    <string name="trial_progress">%1$d/%2$d</string>
+    <string name="trial_claim">Claim</string>
+    <string name="trial_claimed">Claimed</string>
+    <string name="trial_reward">+%1$d mana</string>
+    <string name="trial_judged_day_end">Judged at day\'s end</string>
+    <string name="trial_judged_week_end">Judged at week\'s end</string>
+
+    <!-- Progression: Insights sections -->
+    <string name="insights_mana_header">Mana — focus energy</string>
+    <string name="insights_sigils_header">Sigils — milestones you\'ve earned</string>
+    <string name="insights_manage_boons">Manage Boons</string>
+    <string name="insights_mana_balance_label">Balance</string>
+    <string name="insights_mana_week_label">This Week</string>
+    <string name="insights_sigils_label">Sigils</string>
+    <string name="insights_recent_ledger">Recent activity</string>
+
+    <!-- Progression: ledger rendering -->
+    <string name="ledger_session_reason">Focus · %1$d min</string>
+    <string name="ledger_trial_reason">Trial reward</string>
+    <string name="ledger_boon_reason">Boon: %1$s</string>
+    <string name="ledger_perk_extra_break">Perk: extra break</string>
+    <string name="ledger_perk_sealed_minutes">Perk: sealed-app minutes</string>
+    <string name="ledger_milestone_reason">Streak milestone</string>
+    <string name="ledger_sigil_reason">Sigil unlocked</string>
+
+    <!-- Progression: boons screen -->
+    <string name="boons_title">Boons</string>
+    <string name="boons_subtitle">Your rewards — spend mana on things you choose</string>
+    <string name="boons_balance_header">Your mana</string>
+    <string name="boons_empty">Create a boon — a real-life reward you\'ll redeem with mana, like a guilt-free game night.</string>
+    <string name="boon_add">New Boon</string>
+    <string name="boon_create_title">Create Boon</string>
+    <string name="boon_edit_title">Edit Boon</string>
+    <string name="boon_name_label">Title</string>
+    <string name="boon_cost_label">Cost (mana)</string>
+    <string name="boon_note_label">Note (optional)</string>
+    <string name="boon_save">Save</string>
+    <string name="boon_delete">Delete</string>
+    <string name="boon_redeem">Redeem</string>
+    <string name="boon_redeemed_toast">Enjoy: %1$s</string>
+    <string name="boon_cost_format">%1$d mana</string>
+    <string name="boon_limit_reached">You\'ve reached the maximum number of boons.</string>
+
+    <!-- Progression: perks -->
+    <string name="perks_header">Perks — spend mana in-app</string>
+    <string name="perk_extra_break_title">Extra break</string>
+    <string name="perk_extra_break_desc">One more break in your current session.</string>
+    <string name="perk_sealed_minutes_title">Sealed-app minutes</string>
+    <string name="perk_sealed_minutes_desc">10 minutes in one pacted app, once per app per day.</string>
+    <string name="perk_buy">Buy</string>
+    <string name="perk_pick_app">Choose app</string>
+    <string name="perk_extra_break_inactive">Available during a focus session</string>
+    <string name="perk_sealed_none">No pacted apps yet</string>
+    <string name="perk_sealed_used_today">Already used for this app today</string>
+    <string name="perk_sealed_over_limit">Daily limit already spent</string>
+    <string name="perk_not_enough_mana">Not enough mana</string>
+    <string name="home_extra_break_button">Use %1$d mana for an extra break</string>
+
+    <!-- Progression: session summary additions -->
+    <string name="summary_mana_earned">+%1$d mana earned</string>
+    <string name="summary_milestone_bonus">Milestone bonus: +%1$d mana</string>
+    <string name="summary_trial_complete">Trial complete: %1$s — claim in Insights</string>
+    <string name="summary_sigil_unlocked">Sigil unlocked: %1$s</string>
+    <string name="summary_more_unlocks">+%1$d more in Insights</string>
+
+    <!-- Progression: settings -->
+    <string name="settings_progression_title">Progression</string>
+    <string name="settings_progression_toggle">Progression — mana, trials &amp; sigils</string>
+    <string name="settings_progression_desc">Earn mana for focus sessions and spend it on boons. Turning this off hides all progression features; your mana is kept.</string>
+    <string name="settings_wrapup_toggle">Daily wrap-up notification</string>
+    <string name="settings_wrapup_desc">An evening note with today\'s reclaimed time.</string>
+    <string name="settings_trial_alerts_toggle">Trial completion alerts</string>
+    <string name="settings_trial_alerts_desc">A notification when a trial is ready to claim.</string>
+
+    <!-- Progression: intro dialog -->
+    <string name="progression_intro_title">Focusing now earns mana</string>
+    <string name="progression_intro_message">Every focus session earns mana — energy you can spend on boons: rewards you define for yourself. Daily trials and permanent sigils mark your progress along the way.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
+    <string name="progression_intro_ok">Begin earning</string>
 </resources>

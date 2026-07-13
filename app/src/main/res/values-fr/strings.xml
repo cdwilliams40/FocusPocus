@@ -471,4 +471,143 @@
     <string name="insights_reflex_summary">%1$d étaient des réflexes de moins de 30 secondes (%2$d%%)</string>
     <string name="insights_opens_row_count">%1$d · %2$d rfx</string>
     <string name="insights_reflex_hint">Réflexe = abandonnée dans les 30 secondes suivant l\'ouverture</string>
+
+    <!-- Progression : général -->
+    <string name="progression_channel_name">Progression</string>
+    <string name="progression_channel_desc">Mana, épreuves et bilans quotidiens</string>
+    <string name="mana_chip">%1$d mana</string>
+    <string name="mana_chip_desc">Solde de mana : %1$d. Ouvre les faveurs.</string>
+
+    <!-- Progression : notifications -->
+    <string name="trial_complete_notification_title">Épreuve accomplie !</string>
+    <plurals name="trial_complete_notification_text">
+        <item quantity="one">Une épreuve est accomplie — réclamez vos %2$d mana.</item>
+        <item quantity="many">%1$d épreuves sont accomplies — réclamez vos %2$d mana.</item>
+        <item quantity="other">%1$d épreuves sont accomplies — réclamez vos %2$d mana.</item>
+    </plurals>
+    <string name="wrapup_notification_title">Temps récupéré aujourd\'hui</string>
+    <string name="wrapup_notification_text">Vous avez récupéré %1$s · +%2$d mana · série de %3$d jours</string>
+    <string name="wrapup_time_hours_minutes">%1$dh %2$dm</string>
+    <string name="wrapup_time_minutes">%1$d min</string>
+
+    <!-- Progression : sceaux -->
+    <string name="sigil_first_spell_title">Premier Sortilège</string>
+    <string name="sigil_first_spell_desc">Terminez votre première session de concentration.</string>
+    <string name="sigil_ritual_kept_title">Rituel Honoré</string>
+    <string name="sigil_ritual_kept_desc">Terminez un rituel programmé.</string>
+    <string name="sigil_iron_will_title">Volonté de Fer</string>
+    <string name="sigil_iron_will_desc">Terminez une session avec le bouton d\'arrêt masqué.</string>
+    <string name="sigil_deep_trance_title">Transe Profonde</string>
+    <string name="sigil_deep_trance_desc">Concentrez-vous 4 heures en une seule session.</string>
+    <string name="sigil_ten_hour_week_title">Semaine de Dix Heures</string>
+    <string name="sigil_ten_hour_week_desc">Concentrez-vous 10 heures en une semaine.</string>
+    <string name="sigil_hundred_castings_title">Cent Sortilèges</string>
+    <string name="sigil_hundred_castings_desc">Terminez 100 sessions de concentration.</string>
+    <string name="sigil_streak_7_title">Sept Nuits</string>
+    <string name="sigil_streak_7_desc">Atteignez une série de 7 jours.</string>
+    <string name="sigil_streak_30_title">Trente Nuits</string>
+    <string name="sigil_streak_30_desc">Atteignez une série de 30 jours.</string>
+    <string name="sigil_streak_100_title">Cent Nuits</string>
+    <string name="sigil_streak_100_desc">Atteignez une série de 100 jours.</string>
+    <string name="sigil_warden_title">Le Gardien</string>
+    <string name="sigil_warden_desc">Activez le mode Gardien.</string>
+    <string name="sigil_first_boon_title">Première Faveur</string>
+    <string name="sigil_first_boon_desc">Échangez votre première faveur.</string>
+    <string name="sigil_font_of_mana_title">Source de Mana</string>
+    <string name="sigil_font_of_mana_desc">Gagnez 1 000 mana au total.</string>
+    <string name="sigil_state_locked">Verrouillé</string>
+    <string name="sigil_state_unlocked">Déverrouillé</string>
+
+    <!-- Progression : épreuves -->
+    <string name="trials_header">Épreuves — défis du jour et de la semaine</string>
+    <string name="home_trials_title">Épreuves du jour</string>
+    <string name="trials_empty">De nouvelles épreuves arrivent chaque jour.</string>
+    <plurals name="trial_sessions_daily">
+        <item quantity="one">Lancez %1$d sortilège aujourd\'hui</item>
+        <item quantity="many">Lancez %1$d sortilèges aujourd\'hui</item>
+        <item quantity="other">Lancez %1$d sortilèges aujourd\'hui</item>
+    </plurals>
+    <string name="trial_minutes_daily">Concentrez-vous %1$d minutes aujourd\'hui</string>
+    <string name="trial_ritual_daily">Terminez un rituel programmé aujourd\'hui</string>
+    <string name="trial_under_limits_daily">Restez sous toutes vos limites d\'applications aujourd\'hui</string>
+    <string name="trial_minutes_weekly">Concentrez-vous %1$d minutes cette semaine</string>
+    <string name="trial_reflex_weekly">Moins de %1$d ouvertures réflexes cette semaine</string>
+    <string name="trial_progress">%1$d/%2$d</string>
+    <string name="trial_claim">Réclamer</string>
+    <string name="trial_claimed">Réclamé</string>
+    <string name="trial_reward">+%1$d mana</string>
+    <string name="trial_judged_day_end">Évaluée en fin de journée</string>
+    <string name="trial_judged_week_end">Évaluée en fin de semaine</string>
+
+    <!-- Progression : sections Insights -->
+    <string name="insights_mana_header">Mana — énergie de concentration</string>
+    <string name="insights_sigils_header">Sceaux — vos jalons accomplis</string>
+    <string name="insights_manage_boons">Gérer les faveurs</string>
+    <string name="insights_mana_balance_label">Solde</string>
+    <string name="insights_mana_week_label">Cette semaine</string>
+    <string name="insights_sigils_label">Sceaux</string>
+    <string name="insights_recent_ledger">Activité récente</string>
+
+    <!-- Progression : journal de mana -->
+    <string name="ledger_session_reason">Concentration · %1$d min</string>
+    <string name="ledger_trial_reason">Récompense d\'épreuve</string>
+    <string name="ledger_boon_reason">Faveur : %1$s</string>
+    <string name="ledger_perk_extra_break">Avantage : pause supplémentaire</string>
+    <string name="ledger_perk_sealed_minutes">Avantage : minutes d\'application scellée</string>
+    <string name="ledger_milestone_reason">Jalon de série</string>
+    <string name="ledger_sigil_reason">Sceau déverrouillé</string>
+
+    <!-- Progression : écran des faveurs -->
+    <string name="boons_title">Faveurs</string>
+    <string name="boons_subtitle">Vos récompenses — dépensez votre mana comme vous voulez</string>
+    <string name="boons_balance_header">Votre mana</string>
+    <string name="boons_empty">Créez une faveur — une récompense réelle à échanger contre du mana, comme une soirée jeu sans culpabilité.</string>
+    <string name="boon_add">Nouvelle faveur</string>
+    <string name="boon_create_title">Créer une faveur</string>
+    <string name="boon_edit_title">Modifier la faveur</string>
+    <string name="boon_name_label">Titre</string>
+    <string name="boon_cost_label">Coût (mana)</string>
+    <string name="boon_note_label">Note (facultatif)</string>
+    <string name="boon_save">Enregistrer</string>
+    <string name="boon_delete">Supprimer</string>
+    <string name="boon_redeem">Échanger</string>
+    <string name="boon_redeemed_toast">Profitez-en : %1$s</string>
+    <string name="boon_cost_format">%1$d mana</string>
+    <string name="boon_limit_reached">Vous avez atteint le nombre maximal de faveurs.</string>
+
+    <!-- Progression : avantages -->
+    <string name="perks_header">Avantages — dépensez du mana dans l\'appli</string>
+    <string name="perk_extra_break_title">Pause supplémentaire</string>
+    <string name="perk_extra_break_desc">Une pause de plus dans votre session en cours.</string>
+    <string name="perk_sealed_minutes_title">Minutes d\'application scellée</string>
+    <string name="perk_sealed_minutes_desc">10 minutes dans une application sous pacte, une fois par application et par jour.</string>
+    <string name="perk_buy">Acheter</string>
+    <string name="perk_pick_app">Choisir l\'application</string>
+    <string name="perk_extra_break_inactive">Disponible pendant une session de concentration</string>
+    <string name="perk_sealed_none">Aucune application sous pacte</string>
+    <string name="perk_sealed_used_today">Déjà utilisé pour cette application aujourd\'hui</string>
+    <string name="perk_sealed_over_limit">Limite quotidienne déjà épuisée</string>
+    <string name="perk_not_enough_mana">Pas assez de mana</string>
+    <string name="home_extra_break_button">Utiliser %1$d mana pour une pause de plus</string>
+
+    <!-- Progression : résumé de session -->
+    <string name="summary_mana_earned">+%1$d mana gagnés</string>
+    <string name="summary_milestone_bonus">Bonus de jalon : +%1$d mana</string>
+    <string name="summary_trial_complete">Épreuve accomplie : %1$s — à réclamer dans Analyses</string>
+    <string name="summary_sigil_unlocked">Sceau déverrouillé : %1$s</string>
+    <string name="summary_more_unlocks">+%1$d de plus dans Analyses</string>
+
+    <!-- Progression : réglages -->
+    <string name="settings_progression_title">Progression</string>
+    <string name="settings_progression_toggle">Progression — mana, épreuves et sceaux</string>
+    <string name="settings_progression_desc">Gagnez du mana pendant vos sessions et dépensez-le en faveurs. Désactiver masque toute la progression ; votre mana est conservé.</string>
+    <string name="settings_wrapup_toggle">Notification de bilan quotidien</string>
+    <string name="settings_wrapup_desc">Un mot le soir avec le temps récupéré aujourd\'hui.</string>
+    <string name="settings_trial_alerts_toggle">Alertes d\'épreuve accomplie</string>
+    <string name="settings_trial_alerts_desc">Une notification quand une épreuve est prête à réclamer.</string>
+
+    <!-- Progression : dialogue d\'introduction -->
+    <string name="progression_intro_title">Se concentrer rapporte du mana</string>
+    <string name="progression_intro_message">Chaque session de concentration rapporte du mana — une énergie à dépenser en faveurs : des récompenses que vous définissez vous-même. Des épreuves quotidiennes et des sceaux permanents jalonnent vos progrès.\n\nTout reste sur votre appareil. Vous pouvez tout désactiver dans les Réglages.</string>
+    <string name="progression_intro_ok">Commencer à gagner</string>
 </resources>

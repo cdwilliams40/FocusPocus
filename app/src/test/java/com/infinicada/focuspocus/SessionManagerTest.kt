@@ -123,4 +123,27 @@ class SessionManagerTest {
         SessionManager.stopSession(mockContext, sharedPreferences, gson)
         assertFalse(SessionManager.isSessionActive(sharedPreferences))
     }
+
+    // ── extra-break perk tokens ──
+
+    @Test
+    fun `startSession clears leftover extra-break tokens`() {
+        sharedPreferences.putInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 2)
+        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.EXTRA_BREAK_TOKENS))
+    }
+
+    @Test
+    fun `stopSession clears extra-break tokens and returns a result`() {
+        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        sharedPreferences.putInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 1)
+
+        val result = SessionManager.stopSession(mockContext, sharedPreferences, gson)
+
+        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.EXTRA_BREAK_TOKENS))
+        // SessionRecorder is static-mocked in this test, so the tolerant
+        // empty result is returned rather than a real recording.
+        assertTrue(result.sessions.isEmpty())
+        assertEquals(null, result.recorded)
+    }
 }
