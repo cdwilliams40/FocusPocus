@@ -61,6 +61,13 @@ class PrefsHelperTest {
         assertNull(result)
         assertTrue(corruptionCallbackCalled)
         assertFalse(prefs.contains("test_key"))
+        // The unparseable payload is preserved, not silently discarded: callers
+        // treat a missing key as first-run and would otherwise re-seed defaults
+        // over the user's (recoverable) data.
+        assertEquals(
+            "invalid json",
+            prefs.getString("test_key" + PrefsHelper.CORRUPT_BACKUP_SUFFIX, null)
+        )
 
         // Verify Log.e was called (PrefsHelper logs with the throwable overload)
         mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any()) }

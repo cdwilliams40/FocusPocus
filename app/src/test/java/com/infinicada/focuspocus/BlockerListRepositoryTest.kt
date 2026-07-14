@@ -20,6 +20,11 @@ class BlockerListRepositoryTest {
         websites: List<String>? = null
     ) = Blocker(name, BlockerMode.BLACKLIST, apps, websites)
 
+    /** Writes [blockers] straight to prefs, bypassing the repo (simulates existing state). */
+    private fun storeDirectly(blockers: List<Blocker>) {
+        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, blockers)
+    }
+
     @Before
     fun setUp() {
         prefs = FakeSharedPreferences()
@@ -36,40 +41,41 @@ class BlockerListRepositoryTest {
 
     @Test
     fun `saveBlocker adds new blocker`() {
-        val blocker = makeBlocker()
-        val result = repo.saveBlocker(blocker, emptyList())
+        storeDirectly(emptyList())
+        val result = repo.saveBlocker(makeBlocker())
 
         assertTrue(result)
+        assertEquals(listOf("TestBlocker"), repo.getBlockers().map { it.name })
     }
 
     @Test
     fun `saveBlocker updates existing blocker by name`() {
-        val original = makeBlocker(apps = setOf("com.old"))
-        repo.saveBlocker(original, emptyList())
+        storeDirectly(emptyList())
+        repo.saveBlocker(makeBlocker(apps = setOf("com.old")))
 
-        val updated = makeBlocker(apps = setOf("com.new"))
-        val stored = repo.getBlockers()
-        val result = repo.saveBlocker(updated, stored)
+        val result = repo.saveBlocker(makeBlocker(apps = setOf("com.new")))
 
         assertTrue(result)
+        val stored = repo.getBlockers()
+        assertEquals(1, stored.size)
+        assertEquals(setOf("com.new"), stored[0].effectiveApps)
     }
 
     @Test
     fun `saveBlocker rejects new blocker at capacity`() {
-        val fullList = (1..Constants.MAX_BLOCKERS).map { makeBlocker(name = "Blocker$it") }
-        val newBlocker = makeBlocker(name = "NewBlocker")
+        storeDirectly((1..Constants.MAX_BLOCKERS).map { makeBlocker(name = "Blocker$it") })
 
-        val result = repo.saveBlocker(newBlocker, fullList)
+        val result = repo.saveBlocker(makeBlocker(name = "NewBlocker"))
 
         assertFalse(result)
     }
 
     @Test
     fun `saveBlocker caps apps at MAX_APPS_PER_BLOCKER`() {
+        storeDirectly(emptyList())
         val bigAppSet = (1..600).map { "com.app.$it" }.toSet()
-        val blocker = makeBlocker(apps = bigAppSet)
 
-        repo.saveBlocker(blocker, emptyList())
+        repo.saveBlocker(makeBlocker(apps = bigAppSet))
         val saved = repo.getBlockers()[0]
 
         assertEquals(Constants.MAX_APPS_PER_BLOCKER, saved.effectiveApps.size)
@@ -77,10 +83,10 @@ class BlockerListRepositoryTest {
 
     @Test
     fun `saveBlocker caps websites at MAX_WEBSITES_PER_BLOCKER`() {
+        storeDirectly(emptyList())
         val bigWebsiteList = (1..200).map { "site$it.com" }
-        val blocker = makeBlocker(websites = bigWebsiteList)
 
-        repo.saveBlocker(blocker, emptyList())
+        repo.saveBlocker(makeBlocker(websites = bigWebsiteList))
         val saved = repo.getBlockers()[0]
 
         assertEquals(Constants.MAX_WEBSITES_PER_BLOCKER, saved.effectiveWebsites.size)
@@ -88,9 +94,30 @@ class BlockerListRepositoryTest {
 
     @Test
     fun `deleteBlocker removes by name`() {
-        val blocker = makeBlocker()
-        val remaining = repo.deleteBlocker(blocker, listOf(blocker))
+        storeDirectly(listOf(makeBlocker()))
+        val remaining = repo.deleteBlocker(makeBlocker())
 
         assertEquals(0, remaining.size)
+    }
+
+    @Test
+    fun `saveBlocker preserves blockers written concurrently by another writer`() {
+        // UI reads its snapshot...
+        storeDirectly(listOf(makeBlocker(name = "A", apps = setOf("com.a"))))
+        val uiSnapshotOfA = repo.getBlockers().first()
+
+        // ...then the accessibility service auto-adds an app to another blocker.
+        storeDirectly(
+            listOf(
+                makeBlocker(name = "A", apps = setOf("com.a")),
+                makeBlocker(name = "B", apps = setOf("com.freshly.installed"))
+            )
+        )
+
+        // Saving A from the stale UI snapshot must not clobber B.
+        repo.saveBlocker(uiSnapshotOfA)
+
+        val names = repo.getBlockers().map { it.name }
+        assertTrue("expected B to survive the save, got $names", "B" in names)
     }
 }

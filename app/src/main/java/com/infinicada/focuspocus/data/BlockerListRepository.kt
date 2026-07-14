@@ -26,9 +26,17 @@ class BlockerListRepository(
     }
 
     /**
+     * Persists [blocker], replacing any stored blocker with the same name.
+     *
+     * The rest of the list is re-read from prefs rather than taken from the
+     * caller: the accessibility service writes to the same key concurrently
+     * (auto-adding newly installed apps to opted-in blacklists), so writing
+     * back a caller-supplied snapshot would silently discard those updates.
+     *
      * @return true if saved successfully, false if at max capacity
      */
-    fun saveBlocker(blocker: Blocker, currentList: List<Blocker>): Boolean {
+    fun saveBlocker(blocker: Blocker): Boolean {
+        val currentList = getBlockers()
         val isUpdate = currentList.any { it.name == blocker.name }
         if (!isUpdate && currentList.size >= Constants.MAX_BLOCKERS) return false
 
@@ -41,8 +49,9 @@ class BlockerListRepository(
         return true
     }
 
-    fun deleteBlocker(blocker: Blocker, currentList: List<Blocker>): List<Blocker> {
-        val updated = currentList.filterNot { it.name == blocker.name }
+    /** Removes the stored blocker named like [blocker]. Returns the updated list. */
+    fun deleteBlocker(blocker: Blocker): List<Blocker> {
+        val updated = getBlockers().filterNot { it.name == blocker.name }
         PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, updated)
         return updated
     }
