@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Nfc
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -40,20 +39,16 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.limit.AppOpenStats
-import com.infinicada.focuspocus.model.AppInfo
-import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.ui.components.GlassCard
 
 /**
- * Spellbook overview, organized by when each protection applies: everyday
- * guards first (Pacts with live numbers, then Time Limits), focus-session
- * tools (Enchantments, Rituals), and compact rows at the bottom for the
- * set-and-forget extras (Quick Spells, Talismans, Conditional Unlocks).
+ * Spellbook overview: the grimoire of focus-session configuration —
+ * Enchantments and Rituals up top, compact rows for the set-and-forget
+ * extras (Quick Spells, Talismans, Conditional Unlocks) below. Everyday
+ * guards (pacts, wards) live on the Pacts dashboard, not here.
  */
 @Composable
 fun SpellbookScreen(
@@ -61,75 +56,21 @@ fun SpellbookScreen(
     focusPresets: List<FocusPreset>,
     schedules: List<Schedule>,
     namedTags: List<NamedTag>,
-    appTimeLimitConfigs: Map<String, AppTimeLimit>,
     conditionalUnlocks: List<ConditionalUnlock>,
-    installedApps: List<AppInfo>,
-    pactGroups: List<PactGroup>,
-    pactOpenStats: Map<String, AppOpenStats>,
-    onNavigateToPacts: () -> Unit,
     onNavigateToConditionalUnlocks: () -> Unit,
     onNavigateToEnchantments: () -> Unit,
     onNavigateToQuickSpells: () -> Unit,
     onNavigateToRituals: () -> Unit,
     onNavigateToTalismans: () -> Unit,
-    onNavigateToTimeLimits: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pactConfigs = appTimeLimitConfigs.filterValues { it.pactModeEnabled }
-    val plainLimits = appTimeLimitConfigs.filterValues { !it.pactModeEnabled }
-
     Column(
         modifier = modifier
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // ------------------------------------------------------------ Everyday guards
-        SpellbookGroupHeader(stringResource(R.string.spellbook_group_guards), topSpacing = 0.dp)
-
-        PactsSectionCard(
-            pactConfigs = pactConfigs,
-            pactGroups = pactGroups,
-            blockerLists = blockerLists,
-            pactOpenStats = pactOpenStats,
-            installedApps = installedApps,
-            onSeeAll = onNavigateToPacts
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        SpellbookSectionCard(
-            title = stringResource(R.string.spellbook_time_limits),
-            icon = Icons.Filled.Timer,
-            count = plainLimits.size,
-            actionLabel = stringResource(R.string.action_manage),
-            onSeeAll = onNavigateToTimeLimits
-        ) {
-            if (plainLimits.isEmpty()) {
-                Text(
-                    stringResource(R.string.spellbook_no_time_limits),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                plainLimits.entries.take(3).forEach { (pkg, config) ->
-                    val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                    Text(
-                        stringResource(R.string.spellbook_app_time_limit, appName, config.dailyLimitMinutes),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                if (plainLimits.size > 3) {
-                    Text(
-                        stringResource(R.string.spellbook_more_count, plainLimits.size - 3),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
         // ------------------------------------------------------------- Focus sessions
-        SpellbookGroupHeader(stringResource(R.string.spellbook_group_focus))
+        SpellbookGroupHeader(stringResource(R.string.spellbook_group_focus), topSpacing = 0.dp)
 
         SpellbookSectionCard(
             title = stringResource(R.string.spellbook_enchantments),
@@ -226,62 +167,6 @@ fun SpellbookScreen(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun PactsSectionCard(
-    pactConfigs: Map<String, AppTimeLimit>,
-    pactGroups: List<PactGroup>,
-    blockerLists: List<Blocker>,
-    pactOpenStats: Map<String, AppOpenStats>,
-    installedApps: List<AppInfo>,
-    onSeeAll: () -> Unit
-) {
-    // Every app under a pact: explicit per-app configs plus live enchantment members.
-    val groupApps = pactGroups.flatMap { group ->
-        blockerLists.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
-    }.toSet()
-    val allPactApps = pactConfigs.keys + groupApps
-    val totalOpens = allPactApps.sumOf { pactOpenStats[it]?.opens ?: 0 }
-    val totalReflexes = allPactApps.sumOf { pactOpenStats[it]?.reflexOpens ?: 0 }
-
-    SpellbookSectionCard(
-        title = stringResource(R.string.spellbook_pacts),
-        icon = Icons.Filled.Timer,
-        count = allPactApps.size,
-        actionLabel = stringResource(R.string.action_manage),
-        onSeeAll = onSeeAll
-    ) {
-        if (allPactApps.isEmpty()) {
-            Text(
-                stringResource(R.string.spellbook_pacts_tagline),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            pactGroups.take(2).forEach { group ->
-                val memberCount = blockerLists.find { it.name == group.blockerName }?.effectiveApps?.size ?: 0
-                Text(
-                    stringResource(R.string.spellbook_pact_group_line, group.blockerName, memberCount),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            pactConfigs.entries.take((3 - minOf(pactGroups.size, 2)).coerceAtLeast(0)).forEach { (pkg, _) ->
-                val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                val stats = pactOpenStats[pkg] ?: AppOpenStats()
-                Text(
-                    stringResource(R.string.spellbook_pact_app_line, appName, stats.opens),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.spellbook_pacts_stats, totalOpens, totalReflexes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary
-            )
-        }
     }
 }
 

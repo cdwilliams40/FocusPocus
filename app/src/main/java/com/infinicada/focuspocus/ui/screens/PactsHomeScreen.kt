@@ -87,6 +87,8 @@ fun PactsHomeScreen(
     progressionEnabled: Boolean,
     manaBalance: Long,
     currentStreak: Int,
+    usageAccessGranted: Boolean,
+    onGrantUsageAccess: () -> Unit,
     onOpenBoons: () -> Unit,
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
@@ -139,6 +141,34 @@ fun PactsHomeScreen(
                     breakTimeRemaining = breakTimeRemaining,
                     onClick = onOpenFocus
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        // Daily limits can't be tracked without usage access — surface the
+        // grant affordance right where those guards are managed.
+        val anyDailyLimit = rows.any { row ->
+            when (row) {
+                is GuardRow.App -> row.config.dailyLimitMinutes > 0
+                is GuardRow.Circle -> row.group.dailyLimitMinutes > 0
+            }
+        }
+        if (!usageAccessGranted && anyDailyLimit) {
+            item {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.time_limits_required),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onGrantUsageAccess) {
+                        Text(stringResource(R.string.time_limits_grant_usage))
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }

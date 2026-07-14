@@ -29,6 +29,7 @@ import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -132,6 +133,10 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _spellbookRoute = MutableStateFlow<SpellbookRoute>(SpellbookRoute.Overview)
     val spellbookRoute: StateFlow<SpellbookRoute> = _spellbookRoute.asStateFlow()
 
+    // Pacts (HOME) tab navigation: dashboard overview vs. the guard editor
+    private val _pactsRoute = MutableStateFlow<PactsRoute>(PactsRoute.Overview)
+    val pactsRoute: StateFlow<PactsRoute> = _pactsRoute.asStateFlow()
+
     private val _selectedBlocker = MutableStateFlow<Blocker?>(null)
     val selectedBlocker: StateFlow<Blocker?> = _selectedBlocker.asStateFlow()
 
@@ -175,6 +180,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     // Navigation
     fun navigateTo(route: SpellbookRoute) {
         _spellbookRoute.value = route
+    }
+
+    fun navigateToPacts(route: PactsRoute) {
+        _pactsRoute.value = route
+    }
+
+    fun handlePactsBack(): Boolean {
+        if (_pactsRoute.value is PactsRoute.Overview) return false
+        _pactsRoute.value = PactsRoute.Overview
+        return true
     }
 
     fun setSelectedBlocker(blocker: Blocker?) {
