@@ -275,6 +275,7 @@ fun EditBlockerScreen(
     onSaveBlocker: (Blocker) -> Unit,
     onDeleteBlocker: (Blocker) -> Unit,
     installedApps: List<AppInfo>,
+    hasPactCircle: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var selectedMode by remember { mutableStateOf(blocker.mode) }
@@ -298,6 +299,15 @@ fun EditBlockerScreen(
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(stringResource(R.string.spells_edit_title, blocker.name), style = MaterialTheme.typography.headlineSmall)
+        if (hasPactCircle) {
+            // Makes the coupling visible before a surprise: deleting this
+            // enchantment silently removes its pact circle too.
+            Text(
+                stringResource(R.string.spells_pact_circle_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,

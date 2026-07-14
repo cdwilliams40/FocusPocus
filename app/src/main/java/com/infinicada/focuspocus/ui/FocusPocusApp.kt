@@ -40,6 +40,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,14 +55,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.SessionManager
+import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.GuardLiveState
+import com.infinicada.focuspocus.limit.GuardRow
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
+import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.trialTitle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.BoonsScreen
@@ -69,8 +78,9 @@ import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
+import com.infinicada.focuspocus.ui.screens.GuardEditorScreen
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
-import com.infinicada.focuspocus.ui.screens.PactsScreen
+import com.infinicada.focuspocus.ui.screens.PactsHomeScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
@@ -78,7 +88,6 @@ import com.infinicada.focuspocus.ui.screens.ScheduleListScreen
 import com.infinicada.focuspocus.ui.screens.SettingsScreen
 import com.infinicada.focuspocus.ui.screens.SpellbookScreen
 import com.infinicada.focuspocus.ui.screens.TalismansScreen
-import com.infinicada.focuspocus.ui.screens.TimeLimitsScreen
 import com.infinicada.focuspocus.ui.screens.UsageStatsScreen
 import com.infinicada.focuspocus.viewmodel.InsightsViewModel
 import com.infinicada.focuspocus.viewmodel.ProgressionViewModel
@@ -138,6 +147,7 @@ fun FocusPocusApp(
     val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
+    val pactsRoute by spellbookVM.pactsRoute.collectAsStateWithLifecycle()
     val selectedBlocker by spellbookVM.selectedBlocker.collectAsStateWithLifecycle()
     val dataVersion by spellbookVM.dataVersion.collectAsStateWithLifecycle()
 
@@ -156,6 +166,7 @@ fun FocusPocusApp(
     val analyticsConsent by settingsVM.analyticsConsent.collectAsStateWithLifecycle()
     val onboardingCompleted by settingsVM.onboardingCompleted.collectAsStateWithLifecycle()
     val showAnalyticsConsentDialog by settingsVM.showAnalyticsConsentDialog.collectAsStateWithLifecycle()
+    val showPactsHomeIntroDialog by settingsVM.showPactsHomeIntroDialog.collectAsStateWithLifecycle()
 
     val blockEvents by insightsVM.blockEvents.collectAsStateWithLifecycle()
     val insightsFocusSessions by insightsVM.focusSessions.collectAsStateWithLifecycle()
@@ -257,12 +268,11 @@ fun FocusPocusApp(
     if (!onboardingCompleted) {
         OnboardingScreen(
             namedTags = namedTags,
-            blockerLists = blockerLists,
             installedApps = installedApps,
             isServiceEnabled = isServiceEnabled,
             analyticsConsent = analyticsConsent,
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
-            onSaveBlocker = { spellbookVM.saveBlocker(it) },
+            onCreateFirstPacts = { packages -> spellbookVM.createDefaultPacts(packages) },
             onSaveTag = { name ->
                 lastScannedTagId?.let { spellbookVM.saveNamedTag(it, name) }
             },
@@ -299,6 +309,21 @@ fun FocusPocusApp(
             confirmButton = {
                 Button(onClick = { settingsVM.dismissProgressionIntroDialog() }) {
                     Text(stringResource(R.string.progression_intro_ok))
+                }
+            }
+        )
+    }
+
+    // One-time "the front door moved" note for users updating into the
+    // pacts-first layout; queued behind the other one-time dialogs.
+    if (showPactsHomeIntroDialog && !showAnalyticsConsentDialog && !showProgressionIntroDialog) {
+        AlertDialog(
+            onDismissRequest = { settingsVM.dismissPactsHomeIntroDialog() },
+            title = { Text(stringResource(R.string.pacts_home_intro_title)) },
+            text = { Text(stringResource(R.string.pacts_home_intro_message)) },
+            confirmButton = {
+                Button(onClick = { settingsVM.dismissPactsHomeIntroDialog() }) {
+                    Text(stringResource(R.string.pacts_home_intro_ok))
                 }
             }
         )
@@ -427,15 +452,10 @@ fun FocusPocusApp(
     // on the main scaffold, so the two flags can't both be set)
     if (showBoons) {
         BackHandler { showBoons = false }
+        // Pact-gated apps can buy sealed minutes too; GuardStatus owns the
+        // explicit-config-wins precedence (mirroring resolvePactConfig).
         val pactedPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-            // Pact groups gate every app in their enchantment, so those apps can
-            // buy sealed minutes too. An explicit per-app config always wins —
-            // even one with pacts disabled — mirroring the service's
-            // resolvePactConfig precedence.
-            val fromGroups = pactGroups.flatMap { group ->
-                blockerLists.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
-            }.filter { it !in appTimeLimitConfigs }
-            appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys + fromGroups
+            GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
         }
         val pactedApps = remember(installedApps, pactedPackages) {
             installedApps.filter { it.packageName in pactedPackages }
@@ -468,6 +488,11 @@ fun FocusPocusApp(
         BackHandler { spellbookVM.handleBack() }
     }
 
+    // Back handler for the guard editor on the Pacts tab
+    if (pactsRoute !is PactsRoute.Overview && currentDestination == AppDestinations.HOME) {
+        BackHandler { spellbookVM.handlePactsBack() }
+    }
+
     // One shared arcane sky behind every tab — the scaffold and top bar are
     // transparent so screens feel like they live in the same night.
     Box(modifier = modifier.fillMaxSize()) {
@@ -484,6 +509,11 @@ fun FocusPocusApp(
                         currentDestination = it
                         if (it == AppDestinations.SPELLBOOK) {
                             spellbookVM.navigateTo(SpellbookRoute.Overview)
+                        }
+                        // Same convention as Spellbook: tapping the tab lands
+                        // on its overview, not a stale guard editor.
+                        if (it == AppDestinations.HOME) {
+                            spellbookVM.navigateToPacts(PactsRoute.Overview)
                         }
                     }
                 )
@@ -510,6 +540,121 @@ fun FocusPocusApp(
             val contentModifier = Modifier.padding(innerPadding)
             when (currentDestination) {
                 AppDestinations.HOME -> {
+                    val route = pactsRoute
+                    // Both the dashboard and the guard editor care whether
+                    // usage access is granted; re-checked on every resume.
+                    var usageAccessGranted by remember {
+                        mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
+                    }
+                    if (route is PactsRoute.Overview) {
+                        // Live guard state refreshes on a minute tick while the
+                        // dashboard is visible (the ticker dies with this branch's
+                        // composition), on every return to the foreground, and on
+                        // any data mutation via dataVersion. The snapshot reads
+                        // prefs and usage stats, so it's taken off the main thread.
+                        var guardTick by remember { mutableIntStateOf(0) }
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                delay(60_000L)
+                                guardTick++
+                            }
+                        }
+                        LifecycleResumeEffect(Unit) {
+                            guardTick++
+                            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            onPauseOrDispose { }
+                        }
+                        var guardLiveStates by remember {
+                            mutableStateOf(emptyMap<String, GuardLiveState>())
+                        }
+                        var guardOpenStats by remember {
+                            mutableStateOf(emptyMap<String, AppOpenStats>())
+                        }
+                        var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
+                        LaunchedEffect(dataVersion, guardTick) {
+                            val snapshot = withContext(Dispatchers.IO) {
+                                spellbookVM.getGuardLiveState() to spellbookVM.getTodayOpenStats()
+                            }
+                            guardLiveStates = snapshot.first
+                            guardOpenStats = snapshot.second
+                            guardNow = System.currentTimeMillis()
+                        }
+
+                        PactsHomeScreen(
+                            installedApps = installedApps,
+                            appTimeLimitConfigs = appTimeLimitConfigs,
+                            pactGroups = pactGroups,
+                            blockerLists = blockerLists,
+                            todayOpenStats = guardOpenStats,
+                            guardLiveStates = guardLiveStates,
+                            nowMillis = guardNow,
+                            sessionActive = focusMode,
+                            isOnBreak = isOnBreak,
+                            sessionLabel = activeSchedule?.name
+                                ?: activeManualBlockers.joinToString(", ") { it.name },
+                            sessionTimeRemaining = focusTimeRemaining,
+                            breakTimeRemaining = breakTimeRemaining,
+                            progressionEnabled = progressionEnabled,
+                            manaBalance = manaBalance,
+                            currentStreak = currentStreak,
+                            usageAccessGranted = usageAccessGranted,
+                            onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+                            onOpenBoons = { showBoons = true },
+                            onOpenFocus = { currentDestination = AppDestinations.FOCUS },
+                            onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
+                            onGuardClick = { row ->
+                                spellbookVM.navigateToPacts(
+                                    when (row) {
+                                        is GuardRow.App -> PactsRoute.EditGuard(row.packageName)
+                                        is GuardRow.Circle -> PactsRoute.EditCircle(row.group.blockerName)
+                                    }
+                                )
+                            },
+                            modifier = contentModifier
+                        )
+                    } else {
+                        LifecycleResumeEffect(Unit) {
+                            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            onPauseOrDispose { }
+                        }
+                        GuardEditorScreen(
+                            installedApps = installedApps,
+                            blockerLists = blockerLists,
+                            pactGroups = pactGroups,
+                            appTimeLimitConfigs = appTimeLimitConfigs,
+                            editPackageName = (route as? PactsRoute.EditGuard)?.packageName,
+                            editCircleName = (route as? PactsRoute.EditCircle)?.blockerName,
+                            usageAccessGranted = usageAccessGranted,
+                            onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+                            onSaveConfig = { config ->
+                                spellbookVM.saveAppTimeLimitConfig(config)
+                                spellbookVM.navigateToPacts(PactsRoute.Overview)
+                            },
+                            onDeleteConfig = { pkg ->
+                                spellbookVM.deleteAppTimeLimit(pkg)
+                                spellbookVM.navigateToPacts(PactsRoute.Overview)
+                            },
+                            onSaveGroup = { group ->
+                                spellbookVM.savePactGroup(group)
+                                spellbookVM.navigateToPacts(PactsRoute.Overview)
+                            },
+                            onDeleteGroup = { name ->
+                                spellbookVM.deletePactGroup(name)
+                                spellbookVM.navigateToPacts(PactsRoute.Overview)
+                            },
+                            onOpenEnchantment = { blocker ->
+                                spellbookVM.navigateToPacts(PactsRoute.Overview)
+                                spellbookVM.setSelectedBlocker(blocker)
+                                spellbookVM.navigateTo(SpellbookRoute.EditEnchantment)
+                                currentDestination = AppDestinations.SPELLBOOK
+                            },
+                            onNavigateBack = { spellbookVM.navigateToPacts(PactsRoute.Overview) },
+                            modifier = contentModifier
+                        )
+                    }
+                }
+
+                AppDestinations.FOCUS -> {
                     val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
                     val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
                     // Extra-break perk tokens raise the effective max for this
@@ -546,9 +691,7 @@ fun FocusPocusApp(
                         nfcLockMode = nfcLockMode,
                         emergencyBreakAvailable = emergencyBreakAvailable,
                         emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                        currentStreak = currentStreak,
                         progressionEnabled = progressionEnabled,
-                        manaBalance = manaBalance,
                         trials = trials,
                         canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
                         onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
@@ -598,9 +741,12 @@ fun FocusPocusApp(
                             progressionVM.refresh()
                             Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
                         },
-                        onOpenBoons = { showBoons = true },
                         onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
                         onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
+                        onCreateEnchantment = {
+                            currentDestination = AppDestinations.SPELLBOOK
+                            spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
+                        },
                         modifier = contentModifier
                     )
                 }
@@ -612,18 +758,12 @@ fun FocusPocusApp(
                             focusPresets = focusPresets,
                             schedules = schedules,
                             namedTags = namedTags,
-                            appTimeLimitConfigs = appTimeLimitConfigs,
                             conditionalUnlocks = conditionalUnlocks,
-                            installedApps = installedApps,
-                            pactGroups = pactGroups,
-                            pactOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
-                            onNavigateToPacts = { spellbookVM.navigateTo(SpellbookRoute.Pacts) },
                             onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
                             onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
-                            onNavigateToTimeLimits = { spellbookVM.navigateTo(SpellbookRoute.TimeLimits) },
                             modifier = contentModifier
                         )
 
@@ -653,6 +793,7 @@ fun FocusPocusApp(
                         is SpellbookRoute.EditEnchantment -> selectedBlocker?.let {
                             EditBlockerScreen(
                                 blocker = it,
+                                hasPactCircle = pactGroups.any { group -> group.blockerName == it.name },
                                 onSaveBlocker = { blockerToSave ->
                                     spellbookVM.saveBlocker(blockerToSave)
                                     spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList)
@@ -744,35 +885,16 @@ fun FocusPocusApp(
                             modifier = contentModifier
                         )
 
-                        is SpellbookRoute.TimeLimits -> TimeLimitsScreen(
-                            installedApps = installedApps,
-                            appTimeLimits = appTimeLimitConfigs,
-                            onSaveAppTimeLimit = { config -> spellbookVM.saveAppTimeLimitConfig(config) },
-                            onDeleteAppTimeLimit = { spellbookVM.deleteAppTimeLimit(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
-
-                        is SpellbookRoute.Pacts -> PactsScreen(
-                            installedApps = installedApps,
-                            appTimeLimitConfigs = appTimeLimitConfigs,
-                            blockerLists = blockerLists,
-                            pactGroups = pactGroups,
-                            todayOpenStats = remember(currentRoute) { spellbookVM.getTodayOpenStats() },
-                            onSaveConfig = { spellbookVM.saveAppTimeLimitConfig(it) },
-                            onDeleteConfig = { spellbookVM.deleteAppTimeLimit(it) },
-                            onSaveGroup = { spellbookVM.savePactGroup(it) },
-                            onDeleteGroup = { spellbookVM.deletePactGroup(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
-
                         is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
                             blockerLists = blockerLists,
                             appTimeLimits = appTimeLimits,
-                            pactPackages = appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys,
+                            // Pact-gated apps carry a "(Pact)" label in the pickers;
+                            // GuardStatus owns the explicit-config-wins precedence.
+                            pactPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
+                                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
+                            },
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },

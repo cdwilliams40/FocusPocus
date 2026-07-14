@@ -293,6 +293,18 @@ fun UsageStatsScreen(
             }
         }
 
+        // App Opens: how often pact-tracked apps were opened and how many opens
+        // were under-30-second reflexes, within the selected time range. Sits
+        // right below the streaks now that guards are the app's front door.
+        if (openStatsInRange.isNotEmpty()) {
+            item {
+                AppOpensCard(
+                    openStatsInRange = openStatsInRange,
+                    installedApps = installedApps
+                )
+            }
+        }
+
         // ── Progression: mana ──
         if (progressionEnabled) {
             item {
@@ -575,75 +587,6 @@ fun UsageStatsScreen(
             }
         }
 
-        // App Opens Card: how often tracked apps were opened and how many opens
-        // were under-30-second reflexes, within the selected time range.
-        if (openStatsInRange.isNotEmpty()) {
-            item {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(16.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.insights_app_opens),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val totalOpens = openStatsInRange.sumOf { it.value.opens }
-                    val totalReflexes = openStatsInRange.sumOf { it.value.reflexOpens }
-                    val reflexPercent = if (totalOpens > 0) (totalReflexes * 100) / totalOpens else 0
-                    Text(
-                        stringResource(R.string.insights_total_opens, totalOpens),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        stringResource(R.string.insights_reflex_summary, totalReflexes, reflexPercent),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    val maxOpens = openStatsInRange.first().value.opens.coerceAtLeast(1)
-                    openStatsInRange.take(8).forEach { (pkg, stats) ->
-                        val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                appName,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                modifier = Modifier.width(96.dp)
-                            )
-                            MagnitudeBar(
-                                fraction = stats.opens.toFloat() / maxOpens,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp)
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.insights_opens_row_count,
-                                    stats.opens, stats.reflexOpens
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.width(64.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        stringResource(R.string.insights_reflex_hint),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
         // App Time Limit Status
         if (appTimeLimits.isNotEmpty() && hasPermission) {
             item {
@@ -899,6 +842,79 @@ fun UsageStatsScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * App opens within the selected range: total, reflex share, and a per-app
+ * breakdown for the most-opened tracked apps.
+ */
+@Composable
+private fun AppOpensCard(
+    openStatsInRange: List<Map.Entry<String, AppOpenStats>>,
+    installedApps: List<AppInfo>
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Text(
+            stringResource(R.string.insights_app_opens),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        val totalOpens = openStatsInRange.sumOf { it.value.opens }
+        val totalReflexes = openStatsInRange.sumOf { it.value.reflexOpens }
+        val reflexPercent = if (totalOpens > 0) (totalReflexes * 100) / totalOpens else 0
+        Text(
+            stringResource(R.string.insights_total_opens, totalOpens),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            stringResource(R.string.insights_reflex_summary, totalReflexes, reflexPercent),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.tertiary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        val maxOpens = openStatsInRange.first().value.opens.coerceAtLeast(1)
+        openStatsInRange.take(8).forEach { (pkg, stats) ->
+            val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    appName,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    modifier = Modifier.width(96.dp)
+                )
+                MagnitudeBar(
+                    fraction = stats.opens.toFloat() / maxOpens,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                )
+                Text(
+                    stringResource(
+                        R.string.insights_opens_row_count,
+                        stats.opens, stats.reflexOpens
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.width(64.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            stringResource(R.string.insights_reflex_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

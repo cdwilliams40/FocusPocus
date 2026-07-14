@@ -136,4 +136,11 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     fun setProgressionIntroShown() {
         prefs.edit().putBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, true).apply()
     }
+
+    fun isPactsHomeIntroShown(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.PACTS_HOME_INTRO_SHOWN, false)
+
+    fun setPactsHomeIntroShown() {
+        prefs.edit().putBoolean(Constants.PrefsKeys.PACTS_HOME_INTRO_SHOWN, true).apply()
+    }
 }
