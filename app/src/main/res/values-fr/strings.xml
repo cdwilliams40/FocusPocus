@@ -130,6 +130,7 @@
     <string name="home_guard_empty_title">Aucun pacte pour l\'instant</string>
     <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
+    <string name="home_create_enchantment">Créer un enchantement</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
     <string name="guard_editor_edit_pact">Modifier le pacte</string>
     <string name="guard_editor_edit_ward">Modifier la garde</string>
@@ -292,28 +293,27 @@
 
     <!-- OnboardingScreen -->
     <string name="onboarding_step_of">Étape %1$d sur %2$d</string>
-    <string name="onboarding_start_focusing">Commencer à se concentrer</string>
+    <string name="onboarding_begin">Commencer</string>
     <string name="onboarding_welcome_title">Bienvenue sur Focus Pocus</string>
-    <string name="onboarding_welcome_desc">Votre compagnon magique de concentration. Configurons quelques éléments pour vous aider à rester concentré et productif.</string>
+    <string name="onboarding_welcome_desc">Vos applications les plus distrayantes, scellées jusqu\'à ce que vous choisissiez consciemment de les ouvrir. Configurons vos premiers pactes — les sorts de concentration minutés restent à un geste de là.</string>
     <string name="onboarding_accessibility_title">Accorder la vue magique</string>
-    <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour détecter quand vous ouvrez des applications distrayantes et vous guider doucement vers votre concentration.</string>
+    <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour remarquer l\'ouverture d\'une application scellée ou bloquée et vous proposer un choix conscient à la place.</string>
     <string name="onboarding_accessibility_enabled">Accessibilité activée</string>
     <string name="onboarding_enable_accessibility">Activer le service d\'accessibilité</string>
-    <string name="onboarding_create_enchantment_title">Créez votre premier enchantement</string>
-    <string name="onboarding_create_enchantment_desc">Sélectionnez les applications à bloquer pendant les sessions de concentration.</string>
-    <string name="onboarding_enchantment_created">Enchantement créé ! Vous pouvez en créer d\'autres plus tard.</string>
-    <string name="onboarding_select_apps">Sélectionner les applications à bloquer (%d sélectionnées)</string>
-    <string name="onboarding_create_enchantment">Créer l\'enchantement</string>
+    <string name="onboarding_pact_title">Scellez vos premières applications</string>
+    <string name="onboarding_pact_desc">Choisissez les applications qui dévorent votre attention. Elles seront scellées par défaut — en ouvrir une demande de combien de temps vous avez vraiment besoin.</string>
+    <string name="onboarding_pact_pick">Choisir les applications à sceller (%d sélectionnées)</string>
+    <string name="onboarding_pact_defaults_note">Chaque pacte démarre avec des réglages raisonnables : jusqu\'à 15 minutes à la fois, puis scellée pendant 30. Ajustez chaque pacte plus tard dans l\'onglet Pactes.</string>
     <string name="onboarding_notification_title">Accès aux notifications</string>
     <string name="onboarding_notification_desc">Accordez l\'accès aux notifications pour bloquer les notifications des applications distrayantes et activer le mode Ne pas déranger pendant la concentration.</string>
     <string name="onboarding_notification_granted">Accès aux notifications accordé</string>
     <string name="onboarding_grant_notification">Accorder l\'accès aux notifications</string>
     <string name="onboarding_usage_title">Statistiques d\'utilisation</string>
-    <string name="onboarding_usage_desc">Accordez l\'accès à l\'utilisation pour voir les statistiques et activer les limites de temps par application.</string>
+    <string name="onboarding_usage_desc">Accordez l\'accès à l\'utilisation pour alimenter les garde-fous quotidiens de vos pactes, les limites de temps par application et l\'écran Statistiques.</string>
     <string name="onboarding_usage_granted">Accès à l\'utilisation accordé</string>
     <string name="onboarding_grant_usage">Accorder l\'accès à l\'utilisation</string>
-    <string name="onboarding_done_title">Vous êtes prêt !</string>
-    <string name="onboarding_done_desc">Focus Pocus est prêt à vous aider à vous concentrer. Vous pouvez toujours ajuster les paramètres, ajouter des talismans et créer des enchantements depuis l\'onglet Grimoire.</string>
+    <string name="onboarding_done_title">Vos pactes sont scellés</string>
+    <string name="onboarding_done_desc">Les applications choisies attendent désormais derrière un pacte conscient. Lancez des sorts de concentration minutés depuis l\'onglet Concentration, et façonnez rituels, talismans et enchantements dans le Grimoire.</string>
     <string name="onboarding_analytics_title">Aidez à améliorer Focus Pocus</string>
     <string name="onboarding_analytics_desc">Nous utilisons des rapports de plantage anonymes et des statistiques d\'utilisation pour corriger les bugs et améliorer l\'application. Aucune donnée personnelle n\'est collectée. Vous pouvez modifier ce choix à tout moment dans les paramètres.</string>
     <string name="onboarding_analytics_toggle">Partager les analyses</string>

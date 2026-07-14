@@ -264,12 +264,11 @@ fun FocusPocusApp(
     if (!onboardingCompleted) {
         OnboardingScreen(
             namedTags = namedTags,
-            blockerLists = blockerLists,
             installedApps = installedApps,
             isServiceEnabled = isServiceEnabled,
             analyticsConsent = analyticsConsent,
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
-            onSaveBlocker = { spellbookVM.saveBlocker(it) },
+            onCreateFirstPacts = { packages -> spellbookVM.createDefaultPacts(packages) },
             onSaveTag = { name ->
                 lastScannedTagId?.let { spellbookVM.saveNamedTag(it, name) }
             },
@@ -723,6 +722,10 @@ fun FocusPocusApp(
                         },
                         onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
                         onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
+                        onCreateEnchantment = {
+                            currentDestination = AppDestinations.SPELLBOOK
+                            spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
+                        },
                         modifier = contentModifier
                     )
                 }

@@ -300,6 +300,26 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _dataVersion.value++
     }
 
+    /**
+     * Onboarding: seal [packages] behind the default pact (up to 15 minutes per
+     * pact, 30-minute seal, no daily backstop). Each is an ordinary per-app
+     * config, so the guard editor tunes them like any other pact.
+     */
+    fun createDefaultPacts(packages: List<String>) {
+        packages.take(com.infinicada.focuspocus.Constants.MAX_APP_TIME_LIMITS).forEach { pkg ->
+            saveAppTimeLimitConfig(
+                AppTimeLimit(
+                    packageName = pkg,
+                    dailyLimitMinutes = 0,
+                    sessionLimitMinutes = 0,
+                    cooldownMinutes = 30,
+                    pactModeEnabled = true,
+                    pactMaxMinutes = 15
+                )
+            )
+        }
+    }
+
     fun saveAppTimeLimitConfig(config: AppTimeLimit) {
         if (!insightsRepo.saveAppTimeLimitConfig(config, _appTimeLimitConfigs.value)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(

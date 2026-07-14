@@ -121,6 +121,7 @@ fun Greeting(
     onScanQrCode: () -> Unit = {},
     onClaimTrial: (Trial) -> Unit = {},
     onBuyExtraBreak: () -> Unit = {},
+    onCreateEnchantment: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
@@ -184,7 +185,8 @@ fun Greeting(
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
                     onScanQrCode = onScanQrCode,
-                    onClaimTrial = onClaimTrial
+                    onClaimTrial = onClaimTrial,
+                    onCreateEnchantment = onCreateEnchantment
                 )
             }
         }
@@ -212,7 +214,8 @@ private fun IdleContent(
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
     onScanQrCode: () -> Unit,
-    onClaimTrial: (Trial) -> Unit
+    onClaimTrial: (Trial) -> Unit,
+    onCreateEnchantment: () -> Unit
 ) {
     Text(
         text = stringResource(R.string.home_status_ready),
@@ -231,12 +234,20 @@ private fun IdleContent(
     )
     if (!canCast) {
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.home_cast_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        if (blockerLists.isEmpty()) {
+            // Pact-first onboarding no longer creates an enchantment, so the
+            // old "choose one below" hint would point at an empty dropdown.
+            OutlinedButton(onClick = onCreateEnchantment) {
+                Text(stringResource(R.string.home_create_enchantment))
+            }
+        } else {
+            Text(
+                text = stringResource(R.string.home_cast_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 
     Spacer(modifier = Modifier.height(24.dp))

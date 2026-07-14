@@ -130,6 +130,7 @@
     <string name="home_guard_empty_title">No pacts yet</string>
     <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
+    <string name="home_create_enchantment">Create an enchantment</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
     <string name="guard_editor_edit_pact">Edit Pact</string>
     <string name="guard_editor_edit_ward">Edit Ward</string>
@@ -299,28 +300,27 @@
 
     <!-- OnboardingScreen -->
     <string name="onboarding_step_of">Step %1$d of %2$d</string>
-    <string name="onboarding_start_focusing">Start Focusing</string>
+    <string name="onboarding_begin">Begin</string>
     <string name="onboarding_welcome_title">Welcome to Focus Pocus</string>
-    <string name="onboarding_welcome_desc">Your magical focus companion. Let\'s set up a few things to help you stay focused and productive.</string>
+    <string name="onboarding_welcome_desc">Your most distracting apps, sealed until you consciously choose to open them. Let\'s set up your first pacts — timed focus spells are one tap away whenever you want them.</string>
     <string name="onboarding_accessibility_title">Grant Magical Sight</string>
-    <string name="onboarding_accessibility_desc">Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus.</string>
+    <string name="onboarding_accessibility_desc">Focus Pocus needs Accessibility permission to notice when you open a sealed or blocked app and offer you a conscious choice instead.</string>
     <string name="onboarding_accessibility_enabled">Accessibility enabled</string>
     <string name="onboarding_enable_accessibility">Enable Accessibility Service</string>
-    <string name="onboarding_create_enchantment_title">Create Your First Enchantment</string>
-    <string name="onboarding_create_enchantment_desc">Select the apps you want to block during focus sessions.</string>
-    <string name="onboarding_enchantment_created">Enchantment created! You can create more later.</string>
-    <string name="onboarding_select_apps">Select Apps to Block (%d selected)</string>
-    <string name="onboarding_create_enchantment">Create Enchantment</string>
+    <string name="onboarding_pact_title">Seal Your First Apps</string>
+    <string name="onboarding_pact_desc">Pick the apps that eat your attention. They\'ll be sealed by default — opening one asks how much time you truly need.</string>
+    <string name="onboarding_pact_pick">Choose apps to seal (%d selected)</string>
+    <string name="onboarding_pact_defaults_note">Each pact starts with sensible defaults: up to 15 minutes at a time, then sealed for 30. Tune every pact later on the Pacts tab.</string>
     <string name="onboarding_notification_title">Notification Access</string>
     <string name="onboarding_notification_desc">Grant notification access to block notifications from distracting apps and enable Do Not Disturb during focus.</string>
     <string name="onboarding_notification_granted">Notification access granted</string>
     <string name="onboarding_grant_notification">Grant Notification Access</string>
     <string name="onboarding_usage_title">Usage Statistics</string>
-    <string name="onboarding_usage_desc">Grant usage access to see app usage insights and enable per-app time limits.</string>
+    <string name="onboarding_usage_desc">Grant usage access to power daily backstops on your pacts, per-app time limits, and the Insights screen.</string>
     <string name="onboarding_usage_granted">Usage access granted</string>
     <string name="onboarding_grant_usage">Grant Usage Access</string>
-    <string name="onboarding_done_title">You\'re All Set!</string>
-    <string name="onboarding_done_desc">Focus Pocus is ready to help you focus. You can always adjust settings, add talismans, and create more enchantments from the Wizard tab.</string>
+    <string name="onboarding_done_title">Your Pacts Are Sealed</string>
+    <string name="onboarding_done_desc">The apps you chose now wait behind a conscious pact. Cast timed focus spells from the Focus tab, and shape rituals, talismans, and enchantments in the Spellbook.</string>
     <string name="onboarding_analytics_title">Help Improve Focus Pocus</string>
     <string name="onboarding_analytics_desc">We use anonymous crash reports and usage statistics to fix bugs and improve the app. No personal data is collected. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_toggle">Share Analytics</string>
