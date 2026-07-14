@@ -79,6 +79,28 @@ class SessionManagerTest {
     }
 
     @Test
+    fun `startSession stores the schedule window end for scheduled sessions`() {
+        val windowEnd = System.currentTimeMillis() + 60 * 60_000L
+
+        SessionManager.startSession(
+            sharedPreferences = sharedPreferences,
+            blockerNames = listOf("ScheduledBlocker"),
+            scheduleId = "schedule_123",
+            scheduleEndTimeMillis = windowEnd
+        )
+
+        assertEquals(windowEnd, sharedPreferences.getLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, 0L))
+
+        // A subsequent manual session must not inherit the stale window end.
+        SessionManager.startSession(
+            sharedPreferences = sharedPreferences,
+            blockerNames = listOf("ManualBlocker"),
+            durationMinutes = 25
+        )
+        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS))
+    }
+
+    @Test
     fun `startSession with default values`() {
         val blockerName = "DefaultBlocker"
         // Relying on defaults: durationMinutes=0, breaksEnabled=true, scheduleId=null

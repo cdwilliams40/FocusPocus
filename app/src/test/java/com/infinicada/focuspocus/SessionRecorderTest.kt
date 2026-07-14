@@ -146,6 +146,47 @@ class SessionRecorderTest {
         assertEquals(1, fakePrefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0))
     }
 
+    @Test
+    fun testRecord_capsTimedSessionAtFocusEnd() {
+        val now = System.currentTimeMillis()
+        // Timed session started 3h ago whose countdown ended 2h ago (service was
+        // dead when it expired) — only the first hour is real focus time.
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 180 * 60000)
+        fakePrefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now - 120 * 60000)
+
+        val result = SessionRecorder.record(fakePrefs, gson)
+
+        assertEquals(60, result.recorded!!.durationMinutes)
+    }
+
+    @Test
+    fun testRecord_capsScheduleSessionAtWindowEnd() {
+        val now = System.currentTimeMillis()
+        // Ritual session started 3h ago whose window ended 2h ago; the idle gap
+        // until the service finally stopped it must not be credited.
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 180 * 60000)
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-schedule-id")
+        fakePrefs.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, now - 120 * 60000)
+
+        val result = SessionRecorder.record(fakePrefs, gson)
+
+        assertEquals(60, result.recorded!!.durationMinutes)
+    }
+
+    @Test
+    fun testRecord_futureScheduleEndDoesNotCap() {
+        val now = System.currentTimeMillis()
+        // Ritual dispelled early: the window end is still in the future, so the
+        // session is credited up to now.
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 30 * 60000)
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-schedule-id")
+        fakePrefs.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, now + 60 * 60000)
+
+        val result = SessionRecorder.record(fakePrefs, gson)
+
+        assertEquals(30, result.recorded!!.durationMinutes)
+    }
+
     // ── Progression award integration ──
 
     @Test

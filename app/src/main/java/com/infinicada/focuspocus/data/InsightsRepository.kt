@@ -35,24 +35,11 @@ class InsightsRepository(
     fun getAppTimeLimits(): Map<String, Int> =
         AppTimeLimitManager.getTimeLimits(prefs, gson)
 
-    fun saveAppTimeLimit(
-        packageName: String,
-        limitMinutes: Int,
-        currentLimits: Map<String, Int>
-    ): Boolean {
-        val updated = currentLimits.toMutableMap()
-        updated[packageName] = limitMinutes
-        if (updated.size > Constants.MAX_APP_TIME_LIMITS) return false
-        AppTimeLimitManager.saveTimeLimits(prefs, gson, updated)
-        return true
-    }
-
-    fun deleteAppTimeLimit(packageName: String, currentLimits: Map<String, Int>): Map<String, Int> {
-        val updated = currentLimits.toMutableMap()
-        updated.remove(packageName)
-        AppTimeLimitManager.saveTimeLimits(prefs, gson, updated)
-        return updated
-    }
+    // NOTE: the legacy flat map (APP_TIME_LIMITS) is read-only here on purpose.
+    // saveTimeLimitConfigs rebuilds it wholesale from the config map, so any
+    // write routed directly at the flat map would be clobbered (deletions
+    // resurrected) by the next config save. All writes go through the config
+    // API below.
 
     // --- Config (includes session-cooldown settings) ---
 

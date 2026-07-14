@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,6 +83,10 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+/** Local calendar date as "yyyyMMdd" — recomposition key for day-bound windows. */
+private fun currentDateStamp(): String =
+    SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsageStatsScreen(
@@ -107,6 +112,9 @@ fun UsageStatsScreen(
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
+    // Refreshed on every resume so the "Today"/"This Week" windows below can't go
+    // stale when the screen sits in the background across midnight.
+    var dateStamp by remember { mutableStateOf(currentDateStamp()) }
     val sharedPreferences = remember { context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE) }
     var selectedTabIndex by remember { mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, 0)) }
     var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
@@ -120,18 +128,18 @@ fun UsageStatsScreen(
         stringResource(R.string.insights_all_time)
     )
 
-    val todayStart = remember {
+    val todayStart = remember(dateStamp) {
         Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
-    val weekStart = remember {
+    val weekStart = remember(dateStamp) {
         Calendar.getInstance().apply {
             add(Calendar.DAY_OF_YEAR, -7)
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
-    val monthStart = remember {
+    val monthStart = remember(dateStamp) {
         Calendar.getInstance().apply {
             add(Calendar.DAY_OF_YEAR, -30)
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
@@ -217,8 +225,15 @@ fun UsageStatsScreen(
         filteredStats.sumOf { it.totalTimeInForeground }
     }
 
-    val allUsedMinutes = remember(appTimeLimits, hasPermission) {
-        AppTimeLimitManager.getAllUsedMinutesToday(context)
+    // Full-day queryEvents walk — must not run on the main thread in composition.
+    val allUsedMinutes by produceState(
+        initialValue = emptyMap<String, Int>(), appTimeLimits, hasPermission, dateStamp
+    ) {
+        value = if (hasPermission) {
+            withContext(Dispatchers.IO) { AppTimeLimitManager.getAllUsedMinutesToday(context) }
+        } else {
+            emptyMap()
+        }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -226,6 +241,7 @@ fun UsageStatsScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasPermission = UsageStatsHelper.hasUsageStatsPermission(context)
+                dateStamp = currentDateStamp()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -469,7 +485,7 @@ fun UsageStatsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        val dailyMinutes = remember(focusSessions) {
+                        val dailyMinutes = remember(focusSessions, dateStamp) {
                             val cal = Calendar.getInstance()
                             val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
                             (6 downTo 0).map { daysAgo ->

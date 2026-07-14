@@ -9,7 +9,9 @@ lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.12.2"
 fragmentKtx = "1.8.6"
 kotlin = "2.2.10"
-composeBom = "2024.09.00"
+# Keep roughly in step with the Kotlin compose-compiler version above: a
+# Sept-2024 runtime under a Kotlin 2.2 compiler is a latent-mismatch risk.
+composeBom = "2025.06.01"
 navigationCompose = "2.8.9"
 lifecycleViewmodelCompose = "2.8.7"
 gson = "2.10.1"

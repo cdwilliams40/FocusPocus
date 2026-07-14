@@ -211,7 +211,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     // CRUD operations
     fun saveBlocker(blocker: Blocker) {
-        if (!blockerRepo.saveBlocker(blocker, _blockerLists.value)) {
+        if (!blockerRepo.saveBlocker(blocker)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(
                 R.string.toast_max_enchantments, com.infinicada.focuspocus.Constants.MAX_BLOCKERS
             ), Toast.LENGTH_SHORT).show()
@@ -222,7 +222,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun deleteBlocker(blocker: Blocker) {
-        _blockerLists.value = blockerRepo.deleteBlocker(blocker, _blockerLists.value)
+        _blockerLists.value = blockerRepo.deleteBlocker(blocker)
         // A pact group is bound to its enchantment by name; deleting the
         // enchantment would leave the group behind, silently gating nothing.
         if (pactManager.getGroups().any { it.blockerName == blocker.name }) {

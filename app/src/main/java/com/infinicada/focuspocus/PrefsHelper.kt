@@ -11,6 +11,9 @@ import java.lang.reflect.Type
 object PrefsHelper {
     private const val TAG = "PrefsHelper"
 
+    /** Suffix under which the raw payload of an unparseable key is preserved. */
+    const val CORRUPT_BACKUP_SUFFIX = "_corrupt_backup"
+
     /**
      * Loads a JSON string from SharedPreferences and parses it into an object of type T.
      *
@@ -34,7 +37,14 @@ object PrefsHelper {
                 return gson.fromJson(json, type)
             } catch (e: Exception) {
                 Log.e(TAG, "Error parsing JSON for key $key", e)
-                prefs.edit().remove(key).apply()
+                // Callers treat a missing key as first-run and re-seed defaults, so
+                // removing the key here silently discards everything the user had
+                // stored under it. Preserve the raw payload so the data is at least
+                // recoverable (and inspectable when diagnosing the corruption).
+                prefs.edit()
+                    .putString(key + CORRUPT_BACKUP_SUFFIX, json)
+                    .remove(key)
+                    .apply()
                 onCorruption?.invoke()
                 return null
             }

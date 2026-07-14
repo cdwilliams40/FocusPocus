@@ -20,6 +20,10 @@ object Constants {
         const val FOCUS_DURATION_MINUTES = "focusDurationMinutes"
         const val FOCUS_TIME_REMAINING = "focusTimeRemaining"
         const val FOCUS_END_TIME_MILLIS = "focusEndTimeMillis"
+        // Wall-clock end of the active schedule's window, snapshotted at activation.
+        // Caps how much focus time a ritual session can be credited with if the
+        // service was dead when the window ended (SessionRecorder.record).
+        const val SCHEDULE_END_TIME_MILLIS = "scheduleEndTimeMillis"
         const val SESSION_BREAKS_ENABLED = "sessionBreaksEnabled"
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"

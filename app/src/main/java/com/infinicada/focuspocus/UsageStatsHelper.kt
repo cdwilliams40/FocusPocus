@@ -27,6 +27,9 @@ data class ForegroundEvent(
 
 object UsageStatsHelper {
 
+    /** See [getForegroundUsageSince]: pre-window context for apps already in the foreground. */
+    private const val EVENT_LOOKBACK_MS = 6L * 60 * 60 * 1000
+
     fun hasUsageStatsPermission(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
             ?: return false
@@ -97,13 +100,21 @@ object UsageStatsHelper {
      *
      * Only reliable for recent windows (the system retains detailed events for a few
      * days) — use the bucket queries for weekly/monthly aggregates.
+     *
+     * Events are read from [EVENT_LOOKBACK_MS] before [startTime]: an app resumed
+     * before the window and still in the foreground produces no event inside the
+     * window at all, so without pre-window context it would count as zero usage
+     * (e.g. a video app held open across midnight escaping its daily limit until
+     * its first pause). The aggregation clips all credited time to the window, so
+     * the lookback only supplies state, never extra minutes.
      */
     fun getForegroundUsageSince(context: Context, startTime: Long): Map<String, Long> {
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
                 ?: return emptyMap()
         val endTime = System.currentTimeMillis()
-        val usageEvents = usageStatsManager.queryEvents(startTime, endTime) ?: return emptyMap()
+        val usageEvents =
+            usageStatsManager.queryEvents(startTime - EVENT_LOOKBACK_MS, endTime) ?: return emptyMap()
 
         val events = ArrayList<ForegroundEvent>()
         val event = UsageEvents.Event()

@@ -63,6 +63,27 @@ class UsageStatsHelperTest {
     }
 
     @Test
+    fun aggregate_preWindowResume_countsFromWindowStart() {
+        // App resumed before the window (supplied by the query lookback) and never
+        // paused: it was foreground across the whole window despite producing no
+        // event inside it (e.g. a video app held open across midnight).
+        val events = listOf(resumed("com.app", windowStart - 60_000))
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(windowEnd - windowStart, totals["com.app"])
+    }
+
+    @Test
+    fun aggregate_preWindowSession_contributesNothing() {
+        // A resume/pause pair entirely before the window must not leak time in.
+        val events = listOf(
+            resumed("com.app", windowStart - 120_000),
+            paused("com.app", windowStart - 60_000)
+        )
+        val totals = UsageStatsHelper.aggregateForegroundTime(events, windowStart, windowEnd)
+        assertEquals(0L, totals["com.app"] ?: 0L)
+    }
+
+    @Test
     fun aggregate_stopWithoutResume_isIgnored() {
         // App left the foreground before the window; only its late STOPPED landed inside.
         val events = listOf(stopped("com.app", windowStart + 30_000))

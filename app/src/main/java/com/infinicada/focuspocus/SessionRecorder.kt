@@ -49,13 +49,16 @@ object SessionRecorder {
         val startTime = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
         if (startTime == 0L) return RecordResult(emptyList())
 
-        // A timed session that expired while nothing was running to stop it
-        // (service disabled, app dead) is credited until its scheduled end,
-        // not until whenever the stop finally executed — otherwise duration,
-        // mana and sigils are inflated by however long the phone sat idle.
+        // A session that expired while nothing was running to stop it (service
+        // disabled, app dead) is credited until its scheduled end, not until
+        // whenever the stop finally executed — otherwise duration, mana and
+        // sigils are inflated by however long the phone sat idle. Timed sessions
+        // cap at FOCUS_END_TIME_MILLIS; ritual sessions at the schedule window
+        // end snapshotted in SCHEDULE_END_TIME_MILLIS.
         val now = System.currentTimeMillis()
         val focusEnd = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        val endTime = if (focusEnd in 1 until now) focusEnd else now
+        val scheduleEnd = prefs.getLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, 0L)
+        val endTime = listOf(focusEnd, scheduleEnd).filter { it in 1 until now }.minOrNull() ?: now
         val durationMin = ((endTime - startTime) / 60000).toInt()
         if (durationMin < 1) return RecordResult(emptyList())
 
