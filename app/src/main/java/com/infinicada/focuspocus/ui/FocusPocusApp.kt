@@ -55,9 +55,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.SessionManager
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
@@ -66,7 +68,9 @@ import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.trialTitle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.BoonsScreen
@@ -448,15 +452,10 @@ fun FocusPocusApp(
     // on the main scaffold, so the two flags can't both be set)
     if (showBoons) {
         BackHandler { showBoons = false }
+        // Pact-gated apps can buy sealed minutes too; GuardStatus owns the
+        // explicit-config-wins precedence (mirroring resolvePactConfig).
         val pactedPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-            // Pact groups gate every app in their enchantment, so those apps can
-            // buy sealed minutes too. An explicit per-app config always wins —
-            // even one with pacts disabled — mirroring the service's
-            // resolvePactConfig precedence.
-            val fromGroups = pactGroups.flatMap { group ->
-                blockerLists.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
-            }.filter { it !in appTimeLimitConfigs }
-            appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys + fromGroups
+            GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
         }
         val pactedApps = remember(installedApps, pactedPackages) {
             installedApps.filter { it.packageName in pactedPackages }
@@ -511,6 +510,11 @@ fun FocusPocusApp(
                         if (it == AppDestinations.SPELLBOOK) {
                             spellbookVM.navigateTo(SpellbookRoute.Overview)
                         }
+                        // Same convention as Spellbook: tapping the tab lands
+                        // on its overview, not a stale guard editor.
+                        if (it == AppDestinations.HOME) {
+                            spellbookVM.navigateToPacts(PactsRoute.Overview)
+                        }
                     }
                 )
             }
@@ -537,11 +541,17 @@ fun FocusPocusApp(
             when (currentDestination) {
                 AppDestinations.HOME -> {
                     val route = pactsRoute
+                    // Both the dashboard and the guard editor care whether
+                    // usage access is granted; re-checked on every resume.
+                    var usageAccessGranted by remember {
+                        mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
+                    }
                     if (route is PactsRoute.Overview) {
                         // Live guard state refreshes on a minute tick while the
                         // dashboard is visible (the ticker dies with this branch's
                         // composition), on every return to the foreground, and on
-                        // any data mutation via dataVersion.
+                        // any data mutation via dataVersion. The snapshot reads
+                        // prefs and usage stats, so it's taken off the main thread.
                         var guardTick by remember { mutableIntStateOf(0) }
                         LaunchedEffect(Unit) {
                             while (true) {
@@ -549,21 +559,26 @@ fun FocusPocusApp(
                                 guardTick++
                             }
                         }
-                        var usageAccessGranted by remember {
-                            mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
-                        }
                         LifecycleResumeEffect(Unit) {
                             guardTick++
                             usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
                             onPauseOrDispose { }
                         }
-                        val guardLiveStates = remember(dataVersion, guardTick) {
-                            spellbookVM.getGuardLiveState()
+                        var guardLiveStates by remember {
+                            mutableStateOf(emptyMap<String, GuardLiveState>())
                         }
-                        val guardOpenStats = remember(dataVersion, guardTick) {
-                            spellbookVM.getTodayOpenStats()
+                        var guardOpenStats by remember {
+                            mutableStateOf(emptyMap<String, AppOpenStats>())
                         }
-                        val guardNow = remember(dataVersion, guardTick) { System.currentTimeMillis() }
+                        var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
+                        LaunchedEffect(dataVersion, guardTick) {
+                            val snapshot = withContext(Dispatchers.IO) {
+                                spellbookVM.getGuardLiveState() to spellbookVM.getTodayOpenStats()
+                            }
+                            guardLiveStates = snapshot.first
+                            guardOpenStats = snapshot.second
+                            guardNow = System.currentTimeMillis()
+                        }
 
                         PactsHomeScreen(
                             installedApps = installedApps,
@@ -598,6 +613,10 @@ fun FocusPocusApp(
                             modifier = contentModifier
                         )
                     } else {
+                        LifecycleResumeEffect(Unit) {
+                            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            onPauseOrDispose { }
+                        }
                         GuardEditorScreen(
                             installedApps = installedApps,
                             blockerLists = blockerLists,
@@ -605,6 +624,8 @@ fun FocusPocusApp(
                             appTimeLimitConfigs = appTimeLimitConfigs,
                             editPackageName = (route as? PactsRoute.EditGuard)?.packageName,
                             editCircleName = (route as? PactsRoute.EditCircle)?.blockerName,
+                            usageAccessGranted = usageAccessGranted,
+                            onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
                             onSaveConfig = { config ->
                                 spellbookVM.saveAppTimeLimitConfig(config)
                                 spellbookVM.navigateToPacts(PactsRoute.Overview)
@@ -869,16 +890,10 @@ fun FocusPocusApp(
                             installedApps = installedApps,
                             blockerLists = blockerLists,
                             appTimeLimits = appTimeLimits,
-                            // Pact-gated apps carry a "(Pact)" label in the pickers.
-                            // Circle members count too, minus apps with an explicit
-                            // per-app config — that config wins (resolvePactConfig
-                            // precedence), whatever its style.
+                            // Pact-gated apps carry a "(Pact)" label in the pickers;
+                            // GuardStatus owns the explicit-config-wins precedence.
                             pactPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-                                val fromGroups = pactGroups.flatMap { group ->
-                                    blockerLists.find { it.name == group.blockerName }?.effectiveApps
-                                        ?: emptySet()
-                                }.filter { it !in appTimeLimitConfigs }
-                                appTimeLimitConfigs.filterValues { it.pactModeEnabled }.keys + fromGroups
+                                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
                             },
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },

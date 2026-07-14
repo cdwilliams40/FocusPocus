@@ -245,11 +245,9 @@ private fun SpellbookSectionCard(
     title: String,
     icon: ImageVector,
     count: Int,
-    actionLabel: String? = null,
     onSeeAll: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    val resolvedActionLabel = actionLabel ?: stringResource(R.string.action_see_all)
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(16.dp)
@@ -302,7 +300,7 @@ private fun SpellbookSectionCard(
                     }
                 }
                 TextButton(onClick = onSeeAll) {
-                    Text(resolvedActionLabel)
+                    Text(stringResource(R.string.action_see_all))
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,

@@ -52,6 +52,7 @@ import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.limit.GuardState
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -225,23 +226,26 @@ private fun DashboardHeader(
     onOpenBoons: () -> Unit
 ) {
     if (anyGuards) {
-        val sealedText = if (headline.sealedCount > 0) {
-            pluralStringResource(
-                R.plurals.home_guard_sealed_count, headline.sealedCount, headline.sealedCount
-            )
-        } else null
-        val activeText = if (headline.pactActiveCount > 0) {
-            pluralStringResource(
-                R.plurals.home_guard_active_count, headline.pactActiveCount, headline.pactActiveCount
-            )
-        } else null
-        val headlineText = when {
-            sealedText != null && activeText != null ->
-                stringResource(R.string.home_guard_headline_join, sealedText, activeText)
-            sealedText != null -> sealedText
-            activeText != null -> activeText
-            else -> stringResource(R.string.home_guard_all_quiet)
-        }
+        val parts = listOfNotNull(
+            if (headline.sealedCount > 0) {
+                pluralStringResource(
+                    R.plurals.home_guard_sealed_count, headline.sealedCount, headline.sealedCount
+                )
+            } else null,
+            if (headline.pactActiveCount > 0) {
+                pluralStringResource(
+                    R.plurals.home_guard_active_count, headline.pactActiveCount, headline.pactActiveCount
+                )
+            } else null,
+            if (headline.overLimitCount > 0) {
+                pluralStringResource(
+                    R.plurals.home_guard_over_count, headline.overLimitCount, headline.overLimitCount
+                )
+            } else null
+        )
+        val headlineText =
+            if (parts.isEmpty()) stringResource(R.string.home_guard_all_quiet)
+            else parts.joinToString(" · ")
         Text(
             text = headlineText,
             style = MaterialTheme.typography.headlineLarge,
@@ -411,7 +415,8 @@ private fun GuardAppCard(
 /** Config summary, live state, and today's counters for a pact-style row. */
 @Composable
 private fun PactCardBody(row: GuardRow.App, names: Map<String, String>) {
-    val effectiveMax = if (row.config.pactMaxMinutes > 0) row.config.pactMaxMinutes else 15
+    val effectiveMax = if (row.config.pactMaxMinutes > 0) row.config.pactMaxMinutes
+                       else PactManager.DEFAULT_MAX_MINUTES
     Text(
         stringResource(R.string.pacts_config_summary, effectiveMax, row.config.cooldownMinutes),
         style = MaterialTheme.typography.bodySmall,
@@ -539,7 +544,8 @@ private fun GuardCircleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val effectiveMax = if (row.group.pactMaxMinutes > 0) row.group.pactMaxMinutes else 15
+                val effectiveMax = if (row.group.pactMaxMinutes > 0) row.group.pactMaxMinutes
+                                   else PactManager.DEFAULT_MAX_MINUTES
                 Text(
                     stringResource(R.string.pacts_config_summary, effectiveMax, row.group.cooldownMinutes),
                     style = MaterialTheme.typography.bodySmall,
@@ -570,6 +576,7 @@ private fun GuardCircleCard(
             val circleState = when {
                 row.sealedCount > 0 -> GuardState.SEALED
                 row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
+                row.overLimitCount > 0 -> GuardState.OVER_LIMIT
                 else -> GuardState.QUIET
             }
             GuardStateChip(state = circleState)

@@ -26,7 +26,6 @@
     <string name="action_next">Next</string>
     <string name="action_skip">Skip</string>
     <string name="action_see_all">See All</string>
-    <string name="action_manage">Manage</string>
     <string name="action_qr">QR</string>
 
     <!-- Common terms -->
@@ -113,7 +112,10 @@
         <item quantity="one">%d pact active</item>
         <item quantity="other">%d pacts active</item>
     </plurals>
-    <string name="home_guard_headline_join">%1$s · %2$s</string>
+    <plurals name="home_guard_over_count">
+        <item quantity="one">%d limit spent</item>
+        <item quantity="other">%d limits spent</item>
+    </plurals>
     <string name="home_guard_all_quiet">All quiet</string>
     <string name="home_guard_rollup">Today: %1$d opens · %2$d reflexes caught</string>
     <string name="home_session_banner_detail">%1$s · %2$s left</string>

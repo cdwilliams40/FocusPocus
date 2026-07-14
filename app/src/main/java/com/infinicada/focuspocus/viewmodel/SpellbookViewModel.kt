@@ -65,6 +65,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             _blockerLists.value.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
         }
         val cooldowns = sessionCooldownManager.peekActiveCooldowns(now)
+        val allowances = pactManager.getActiveAllowances(now)
         val anyDailyLimit = configs.values.any { it.dailyLimitMinutes > 0 } ||
             groups.any { it.dailyLimitMinutes > 0 }
         val usedToday = if (anyDailyLimit) {
@@ -74,7 +75,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         return (configs.keys + groupMembers).associateWith { pkg ->
             GuardLiveState(
-                allowanceExpiryMillis = pactManager.getAllowanceExpiry(pkg, now),
+                allowanceExpiryMillis = allowances[pkg],
                 cooldownExpiryMillis = cooldowns[pkg]?.cooldownExpiryMillis,
                 usedMinutesToday = usedToday[pkg] ?: 0
             )
@@ -314,7 +315,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                     sessionLimitMinutes = 0,
                     cooldownMinutes = 30,
                     pactModeEnabled = true,
-                    pactMaxMinutes = 15
+                    pactMaxMinutes = PactManager.DEFAULT_MAX_MINUTES
                 )
             )
         }

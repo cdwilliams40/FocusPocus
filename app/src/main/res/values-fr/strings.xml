@@ -26,7 +26,6 @@
     <string name="action_next">Suivant</string>
     <string name="action_skip">Passer</string>
     <string name="action_see_all">Tout voir</string>
-    <string name="action_manage">Gérer</string>
     <string name="action_qr">QR</string>
 
     <!-- Common terms -->
@@ -113,7 +112,11 @@
         <item quantity="many">%d pactes actifs</item>
         <item quantity="other">%d pactes actifs</item>
     </plurals>
-    <string name="home_guard_headline_join">%1$s · %2$s</string>
+    <plurals name="home_guard_over_count">
+        <item quantity="one">%d limite épuisée</item>
+        <item quantity="many">%d limites épuisées</item>
+        <item quantity="other">%d limites épuisées</item>
+    </plurals>
     <string name="home_guard_all_quiet">Tout est calme</string>
     <string name="home_guard_rollup">Aujourd\'hui : %1$d ouvertures · %2$d réflexes attrapés</string>
     <string name="home_session_banner_detail">%1$s · %2$s restantes</string>

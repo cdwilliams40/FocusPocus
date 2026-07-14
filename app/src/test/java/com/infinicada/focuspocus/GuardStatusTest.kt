@@ -195,13 +195,15 @@ class GuardStatusTest {
     fun `headline sums app and circle counts`() {
         val configs = mapOf(
             "com.sealed" to pact("com.sealed"),
-            "com.running" to pact("com.running")
+            "com.running" to pact("com.running"),
+            "com.spent" to ward("com.spent", daily = 30)
         )
         val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.x", "com.y")))
         val groups = listOf(PactGroup(blockerName = "Doom"))
         val liveStates = mapOf(
             "com.sealed" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000),
             "com.running" to GuardLiveState(allowanceExpiryMillis = t0 + 60_000),
+            "com.spent" to GuardLiveState(usedMinutesToday = 30),
             "com.x" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000)
         )
 
@@ -212,6 +214,40 @@ class GuardStatusTest {
 
         assertEquals(2, headline.sealedCount)
         assertEquals(1, headline.pactActiveCount)
+        assertEquals(1, headline.overLimitCount)
+    }
+
+    @Test
+    fun `circle members over their daily backstop count as over limit`() {
+        val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b")))
+        val groups = listOf(PactGroup(blockerName = "Doom", dailyLimitMinutes = 30))
+        val liveStates = mapOf("com.a" to GuardLiveState(usedMinutesToday = 45))
+
+        val rows = GuardStatus.buildRows(
+            emptyMap(), groups, blockers, liveStates, emptyMap(), emptyMap(), t0
+        )
+
+        assertEquals(1, rows.filterIsInstance<GuardRow.Circle>().single().overLimitCount)
+        assertEquals(1, GuardStatus.headlineCounts(rows).overLimitCount)
+    }
+
+    // ── pactGatedPackages ──
+
+    @Test
+    fun `pactGatedPackages applies the explicit-config-wins precedence`() {
+        val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b", "com.c")))
+        val groups = listOf(PactGroup(blockerName = "Doom"))
+        val configs = mapOf(
+            // Explicit ward inside the circle: its config wins, so it is NOT pact-gated.
+            "com.a" to ward("com.a"),
+            // Explicit pact outside the circle: gated.
+            "com.z" to pact("com.z")
+        )
+
+        assertEquals(
+            setOf("com.b", "com.c", "com.z"),
+            GuardStatus.pactGatedPackages(configs, groups, blockers)
+        )
     }
 
     @Test

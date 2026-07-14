@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
@@ -78,6 +80,8 @@ fun GuardEditorScreen(
     appTimeLimitConfigs: Map<String, AppTimeLimit>,
     editPackageName: String?,
     editCircleName: String?,
+    usageAccessGranted: Boolean,
+    onGrantUsageAccess: () -> Unit,
     onSaveConfig: (AppTimeLimit) -> Unit,
     onDeleteConfig: (String) -> Unit,
     onSaveGroup: (PactGroup) -> Unit,
@@ -127,24 +131,21 @@ fun GuardEditorScreen(
 
     // ── Pact fields ──
     var pactMaxMinutes by remember {
-        mutableIntStateOf(initial?.pactMaxMinutes?.takeIf { it > 0 } ?: 15)
+        mutableIntStateOf(initial?.pactMaxMinutes?.takeIf { it > 0 } ?: PactManager.DEFAULT_MAX_MINUTES)
     }
     var sealMinutes by remember { mutableIntStateOf(initial?.cooldownMinutes ?: 30) }
-    var backstopMinutes by remember {
-        mutableIntStateOf(if (initial?.pactModeEnabled == true) initial.dailyLimitMinutes else 0)
-    }
-    var alternativeApp by remember {
-        mutableStateOf(installedApps.find { it.packageName == initial?.pactAlternativePackage })
-    }
+    // Both styles store the daily cap in dailyLimitMinutes, so both fields
+    // seed from it — converting a guard between styles must not drop the cap.
+    var backstopMinutes by remember { mutableIntStateOf(initial?.dailyLimitMinutes ?: 0) }
+    // Held as a package name, not an AppInfo: installedApps loads
+    // asynchronously, and resolving against a not-yet-loaded list here would
+    // silently wipe the stored substitute on the next save.
+    var alternativePackage by remember { mutableStateOf(initial?.pactAlternativePackage) }
     var showAlternativePicker by remember { mutableStateOf(false) }
 
     // ── Ward fields ──
     var dailyLimitMinutes by remember {
-        mutableIntStateOf(
-            if (initial != null && !initial.pactModeEnabled && initial.dailyLimitMinutes > 0) {
-                initial.dailyLimitMinutes
-            } else 30
-        )
+        mutableIntStateOf(initial?.dailyLimitMinutes?.takeIf { it > 0 } ?: 30)
     }
     var sessionCooldownEnabled by remember {
         mutableStateOf((initial?.sessionLimitMinutes ?: 0) > 0)
@@ -223,7 +224,7 @@ fun GuardEditorScreen(
                     cooldownMinutes = sealMinutes,
                     cooldownEscalationEnabled = escalationEnabled,
                     cooldownEscalationStepMinutes = escalationStepMinutes,
-                    pactAlternativePackage = alternativeApp?.packageName,
+                    pactAlternativePackage = alternativePackage,
                     dailyLimitMinutes = backstopMinutes
                 )
             )
@@ -240,7 +241,7 @@ fun GuardEditorScreen(
                         cooldownEscalationStepMinutes = escalationStepMinutes,
                         pactModeEnabled = true,
                         pactMaxMinutes = pactMaxMinutes,
-                        pactAlternativePackage = alternativeApp?.packageName
+                        pactAlternativePackage = alternativePackage
                     )
                 } else {
                     AppTimeLimit(
@@ -248,7 +249,10 @@ fun GuardEditorScreen(
                         dailyLimitMinutes = dailyLimitMinutes,
                         sessionLimitMinutes = if (sessionCooldownEnabled) sessionLimitMinutes else 0,
                         cooldownMinutes = sealMinutes,
-                        cooldownEscalationEnabled = escalationEnabled,
+                        // Without a session cooldown there is nothing to
+                        // escalate, and the toggle wasn't even on screen —
+                        // don't persist a value chosen for the other style.
+                        cooldownEscalationEnabled = sessionCooldownEnabled && escalationEnabled,
                         cooldownEscalationStepMinutes = escalationStepMinutes,
                         pactModeEnabled = false
                     )
@@ -296,6 +300,7 @@ fun GuardEditorScreen(
                     editingGroup = editingGroup,
                     blockerLists = blockerLists,
                     installedApps = installedApps,
+                    appTimeLimitConfigs = appTimeLimitConfigs,
                     onOpenEnchantment = onOpenEnchantment
                 )
             } else {
@@ -459,7 +464,9 @@ fun GuardEditorScreen(
                 // Optional healthier substitute
                 Box {
                     OutlinedTextField(
-                        value = alternativeApp?.name ?: "",
+                        value = alternativePackage?.let { pkg ->
+                            installedApps.find { it.packageName == pkg }?.name ?: pkg
+                        } ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.time_limits_pact_alternative_label)) },
@@ -473,8 +480,8 @@ fun GuardEditorScreen(
                             .clickable { showAlternativePicker = true }
                     )
                 }
-                if (alternativeApp != null) {
-                    TextButton(onClick = { alternativeApp = null }) {
+                if (alternativePackage != null) {
+                    TextButton(onClick = { alternativePackage = null }) {
                         Text(stringResource(R.string.time_limits_pact_alternative_clear))
                     }
                 }
@@ -484,9 +491,9 @@ fun GuardEditorScreen(
                             it.packageName != (editPackageName ?: selectedApp?.packageName)
                         },
                         title = stringResource(R.string.time_limits_pact_alternative_label),
-                        selectedPackage = alternativeApp?.packageName,
+                        selectedPackage = alternativePackage,
                         onPick = { app ->
-                            alternativeApp = app
+                            alternativePackage = app.packageName
                             showAlternativePicker = false
                         },
                         onDismiss = { showAlternativePicker = false }
@@ -577,6 +584,22 @@ fun GuardEditorScreen(
                 }
             }
 
+            // A ward (or a pact's daily backstop) is inert without usage
+            // access — the old Time Limits screen gated creation on it, so
+            // the unified editor at least has to say so.
+            if (!usageAccessGranted && (!pactStyle || backstopMinutes > 0)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.time_limits_required),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onGrantUsageAccess) {
+                    Text(stringResource(R.string.time_limits_grant_usage))
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -660,6 +683,7 @@ private fun EditedTargetHeader(
     editingGroup: PactGroup?,
     blockerLists: List<Blocker>,
     installedApps: List<AppInfo>,
+    appTimeLimitConfigs: Map<String, AppTimeLimit>,
     onOpenEnchantment: (Blocker) -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -698,11 +722,14 @@ private fun EditedTargetHeader(
                 style = MaterialTheme.typography.titleMedium
             )
             if (editingGroup != null) {
-                val enchantment = blockerLists.find { it.name == editingGroup.blockerName }
+                // Same membership arithmetic as the dashboard card: apps with
+                // an explicit per-app config aren't gated by this circle.
                 Text(
                     stringResource(
                         R.string.pacts_group_summary,
-                        enchantment?.effectiveApps?.size ?: 0
+                        GuardStatus.circleMemberPackages(
+                            editingGroup, blockerLists, appTimeLimitConfigs
+                        ).size
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

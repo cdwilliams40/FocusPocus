@@ -1,12 +1,9 @@
 package com.infinicada.focuspocus.ui.screens
 
-import android.Manifest
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
 import androidx.compose.foundation.background

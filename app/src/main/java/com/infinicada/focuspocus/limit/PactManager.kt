@@ -44,6 +44,15 @@ class PactManager(
     }
 
     /**
+     * Read-only batch view: every currently-active allowance (package →
+     * expiry epoch millis). One load of the store instead of one per package;
+     * lapsed entries are filtered but never removed (that is
+     * [takeLapsedAllowance]'s job, on the enforcement side).
+     */
+    fun getActiveAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> =
+        loadAllowances().filterValues { it > now }
+
+    /**
      * If [packageName] has an allowance that has already lapsed, removes it and
      * returns its expiry time so the caller can start the seal cooldown anchored
      * there. Returns null if there is no allowance or it is still active.
@@ -100,7 +109,12 @@ class PactManager(
         /** Candidate allowance durations offered on the pact overlay, in minutes. */
         val DEFAULT_CHOICES = listOf(2, 5, 10, 15, 30)
 
-        private const val DEFAULT_MAX_MINUTES = 15
+        /**
+         * Fallback for configs whose pactMaxMinutes is non-positive (pre-field
+         * data Gson fills with 0). Public so UI summaries and prefills quote
+         * the same ladder cap the overlay actually offers.
+         */
+        const val DEFAULT_MAX_MINUTES = 15
 
         /**
          * The allowance choices to offer for [config]: the default ladder capped at

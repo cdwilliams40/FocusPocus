@@ -22,7 +22,11 @@ data class GuardLiveState(
 enum class GuardState { SEALED, PACT_ACTIVE, OVER_LIMIT, QUIET }
 
 /** Aggregate counts for the dashboard headline. */
-data class GuardHeadline(val sealedCount: Int, val pactActiveCount: Int)
+data class GuardHeadline(
+    val sealedCount: Int,
+    val pactActiveCount: Int,
+    val overLimitCount: Int
+)
 
 /** Today's open/reflex rollup across pact-gated apps (wards aren't reflex-tracked). */
 data class TodayRollup(val opens: Int, val reflexOpens: Int)
@@ -55,6 +59,7 @@ sealed class GuardRow {
         val memberPackages: List<String>,
         val sealedCount: Int,
         val pactActiveCount: Int,
+        val overLimitCount: Int,
         val opensToday: Int,
         val reflexesToday: Int
     ) : GuardRow()
@@ -80,6 +85,33 @@ object GuardStatus {
         val msLeft = expiryMillis - now
         return if (msLeft <= 0L) 0 else ((msLeft + 59_999) / 60_000).toInt()
     }
+
+    /**
+     * Live membership of [group]'s circle: the enchantment's apps minus those
+     * with an explicit per-app config — the explicit config always wins,
+     * whatever its style (the resolvePactConfig precedence).
+     */
+    fun circleMemberPackages(
+        group: PactGroup,
+        blockers: List<Blocker>,
+        configs: Map<String, AppTimeLimit>
+    ): List<String> =
+        (blockers.find { it.name == group.blockerName }?.effectiveApps ?: emptySet())
+            .filter { it !in configs }
+            .sorted()
+
+    /**
+     * Every package currently gated by a pact: explicit pact-style configs plus
+     * live circle members. The single home of the precedence rule for UI
+     * consumers (Boons, Conditional Unlocks, the dashboard rollup).
+     */
+    fun pactGatedPackages(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>
+    ): Set<String> =
+        configs.filterValues { it.pactModeEnabled }.keys +
+            groups.flatMap { circleMemberPackages(it, blockers, configs) }
 
     /**
      * Builds the dashboard's card list: one row per explicit config plus one per
@@ -118,11 +150,10 @@ object GuardStatus {
         }
 
         val circleRows = groups.map { group ->
-            val members = (blockers.find { it.name == group.blockerName }?.effectiveApps ?: emptySet())
-                .filter { it !in configs }
-                .sorted()
+            val members = circleMemberPackages(group, blockers, configs)
             var sealedCount = 0
             var pactActiveCount = 0
+            var overLimitCount = 0
             var opens = 0
             var reflexes = 0
             members.forEach { pkg ->
@@ -130,13 +161,14 @@ object GuardStatus {
                 when (resolveState(group.toAppTimeLimit(pkg), live, now)) {
                     GuardState.SEALED -> sealedCount++
                     GuardState.PACT_ACTIVE -> pactActiveCount++
-                    else -> {}
+                    GuardState.OVER_LIMIT -> overLimitCount++
+                    GuardState.QUIET -> {}
                 }
                 val stats = openStats[pkg] ?: AppOpenStats()
                 opens += stats.opens
                 reflexes += stats.reflexOpens
             }
-            GuardRow.Circle(group, members, sealedCount, pactActiveCount, opens, reflexes)
+            GuardRow.Circle(group, members, sealedCount, pactActiveCount, overLimitCount, opens, reflexes)
         }
 
         return (appRows + circleRows).sortedWith(
@@ -148,20 +180,23 @@ object GuardStatus {
     fun headlineCounts(rows: List<GuardRow>): GuardHeadline {
         var sealedCount = 0
         var pactActiveCount = 0
+        var overLimitCount = 0
         rows.forEach { row ->
             when (row) {
                 is GuardRow.App -> when (row.state) {
                     GuardState.SEALED -> sealedCount++
                     GuardState.PACT_ACTIVE -> pactActiveCount++
-                    else -> {}
+                    GuardState.OVER_LIMIT -> overLimitCount++
+                    GuardState.QUIET -> {}
                 }
                 is GuardRow.Circle -> {
                     sealedCount += row.sealedCount
                     pactActiveCount += row.pactActiveCount
+                    overLimitCount += row.overLimitCount
                 }
             }
         }
-        return GuardHeadline(sealedCount, pactActiveCount)
+        return GuardHeadline(sealedCount, pactActiveCount, overLimitCount)
     }
 
     /**
@@ -199,6 +234,7 @@ object GuardStatus {
         is GuardRow.Circle -> when {
             row.sealedCount > 0 -> GuardState.SEALED.ordinal
             row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE.ordinal
+            row.overLimitCount > 0 -> GuardState.OVER_LIMIT.ordinal
             else -> GuardState.QUIET.ordinal
         }
     }
