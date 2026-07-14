@@ -82,6 +82,15 @@ class SessionCooldownManager(
     }
 
     /**
+     * Read-only view of every currently-active cooldown. Unlike
+     * [getCooldownState], expired entries are filtered but NOT pruned from
+     * prefs — UI-side readers use this so they never write state the
+     * enforcement service owns (pruning stays with the service's accessors).
+     */
+    fun peekActiveCooldowns(now: Long = System.currentTimeMillis()): Map<String, CooldownState> =
+        loadCooldownStates().filterValues { it.cooldownExpiryMillis > now }
+
+    /**
      * Starts a new cooldown for [packageName] using [config] to determine duration/escalation.
      * Also resets the in-session start time so the next visit counts as a fresh session.
      */

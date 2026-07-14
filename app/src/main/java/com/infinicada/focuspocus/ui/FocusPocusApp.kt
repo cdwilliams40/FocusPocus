@@ -40,6 +40,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.SessionManager
+import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
@@ -62,6 +64,7 @@ import com.infinicada.focuspocus.navigation.SpellbookRoute
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.trialTitle
+import kotlinx.coroutines.delay
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.BoonsScreen
@@ -70,6 +73,7 @@ import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
+import com.infinicada.focuspocus.ui.screens.PactsHomeScreen
 import com.infinicada.focuspocus.ui.screens.PactsScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
@@ -156,6 +160,7 @@ fun FocusPocusApp(
     val analyticsConsent by settingsVM.analyticsConsent.collectAsStateWithLifecycle()
     val onboardingCompleted by settingsVM.onboardingCompleted.collectAsStateWithLifecycle()
     val showAnalyticsConsentDialog by settingsVM.showAnalyticsConsentDialog.collectAsStateWithLifecycle()
+    val showPactsHomeIntroDialog by settingsVM.showPactsHomeIntroDialog.collectAsStateWithLifecycle()
 
     val blockEvents by insightsVM.blockEvents.collectAsStateWithLifecycle()
     val insightsFocusSessions by insightsVM.focusSessions.collectAsStateWithLifecycle()
@@ -299,6 +304,21 @@ fun FocusPocusApp(
             confirmButton = {
                 Button(onClick = { settingsVM.dismissProgressionIntroDialog() }) {
                     Text(stringResource(R.string.progression_intro_ok))
+                }
+            }
+        )
+    }
+
+    // One-time "the front door moved" note for users updating into the
+    // pacts-first layout; queued behind the other one-time dialogs.
+    if (showPactsHomeIntroDialog && !showAnalyticsConsentDialog && !showProgressionIntroDialog) {
+        AlertDialog(
+            onDismissRequest = { settingsVM.dismissPactsHomeIntroDialog() },
+            title = { Text(stringResource(R.string.pacts_home_intro_title)) },
+            text = { Text(stringResource(R.string.pacts_home_intro_message)) },
+            confirmButton = {
+                Button(onClick = { settingsVM.dismissPactsHomeIntroDialog() }) {
+                    Text(stringResource(R.string.pacts_home_intro_ok))
                 }
             }
         )
@@ -510,6 +530,69 @@ fun FocusPocusApp(
             val contentModifier = Modifier.padding(innerPadding)
             when (currentDestination) {
                 AppDestinations.HOME -> {
+                    // Live guard state refreshes on a minute tick while the
+                    // dashboard is visible (the ticker dies with this branch's
+                    // composition), on every return to the foreground, and on
+                    // any data mutation via dataVersion.
+                    var guardTick by remember { mutableIntStateOf(0) }
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            delay(60_000L)
+                            guardTick++
+                        }
+                    }
+                    LifecycleResumeEffect(Unit) {
+                        guardTick++
+                        onPauseOrDispose { }
+                    }
+                    val guardLiveStates = remember(dataVersion, guardTick) {
+                        spellbookVM.getGuardLiveState()
+                    }
+                    val guardOpenStats = remember(dataVersion, guardTick) {
+                        spellbookVM.getTodayOpenStats()
+                    }
+                    val guardNow = remember(dataVersion, guardTick) { System.currentTimeMillis() }
+
+                    PactsHomeScreen(
+                        installedApps = installedApps,
+                        appTimeLimitConfigs = appTimeLimitConfigs,
+                        pactGroups = pactGroups,
+                        blockerLists = blockerLists,
+                        todayOpenStats = guardOpenStats,
+                        guardLiveStates = guardLiveStates,
+                        nowMillis = guardNow,
+                        sessionActive = focusMode,
+                        isOnBreak = isOnBreak,
+                        sessionLabel = activeSchedule?.name
+                            ?: activeManualBlockers.joinToString(", ") { it.name },
+                        sessionTimeRemaining = focusTimeRemaining,
+                        breakTimeRemaining = breakTimeRemaining,
+                        progressionEnabled = progressionEnabled,
+                        manaBalance = manaBalance,
+                        currentStreak = currentStreak,
+                        onOpenBoons = { showBoons = true },
+                        onOpenFocus = { currentDestination = AppDestinations.FOCUS },
+                        onMakePact = {
+                            currentDestination = AppDestinations.SPELLBOOK
+                            spellbookVM.navigateTo(SpellbookRoute.Pacts)
+                        },
+                        onGuardClick = { row ->
+                            // Until the unified editor lands, cards open the
+                            // management screen matching the guard's style.
+                            currentDestination = AppDestinations.SPELLBOOK
+                            spellbookVM.navigateTo(
+                                if (row is GuardRow.App && !row.config.pactModeEnabled) {
+                                    SpellbookRoute.TimeLimits
+                                } else {
+                                    SpellbookRoute.Pacts
+                                }
+                            )
+                        },
+                        modifier = contentModifier
+                    )
+                }
+
+                AppDestinations.FOCUS -> {
                     val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
                     val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
                     // Extra-break perk tokens raise the effective max for this
@@ -546,9 +629,7 @@ fun FocusPocusApp(
                         nfcLockMode = nfcLockMode,
                         emergencyBreakAvailable = emergencyBreakAvailable,
                         emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                        currentStreak = currentStreak,
                         progressionEnabled = progressionEnabled,
-                        manaBalance = manaBalance,
                         trials = trials,
                         canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
                         onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
@@ -598,7 +679,6 @@ fun FocusPocusApp(
                             progressionVM.refresh()
                             Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
                         },
-                        onOpenBoons = { showBoons = true },
                         onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
                         onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
                         modifier = contentModifier

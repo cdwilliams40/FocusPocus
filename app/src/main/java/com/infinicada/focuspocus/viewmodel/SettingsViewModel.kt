@@ -82,6 +82,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     )
     val showProgressionIntroDialog: StateFlow<Boolean> = _showProgressionIntroDialog.asStateFlow()
 
+    // One-time "Pacts are now your home screen" note, same pattern: only users
+    // who finished onboarding before this version ever see it — fresh installs
+    // land on the dashboard as the natural end of onboarding.
+    private val _showPactsHomeIntroDialog = MutableStateFlow(
+        repo.isOnboardingCompleted() && !repo.isPactsHomeIntroShown()
+    )
+    val showPactsHomeIntroDialog: StateFlow<Boolean> = _showPactsHomeIntroDialog.asStateFlow()
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         repo.setThemeMode(mode)
@@ -176,6 +184,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         repo.setOnboardingCompleted()
         // Fresh installs meet progression from the start — no intro dialog later.
         repo.setProgressionIntroShown()
+        // Likewise, they were onboarded straight onto the Pacts home screen.
+        repo.setPactsHomeIntroShown()
     }
 
     fun dismissAnalyticsConsentDialog(accepted: Boolean) {
@@ -202,5 +212,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun dismissProgressionIntroDialog() {
         repo.setProgressionIntroShown()
         _showProgressionIntroDialog.value = false
+    }
+
+    fun dismissPactsHomeIntroDialog() {
+        repo.setPactsHomeIntroShown()
+        _showPactsHomeIntroDialog.value = false
     }
 }

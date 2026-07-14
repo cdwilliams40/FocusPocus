@@ -7,6 +7,7 @@
     <string name="foreground_service_text">Guarding your focus</string>
 
     <!-- Navigation -->
+    <string name="nav_pacts">Pacts</string>
     <string name="nav_focus">Focus</string>
     <string name="nav_spellbook">Spellbook</string>
     <string name="nav_insights">Insights</string>
@@ -102,6 +103,36 @@
     <string name="home_scan_to_dispel">Scan %s to dispel</string>
     <string name="home_scan_talisman_to_dispel">Scan your talisman to dispel</string>
     <string name="home_cast_hint">Choose an enchantment below to begin</string>
+
+    <!-- PactsHomeScreen (guard dashboard) -->
+    <plurals name="home_guard_sealed_count">
+        <item quantity="one">%d app sealed</item>
+        <item quantity="other">%d apps sealed</item>
+    </plurals>
+    <plurals name="home_guard_active_count">
+        <item quantity="one">%d pact active</item>
+        <item quantity="other">%d pacts active</item>
+    </plurals>
+    <string name="home_guard_headline_join">%1$s · %2$s</string>
+    <string name="home_guard_all_quiet">All quiet</string>
+    <string name="home_guard_rollup">Today: %1$d opens · %2$d reflexes caught</string>
+    <string name="home_session_banner_detail">%1$s · %2$s left</string>
+    <string name="home_session_banner_time_left">%1$s left</string>
+    <string name="home_session_banner_hint">Tap to manage on the Focus tab</string>
+    <string name="home_guard_seal_lifts">Seal lifts in %1$s</string>
+    <string name="home_guard_pact_left">Pact active — %1$s left</string>
+    <string name="home_guard_sealed_of">%1$d of %2$d sealed</string>
+    <string name="home_guard_chip_sealed">Sealed</string>
+    <string name="home_guard_chip_active">Pact active</string>
+    <string name="home_guard_chip_over">Limit spent</string>
+    <string name="home_guard_circle_icon_desc">Pact circle</string>
+    <string name="home_guard_make_pact">Make a pact</string>
+    <string name="home_guard_empty_title">No pacts yet</string>
+    <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
+    <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
+    <string name="pacts_home_intro_title">Pacts are now your home</string>
+    <string name="pacts_home_intro_message">Your always-on protection — pacts and time limits — now greets you first. Casting focus sessions lives on the Focus tab, one tap away. Everything else works exactly as before.</string>
+    <string name="pacts_home_intro_ok">Got it</string>
 
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Spellbook</string>

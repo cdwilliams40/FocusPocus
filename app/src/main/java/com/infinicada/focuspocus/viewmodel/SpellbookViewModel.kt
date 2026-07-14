@@ -6,14 +6,17 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
@@ -42,9 +45,40 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val openReflexTracker = OpenReflexTracker(appPrefs, Gson())
     private val pactManager = PactManager(appPrefs, Gson())
+    private val sessionCooldownManager = SessionCooldownManager(appPrefs, Gson())
 
-    /** Today's open/reflex counters per package, for the Spellbook Pacts card and Pacts screen. */
+    /** Today's open/reflex counters per package, for the Pacts dashboard. */
     fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
+
+    /**
+     * Live enforcement snapshot for every guarded app — active pact allowances,
+     * seals, and foreground minutes (queried once for all packages, and only
+     * when some guard actually carries a daily limit). Read-only: cooldowns are
+     * peeked, never pruned, so the UI can't race the service's writes.
+     */
+    fun getGuardLiveState(): Map<String, GuardLiveState> {
+        val now = System.currentTimeMillis()
+        val configs = _appTimeLimitConfigs.value
+        val groups = _pactGroups.value
+        val groupMembers = groups.flatMap { group ->
+            _blockerLists.value.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
+        }
+        val cooldowns = sessionCooldownManager.peekActiveCooldowns(now)
+        val anyDailyLimit = configs.values.any { it.dailyLimitMinutes > 0 } ||
+            groups.any { it.dailyLimitMinutes > 0 }
+        val usedToday = if (anyDailyLimit) {
+            AppTimeLimitManager.getAllUsedMinutesToday(getApplication())
+        } else {
+            emptyMap()
+        }
+        return (configs.keys + groupMembers).associateWith { pkg ->
+            GuardLiveState(
+                allowanceExpiryMillis = pactManager.getAllowanceExpiry(pkg, now),
+                cooldownExpiryMillis = cooldowns[pkg]?.cooldownExpiryMillis,
+                usedMinutesToday = usedToday[pkg] ?: 0
+            )
+        }
+    }
 
     private val _pactGroups = MutableStateFlow(pactManager.getGroups())
     val pactGroups: StateFlow<List<PactGroup>> = _pactGroups.asStateFlow()

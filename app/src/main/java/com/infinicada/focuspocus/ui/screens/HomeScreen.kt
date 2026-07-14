@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -80,7 +79,6 @@ import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.GlassCard
-import com.infinicada.focuspocus.ui.components.ManaChip
 import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.formatClock
 
@@ -108,9 +106,7 @@ fun Greeting(
     nfcLockMode: Boolean = false,
     emergencyBreakAvailable: Boolean = false,
     emergencyBreakDaysRemaining: Int = 0,
-    currentStreak: Int = 0,
     progressionEnabled: Boolean = false,
-    manaBalance: Long = 0L,
     trials: List<Trial> = emptyList(),
     canAffordExtraBreak: Boolean = false,
     onPresetSelected: (FocusPreset) -> Unit,
@@ -123,7 +119,6 @@ fun Greeting(
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit = {},
     onScanQrCode: () -> Unit = {},
-    onOpenBoons: () -> Unit = {},
     onClaimTrial: (Trial) -> Unit = {},
     onBuyExtraBreak: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -181,9 +176,7 @@ fun Greeting(
                     selectedPresetId = selectedPresetId,
                     focusDurationMinutes = focusDurationMinutes,
                     sessionBreaksEnabled = sessionBreaksEnabled,
-                    currentStreak = currentStreak,
                     progressionEnabled = progressionEnabled,
-                    manaBalance = manaBalance,
                     trials = trials,
                     onPresetSelected = onPresetSelected,
                     onBlockerToggled = onBlockerToggled,
@@ -191,7 +184,6 @@ fun Greeting(
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
                     onScanQrCode = onScanQrCode,
-                    onOpenBoons = onOpenBoons,
                     onClaimTrial = onClaimTrial
                 )
             }
@@ -212,9 +204,7 @@ private fun IdleContent(
     selectedPresetId: String?,
     focusDurationMinutes: Int,
     sessionBreaksEnabled: Boolean,
-    currentStreak: Int,
     progressionEnabled: Boolean,
-    manaBalance: Long,
     trials: List<Trial>,
     onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
@@ -222,33 +212,14 @@ private fun IdleContent(
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
     onScanQrCode: () -> Unit,
-    onOpenBoons: () -> Unit,
     onClaimTrial: (Trial) -> Unit
 ) {
-    // Top: Status on its own line, mana + streak chips beneath it. Never share a
-    // row with the headline: on narrow screens the chips get squeezed and their
-    // labels wrap into tall bars.
     Text(
         text = stringResource(R.string.home_status_ready),
         style = MaterialTheme.typography.headlineLarge,
         color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.fillMaxWidth()
     )
-    if (progressionEnabled || currentStreak > 0) {
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (progressionEnabled) {
-                ManaChip(balance = manaBalance, onClick = onOpenBoons)
-            }
-            if (currentStreak > 0) {
-                StreakBadge(currentStreak)
-            }
-        }
-    }
 
     Spacer(modifier = Modifier.height(32.dp))
 
@@ -954,36 +925,6 @@ private fun UnlimitedSessionIndicator(elapsedSeconds: Long = 0L) {
             }
         }
     }
-}
-
-// ────────────────────────────────────────────────────────────
-//  STREAK BADGE
-// ────────────────────────────────────────────────────────────
-
-@Composable
-private fun StreakBadge(streak: Int) {
-    AssistChip(
-        onClick = {},
-        label = {
-            Text(
-                stringResource(R.string.home_day_streak, streak),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1
-            )
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.LocalFireDepartment,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(18.dp)
-            )
-        },
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            labelColor = MaterialTheme.colorScheme.onTertiaryContainer
-        )
-    )
 }
 
 // ────────────────────────────────────────────────────────────

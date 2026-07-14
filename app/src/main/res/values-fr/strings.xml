@@ -7,6 +7,7 @@
     <string name="foreground_service_text">Veille sur votre concentration</string>
 
     <!-- Navigation -->
+    <string name="nav_pacts">Pactes</string>
     <string name="nav_focus">Concentration</string>
     <string name="nav_spellbook">Grimoire</string>
     <string name="nav_insights">Statistiques</string>
@@ -100,6 +101,38 @@
     <string name="home_scan_to_dispel">Scanner %s pour dissiper</string>
     <string name="home_scan_talisman_to_dispel">Scannez votre talisman pour dissiper</string>
     <string name="home_cast_hint">Choisissez un enchantement ci-dessous pour commencer</string>
+
+    <!-- PactsHomeScreen (tableau de bord des pactes) -->
+    <plurals name="home_guard_sealed_count">
+        <item quantity="one">%d application scellée</item>
+        <item quantity="many">%d applications scellées</item>
+        <item quantity="other">%d applications scellées</item>
+    </plurals>
+    <plurals name="home_guard_active_count">
+        <item quantity="one">%d pacte actif</item>
+        <item quantity="many">%d pactes actifs</item>
+        <item quantity="other">%d pactes actifs</item>
+    </plurals>
+    <string name="home_guard_headline_join">%1$s · %2$s</string>
+    <string name="home_guard_all_quiet">Tout est calme</string>
+    <string name="home_guard_rollup">Aujourd\'hui : %1$d ouvertures · %2$d réflexes attrapés</string>
+    <string name="home_session_banner_detail">%1$s · %2$s restantes</string>
+    <string name="home_session_banner_time_left">%1$s restantes</string>
+    <string name="home_session_banner_hint">Touchez pour gérer dans l\'onglet Concentration</string>
+    <string name="home_guard_seal_lifts">Le sceau se lève dans %1$s</string>
+    <string name="home_guard_pact_left">Pacte en cours — %1$s restantes</string>
+    <string name="home_guard_sealed_of">%1$d sur %2$d scellées</string>
+    <string name="home_guard_chip_sealed">Scellée</string>
+    <string name="home_guard_chip_active">Pacte en cours</string>
+    <string name="home_guard_chip_over">Limite épuisée</string>
+    <string name="home_guard_circle_icon_desc">Cercle de pacte</string>
+    <string name="home_guard_make_pact">Faire un pacte</string>
+    <string name="home_guard_empty_title">Aucun pacte pour l\'instant</string>
+    <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
+    <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
+    <string name="pacts_home_intro_title">Les pactes sont désormais votre accueil</string>
+    <string name="pacts_home_intro_message">Votre protection permanente — pactes et limites de temps — vous accueille désormais en premier. Le lancement des sessions de concentration vit dans l\'onglet Concentration, à un geste de là. Tout le reste fonctionne exactement comme avant.</string>
+    <string name="pacts_home_intro_ok">Compris</string>
 
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Grimoire</string>
