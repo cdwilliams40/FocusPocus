@@ -17,11 +17,8 @@ sealed class SpellbookRoute {
     object RitualsList : SpellbookRoute()
     object CreateRitual : SpellbookRoute()
     data class EditRitual(val schedule: Schedule) : SpellbookRoute()
-    // Talismans & Time Limits
+    // Talismans
     object Talismans : SpellbookRoute()
-    object TimeLimits : SpellbookRoute()
-    // Pacts
-    object Pacts : SpellbookRoute()
     // Conditional Unlocks
     object ConditionalUnlocks : SpellbookRoute()
 }

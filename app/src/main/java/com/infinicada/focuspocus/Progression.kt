@@ -342,16 +342,36 @@ object Progression {
     )
 
     internal fun loadTrials(prefs: SharedPreferences, gson: Gson): List<Trial> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.TRIALS, object : TypeToken<List<Trial>>() {}.type)
-            ?: emptyList()
+        (PrefsHelper.load(prefs, gson, Constants.PrefsKeys.TRIALS, object : TypeToken<List<Trial>>() {}.type)
+            ?: emptyList<Trial>()).filterNotNull().filter(::isIntact)
+
+    /**
+     * True when a deserialized trial actually has values in all its non-null
+     * Kotlin fields. Gson instantiates classes via Unsafe — no constructor, no
+     * null checks — so records written by a build with broken R8 keep rules
+     * (v1.4 persisted obfuscated enum constant and field names) can come back
+     * with null enum/String fields and NPE far from the parse site, e.g.
+     * TrialEngine.isEnded on trial.period. Such records are unrecoverable —
+     * drop them so a fresh slate is drawn.
+     */
+    @Suppress("SENSELESS_COMPARISON")
+    private fun isIntact(trial: Trial): Boolean =
+        trial.id != null && trial.type != null && trial.period != null && trial.periodKey != null
 
     private fun saveTrials(prefs: SharedPreferences, gson: Gson, trials: List<Trial>) {
         PrefsHelper.save(prefs, gson, Constants.PrefsKeys.TRIALS, trials)
     }
 
     internal fun loadLedger(prefs: SharedPreferences, gson: Gson): List<ManaLedgerEntry> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.MANA_LEDGER, object : TypeToken<List<ManaLedgerEntry>>() {}.type)
-            ?: emptyList()
+        (PrefsHelper.load(prefs, gson, Constants.PrefsKeys.MANA_LEDGER, object : TypeToken<List<ManaLedgerEntry>>() {}.type)
+            ?: emptyList<ManaLedgerEntry>()).filterNotNull().filter(::isIntact)
+
+    /** Same Unsafe-null guard as the [Trial] overload — a null [ManaLedgerEntry.kind]
+     *  NPEs in ledgerReason's `when` on the mana history screen. */
+    @Suppress("SENSELESS_COMPARISON")
+    private fun isIntact(entry: ManaLedgerEntry): Boolean =
+        entry.kind != null && entry.title != null && entry.refId != null &&
+            entry.packageName != null && entry.dateKey != null
 
     internal fun loadUnlockedSigilIds(prefs: SharedPreferences, gson: Gson): Set<String> =
         PrefsHelper.load(prefs, gson, Constants.PrefsKeys.UNLOCKED_SIGILS, object : TypeToken<Set<String>>() {}.type)

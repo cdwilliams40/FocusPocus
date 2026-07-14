@@ -6,14 +6,17 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
@@ -26,6 +29,7 @@ import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,9 +46,41 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val openReflexTracker = OpenReflexTracker(appPrefs, Gson())
     private val pactManager = PactManager(appPrefs, Gson())
+    private val sessionCooldownManager = SessionCooldownManager(appPrefs, Gson())
 
-    /** Today's open/reflex counters per package, for the Spellbook Pacts card and Pacts screen. */
+    /** Today's open/reflex counters per package, for the Pacts dashboard. */
     fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
+
+    /**
+     * Live enforcement snapshot for every guarded app — active pact allowances,
+     * seals, and foreground minutes (queried once for all packages, and only
+     * when some guard actually carries a daily limit). Read-only: cooldowns are
+     * peeked, never pruned, so the UI can't race the service's writes.
+     */
+    fun getGuardLiveState(): Map<String, GuardLiveState> {
+        val now = System.currentTimeMillis()
+        val configs = _appTimeLimitConfigs.value
+        val groups = _pactGroups.value
+        val groupMembers = groups.flatMap { group ->
+            _blockerLists.value.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
+        }
+        val cooldowns = sessionCooldownManager.peekActiveCooldowns(now)
+        val allowances = pactManager.getActiveAllowances(now)
+        val anyDailyLimit = configs.values.any { it.dailyLimitMinutes > 0 } ||
+            groups.any { it.dailyLimitMinutes > 0 }
+        val usedToday = if (anyDailyLimit) {
+            AppTimeLimitManager.getAllUsedMinutesToday(getApplication())
+        } else {
+            emptyMap()
+        }
+        return (configs.keys + groupMembers).associateWith { pkg ->
+            GuardLiveState(
+                allowanceExpiryMillis = allowances[pkg],
+                cooldownExpiryMillis = cooldowns[pkg]?.cooldownExpiryMillis,
+                usedMinutesToday = usedToday[pkg] ?: 0
+            )
+        }
+    }
 
     private val _pactGroups = MutableStateFlow(pactManager.getGroups())
     val pactGroups: StateFlow<List<PactGroup>> = _pactGroups.asStateFlow()
@@ -98,6 +134,10 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _spellbookRoute = MutableStateFlow<SpellbookRoute>(SpellbookRoute.Overview)
     val spellbookRoute: StateFlow<SpellbookRoute> = _spellbookRoute.asStateFlow()
 
+    // Pacts (HOME) tab navigation: dashboard overview vs. the guard editor
+    private val _pactsRoute = MutableStateFlow<PactsRoute>(PactsRoute.Overview)
+    val pactsRoute: StateFlow<PactsRoute> = _pactsRoute.asStateFlow()
+
     private val _selectedBlocker = MutableStateFlow<Blocker?>(null)
     val selectedBlocker: StateFlow<Blocker?> = _selectedBlocker.asStateFlow()
 
@@ -141,6 +181,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     // Navigation
     fun navigateTo(route: SpellbookRoute) {
         _spellbookRoute.value = route
+    }
+
+    fun navigateToPacts(route: PactsRoute) {
+        _pactsRoute.value = route
+    }
+
+    fun handlePactsBack(): Boolean {
+        if (_pactsRoute.value is PactsRoute.Overview) return false
+        _pactsRoute.value = PactsRoute.Overview
+        return true
     }
 
     fun setSelectedBlocker(blocker: Blocker?) {
@@ -249,6 +299,26 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         _namedTags.value = talismanRepo.getNamedTags()
         _dataVersion.value++
+    }
+
+    /**
+     * Onboarding: seal [packages] behind the default pact (up to 15 minutes per
+     * pact, 30-minute seal, no daily backstop). Each is an ordinary per-app
+     * config, so the guard editor tunes them like any other pact.
+     */
+    fun createDefaultPacts(packages: List<String>) {
+        packages.take(com.infinicada.focuspocus.Constants.MAX_APP_TIME_LIMITS).forEach { pkg ->
+            saveAppTimeLimitConfig(
+                AppTimeLimit(
+                    packageName = pkg,
+                    dailyLimitMinutes = 0,
+                    sessionLimitMinutes = 0,
+                    cooldownMinutes = 30,
+                    pactModeEnabled = true,
+                    pactMaxMinutes = PactManager.DEFAULT_MAX_MINUTES
+                )
+            )
+        }
     }
 
     fun saveAppTimeLimitConfig(config: AppTimeLimit) {

@@ -86,6 +86,9 @@ object Constants {
         const val ONBOARDING_COMPLETED = "onboardingCompleted"
         const val ONBOARDING_VERSION = "onboardingVersion"
 
+        // One-time "Pacts are now your home screen" note for users updating in
+        const val PACTS_HOME_INTRO_SHOWN = "pactsHomeIntroShown"
+
         // Analytics consent
         const val ANALYTICS_CONSENT = "analyticsConsent"
         const val ANALYTICS_CONSENT_SHOWN = "analyticsConsentShown"

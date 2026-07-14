@@ -1,12 +1,9 @@
 package com.infinicada.focuspocus.ui.screens
 
-import android.Manifest
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
 import androidx.compose.foundation.background
@@ -23,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
@@ -32,6 +28,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DataUsage
 import androidx.compose.material.icons.filled.DoNotDisturbOn
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -63,8 +59,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import com.infinicada.focuspocus.model.AppInfo
-import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
 import com.infinicada.focuspocus.NamedTag
@@ -75,12 +69,11 @@ import com.infinicada.focuspocus.ui.components.ArcaneBackground
 @Composable
 fun OnboardingScreen(
     namedTags: List<NamedTag>,
-    blockerLists: List<Blocker>,
     installedApps: List<AppInfo>,
     isServiceEnabled: Boolean,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
-    onSaveBlocker: (Blocker) -> Unit,
+    onCreateFirstPacts: (List<String>) -> Unit,
     onSaveTag: (String) -> Unit,
     onComplete: () -> Unit
 ) {
@@ -89,6 +82,9 @@ fun OnboardingScreen(
     // Saveable so rotation or process recreation doesn't restart the wizard.
     var localAnalyticsConsent by rememberSaveable { mutableStateOf(analyticsConsent) }
     var currentStep by rememberSaveable { mutableIntStateOf(0) }
+    // The apps picked on the pact step; the pacts themselves are created once,
+    // when the wizard completes, so going back and forth can't duplicate them.
+    var selectedPactApps by rememberSaveable { mutableStateOf(listOf<String>()) }
 
     // Re-check permissions on resume
     var accessibilityEnabled by remember { mutableStateOf(isServiceEnabled) }
@@ -162,10 +158,10 @@ fun OnboardingScreen(
                         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     }
                 )
-                2 -> CreateBlockerStep(
-                    blockerLists = blockerLists,
+                2 -> FirstPactStep(
                     installedApps = installedApps,
-                    onSaveBlocker = onSaveBlocker
+                    selectedApps = selectedPactApps,
+                    onSelectionChanged = { selectedPactApps = it }
                 )
                 3 -> NotificationStep(
                     isGranted = notificationPolicyGranted,
@@ -206,7 +202,7 @@ fun OnboardingScreen(
             if (currentStep < totalSteps - 1) {
                 val canProceed = when (currentStep) {
                     1 -> true // Accessibility - allow skip but warn
-                    2 -> blockerLists.isNotEmpty() // Must create at least one blocker
+                    2 -> selectedPactApps.isNotEmpty() // Must seal at least one app
                     else -> true
                 }
                 Button(
@@ -217,10 +213,13 @@ fun OnboardingScreen(
                 }
             } else {
                 Button(
-                    onClick = onComplete,
+                    onClick = {
+                        onCreateFirstPacts(selectedPactApps)
+                        onComplete()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text(stringResource(R.string.onboarding_start_focusing))
+                    Text(stringResource(R.string.onboarding_begin))
                 }
             }
         }
@@ -333,13 +332,11 @@ private fun AccessibilityStep(
 }
 
 @Composable
-private fun CreateBlockerStep(
-    blockerLists: List<Blocker>,
+private fun FirstPactStep(
     installedApps: List<AppInfo>,
-    onSaveBlocker: (Blocker) -> Unit
+    selectedApps: List<String>,
+    onSelectionChanged: (List<String>) -> Unit
 ) {
-    var blockerName by remember { mutableStateOf("") }
-    var selectedApps by remember { mutableStateOf(emptyList<String>()) }
     var showAppDialog by remember { mutableStateOf(false) }
 
     if (showAppDialog) {
@@ -348,67 +345,43 @@ private fun CreateBlockerStep(
             title = stringResource(R.string.spells_select_apps_title),
             initialSelection = selectedApps,
             onConfirm = { apps ->
-                selectedApps = apps
+                onSelectionChanged(apps)
                 showAppDialog = false
             },
             onDismiss = { showAppDialog = false }
         )
     }
 
-    LazyColumn(
+    Column(
         modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        item {
-            Text(
-                stringResource(R.string.onboarding_create_enchantment_title),
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.onboarding_create_enchantment_desc),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(24.dp))
+        StepHero(Icons.Default.Shield)
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            stringResource(R.string.onboarding_pact_title),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            stringResource(R.string.onboarding_pact_desc),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = { showAppDialog = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.onboarding_pact_pick, selectedApps.size))
         }
-
-        if (blockerLists.isNotEmpty()) {
-            item {
-                StatusConfirmedCard(
-                    stringResource(R.string.onboarding_enchantment_created),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-
-        item {
-            TextField(
-                value = blockerName,
-                onValueChange = { if (it.length <= 100) blockerName = it },
-                label = { Text(stringResource(R.string.spells_enchantment_name_label)) },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = { showAppDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.onboarding_select_apps, selectedApps.size))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = {
-                    onSaveBlocker(Blocker(blockerName.trim(), BlockerMode.BLACKLIST, selectedApps.toSet()))
-                    blockerName = ""
-                    selectedApps = emptyList()
-                },
-                enabled = blockerName.isNotBlank() && selectedApps.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.onboarding_create_enchantment))
-            }
-        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            stringResource(R.string.onboarding_pact_defaults_note),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

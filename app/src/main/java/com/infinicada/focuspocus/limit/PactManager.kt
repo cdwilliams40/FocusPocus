@@ -44,6 +44,15 @@ class PactManager(
     }
 
     /**
+     * Read-only batch view: every currently-active allowance (package →
+     * expiry epoch millis). One load of the store instead of one per package;
+     * lapsed entries are filtered but never removed (that is
+     * [takeLapsedAllowance]'s job, on the enforcement side).
+     */
+    fun getActiveAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> =
+        loadAllowances().filterValues { it > now }
+
+    /**
      * If [packageName] has an allowance that has already lapsed, removes it and
      * returns its expiry time so the caller can start the seal cooldown anchored
      * there. Returns null if there is no allowance or it is still active.
@@ -63,8 +72,14 @@ class PactManager(
 
     fun getGroups(): List<PactGroup> {
         val type = object : TypeToken<List<PactGroup>>() {}.type
-        return PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, type)
-            ?: emptyList()
+        val groups = PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, type)
+            ?: emptyList<PactGroup>()
+        // Gson fills fields via Unsafe, so groups stored by a build with broken
+        // R8 keep rules (v1.4) can come back with a null blockerName despite the
+        // non-null Kotlin type. Such groups can't be matched to an enchantment —
+        // drop them instead of letting the null leak into lookups and the UI.
+        @Suppress("SENSELESS_COMPARISON")
+        return groups.filterNotNull().filter { it.blockerName != null }
     }
 
     /** Adds or replaces the group bound to the same enchantment. */
@@ -94,7 +109,12 @@ class PactManager(
         /** Candidate allowance durations offered on the pact overlay, in minutes. */
         val DEFAULT_CHOICES = listOf(2, 5, 10, 15, 30)
 
-        private const val DEFAULT_MAX_MINUTES = 15
+        /**
+         * Fallback for configs whose pactMaxMinutes is non-positive (pre-field
+         * data Gson fills with 0). Public so UI summaries and prefills quote
+         * the same ladder cap the overlay actually offers.
+         */
+        const val DEFAULT_MAX_MINUTES = 15
 
         /**
          * The allowance choices to offer for [config]: the default ladder capped at
