@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -459,7 +460,9 @@ private fun WardCardBody(row: GuardRow.App) {
                 .fillMaxWidth()
                 .padding(top = 4.dp, bottom = 2.dp),
             color = if (overLimit) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            strokeCap = StrokeCap.Round
         )
     }
     if (row.config.sessionLimitMinutes > 0) {

@@ -41,7 +41,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Session and break timers are enforced by the background service using wall-clock timestamps, so they end on time even if the app is closed or the device reboots
 - Optionally hide the stop button so a session can't be ended early on impulse
 
-### Per-App Time Limits
+### Per-App Time Limits (Wards)
 - Set daily usage limits for individual apps (e.g., 30 minutes/day for social media)
 - Apps are automatically blocked once they exceed their daily limit
 - **Session limits with cooldowns**: cap continuous use of an app (e.g., 10 minutes at a time), after which it's blocked for a configurable cooldown period — optionally escalating on repeated offences in the same day
@@ -57,8 +57,8 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
-- Managed on a dedicated **Pacts screen** (Spellbook → Pacts), with today's open/reflex counts per app front and center
-- **Pact groups**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
+- Managed front and center on the **Pacts tab — the app's home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
+- **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
 
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one
@@ -149,29 +149,36 @@ cd FocusPocus
 
 ## Setup
 
-On first launch, a guided onboarding flow walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that:
+On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
 
-1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps and websites you want to block during focus sessions.
+1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps and websites you want to block during focus sessions (the Focus tab offers this directly when you have none).
 
-2. **Start Focusing**: Return to the Focus tab, select your enchantment, and tap "Cast Spell" to begin your focus session.
+2. **Start Focusing**: On the Focus tab, select your enchantment and tap "Cast" to begin your focus session.
 
 ## Usage
 
-The app has three tabs, plus a Settings screen reached from the top bar.
+The app has four tabs, plus a Settings screen reached from the top bar.
+
+### Pacts Tab (home)
+Your standing protection, always the first thing you see:
+- One card per guard — a **Pact** (sealed by default), a **Ward** (a daily time limit, with optional per-session cooldowns), or a **pact circle** (a pact over a whole enchantment)
+- Live state on every card: *sealed (lifts in X)*, *pact running (X left)*, *limit spent*, or quiet with today's open/reflex counts
+- A banner links to the Focus tab whenever a session or ritual is running
+- "Make a pact" opens the unified guard editor: pick an app or enchantment, choose pact or ward, tune allowances, seals, escalation, substitutes, and daily backstops — and convert between styles anytime
 
 ### Focus Tab
 - Select a Quick Spell or customize your session
 - Choose one or more enchantments (blocklists)
 - Set duration and break preferences
-- Tap "Cast Spell" to start or "Dispel" to end
+- Tap "Cast" to start or "Dispel" to end
 
 ### Spellbook Tab
-Your grimoire of configuration, organized by when each protection applies:
-- **Everyday guards**: **Pacts** (seal apps or whole enchantments behind conscious, timed pacts, with live open/reflex counts) and **Time Limits** (daily and per-session limits with cooldowns)
+Your grimoire of focus-session configuration:
 - **Focus sessions**: **Enchantments** (blocklists of apps and websites) and **Rituals** (scheduled automatic sessions)
 - **More magic**: **Quick Spells** (one-tap presets, also on the Focus tab), **Talismans** (NFC tags and bindings), and **Conditional Unlocks** (earn access after productive time)
 
 ### Insights Tab
+- App opens with reflex breakdown, right below your streaks
 - View session history and focus statistics
 - Daily usage trends, per-app usage, and most-blocked apps
 
