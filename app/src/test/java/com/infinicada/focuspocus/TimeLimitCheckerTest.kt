@@ -51,9 +51,9 @@ class TimeLimitCheckerTest {
     }
 
     @Test
-    fun `shouldBlock does not cache under-limit results`() {
-        // Under-limit results are NOT cached because the user could be actively
-        // accumulating usage time, so each check needs a fresh query.
+    fun `shouldBlock caches under-limit results briefly`() {
+        // Under-limit results are cached for a short window so rapid app switches
+        // don't each pay for a full-day UsageStats scan on the service main thread.
         whenever(checkFunction.invoke(any(), eq("com.example.app"), eq(30))).thenReturn(false)
         val checker = TimeLimitChecker(context, checkFunction, clock)
 
@@ -61,10 +61,18 @@ class TimeLimitCheckerTest {
         checker.shouldBlock("com.example.app", 30)
         verify(checkFunction, times(1)).invoke(any(), eq("com.example.app"), eq(30))
 
-        // Call 2: 10 seconds later. Should call checkFunction again (no caching for false).
+        // Call 2: 10 seconds later. Inside the short under-limit TTL — served from cache.
         currentTime += 10_000
         val result2 = checker.shouldBlock("com.example.app", 30)
         assertFalse(result2)
+        verify(checkFunction, times(1)).invoke(any(), eq("com.example.app"), eq(30))
+
+        // Call 3: past the under-limit TTL. Must re-query so the moment the user
+        // crosses the threshold is still caught promptly.
+        currentTime += 6_000
+        whenever(checkFunction.invoke(any(), eq("com.example.app"), eq(30))).thenReturn(true)
+        val result3 = checker.shouldBlock("com.example.app", 30)
+        assertTrue(result3)
         verify(checkFunction, times(2)).invoke(any(), eq("com.example.app"), eq(30))
     }
 

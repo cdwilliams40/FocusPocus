@@ -20,25 +20,24 @@ class TimeLimitChecker(
     // Once over, stays over for the rest of the day, so this is safe.
     private val CACHE_DURATION_MS = 60_000L
 
+    // How long to trust a cached "under-limit" result. The underlying query walks
+    // the whole day's UsageStats event stream on the accessibility service's main
+    // thread, so rapid app switches must not each pay for a fresh scan (worst case
+    // that lag ANRs the service, which silently disables ALL blocking). The minute
+    // tick re-checks the foreground app anyway, so the cost of this cache is
+    // blocking landing at most a few seconds later than the exact crossing moment.
+    private val UNDER_LIMIT_CACHE_DURATION_MS = 15_000L
+
     fun shouldBlock(packageName: String, limitMinutes: Int): Boolean {
         val now = clock()
         val entry = cache[packageName]
-
-        // Only serve from cache when the app is already known to be over its limit.
-        // Once over, it stays over for the rest of the day so the cached answer is safe.
-        // "Under limit" results are NOT cached: the user could be actively using the app
-        // right now, so every call needs a fresh UsageStats query to catch the moment they
-        // cross the threshold (including the minute-tick check while the app is in the foreground).
-        if (entry != null && entry.isOverLimit && now - entry.timestamp < CACHE_DURATION_MS) {
-            return true
+        if (entry != null) {
+            val ttl = if (entry.isOverLimit) CACHE_DURATION_MS else UNDER_LIMIT_CACHE_DURATION_MS
+            if (now - entry.timestamp < ttl) return entry.isOverLimit
         }
 
         val isOverLimit = checkFunction(context, packageName, limitMinutes)
-        if (isOverLimit) {
-            cache[packageName] = CacheEntry(now, isOverLimit)
-        } else {
-            cache.remove(packageName)
-        }
+        cache[packageName] = CacheEntry(now, isOverLimit)
         return isOverLimit
     }
 

@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -52,6 +53,8 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +75,14 @@ fun ConditionalUnlocksScreen(
 
     var editingRule by remember { mutableStateOf<ConditionalUnlock?>(null) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
+
+    // One UsageStats query for all rules, off the main thread: queryEvents walks the
+    // whole day's event stream, which is far too slow to run per-row in composition.
+    val usedMinutesByPkg by produceState(initialValue = emptyMap<String, Int>(), hasUsagePermission) {
+        if (hasUsagePermission) {
+            value = withContext(Dispatchers.IO) { AppTimeLimitManager.getAllUsedMinutesToday(context) }
+        }
+    }
 
     if (showEditor) {
         ConditionalUnlockEditorScreen(
@@ -149,9 +160,7 @@ fun ConditionalUnlocksScreen(
             items(conditionalUnlocks) { rule ->
                 val requiredAppName = installedApps.find { it.packageName == rule.requiredAppPackage }?.name
                     ?: rule.requiredAppPackage
-                val usedMinutes = remember(rule.requiredAppPackage) {
-                    AppTimeLimitManager.getUsedMinutesToday(context, rule.requiredAppPackage)
-                }
+                val usedMinutes = usedMinutesByPkg[rule.requiredAppPackage] ?: 0
                 val progress = if (rule.requiredMinutes > 0) (usedMinutes.toFloat() / rule.requiredMinutes).coerceIn(0f, 1f) else 0f
                 val conditionMet = usedMinutes >= rule.requiredMinutes
 
