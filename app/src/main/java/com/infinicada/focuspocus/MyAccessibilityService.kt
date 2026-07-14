@@ -174,6 +174,10 @@ class MyAccessibilityService : AccessibilityService() {
     // In-memory only — resets on service restart and at midnight.
     private val pacingNotifiedToday = mutableMapOf<String, MutableSet<Int>>()
 
+    // Last time each package's pacing usage was actually queried, so rapid app
+    // switches don't each pay for a full-day UsageStats scan on the main thread.
+    private val lastPacingCheckTimes = HashMap<String, Long>()
+
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
     @Volatile private var lastBlockEventWriteTime: Long = 0
@@ -225,10 +229,9 @@ class MyAccessibilityService : AccessibilityService() {
         checkSchedules()
         maybeStartAutoBreak()
 
-        // Clear any cooldowns whose expiry has now passed.
-        sessionCooldownManager.clearExpiredCooldowns()
-
-        // Reset daily counters when the calendar date rolls over.
+        // Reset daily counters when the calendar date rolls over. Expired cooldown
+        // entries are pruned here too (not on every tick): they must survive until
+        // the rollover so startCooldown can escalate repeat offences within a day.
         if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
             sessionCooldownManager.resetDailyCooldowns()
             pacingNotifiedToday.clear()
@@ -745,7 +748,8 @@ class MyAccessibilityService : AccessibilityService() {
             sharedPreferences = sharedPreferences,
             blockerNames = validNames,
             scheduleId = schedule.id,
-            breaksEnabled = schedule.breaksEnabled
+            breaksEnabled = schedule.breaksEnabled,
+            scheduleEndTimeMillis = computeScheduleEndMillis(schedule)
         )
 
         DndController.updateDndState(this)
@@ -757,6 +761,29 @@ class MyAccessibilityService : AccessibilityService() {
             scheduleId = schedule.id,
             isEndNotification = false
         )
+    }
+
+    /**
+     * Wall-clock millis when [schedule]'s window ends, resolved from "now" at
+     * activation: the next occurrence of the end time (tomorrow for overnight
+     * schedules). Null if the schedule's end time is malformed.
+     */
+    private fun computeScheduleEndMillis(schedule: Schedule): Long? {
+        val parts = schedule.effectiveEndTime.split(":")
+        if (parts.size != 2) return null
+        val endHour = parts[0].toIntOrNull() ?: return null
+        val endMinute = parts[1].toIntOrNull() ?: return null
+        if (endHour !in 0..23 || endMinute !in 0..59) return null
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, endHour)
+            set(Calendar.MINUTE, endMinute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return cal.timeInMillis
     }
 
     private fun deactivateSchedule(schedule: Schedule) {
@@ -881,6 +908,7 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             lastAppBlockTimes[packageName] = now
+            sessionCooldownManager.onAppLeft(packageName)
             currentForegroundPackage = null
             closeApp()
             showOverlay(appName, getString(R.string.service_talisman_lock))
@@ -904,6 +932,11 @@ class MyAccessibilityService : AccessibilityService() {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTimes[packageName] = now
+                    // Blocking kicks the user out of the app, so its continuous-use
+                    // session ends here. Without this the in-session start time
+                    // leaks and the next open counts phantom minutes toward the
+                    // session limit, tripping an instant false cooldown.
+                    sessionCooldownManager.onAppLeft(packageName)
                     currentForegroundPackage = null
                     recordBlockEvent(packageName, blocker.name)
                     closeApp()
@@ -936,6 +969,7 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             lastAppBlockTimes[packageName] = now
+            sessionCooldownManager.onAppLeft(packageName)
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Time Limit")
             closeApp()
@@ -964,6 +998,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Cooldown active for $appName (attempt #$newAttemptCount, friction=$frictionLevel)")
             lastAppBlockTimes[packageName] = now
+            sessionCooldownManager.onAppLeft(packageName)
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Session Cooldown")
             closeApp()
@@ -981,6 +1016,7 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Pact gate: $appName blocked by default")
             lastAppBlockTimes[packageName] = now
+            sessionCooldownManager.onAppLeft(packageName)
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Pact Gate")
             closeApp()
@@ -1342,6 +1378,14 @@ class MyAccessibilityService : AccessibilityService() {
      */
     private fun checkPacingNotification(packageName: String, limitMinutes: Int) {
         if (limitMinutes <= 0) return
+        // All thresholds announced — no reason to query usage again today.
+        if (pacingNotifiedToday[packageName]?.containsAll(listOf(50, 75, 90)) == true) return
+        // Throttle the underlying full-day UsageStats scan (a main-thread binder
+        // call) to once a minute per app; the minute tick re-checks the foreground
+        // app anyway, so a threshold crossing is announced within a minute.
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - (lastPacingCheckTimes[packageName] ?: 0L) < 60_000L) return
+        lastPacingCheckTimes[packageName] = nowMs
         val usedMinutes = AppTimeLimitManager.getUsedMinutesToday(this, packageName)
         if (usedMinutes <= 0) return
         val percentUsed = (usedMinutes * 100) / limitMinutes

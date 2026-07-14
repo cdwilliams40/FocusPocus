@@ -68,24 +68,20 @@ class SessionCooldownManager(
 
     /**
      * Returns the active [CooldownState] for [packageName], or null if no cooldown is active.
-     * Lazily removes expired cooldown entries from prefs.
+     *
+     * Expired entries are deliberately kept in prefs: [startCooldown] reads
+     * [CooldownState.cooldownNumber] off them to escalate repeat offences within
+     * the same day. They are pruned by [resetDailyCooldowns] at the daily rollover.
      */
     fun getCooldownState(packageName: String, now: Long = System.currentTimeMillis()): CooldownState? {
-        val states = loadCooldownStates()
-        val state = states[packageName] ?: return null
-        if (state.cooldownExpiryMillis <= now) {
-            // Expired — remove lazily
-            saveCooldownStates(states - packageName)
-            return null
-        }
-        return state
+        val state = loadCooldownStates()[packageName] ?: return null
+        return if (state.cooldownExpiryMillis <= now) null else state
     }
 
     /**
-     * Read-only view of every currently-active cooldown. Unlike
-     * [getCooldownState], expired entries are filtered but NOT pruned from
-     * prefs — UI-side readers use this so they never write state the
-     * enforcement service owns (pruning stays with the service's accessors).
+     * Read-only view of every currently-active cooldown, for UI-side readers.
+     * Expired entries are filtered but never written back — like every accessor
+     * here, pruning is left to [resetDailyCooldowns] at the daily rollover.
      */
     fun peekActiveCooldowns(now: Long = System.currentTimeMillis()): Map<String, CooldownState> =
         loadCooldownStates().filterValues { it.cooldownExpiryMillis > now }
@@ -138,46 +134,35 @@ class SessionCooldownManager(
     }
 
     /**
-     * Removes [packageName]'s cooldown outright (whether or not it has expired)
-     * and forgets its in-session start time so the next visit counts as a fresh
-     * session. Used by the sealed-minutes perk, where the user pays mana to
-     * re-enter a sealed app before its cooldown lapses.
+     * Ends [packageName]'s cooldown immediately and forgets its in-session start
+     * time so the next visit counts as a fresh session. Used by the sealed-minutes
+     * perk, where the user pays mana to re-enter a sealed app before its cooldown
+     * lapses. The entry itself is kept (expired) so the day's escalation counter
+     * still applies to the next offence.
      */
     fun clearCooldown(packageName: String) {
         val states = loadCooldownStates()
-        if (packageName in states) {
-            saveCooldownStates(states - packageName)
+        val state = states[packageName]
+        if (state != null && state.cooldownExpiryMillis > 0) {
+            saveCooldownStates(states + (packageName to state.copy(cooldownExpiryMillis = 0)))
             Log.d(tag, "Cooldown cleared for $packageName (perk)")
         }
         sessionStartTimes.remove(packageName)
     }
 
     /**
-     * Removes all cooldown entries whose expiry has passed.
-     * Call on every minute tick.
+     * Daily rollover: prunes expired cooldown entries (their escalation counters
+     * only matter within the day they were earned) and resets the
+     * [CooldownState.cooldownNumber] counters on still-active cooldowns so
+     * escalation counts start fresh. Call when the calendar date rolls over.
      */
-    fun clearExpiredCooldowns(now: Long = System.currentTimeMillis()) {
+    fun resetDailyCooldowns(now: Long = System.currentTimeMillis()) {
         val states = loadCooldownStates()
-        val active = states.filter { (_, s) -> s.cooldownExpiryMillis > now }
-        if (active.size != states.size) {
-            saveCooldownStates(active)
-            Log.d(tag, "Cleared ${states.size - active.size} expired cooldown(s)")
-        }
-    }
-
-    /**
-     * Resets the [CooldownState.cooldownNumber] counters for all packages.
-     * Call at midnight so daily escalation counts start fresh.
-     */
-    fun resetDailyCooldowns() {
-        val states = loadCooldownStates()
-        val now = System.currentTimeMillis()
-        val reset = states.mapValues { (_, s) ->
-            if (s.cooldownExpiryMillis <= now) s
-            else s.copy(cooldownNumber = 0) // active cooldown survives, but counter resets
-        }
-        saveCooldownStates(reset)
-        Log.d(tag, "Daily cooldown counters reset")
+        val reset = states
+            .filterValues { it.cooldownExpiryMillis > now }
+            .mapValues { (_, s) -> s.copy(cooldownNumber = 0) } // active cooldown survives, but counter resets
+        if (reset != states) saveCooldownStates(reset)
+        Log.d(tag, "Daily cooldown counters reset (${states.size - reset.size} expired entries pruned)")
     }
 
     // -------------------------------------------------------------------------

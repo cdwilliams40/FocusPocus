@@ -13,7 +13,8 @@ object SessionManager {
         blockerNames: List<String>,
         scheduleId: String? = null,
         durationMinutes: Int = 0,
-        breaksEnabled: Boolean = true
+        breaksEnabled: Boolean = true,
+        scheduleEndTimeMillis: Long? = null
     ) {
         val now = System.currentTimeMillis()
         val editor = sharedPreferences.edit()
@@ -36,8 +37,16 @@ object SessionManager {
             editor.remove(Constants.PrefsKeys.FOCUS_DURATION_MINUTES)
             editor.remove(Constants.PrefsKeys.FOCUS_TIME_REMAINING)
             editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+            // Snapshot the window end so a missed deactivation (service dead when
+            // the ritual ended) can't credit idle hours as focus time.
+            if (scheduleEndTimeMillis != null) {
+                editor.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, scheduleEndTimeMillis)
+            } else {
+                editor.remove(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS)
+            }
         } else {
             editor.remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
+            editor.remove(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS)
             editor.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, durationMinutes)
             val focusTimeRemaining = if (durationMinutes > 0) durationMinutes * 60 else 0
             editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
@@ -82,6 +91,7 @@ object SessionManager {
             .remove(Constants.PrefsKeys.SESSION_START_TIME)
             .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
             .remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+            .remove(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS)
             .remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
             .remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
             .apply()
