@@ -15,7 +15,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import android.util.Log
@@ -33,39 +32,17 @@ import java.util.Calendar
 class MyAccessibilityService : AccessibilityService() {
 
     companion object {
-        private const val WEBSITE_BLOCK_DEBOUNCE_MS = 2000L
         private const val APP_BLOCK_DEBOUNCE_MS = 2000L
-
-        private val BROWSER_URL_BAR_IDS = mapOf(
-            "com.android.chrome" to "com.android.chrome:id/url_bar",
-            "com.chrome.beta" to "com.chrome.beta:id/url_bar",
-            "com.chrome.dev" to "com.chrome.dev:id/url_bar",
-            "com.chrome.canary" to "com.chrome.canary:id/url_bar",
-            "org.mozilla.firefox" to "org.mozilla.firefox:id/url_bar_title",
-            "org.mozilla.firefox_beta" to "org.mozilla.firefox_beta:id/url_bar_title",
-            "org.mozilla.fenix" to "org.mozilla.fenix:id/url_bar_title",
-            "com.microsoft.emmx" to "com.microsoft.emmx:id/url_bar",
-            "com.opera.browser" to "com.opera.browser:id/url_field",
-            "com.opera.mini.native" to "com.opera.mini.native:id/url_field",
-            "com.brave.browser" to "com.brave.browser:id/url_bar",
-            "com.duckduckgo.mobile.android" to "com.duckduckgo.mobile.android:id/omnibarTextInput",
-            "com.sec.android.app.sbrowser" to "com.sec.android.app.sbrowser:id/location_bar_edit_text",
-            "com.vivaldi.browser" to "com.vivaldi.browser:id/url_bar",
-            "com.kiwibrowser.browser" to "com.kiwibrowser.browser:id/url_bar",
-            "org.chromium.chrome" to "org.chromium.chrome:id/url_bar"
-        )
     }
 
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
-    private var browserPackages: Set<String> = emptySet()
     private var receiverRegistered = false
 
     private var packageReceiverRegistered = false
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
-                updateBrowserPackages()
                 invalidatePackageCaches()
                 // Fresh installs (not updates) get added to opted-in blocklists
                 if (intent?.action == Intent.ACTION_PACKAGE_ADDED &&
@@ -74,7 +51,7 @@ class MyAccessibilityService : AccessibilityService() {
                     intent.data?.schemeSpecificPart?.let { autoAddNewAppToBlockers(it) }
                 }
             } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error updating browser packages", e)
+                Log.e("MyAccessibilityService", "Error handling package change", e)
             }
         }
     }
@@ -103,11 +80,6 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun updateBrowserPackages() {
-        browserPackages = BrowserDetector(this).getBrowserPackages()
-        Log.d("MyAccessibilityService", "Updated browser packages: $browserPackages")
-    }
-
     private fun invalidatePackageCaches() {
         launcherCacheResolved = false
         cachedLauncherPackageName = null
@@ -117,9 +89,6 @@ class MyAccessibilityService : AccessibilityService() {
     // Cache for parsed schedules to avoid re-parsing JSON every minute
     @Volatile private var cachedSchedulesJson: String? = null
     @Volatile private var cachedSchedules: List<Schedule> = emptyList()
-
-    // Debounce for website blocking to prevent rapid re-triggering
-    @Volatile private var lastWebsiteBlockTime: Long = 0
 
     // Debounce for app blocking, per package — Android fires multiple window-state
     // events when one app opens, but blocking one app must not suppress checks for
@@ -355,7 +324,6 @@ class MyAccessibilityService : AccessibilityService() {
         }
         receiverRegistered = true
 
-        updateBrowserPackages()
         val packageFilter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
@@ -847,7 +815,6 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             when (event.eventType) {
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> handleWindowContentChanged(event)
             }
         } catch (e: Exception) {
             // Never let a single bad event crash the service — a dead service means
@@ -1200,108 +1167,6 @@ class MyAccessibilityService : AccessibilityService() {
         cachedBlockEventsJson = prunedJson
         cachedBlockEvents = pruned
         sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCK_EVENTS, prunedJson).apply()
-    }
-
-    private fun handleWindowContentChanged(event: AccessibilityEvent) {
-        val packageName = event.packageName?.toString() ?: return
-
-        // Fast O(1) check — discard events from non-browser apps immediately
-        if (packageName !in browserPackages) return
-
-        // Resume website blocking promptly if a break expired while browsing.
-        enforceTimedSessionExpiry()
-
-        val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
-        val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-        val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-
-        if (isOnBreak) return
-        if (focusTagId == null && !manualFocusMode) return
-
-        val activeBlockerNames = getActiveBlockerNames()
-        if (activeBlockerNames.isEmpty()) return
-        val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
-        val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
-
-        // Merge websites from all active blockers
-        val allBlockedWebsites = activeBlockers.flatMap { it.effectiveWebsites }.distinct()
-        if (allBlockedWebsites.isEmpty()) return
-
-        // Debounce — prevent rapid re-triggering
-        val now = System.currentTimeMillis()
-        if (now - lastWebsiteBlockTime < WEBSITE_BLOCK_DEBOUNCE_MS) return
-
-        val url = extractUrlFromBrowser(packageName, event) ?: return
-        val domain = UrlUtils.extractDomain(url) ?: return
-
-        val matchedDomain = allBlockedWebsites.find { domainMatches(domain, it) }
-        if (matchedDomain != null) {
-            // Mirror the app-blocking path: a conditionally-unlocked blocker's
-            // websites are unlocked along with its apps. Only enforce when a
-            // still-locked blocker matches this domain. (Checked here, on the
-            // rare block path, because the unlock test queries usage stats.)
-            val matchingBlocker = activeBlockers.find { blocker ->
-                blocker.effectiveWebsites.any { domainMatches(domain, it) } &&
-                    !isConditionallyUnlocked(blocker.name)
-            } ?: return
-            lastWebsiteBlockTime = now
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
-            recordBlockEvent(matchedDomain, matchingBlocker.name)
-            closeApp()
-            showOverlay(matchedDomain, activeBlockerNames.joinToString(", "))
-        }
-    }
-
-    private fun extractUrlFromBrowser(packageName: String, event: AccessibilityEvent): String? {
-        // Try known URL bar view ID first (fast, targeted lookup)
-        val viewId = BROWSER_URL_BAR_IDS[packageName]
-        if (viewId != null) {
-            val rootNode = rootInActiveWindow ?: return null
-            var nodes: List<AccessibilityNodeInfo>? = null
-            try {
-                nodes = rootNode.findAccessibilityNodeInfosByViewId(viewId)
-                if (nodes != null && nodes.isNotEmpty()) {
-                    val text = nodes[0].text?.toString()
-                    if (text != null && UrlUtils.looksLikeUrl(text)) return text
-                    return null
-                }
-            } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error finding URL bar by ID", e)
-            } finally {
-                nodes?.forEach { it.recycle() }
-                rootNode.recycle()
-            }
-        }
-
-        // Fallback: walk the node tree looking for URL-like text
-        val rootNode = rootInActiveWindow ?: return null
-        try {
-            return AccessibilityTraverser.findUrlInNodeTree(rootNode, 0)
-        } finally {
-            rootNode.recycle()
-        }
-    }
-
-    private fun domainMatches(navigatedDomain: String, blockedDomain: String): Boolean {
-        if (blockedDomain.isEmpty() || navigatedDomain.isEmpty()) return false
-        if (blockedDomain.length > 255 || navigatedDomain.length > 2048) return false
-
-        val navLen = navigatedDomain.length
-        val blockedLen = blockedDomain.length
-
-        if (navLen < blockedLen) return false
-
-        if (navLen == blockedLen) {
-            return navigatedDomain.regionMatches(0, blockedDomain, 0, blockedLen, ignoreCase = true)
-        }
-
-        // navLen > blockedLen
-        // Check for ending with ".$blockedDomain"
-        val offset = navLen - blockedLen
-        // The character before the match must be a dot
-        if (offset < 1 || navigatedDomain[offset - 1] != '.') return false
-
-        return navigatedDomain.regionMatches(offset, blockedDomain, 0, blockedLen, ignoreCase = true)
     }
 
     private var cachedLauncherPackageName: String? = null

@@ -101,8 +101,6 @@ fun FocusPocusApp(
     isServiceEnabled: Boolean,
     lastScannedTagId: String?,
     nfcTriggerCount: Int,
-    qrTriggerCount: Int,
-    onScanQrCode: () -> Unit,
     pendingDeepLinkPreset: FocusPreset?,
     showDeepLinkConfirmation: Boolean,
     onConfirmDeepLink: () -> Unit,
@@ -193,18 +191,12 @@ fun FocusPocusApp(
     val sessionSummaryTrials by sessionVM.sessionSummaryTrials.collectAsStateWithLifecycle()
     val sessionSummarySigils by sessionVM.sessionSummarySigils.collectAsStateWithLifecycle()
 
-    // Sync on NFC/QR external triggers. MainActivity bumps nfcTriggerCount on
-    // every onResume and on session-pref changes, so this effect is also what
-    // refreshes progression after service-side and trigger-driven stops.
+    // Sync on external triggers (NFC, deep links). MainActivity bumps
+    // nfcTriggerCount on every onResume and on session-pref changes, so this
+    // effect is also what refreshes progression after service-side and
+    // trigger-driven stops.
     LaunchedEffect(nfcTriggerCount) {
         if (nfcTriggerCount > 0) {
-            sessionVM.syncFromPrefs()
-            insightsVM.refresh()
-            progressionVM.refresh()
-        }
-    }
-    LaunchedEffect(qrTriggerCount) {
-        if (qrTriggerCount > 0) {
             sessionVM.syncFromPrefs()
             insightsVM.refresh()
             progressionVM.refresh()
@@ -742,7 +734,6 @@ fun FocusPocusApp(
                             }
                         },
                         onEndBreak = { sessionVM.endBreak() },
-                        onScanQrCode = onScanQrCode,
                         onEmergencyStop = {
                             // Deliberately dialog-free: the first stop records
                             // (and quietly earns); the second returns empty.
@@ -890,7 +881,6 @@ fun FocusPocusApp(
                                 lastScannedTagId?.let { spellbookVM.saveNamedTag(it, name) }
                             },
                             onDeleteTag = { spellbookVM.deleteNamedTag(it) },
-                            onSaveQrTalisman = { spellbookVM.saveQrTalisman(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )

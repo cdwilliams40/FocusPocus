@@ -151,7 +151,6 @@ object Constants {
     const val MAX_SCHEDULES = 50
     const val MAX_PRESETS = 100
     const val MAX_APPS_PER_BLOCKER = 500
-    const val MAX_WEBSITES_PER_BLOCKER = 100
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_APP_TIME_LIMITS = 100
     const val MAX_CONDITIONAL_UNLOCKS = 50

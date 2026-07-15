@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -25,9 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -134,18 +131,12 @@ fun BlockerListScreen(
                             }
                             val modeLabel = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield)
                             val appCount = blocker.effectiveApps.size
-                            val siteCount = blocker.effectiveWebsites.size
-                            val appCountStr = if (appCount > 0) pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount) else ""
-                            val siteCountStr = if (siteCount > 0) pluralStringResource(R.plurals.spellbook_site_count, siteCount, siteCount) else ""
                             Text(
                                 buildString {
                                     append(modeLabel)
-                                    if (appCount > 0 || siteCount > 0) {
+                                    if (appCount > 0) {
                                         append(" - ")
-                                        val parts = mutableListOf<String>()
-                                        if (appCount > 0) parts.add(appCountStr)
-                                        if (siteCount > 0) parts.add(siteCountStr)
-                                        append(parts.joinToString(", "))
+                                        append(pluralStringResource(R.plurals.spellbook_app_count, appCount, appCount))
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall
@@ -175,7 +166,6 @@ fun CreateBlockerScreen(
     var name by remember { mutableStateOf("") }
     var selectedMode by remember { mutableStateOf(BlockerMode.BLACKLIST) }
     var apps by remember { mutableStateOf(emptyList<String>()) }
-    var websites by remember { mutableStateOf(emptyList<String>()) }
     var autoAddNewApps by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
 
@@ -242,11 +232,6 @@ fun CreateBlockerScreen(
                 .weight(1f)
         )
 
-        WebsiteListSection(
-            websites = websites,
-            onWebsitesChanged = { websites = it }
-        )
-
         Button(
             onClick = {
                 onSaveBlocker(
@@ -254,7 +239,6 @@ fun CreateBlockerScreen(
                         name.trim(),
                         selectedMode,
                         apps.toSet(),
-                        websites,
                         autoAddNewApps = autoAddNewApps && selectedMode == BlockerMode.BLACKLIST
                     )
                 )
@@ -280,7 +264,6 @@ fun EditBlockerScreen(
 ) {
     var selectedMode by remember { mutableStateOf(blocker.mode) }
     var apps by remember { mutableStateOf(blocker.effectiveApps.toList()) }
-    var websites by remember { mutableStateOf(blocker.effectiveWebsites) }
     var autoAddNewApps by remember { mutableStateOf(blocker.autoAddNewApps) }
     var showDialog by remember { mutableStateOf(false) }
 
@@ -341,11 +324,6 @@ fun EditBlockerScreen(
                 .weight(1f)
         )
 
-        WebsiteListSection(
-            websites = websites,
-            onWebsitesChanged = { websites = it }
-        )
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -357,7 +335,6 @@ fun EditBlockerScreen(
                         blocker.copy(
                             mode = selectedMode,
                             apps = apps.toSet(),
-                            websites = websites,
                             autoAddNewApps = autoAddNewApps && selectedMode == BlockerMode.BLACKLIST
                         )
                     )
@@ -407,77 +384,6 @@ private fun AutoAddNewAppsRow(
             onCheckedChange = onCheckedChange
         )
     }
-}
-
-@Composable
-fun WebsiteListSection(
-    websites: List<String>,
-    onWebsitesChanged: (List<String>) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var input by remember { mutableStateOf("") }
-
-    Column(modifier = modifier.padding(top = 16.dp)) {
-        Text(stringResource(R.string.spells_blocked_websites), style = MaterialTheme.typography.titleSmall)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { if (it.length <= 255) input = it },
-                label = { Text(stringResource(R.string.spells_website_hint)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            Button(
-                onClick = {
-                    val domain = cleanDomain(input)
-                    if (domain.isNotEmpty() && isValidDomain(domain) && domain !in websites) {
-                        onWebsitesChanged(websites + domain)
-                    }
-                    input = ""
-                },
-                enabled = input.isNotBlank(),
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text(stringResource(R.string.action_add))
-            }
-        }
-        websites.forEach { site ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(site, modifier = Modifier.weight(1f))
-                IconButton(onClick = { onWebsitesChanged(websites - site) }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.spells_remove_site, site))
-                }
-            }
-        }
-    }
-}
-
-private fun cleanDomain(input: String): String {
-    var domain = input.trim().lowercase()
-    if (domain.startsWith("https://")) domain = domain.removePrefix("https://")
-    if (domain.startsWith("http://")) domain = domain.removePrefix("http://")
-    if (domain.startsWith("www.")) domain = domain.removePrefix("www.")
-    domain = domain.split('/')[0]
-    domain = domain.split('?')[0]
-    domain = domain.split('#')[0]
-    domain = domain.split(':')[0] // strip port
-    return domain
-}
-
-private val domainPattern = Regex("^[a-z0-9]([a-z0-9\\-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9\\-]{0,61}[a-z0-9])?)*$")
-
-private fun isValidDomain(domain: String): Boolean {
-    return domain.length <= 255 && domain.contains('.') && domainPattern.matches(domain)
 }
 
 /**

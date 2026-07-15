@@ -1,10 +1,11 @@
 package com.infinicada.focuspocus
 
+// Older persisted JSON may carry a `websites` field from the retired URL-blocking
+// feature; Gson ignores unknown fields, so those records still deserialize fine.
 data class Blocker(
     val name: String,
     val mode: BlockerMode,
     val apps: Set<String>? = emptySet(),
-    val websites: List<String>? = null,
     // Blacklist only: newly installed apps are added to this list automatically.
     // Gson deserializes the field as false when absent in stored JSON.
     val autoAddNewApps: Boolean = false
@@ -12,10 +13,6 @@ data class Blocker(
     /** Null-safe accessor — Gson can deserialize apps as null despite Kotlin non-null type. */
     val effectiveApps: Set<String>
         get() = apps ?: emptySet()
-
-    /** Null-safe accessor — Gson can deserialize websites as null despite Kotlin nullable default. */
-    val effectiveWebsites: List<String>
-        get() = websites ?: emptyList()
 
     fun shouldBlock(packageName: String): Boolean {
         return when (mode) {

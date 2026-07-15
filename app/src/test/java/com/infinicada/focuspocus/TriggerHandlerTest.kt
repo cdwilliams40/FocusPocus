@@ -204,67 +204,6 @@ class TriggerHandlerTest {
         assertEquals(R.string.toast_no_active_focus, (result as TriggerResult.Error).messageResId)
     }
 
-    // ── handleQrResult ──
-
-    @Test
-    fun `handleQrResult with valid preset URI toggles preset`() {
-        val preset = makePreset(id = "abc123")
-        val result = handler.handleQrResult("focuspocus://preset/abc123", listOf(preset), emptyList(), blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_preset_cast, (result as TriggerResult.Success).messageResId)
-    }
-
-    @Test
-    fun `handleQrResult with invalid preset ID returns Error`() {
-        val result = handler.handleQrResult("focuspocus://preset/INVALID!@#", emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_invalid_qr, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `handleQrResult with unknown preset ID returns Error`() {
-        val result = handler.handleQrResult("focuspocus://preset/abc123", emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_quick_spell_not_found, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `handleQrResult with valid talisman URI toggles bound preset`() {
-        val talisman = NamedTag("aaa111", "MyTalisman")
-        val preset = makePreset(id = "abc123", talismanId = "aaa111")
-        val result = handler.handleQrResult("focuspocus://talisman/aaa111", listOf(preset), listOf(talisman), blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-    }
-
-    @Test
-    fun `handleQrResult with talisman but no bound preset returns Error`() {
-        val talisman = NamedTag("aaa111", "MyTalisman")
-        val result = handler.handleQrResult("focuspocus://talisman/aaa111", emptyList(), listOf(talisman), blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_no_quick_spell_bound, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `handleQrResult with unknown talisman returns Error`() {
-        val result = handler.handleQrResult("focuspocus://talisman/abc123", emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_talisman_not_found, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `handleQrResult with unrecognized URI returns Error`() {
-        val result = handler.handleQrResult("https://example.com", emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_invalid_qr, (result as TriggerResult.Error).messageResId)
-    }
-
     // ── handleNfcTag ──
 
     @Test

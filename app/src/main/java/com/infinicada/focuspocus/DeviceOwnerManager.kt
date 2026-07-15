@@ -29,8 +29,8 @@ import com.infinicada.focuspocus.model.ConditionalUnlock
  * the suspension for its duration. Governed by
  * [Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS] (on by default).
  *
- * The accessibility service remains the fallback (and still handles websites and
- * time limits); suspension is layered on top when [Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT]
+ * The accessibility service remains the fallback (and still handles time limits);
+ * suspension is layered on top when [Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT]
  * is enabled.
  */
 object DeviceOwnerManager {

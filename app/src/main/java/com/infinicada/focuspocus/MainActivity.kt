@@ -19,7 +19,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -31,8 +30,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
 import com.infinicada.focuspocus.handler.TriggerResult
@@ -56,7 +53,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var lastScannedTagId by mutableStateOf<String?>(null)
     private var isServiceEnabled by mutableStateOf(false)
     private var nfcTriggerCount by mutableStateOf(0)
-    private var qrTriggerCount by mutableStateOf(0)
 
     // Deep link confirmation state
     private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
@@ -80,14 +76,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         }
     }
 
-    private lateinit var scanLauncher: ActivityResultLauncher<ScanOptions>
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        scanLauncher = registerForActivityResult(ScanContract()) { result ->
-            result.contents?.let { handleQrResult(it) }
-        }
 
         enableEdgeToEdge()
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
@@ -142,8 +132,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     lastScannedTagId = lastScannedTagId,
                     nfcTriggerCount = nfcTriggerCount,
-                    qrTriggerCount = qrTriggerCount,
-                    onScanQrCode = { launchQrScanner() },
                     pendingDeepLinkPreset = pendingDeepLinkPreset,
                     showDeepLinkConfirmation = showDeepLinkConfirmation,
                     onConfirmDeepLink = { confirmDeepLinkAction() },
@@ -158,27 +146,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         // the user already answered. Warm relaunches come in via onNewIntent.
         if (savedInstanceState == null) {
             handleIntent(intent)
-        }
-    }
-
-    private fun handleQrResult(contents: String) {
-        val container = (application as FocusPocusApplication).container
-        val result = triggerHandler.handleQrResult(
-            contents,
-            container.presets.getPresets(),
-            container.talismans.getNamedTags(),
-            container.blockers.getBlockers(),
-            container.schedules.getSchedules()
-        )
-        when (result) {
-            is TriggerResult.Success -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                qrTriggerCount++
-            }
-            is TriggerResult.Error -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-            }
-            else -> {}
         }
     }
 
@@ -207,7 +174,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             when (result) {
                 is TriggerResult.Success -> {
                     Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                    qrTriggerCount++
+                    // Same sync mechanism as prefs-change and NFC triggers: force
+                    // the ViewModels to re-read session state from prefs.
+                    nfcTriggerCount++
                 }
                 is TriggerResult.Error -> {
                     Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
@@ -221,15 +190,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private fun dismissDeepLinkConfirmation() {
         pendingDeepLinkPreset = null
         showDeepLinkConfirmation = false
-    }
-
-    private fun launchQrScanner() {
-        val options = ScanOptions()
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        options.setPrompt(getString(R.string.main_scan_qr_prompt))
-        options.setBeepEnabled(false)
-        options.setOrientationLocked(true)
-        scanLauncher.launch(options)
     }
 
     override fun onNewIntent(intent: Intent) {
