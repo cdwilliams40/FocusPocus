@@ -39,7 +39,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,8 +55,11 @@ import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
+import com.infinicada.focuspocus.ui.formatDuration
 import com.infinicada.focuspocus.ui.theme.ThemeMode
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +93,11 @@ fun SettingsScreen(
     isDeviceOwner: Boolean,
     deviceOwnerEnforcement: Boolean,
     onDeviceOwnerEnforcementChanged: (Boolean) -> Unit,
+    deviceOwnerSuspendPacts: Boolean,
+    onDeviceOwnerSuspendPactsChanged: (Boolean) -> Unit,
+    wardenRemovalRequestMillis: Long,
+    onRequestWardenRemoval: () -> Unit,
+    onCancelWardenRemoval: () -> Unit,
     onRefreshDeviceOwner: () -> Unit,
     onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
@@ -432,6 +442,7 @@ fun SettingsScreen(
 
             // Warden Mode (device owner) Card
             var showRemoveWardenDialog by remember { mutableStateOf(false) }
+            var showRequestRemovalDialog by remember { mutableStateOf(false) }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(stringResource(R.string.settings_device_owner), style = MaterialTheme.typography.titleMedium)
@@ -458,6 +469,28 @@ fun SettingsScreen(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.settings_device_owner_suspend_pacts))
+                                Text(
+                                    stringResource(R.string.settings_device_owner_suspend_pacts_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = deviceOwnerSuspendPacts,
+                                onCheckedChange = onDeviceOwnerSuspendPactsChanged,
+                                // Greying rides on the master enforcement toggle above.
+                                enabled = deviceOwnerEnforcement
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             stringResource(R.string.settings_device_owner_active),
                             style = MaterialTheme.typography.bodySmall,
@@ -478,12 +511,60 @@ fun SettingsScreen(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { showRemoveWardenDialog = true },
-                            enabled = !focusMode,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.settings_device_owner_remove))
+                        // Removal is a two-step act: request it, wait out the
+                        // 24-hour cooling-off period, then remove for real. A
+                        // 30-second tick keeps the countdown (and the unlock
+                        // moment) live while the screen stays open.
+                        var wardenNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                        LaunchedEffect(wardenRemovalRequestMillis) {
+                            while (wardenRemovalRequestMillis > 0L) {
+                                wardenNow = System.currentTimeMillis()
+                                delay(30_000L)
+                            }
+                        }
+                        val removalUnlocked =
+                            DeviceOwnerManager.isRemovalUnlocked(wardenRemovalRequestMillis, wardenNow)
+                        when {
+                            wardenRemovalRequestMillis <= 0L -> {
+                                OutlinedButton(
+                                    onClick = { showRequestRemovalDialog = true },
+                                    enabled = !focusMode,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(stringResource(R.string.settings_device_owner_remove_request))
+                                }
+                            }
+                            !removalUnlocked -> {
+                                Text(
+                                    stringResource(
+                                        R.string.settings_device_owner_remove_pending,
+                                        formatDuration(
+                                            GuardStatus.minutesUntil(
+                                                wardenRemovalRequestMillis +
+                                                    DeviceOwnerManager.REMOVAL_COOLDOWN_MS,
+                                                wardenNow
+                                            )
+                                        )
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                TextButton(onClick = onCancelWardenRemoval) {
+                                    Text(stringResource(R.string.settings_device_owner_remove_cancel_request))
+                                }
+                            }
+                            else -> {
+                                OutlinedButton(
+                                    onClick = { showRemoveWardenDialog = true },
+                                    enabled = !focusMode,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(stringResource(R.string.settings_device_owner_remove))
+                                }
+                                TextButton(onClick = onCancelWardenRemoval) {
+                                    Text(stringResource(R.string.settings_device_owner_remove_cancel_request))
+                                }
+                            }
                         }
                         Text(
                             stringResource(R.string.settings_device_owner_remove_desc),
@@ -510,6 +591,26 @@ fun SettingsScreen(
                     },
                     dismissButton = {
                         TextButton(onClick = { showRemoveWardenDialog = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
+            }
+            if (showRequestRemovalDialog) {
+                AlertDialog(
+                    onDismissRequest = { showRequestRemovalDialog = false },
+                    title = { Text(stringResource(R.string.settings_device_owner_request_confirm_title)) },
+                    text = { Text(stringResource(R.string.settings_device_owner_request_confirm_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showRequestRemovalDialog = false
+                            onRequestWardenRemoval()
+                        }) {
+                            Text(stringResource(R.string.settings_device_owner_request_confirm_yes))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRequestRemovalDialog = false }) {
                             Text(stringResource(R.string.action_cancel))
                         }
                     }

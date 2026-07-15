@@ -130,6 +130,8 @@
     <string name="home_guard_chip_over">Limite épuisée</string>
     <string name="home_guard_circle_icon_desc">Cercle de pacte</string>
     <string name="home_guard_make_pact">Faire un pacte</string>
+    <string name="pacts_request_time">Demander du temps</string>
+    <string name="pacts_request_sealed_toast">Toujours scellée — le sceau se lève dans %1$d min</string>
     <string name="home_guard_empty_title">Aucun pacte pour l\'instant</string>
     <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
@@ -231,6 +233,8 @@
     <string name="settings_device_owner">Mode Gardien (propriétaire de l\'appareil)</string>
     <string name="settings_device_owner_suspend">Griser les applications bloquées</string>
     <string name="settings_device_owner_suspend_desc">Suspend les applications bloquées au niveau du système pendant les sessions de concentration — leurs icônes sont grisées et elles ne peuvent plus être ouvertes</string>
+    <string name="settings_device_owner_suspend_pacts">Griser les applications sous pacte</string>
+    <string name="settings_device_owner_suspend_pacts_desc">Garde les applications liées par un pacte suspendues en permanence — grisées, absentes des suggestions du lanceur, et ouvrables uniquement en demandant du temps dans l\'onglet Pactes</string>
     <string name="settings_device_owner_active">FocusPocus est le propriétaire de cet appareil. Il ne peut pas être désinstallé tant que le Mode Gardien est actif.</string>
     <string name="settings_device_owner_inactive_desc">Faites de FocusPocus le propriétaire de l\'appareil pour griser les applications bloquées dans tout le système et empêcher la désinstallation de l\'application dans un moment de faiblesse. Configuration unique depuis un ordinateur avec adb :</string>
     <string name="settings_device_owner_step1">Supprimez temporairement tous les comptes de ce téléphone (Paramètres → Mots de passe et comptes). Vous pourrez tous les rajouter dès que la configuration sera terminée.</string>
@@ -244,7 +248,13 @@
     <string name="settings_device_owner_troubleshoot_body">Certaines applications (Instagram, WhatsApp, Signal…) enregistrent des comptes cachés qui n\'apparaissent jamais dans les paramètres Android. Listez tous les comptes de l\'appareil avec :</string>
     <string name="settings_device_owner_troubleshoot_fix">Dans le résultat, le « type » de chaque compte indique l\'application qui le possède. Désinstallez cette application (ou effacez son stockage), redémarrez, puis relancez la commande de configuration. Les utilisateurs supplémentaires et les profils professionnels comptent aussi — supprimez-les également. Une fois le Mode Gardien actif, réinstallez et reconnectez-vous à tout.</string>
     <string name="settings_device_owner_remove">Désactiver le Mode Gardien</string>
-    <string name="settings_device_owner_remove_desc">Met fin à la protection contre la désinstallation et au grisage des applications. Indisponible pendant une session de concentration.</string>
+    <string name="settings_device_owner_remove_request">Demander la désactivation du Gardien</string>
+    <string name="settings_device_owner_remove_pending">La désactivation du Gardien se débloque dans %1$s</string>
+    <string name="settings_device_owner_remove_cancel_request">Annuler la demande de désactivation</string>
+    <string name="settings_device_owner_request_confirm_title">Demander la désactivation du Gardien ?</string>
+    <string name="settings_device_owner_request_confirm_message">Un délai de réflexion de 24 heures commence maintenant. Une fois écoulé, vous pourrez désactiver le Mode Gardien ici — ou annuler la demande à tout moment si l\'envie est passée.</string>
+    <string name="settings_device_owner_request_confirm_yes">Lancer le compte à rebours</string>
+    <string name="settings_device_owner_remove_desc">Met fin à la protection contre la désinstallation et au grisage des applications. La désactivation doit être demandée 24 heures à l\'avance et reste indisponible pendant une session de concentration.</string>
     <string name="settings_device_owner_remove_confirm_title">Désactiver le Mode Gardien ?</string>
     <string name="settings_device_owner_remove_confirm_message">FocusPocus cessera de griser les applications bloquées et pourra ensuite être désinstallé comme n\'importe quelle application. Pour rétablir la protection, il faudra relancer la commande adb.</string>
     <string name="settings_device_owner_remove_confirm_yes">Désactiver</string>
@@ -252,6 +262,8 @@
     <string name="device_admin_label">Gardien FocusPocus</string>
     <string name="device_admin_description">Grise les applications bloquées pendant les sessions de concentration et protège FocusPocus contre la désinstallation.</string>
     <string name="device_admin_disable_warning">Désactiver ceci permettra aux applications bloquées de fonctionner librement pendant les sessions et rendra FocusPocus facile à désinstaller. Votre futur vous pourrait ne pas vous remercier.</string>
+    <string name="device_admin_support_short">Cette application est liée par un pacte Focus Pocus.</string>
+    <string name="device_admin_support_long">Cette application est liée par un pacte Focus Pocus : elle reste scellée jusqu\'à ce que vous demandiez consciemment du temps. Ouvrez Focus Pocus, trouvez l\'application dans l\'onglet Pactes et touchez « Demander du temps ».</string>
     <string name="settings_privacy">Confidentialité</string>
     <string name="settings_analytics">Partager les analyses</string>
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>

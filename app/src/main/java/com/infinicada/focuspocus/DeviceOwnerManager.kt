@@ -8,6 +8,8 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.model.ConditionalUnlock
 
 /**
@@ -19,6 +21,13 @@ import com.infinicada.focuspocus.model.ConditionalUnlock
  * to open them is refused by the OS itself — enforcement no longer depends on the
  * accessibility service winning a race against the opened app. Device-owner status
  * also makes FocusPocus impossible to uninstall while it holds the role.
+ *
+ * Pact-gated apps (per-app pact configs and pact-circle members) are suspended the
+ * same way, but *at all times* rather than session-scoped — a pact'd app is blocked
+ * by default, so it stays greyed out (and out of launcher suggestions) until the
+ * user requests time from the Pacts dashboard, which grants an allowance and lifts
+ * the suspension for its duration. Governed by
+ * [Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS] (on by default).
  *
  * The accessibility service remains the fallback (and still handles websites and
  * time limits); suspension is layered on top when [Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT]
@@ -38,6 +47,20 @@ object DeviceOwnerManager {
      * system account settings. This lists them all, per user.
      */
     const val LIST_ACCOUNTS_COMMAND = "adb shell dumpsys account"
+
+    /**
+     * Cooling-off period before a Warden-removal request unlocks the actual
+     * removal — deprovisioning must be a decision made a day ahead, not in the
+     * moment the protection bites.
+     */
+    const val REMOVAL_COOLDOWN_MS = 24L * 60 * 60 * 1000
+
+    /**
+     * Whether a removal request made at [requestMillis] has cleared its
+     * cooling-off period at [now]. Zero/negative means no request is pending.
+     */
+    fun isRemovalUnlocked(requestMillis: Long, now: Long = System.currentTimeMillis()): Boolean =
+        requestMillis > 0 && now - requestMillis >= REMOVAL_COOLDOWN_MS
 
     private val gson = Gson()
 
@@ -68,6 +91,11 @@ object DeviceOwnerManager {
      * Blocks uninstall of FocusPocus itself. Device-owner apps can't be uninstalled
      * anyway, but the explicit flag also survives edge cases (e.g. work-profile
      * removal flows) and makes the intent unambiguous.
+     *
+     * Also sets the admin support messages: when the user taps a suspended app the
+     * OS shows its own "app is paused" dialog, whose details screen displays this
+     * text — the one channel available to point them back at Focus Pocus to
+     * request time.
      */
     fun applySelfProtection(context: Context) {
         if (!isDeviceOwner(context)) return
@@ -75,6 +103,14 @@ object DeviceOwnerManager {
             getDpm(context)?.setUninstallBlocked(getAdminComponent(context), context.packageName, true)
         } catch (e: Exception) {
             Log.e(TAG, "Error applying self protection", e)
+        }
+        try {
+            val dpm = getDpm(context) ?: return
+            val admin = getAdminComponent(context)
+            dpm.setShortSupportMessage(admin, context.getString(R.string.device_admin_support_short))
+            dpm.setLongSupportMessage(admin, context.getString(R.string.device_admin_support_long))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting support messages", e)
         }
     }
 
@@ -163,11 +199,19 @@ object DeviceOwnerManager {
     }
 
     /**
-     * Packages that should be suspended right now: launchable apps blocked by any
-     * active blocker while a focus session is running (and not on a break), minus
-     * apps freed by a satisfied conditional unlock and system-critical exemptions.
+     * Packages that should be suspended right now: session-blocked apps plus
+     * pact-gated apps with no active allowance, each minus its own escape
+     * hatches (breaks, conditional unlocks) and system-critical exemptions.
      */
-    private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
+    private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> =
+        computeSessionSuspensions(context, prefs) + computePactSuspensions(context, prefs)
+
+    /**
+     * Launchable apps blocked by any active blocker while a focus session is
+     * running (and not on a break), minus apps freed by a satisfied conditional
+     * unlock.
+     */
+    private fun computeSessionSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
         val focusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
             prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
         if (!focusActive) return emptySet()
@@ -184,6 +228,47 @@ object DeviceOwnerManager {
             launchablePackages = getLaunchablePackages(context),
             exemptPackages = getExemptPackages(context)
         )
+    }
+
+    /**
+     * Pact-gated apps that should be greyed out right now. Unlike session
+     * suspensions these apply at all times — even outside sessions and during
+     * breaks — mirroring the accessibility service's pact gate, which is why
+     * breaks are deliberately not consulted here. An app escapes only while its
+     * pact allowance runs or a conditional unlock is satisfied.
+     */
+    private fun computePactSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
+        if (!prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)) return emptySet()
+
+        val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
+        val pactManager = PactManager(prefs, gson)
+        val groups = pactManager.getGroups()
+        if (groups.isEmpty() && configs.values.none { it.pactModeEnabled }) return emptySet()
+
+        val gated = GuardStatus.pactGatedPackages(configs, groups, BlockerRepository.getBlockers(prefs))
+        if (gated.isEmpty()) return emptySet()
+
+        return computePactSuspendedPackages(
+            pactGated = gated,
+            allowedPackages = pactManager.getActiveAllowances().keys +
+                getConditionallyUnlockedTimeLimitApps(context, prefs, gated),
+            launchablePackages = getLaunchablePackages(context),
+            exemptPackages = getExemptPackages(context)
+        )
+    }
+
+    /**
+     * Pure pact-suspension computation, extracted for unit testing: gated
+     * packages that are launchable, not exempt, and not currently allowed
+     * (by an active pact allowance or a satisfied conditional unlock).
+     */
+    fun computePactSuspendedPackages(
+        pactGated: Set<String>,
+        allowedPackages: Set<String>,
+        launchablePackages: Set<String>,
+        exemptPackages: Set<String>
+    ): Set<String> = pactGated.filterTo(mutableSetOf()) { pkg ->
+        pkg in launchablePackages && pkg !in exemptPackages && pkg !in allowedPackages
     }
 
     /**
@@ -255,20 +340,38 @@ object DeviceOwnerManager {
         context: Context,
         prefs: SharedPreferences,
         blockerName: String
-    ): Boolean {
-        val json = prefs.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null) ?: return false
-        val rules: List<ConditionalUnlock> = try {
+    ): Boolean = loadConditionalUnlocks(prefs).any { rule ->
+        blockerName in rule.effectiveUnlockedBlockerNames && isRuleSatisfied(context, rule)
+    }
+
+    /**
+     * Mirrors MyAccessibilityService's conditional-unlock check for time-limit
+     * apps: the subset of [candidates] freed by a satisfied rule. Iterates rules
+     * (one usage query each) rather than candidates, since rules are few.
+     */
+    private fun getConditionallyUnlockedTimeLimitApps(
+        context: Context,
+        prefs: SharedPreferences,
+        candidates: Set<String>
+    ): Set<String> = loadConditionalUnlocks(prefs)
+        .filter { rule ->
+            rule.effectiveUnlockedTimeLimitApps.any { it in candidates } && isRuleSatisfied(context, rule)
+        }
+        .flatMapTo(mutableSetOf()) { it.effectiveUnlockedTimeLimitApps }
+
+    private fun isRuleSatisfied(context: Context, rule: ConditionalUnlock): Boolean =
+        rule.requiredMinutes > 0 &&
+            UsageStatsHelper.getPackageUsageToday(context, rule.requiredAppPackage) >=
+            rule.requiredMinutes.toLong() * 60 * 1000
+
+    private fun loadConditionalUnlocks(prefs: SharedPreferences): List<ConditionalUnlock> {
+        val json = prefs.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null) ?: return emptyList()
+        return try {
             val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            gson.fromJson(json, type) ?: return false
+            gson.fromJson(json, type) ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing conditional unlocks JSON", e)
-            return false
-        }
-        return rules.any { rule ->
-            blockerName in rule.effectiveUnlockedBlockerNames &&
-                rule.requiredMinutes > 0 &&
-                UsageStatsHelper.getPackageUsageToday(context, rule.requiredAppPackage) >=
-                rule.requiredMinutes.toLong() * 60 * 1000
+            emptyList()
         }
     }
 }

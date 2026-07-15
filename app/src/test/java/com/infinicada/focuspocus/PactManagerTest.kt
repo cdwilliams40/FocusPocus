@@ -59,6 +59,19 @@ class PactManagerTest {
     }
 
     @Test
+    fun `getLapsedAllowances splits lapsed from active without removing either`() {
+        manager.grantAllowance(pkg, minutes = 5, now = t0)
+        manager.grantAllowance("com.other.app", minutes = 30, now = t0)
+        val now = t0 + 10 * 60 * 1000L
+
+        assertEquals(mapOf(pkg to t0 + 5 * 60 * 1000L), manager.getLapsedAllowances(now))
+        // Reading must not consume: the lapsed entry is still takeable, the
+        // active one still active.
+        assertEquals(t0 + 5 * 60 * 1000L, manager.takeLapsedAllowance(pkg, now))
+        assertEquals(t0 + 30 * 60 * 1000L, manager.getAllowanceExpiry("com.other.app", now))
+    }
+
+    @Test
     fun `allowances survive a manager restart via prefs`() {
         manager.grantAllowance(pkg, minutes = 10, now = t0)
 

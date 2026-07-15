@@ -72,6 +72,25 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT, enabled).apply()
     }
 
+    fun getDeviceOwnerSuspendPacts(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)
+
+    fun setDeviceOwnerSuspendPacts(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, enabled).apply()
+    }
+
+    /** Epoch millis of the pending Warden-removal request, or 0 when none. */
+    fun getWardenRemovalRequestMillis(): Long =
+        prefs.getLong(Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS, 0L)
+
+    fun setWardenRemovalRequestMillis(millis: Long) {
+        prefs.edit().putLong(Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS, millis).apply()
+    }
+
+    fun clearWardenRemovalRequest() {
+        prefs.edit().remove(Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS).apply()
+    }
+
     fun getBreakDurationMinutes(): Int =
         prefs.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5).coerceIn(1, 30)
 

@@ -181,6 +181,25 @@ class GuardStatusTest {
     }
 
     @Test
+    fun `circle quiet members are the requestable ones`() {
+        val blockers = listOf(
+            Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b", "com.c", "com.d"))
+        )
+        val groups = listOf(PactGroup(blockerName = "Doom", dailyLimitMinutes = 30))
+        val liveStates = mapOf(
+            "com.a" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000),   // sealed
+            "com.b" to GuardLiveState(allowanceExpiryMillis = t0 + 60_000),  // pact running
+            "com.c" to GuardLiveState(usedMinutesToday = 30)                 // backstop spent
+        )
+
+        val circle = GuardStatus.buildRows(
+            emptyMap(), groups, blockers, liveStates, emptyMap(), emptyMap(), t0
+        ).filterIsInstance<GuardRow.Circle>().single()
+
+        assertEquals(listOf("com.d"), circle.quietMemberPackages)
+    }
+
+    @Test
     fun `circle of a deleted enchantment renders with no members`() {
         val rows = GuardStatus.buildRows(
             emptyMap(), listOf(PactGroup(blockerName = "Gone")), emptyList(),

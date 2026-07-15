@@ -10,7 +10,8 @@ import android.util.Log
  *
  * When the app is made device owner (via `adb shell dpm set-device-owner`),
  * this component is the admin that [DeviceOwnerManager] acts through:
- * suspending (greying out) blocked apps during focus sessions and blocking
+ * suspending (greying out) blocked apps during focus sessions, keeping
+ * pact-gated apps suspended whenever no allowance runs, and blocking
  * uninstall of FocusPocus itself.
  */
 class FocusDeviceAdminReceiver : DeviceAdminReceiver() {
