@@ -53,6 +53,16 @@ class PactManager(
         loadAllowances().filterValues { it > now }
 
     /**
+     * Read-only batch view of the lapsed side: every allowance that has already
+     * expired (package → expiry epoch millis). The enforcement layer walks this
+     * on its minute tick to seal apps proactively — under Warden greying the
+     * user can't reopen a suspended app, so the open-attempt path that used to
+     * trigger [takeLapsedAllowance] lazily never runs.
+     */
+    fun getLapsedAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> =
+        loadAllowances().filterValues { it <= now }
+
+    /**
      * If [packageName] has an allowance that has already lapsed, removes it and
      * returns its expiry time so the caller can start the seal cooldown anchored
      * there. Returns null if there is no allowance or it is still active.

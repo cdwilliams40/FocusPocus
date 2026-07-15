@@ -59,8 +59,14 @@ object Constants {
 
         // Device owner: suspend (grey out) blocked apps during focus sessions
         const val DEVICE_OWNER_ENFORCEMENT = "deviceOwnerEnforcement"
+        // Device owner: also suspend pact-gated apps whenever no allowance runs,
+        // so they stay greyed out (and out of launcher suggestions) at all times
+        const val DEVICE_OWNER_SUSPEND_PACTS = "deviceOwnerSuspendPacts"
         // Packages currently suspended by us, so they can be unsuspended later
         const val DEVICE_OWNER_SUSPENDED_PACKAGES = "deviceOwnerSuspendedPackages"
+        // Epoch millis of the pending Warden-removal request; 0/absent = none.
+        // Removal only unlocks DeviceOwnerManager.REMOVAL_COOLDOWN_MS later.
+        const val WARDEN_REMOVAL_REQUEST_MILLIS = "wardenRemovalRequestMillis"
 
         // Per-app time limits
         const val APP_TIME_LIMITS = "appTimeLimits"

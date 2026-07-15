@@ -156,6 +156,9 @@ class OverlayActivity : ComponentActivity() {
     private fun grantPactAndLaunch(packageName: String, minutes: Int) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         PactManager(prefs, Gson()).grantAllowance(packageName, minutes)
+        // Under Warden greying the app is OS-suspended; lift that before the
+        // launch below, or the system will refuse to open it.
+        DeviceOwnerManager.syncSuspensions(this)
         launchApp(packageName)
     }
 

@@ -83,8 +83,9 @@ A mystical focus and productivity app for Android that helps you stay on task by
 ### Warden Mode (Device Owner)
 - Optionally provision FocusPocus as the Android *device owner* for OS-level enforcement
 - Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the accessibility service
+- **Pact-bound apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact allowance is running. To open one, request time with the **Request time** button on its Pacts-dashboard card; the allowance un-greys the app for exactly the minutes you chose
 - FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
-- Fully reversible from Settings (but never mid-session)
+- Fully reversible from Settings (but never mid-session), and removal must be **requested 24 hours in advance** — a cancelable cooling-off countdown separates the urge from the act
 
 Provisioning requires a one-time `adb` command from a computer (the same steps are shown in-app under Settings → Warden Mode, with tap-to-copy commands):
 
@@ -96,7 +97,7 @@ Provisioning requires a one-time `adb` command from a computer (the same steps a
    adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
    ```
 
-Then enable **Grey Out Blocked Apps** in Settings → Warden Mode. The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
+Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
 
 > **⚠️ Uninstall protection and Android Studio builds:** apps deployed with Android Studio's *Run* button are flagged **test-only**, and Android deliberately allows removing a test-only device owner — so FocusPocus *can* still be uninstalled in that setup, Warden Mode or not. For real uninstall protection, install a normal build instead: `./gradlew assembleDebug && adb install app/build/outputs/apk/debug/app-debug.apk` (or a release build). The app shows a warning in Settings → Warden Mode when it detects a test-only install.
 

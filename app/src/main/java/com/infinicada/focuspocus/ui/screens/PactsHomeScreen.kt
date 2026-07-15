@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -33,8 +35,14 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +70,7 @@ import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
 import com.infinicada.focuspocus.ui.components.formatClock
 import com.infinicada.focuspocus.ui.formatDuration
+import kotlinx.coroutines.delay
 
 /**
  * The app's default screen: a dashboard of standing protection. One card per
@@ -95,6 +104,7 @@ fun PactsHomeScreen(
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
     onGuardClick: (GuardRow) -> Unit,
+    onRequestTime: (packageName: String, minutes: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val names = remember(installedApps) {
@@ -185,12 +195,14 @@ fun PactsHomeScreen(
                     is GuardRow.App -> GuardAppCard(
                         row = row,
                         names = names,
-                        onClick = { onGuardClick(row) }
+                        onClick = { onGuardClick(row) },
+                        onRequestTime = onRequestTime
                     )
                     is GuardRow.Circle -> GuardCircleCard(
                         row = row,
                         names = names,
-                        onClick = { onGuardClick(row) }
+                        onClick = { onGuardClick(row) },
+                        onRequestTime = onRequestTime
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -381,9 +393,11 @@ private fun SessionBanner(
 private fun GuardAppCard(
     row: GuardRow.App,
     names: Map<String, String>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
     val appName = names[row.packageName] ?: row.packageName
+    var showRequestDialog by remember { mutableStateOf(false) }
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -409,6 +423,34 @@ private fun GuardAppCard(
             }
             GuardStateChip(state = row.state)
         }
+        // The in-app pact gate: under Warden greying the OS refuses to open the
+        // app at all, so this is where a sealed-by-default app gets its time.
+        if (row.config.pactModeEnabled && row.state == GuardState.QUIET) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showRequestDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.pacts_request_time))
+            }
+        }
+    }
+    if (showRequestDialog) {
+        PactRequestDialog(
+            targets = listOf(
+                PactRequestTarget(
+                    packageName = row.packageName,
+                    appName = appName,
+                    choicesMinutes = PactManager.choicesFor(row.config),
+                    sealMinutes = row.config.cooldownMinutes
+                )
+            ),
+            onRequest = { pkg, minutes ->
+                showRequestDialog = false
+                onRequestTime(pkg, minutes)
+            },
+            onDismiss = { showRequestDialog = false }
+        )
     }
 }
 
@@ -506,8 +548,10 @@ private fun GuardStateLine(row: GuardRow.App) {
 private fun GuardCircleCard(
     row: GuardRow.Circle,
     names: Map<String, String>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
+    var showRequestDialog by remember { mutableStateOf(false) }
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -581,6 +625,32 @@ private fun GuardCircleCard(
             }
             GuardStateChip(state = circleState)
         }
+        if (row.quietMemberPackages.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showRequestDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.pacts_request_time))
+            }
+        }
+    }
+    if (showRequestDialog) {
+        PactRequestDialog(
+            targets = row.quietMemberPackages.map { pkg ->
+                PactRequestTarget(
+                    packageName = pkg,
+                    appName = names[pkg] ?: pkg,
+                    choicesMinutes = PactManager.choicesFor(row.group.toAppTimeLimit(pkg)),
+                    sealMinutes = row.group.cooldownMinutes
+                )
+            },
+            onRequest = { pkg, minutes ->
+                showRequestDialog = false
+                onRequestTime(pkg, minutes)
+            },
+            onDismiss = { showRequestDialog = false }
+        )
     }
 }
 
@@ -618,6 +688,113 @@ private fun GuardStateChip(state: GuardState) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
+}
+
+// ────────────────────────────────────────────────────────────
+//  REQUEST-TIME DIALOG
+// ────────────────────────────────────────────────────────────
+
+/** One requestable app offered by [PactRequestDialog]. */
+private data class PactRequestTarget(
+    val packageName: String,
+    val appName: String,
+    val choicesMinutes: List<Int>,
+    val sealMinutes: Int
+)
+
+/**
+ * The pact overlay's in-app twin. With Warden greying on, a pact-gated app is
+ * OS-suspended and its launcher icon leads only to a system "app is paused"
+ * dialog — so the conscious time choice happens here instead, and granting it
+ * un-greys the app. Multiple targets (a pact circle) get a picker step first,
+ * and the same few-second pause gates the choices so the dashboard doesn't
+ * become a lower-friction side door than the overlay it mirrors.
+ */
+@Composable
+private fun PactRequestDialog(
+    targets: List<PactRequestTarget>,
+    onRequest: (packageName: String, minutes: Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember { mutableStateOf(targets.singleOrNull()) }
+    var remainingSeconds by remember { mutableIntStateOf(3) }
+    val countdownDone = remainingSeconds <= 0
+
+    LaunchedEffect(Unit) {
+        while (remainingSeconds > 0) {
+            delay(1000L)
+            remainingSeconds--
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.pacts_request_time)) },
+        text = {
+            val target = selected
+            if (target == null) {
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    items(targets) { candidate ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selected = candidate }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            AppIcon(
+                                packageName = candidate.packageName,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(candidate.appName, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            } else {
+                Column {
+                    Text(
+                        stringResource(R.string.overlay_pact_prompt, target.appName),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        stringResource(
+                            R.string.overlay_pact_seal_desc, target.appName, target.sealMinutes
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!countdownDone) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    target.choicesMinutes.forEach { minutes ->
+                        OutlinedButton(
+                            onClick = { onRequest(target.packageName, minutes) },
+                            enabled = countdownDone,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.overlay_pact_choice, minutes))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.overlay_pact_decline))
+            }
+        }
+    )
 }
 
 // ────────────────────────────────────────────────────────────

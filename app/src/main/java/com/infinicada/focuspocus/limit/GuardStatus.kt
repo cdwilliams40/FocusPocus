@@ -57,6 +57,12 @@ sealed class GuardRow {
     data class Circle(
         val group: PactGroup,
         val memberPackages: List<String>,
+        /**
+         * Members whose pact gate is requestable right now — quiet ones, i.e.
+         * not sealed, no running allowance, under any daily backstop. Feeds the
+         * dashboard's request-time picker.
+         */
+        val quietMemberPackages: List<String>,
         val sealedCount: Int,
         val pactActiveCount: Int,
         val overLimitCount: Int,
@@ -151,6 +157,7 @@ object GuardStatus {
 
         val circleRows = groups.map { group ->
             val members = circleMemberPackages(group, blockers, configs)
+            val quietMembers = mutableListOf<String>()
             var sealedCount = 0
             var pactActiveCount = 0
             var overLimitCount = 0
@@ -162,13 +169,16 @@ object GuardStatus {
                     GuardState.SEALED -> sealedCount++
                     GuardState.PACT_ACTIVE -> pactActiveCount++
                     GuardState.OVER_LIMIT -> overLimitCount++
-                    GuardState.QUIET -> {}
+                    GuardState.QUIET -> quietMembers.add(pkg)
                 }
                 val stats = openStats[pkg] ?: AppOpenStats()
                 opens += stats.opens
                 reflexes += stats.reflexOpens
             }
-            GuardRow.Circle(group, members, sealedCount, pactActiveCount, overLimitCount, opens, reflexes)
+            GuardRow.Circle(
+                group, members, quietMembers,
+                sealedCount, pactActiveCount, overLimitCount, opens, reflexes
+            )
         }
 
         return (appRows + circleRows).sortedWith(

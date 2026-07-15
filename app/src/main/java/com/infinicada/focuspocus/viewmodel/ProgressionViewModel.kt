@@ -2,6 +2,7 @@ package com.infinicada.focuspocus.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.TrialEngine
 import com.infinicada.focuspocus.data.ProgressionRepository
@@ -78,6 +79,11 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun redeemPerk(perk: Perk, packageName: String? = null): Boolean {
         val redeemed = repo.redeemPerk(perk, packageName)
+        // The sealed-minutes perk grants a pact allowance, which under Warden
+        // greying must also lift the app's OS suspension right away.
+        if (redeemed && perk == Perk.SEALED_MINUTES) {
+            DeviceOwnerManager.syncSuspensions(getApplication())
+        }
         refresh()
         return redeemed
     }

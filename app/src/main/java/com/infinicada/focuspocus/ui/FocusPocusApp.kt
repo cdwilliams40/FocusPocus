@@ -163,6 +163,8 @@ fun FocusPocusApp(
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
     val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
+    val deviceOwnerSuspendPacts by settingsVM.deviceOwnerSuspendPacts.collectAsStateWithLifecycle()
+    val wardenRemovalRequestMillis by settingsVM.wardenRemovalRequestMillis.collectAsStateWithLifecycle()
     val analyticsConsent by settingsVM.analyticsConsent.collectAsStateWithLifecycle()
     val onboardingCompleted by settingsVM.onboardingCompleted.collectAsStateWithLifecycle()
     val showAnalyticsConsentDialog by settingsVM.showAnalyticsConsentDialog.collectAsStateWithLifecycle()
@@ -419,6 +421,11 @@ fun FocusPocusApp(
             isDeviceOwner = isDeviceOwner,
             deviceOwnerEnforcement = deviceOwnerEnforcement,
             onDeviceOwnerEnforcementChanged = { settingsVM.setDeviceOwnerEnforcement(it) },
+            deviceOwnerSuspendPacts = deviceOwnerSuspendPacts,
+            onDeviceOwnerSuspendPactsChanged = { settingsVM.setDeviceOwnerSuspendPacts(it) },
+            wardenRemovalRequestMillis = wardenRemovalRequestMillis,
+            onRequestWardenRemoval = { settingsVM.requestWardenRemoval() },
+            onCancelWardenRemoval = { settingsVM.cancelWardenRemoval() },
             onRefreshDeviceOwner = { settingsVM.refreshDeviceOwnerState() },
             onRemoveDeviceOwner = {
                 if (!settingsVM.removeDeviceOwner()) {
@@ -609,6 +616,9 @@ fun FocusPocusApp(
                                         is GuardRow.Circle -> PactsRoute.EditCircle(row.group.blockerName)
                                     }
                                 )
+                            },
+                            onRequestTime = { pkg, minutes ->
+                                spellbookVM.requestPactTime(pkg, minutes)
                             },
                             modifier = contentModifier
                         )

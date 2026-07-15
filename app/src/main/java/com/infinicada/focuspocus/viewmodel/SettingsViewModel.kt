@@ -54,6 +54,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _deviceOwnerEnforcement = MutableStateFlow(repo.getDeviceOwnerEnforcement())
     val deviceOwnerEnforcement: StateFlow<Boolean> = _deviceOwnerEnforcement.asStateFlow()
 
+    private val _deviceOwnerSuspendPacts = MutableStateFlow(repo.getDeviceOwnerSuspendPacts())
+    val deviceOwnerSuspendPacts: StateFlow<Boolean> = _deviceOwnerSuspendPacts.asStateFlow()
+
+    // Epoch millis of the pending Warden-removal request (0 = none). Removal
+    // itself only unlocks DeviceOwnerManager.REMOVAL_COOLDOWN_MS later.
+    private val _wardenRemovalRequestMillis = MutableStateFlow(repo.getWardenRemovalRequestMillis())
+    val wardenRemovalRequestMillis: StateFlow<Long> = _wardenRemovalRequestMillis.asStateFlow()
+
     private val _analyticsConsent = MutableStateFlow(repo.getAnalyticsConsent())
     val analyticsConsent: StateFlow<Boolean> = _analyticsConsent.asStateFlow()
 
@@ -149,7 +157,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 com.google.gson.Gson(),
                 listOf(SigilCatalog.WARDEN)
             )
+        } else if (_wardenRemovalRequestMillis.value != 0L) {
+            // Warden left some other way (test-only builds allow adb removal);
+            // drop the stale request so re-provisioning starts a clean slate.
+            repo.clearWardenRemovalRequest()
+            _wardenRemovalRequestMillis.value = 0L
         }
+    }
+
+    /** Starts the 24-hour cooling-off period before Warden Mode can be removed. */
+    fun requestWardenRemoval() {
+        val now = System.currentTimeMillis()
+        repo.setWardenRemovalRequestMillis(now)
+        _wardenRemovalRequestMillis.value = now
+    }
+
+    /** Withdraws a pending removal request — the protective, always-available path. */
+    fun cancelWardenRemoval() {
+        repo.clearWardenRemovalRequest()
+        _wardenRemovalRequestMillis.value = 0L
     }
 
     fun setDeviceOwnerEnforcement(enabled: Boolean) {
@@ -159,9 +185,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         DeviceOwnerManager.syncSuspensions(getApplication())
     }
 
-    /** Returns false if relinquishing device-owner status failed. */
+    fun setDeviceOwnerSuspendPacts(enabled: Boolean) {
+        _deviceOwnerSuspendPacts.value = enabled
+        repo.setDeviceOwnerSuspendPacts(enabled)
+        // Grey out (or release) pact-gated apps immediately.
+        DeviceOwnerManager.syncSuspensions(getApplication())
+    }
+
+    /**
+     * Returns false if relinquishing device-owner status failed — including when
+     * the 24-hour cooling-off period hasn't been requested or hasn't elapsed yet
+     * (enforced here too, not just by the UI's disabled button).
+     */
     fun removeDeviceOwner(): Boolean {
+        if (!DeviceOwnerManager.isRemovalUnlocked(_wardenRemovalRequestMillis.value)) return false
         val cleared = DeviceOwnerManager.clearDeviceOwner(getApplication())
+        if (cleared) {
+            repo.clearWardenRemovalRequest()
+            _wardenRemovalRequestMillis.value = 0L
+        }
         refreshDeviceOwnerState()
         return cleared
     }

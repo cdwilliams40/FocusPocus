@@ -9,11 +9,13 @@ import com.google.gson.Gson
 import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
+import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardLiveState
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
@@ -89,12 +91,78 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         pactManager.saveGroup(group)
         _pactGroups.value = pactManager.getGroups()
         _dataVersion.value++
+        syncWardenGreying()
     }
 
     fun deletePactGroup(blockerName: String) {
         pactManager.deleteGroup(blockerName)
         _pactGroups.value = pactManager.getGroups()
         _dataVersion.value++
+        syncWardenGreying()
+    }
+
+    /**
+     * Reconciles Warden-mode greying after any edit that changes which apps are
+     * pact-gated (configs, groups, or the enchantment membership behind a
+     * circle) — a newly pact'd app greys out immediately, a released one
+     * un-greys. No-op when the device isn't provisioned.
+     */
+    private fun syncWardenGreying() {
+        DeviceOwnerManager.syncSuspensions(getApplication())
+    }
+
+    /**
+     * The Pacts dashboard's request-time flow: the in-app counterpart of the
+     * pact overlay, for apps the OS itself refuses to open under Warden greying.
+     * Grants the allowance, lifts the suspension, and opens the app.
+     *
+     * Mirrors the enforcement layer's lapse→seal conversion first, so a stale
+     * dashboard (or a dead accessibility service) can't chain a new pact past a
+     * seal that should be running. Returns false if the app turned out to be
+     * sealed — the dashboard refreshes to show the seal instead.
+     */
+    fun requestPactTime(packageName: String, minutes: Int): Boolean {
+        val now = System.currentTimeMillis()
+        pactManager.takeLapsedAllowance(packageName, now)?.let { lapsedExpiry ->
+            effectivePactConfig(packageName)?.let {
+                sessionCooldownManager.startCooldown(packageName, it, lapsedExpiry)
+            }
+        }
+        val seal = sessionCooldownManager.getCooldownState(packageName, now)
+        if (seal != null) {
+            Toast.makeText(getApplication(), getApplication<Application>().getString(
+                R.string.pacts_request_sealed_toast,
+                GuardStatus.minutesUntil(seal.cooldownExpiryMillis, now)
+            ), Toast.LENGTH_SHORT).show()
+            _dataVersion.value++
+            return false
+        }
+        pactManager.grantAllowance(packageName, minutes, now)
+        syncWardenGreying()
+        _dataVersion.value++
+        launchApp(packageName)
+        return true
+    }
+
+    /** The pact settings governing [packageName] — resolvePactConfig's precedence. */
+    private fun effectivePactConfig(packageName: String): AppTimeLimit? {
+        val configs = _appTimeLimitConfigs.value
+        configs[packageName]?.let { return if (it.pactModeEnabled) it else null }
+        return _pactGroups.value
+            .firstOrNull { packageName in GuardStatus.circleMemberPackages(it, _blockerLists.value, configs) }
+            ?.toAppTimeLimit(packageName)
+    }
+
+    private fun launchApp(packageName: String) {
+        val app = getApplication<Application>()
+        try {
+            app.packageManager.getLaunchIntentForPackage(packageName)?.let {
+                it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                app.startActivity(it)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SpellbookViewModel", "Error launching $packageName", e)
+        }
     }
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
@@ -219,6 +287,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         _blockerLists.value = blockerRepo.getBlockers()
         _dataVersion.value++
+        // Editing an enchantment's app list changes its pact circle's membership.
+        syncWardenGreying()
     }
 
     fun deleteBlocker(blocker: Blocker) {
@@ -230,6 +300,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             _pactGroups.value = pactManager.getGroups()
         }
         _dataVersion.value++
+        syncWardenGreying()
     }
 
     fun saveSchedule(schedule: Schedule) {
@@ -331,12 +402,14 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _appTimeLimitConfigs.value = insightsRepo.getAppTimeLimitConfigs()
         _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
+        syncWardenGreying()
     }
 
     fun deleteAppTimeLimit(packageName: String) {
         _appTimeLimitConfigs.value = insightsRepo.deleteAppTimeLimitConfig(packageName, _appTimeLimitConfigs.value)
         _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
+        syncWardenGreying()
     }
 
     fun saveConditionalUnlock(rule: ConditionalUnlock) {

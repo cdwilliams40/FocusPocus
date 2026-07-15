@@ -173,4 +173,24 @@ class SettingsRepositoryTest {
         repo.setProgressionIntroShown()
         assertTrue(repo.isProgressionIntroShown())
     }
+
+    // ── warden (device owner) settings ──
+
+    @Test
+    fun `pact greying defaults on and toggles`() {
+        assertTrue(repo.getDeviceOwnerSuspendPacts())
+        repo.setDeviceOwnerSuspendPacts(false)
+        assertFalse(repo.getDeviceOwnerSuspendPacts())
+        repo.setDeviceOwnerSuspendPacts(true)
+        assertTrue(repo.getDeviceOwnerSuspendPacts())
+    }
+
+    @Test
+    fun `warden removal request stores, survives, and clears`() {
+        assertEquals(0L, repo.getWardenRemovalRequestMillis())
+        repo.setWardenRemovalRequestMillis(1_234L)
+        assertEquals(1_234L, repo.getWardenRemovalRequestMillis())
+        repo.clearWardenRemovalRequest()
+        assertEquals(0L, repo.getWardenRemovalRequestMillis())
+    }
 }

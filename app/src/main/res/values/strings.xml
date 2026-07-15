@@ -129,6 +129,8 @@
     <string name="home_guard_chip_over">Limit spent</string>
     <string name="home_guard_circle_icon_desc">Pact circle</string>
     <string name="home_guard_make_pact">Make a pact</string>
+    <string name="pacts_request_time">Request time</string>
+    <string name="pacts_request_sealed_toast">Still sealed — the seal lifts in %1$d min</string>
     <string name="home_guard_empty_title">No pacts yet</string>
     <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
@@ -230,6 +232,8 @@
     <string name="settings_device_owner">Warden Mode (Device Owner)</string>
     <string name="settings_device_owner_suspend">Grey Out Blocked Apps</string>
     <string name="settings_device_owner_suspend_desc">Suspend blocked apps at the system level during focus sessions — their icons grey out in the launcher and they can\'t be opened at all</string>
+    <string name="settings_device_owner_suspend_pacts">Grey Out Pact Apps</string>
+    <string name="settings_device_owner_suspend_pacts_desc">Keep pact-bound apps suspended at all times — greyed out, absent from launcher suggestions, and openable only by requesting time on the Pacts tab</string>
     <string name="settings_device_owner_active">FocusPocus is this device\'s owner. It cannot be uninstalled while Warden Mode is active.</string>
     <string name="settings_device_owner_inactive_desc">Make FocusPocus the device owner to grey out blocked apps system-wide and prevent the app from being uninstalled in a moment of weakness. One-time setup from a computer with adb:</string>
     <string name="settings_device_owner_step1">Temporarily remove all accounts from this phone (Settings → Passwords &amp; accounts). You can add every one of them back as soon as setup is done.</string>
@@ -244,7 +248,13 @@
     <string name="settings_device_owner_troubleshoot_fix">In the output, each account\'s \"type\" names the app that owns it. Uninstall that app (or clear its storage), reboot, and run the setup command again. Extra users and work profiles count too — remove them as well. Once Warden Mode is active, reinstall and sign back in to everything.</string>
     <string name="settings_device_owner_testonly_warning">This build was deployed from Android Studio and is marked test-only \u2014 Android allows removing test-only device owners, so uninstall protection is NOT active. Install with adb (gradlew assembleDebug) for full protection.</string>
     <string name="settings_device_owner_remove">Remove Warden Mode</string>
-    <string name="settings_device_owner_remove_desc">Ends uninstall protection and app greying. Not available during a focus session.</string>
+    <string name="settings_device_owner_remove_request">Request Warden removal</string>
+    <string name="settings_device_owner_remove_pending">Warden removal unlocks in %1$s</string>
+    <string name="settings_device_owner_remove_cancel_request">Cancel removal request</string>
+    <string name="settings_device_owner_request_confirm_title">Request Warden removal?</string>
+    <string name="settings_device_owner_request_confirm_message">A 24-hour cooling-off period starts now. Once it passes, you can remove Warden Mode from here — or cancel the request at any time if the urge passes first.</string>
+    <string name="settings_device_owner_request_confirm_yes">Start the clock</string>
+    <string name="settings_device_owner_remove_desc">Ends uninstall protection and app greying. Removal must be requested 24 hours in advance and isn\'t available during a focus session.</string>
     <string name="settings_device_owner_remove_confirm_title">Remove Warden Mode?</string>
     <string name="settings_device_owner_remove_confirm_message">FocusPocus will stop greying out blocked apps and can then be uninstalled like any other app. Getting protection back requires running the adb command again.</string>
     <string name="settings_device_owner_remove_confirm_yes">Remove</string>
@@ -252,6 +262,8 @@
     <string name="device_admin_label">FocusPocus Warden</string>
     <string name="device_admin_description">Greys out blocked apps during focus sessions and protects FocusPocus from being uninstalled.</string>
     <string name="device_admin_disable_warning">Disabling this lets blocked apps run freely during focus sessions and makes FocusPocus easy to uninstall. Your future self might not thank you.</string>
+    <string name="device_admin_support_short">This app is bound by a Focus Pocus pact.</string>
+    <string name="device_admin_support_long">This app is bound by a Focus Pocus pact, so it stays sealed until you consciously request time. Open Focus Pocus, find the app on the Pacts tab, and tap Request time.</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_analytics">Share Analytics</string>
     <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>

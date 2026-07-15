@@ -248,6 +248,12 @@ class MyAccessibilityService : AccessibilityService() {
         // Warn shortly before the foreground app's pact allowance lapses.
         currentForegroundPackage?.let { maybeWarnPactEnding(it) }
 
+        // Convert lapsed pact allowances into their seal cooldowns proactively.
+        // This used to happen lazily on the next open attempt, but under Warden
+        // greying the OS refuses that reopen outright — and the dashboard and
+        // suspension sync below both need the seal on record to stay truthful.
+        sealLapsedPacts()
+
         // Also enforce time limits on whichever app is currently in the foreground.
         // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
         // could stay inside an app past its daily limit indefinitely.
@@ -1554,6 +1560,21 @@ class MyAccessibilityService : AccessibilityService() {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    /**
+     * Seals every app whose pact allowance has lapsed, anchored at the moment the
+     * allowance expired (checkTimeLimitAndBlock's rule, applied proactively). An
+     * app whose pact config has been removed just gets its stale allowance
+     * dropped. takeLapsedAllowance is take-once, so racing the open-attempt path
+     * can't double-start a cooldown.
+     */
+    private fun sealLapsedPacts(now: Long = System.currentTimeMillis()) {
+        pactManager.getLapsedAllowances(now).keys.forEach { pkg ->
+            val lapsedExpiry = pactManager.takeLapsedAllowance(pkg, now) ?: return@forEach
+            val config = resolvePactConfig(pkg) ?: return@forEach
+            sessionCooldownManager.startCooldown(pkg, config, lapsedExpiry)
         }
     }
 
