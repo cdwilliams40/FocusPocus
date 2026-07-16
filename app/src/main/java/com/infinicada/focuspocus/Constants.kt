@@ -161,9 +161,11 @@ object Constants {
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
+    const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val DAILY_WRAPUP_NOTIFICATION_ID = 9003
+    const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
 }

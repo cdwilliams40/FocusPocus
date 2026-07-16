@@ -21,5 +21,12 @@ class FocusPocusApplication : Application() {
         // Channel must exist before anything outside the accessibility service
         // posts a progression notification.
         ProgressionNotifier.createChannel(this)
+        // Session-countdown notification: create its channel, then start the
+        // prefs observer that keeps the notification in sync with session
+        // state. attach() also reconciles once now, restoring the countdown
+        // after a reboot and clearing one left over from a session that ended
+        // while the process was down.
+        SessionNotifier.createChannel(this)
+        SessionNotifier.attach(this)
     }
 }
