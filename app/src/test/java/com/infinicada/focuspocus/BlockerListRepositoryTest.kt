@@ -16,9 +16,8 @@ class BlockerListRepositoryTest {
 
     private fun makeBlocker(
         name: String = "TestBlocker",
-        apps: Set<String> = setOf("com.test"),
-        websites: List<String>? = null
-    ) = Blocker(name, BlockerMode.BLACKLIST, apps, websites)
+        apps: Set<String> = setOf("com.test")
+    ) = Blocker(name, BlockerMode.BLACKLIST, apps)
 
     /** Writes [blockers] straight to prefs, bypassing the repo (simulates existing state). */
     private fun storeDirectly(blockers: List<Blocker>) {
@@ -79,17 +78,6 @@ class BlockerListRepositoryTest {
         val saved = repo.getBlockers()[0]
 
         assertEquals(Constants.MAX_APPS_PER_BLOCKER, saved.effectiveApps.size)
-    }
-
-    @Test
-    fun `saveBlocker caps websites at MAX_WEBSITES_PER_BLOCKER`() {
-        storeDirectly(emptyList())
-        val bigWebsiteList = (1..200).map { "site$it.com" }
-
-        repo.saveBlocker(makeBlocker(websites = bigWebsiteList))
-        val saved = repo.getBlockers()[0]
-
-        assertEquals(Constants.MAX_WEBSITES_PER_BLOCKER, saved.effectiveWebsites.size)
     }
 
     @Test

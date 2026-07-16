@@ -9,7 +9,6 @@ A mystical focus and productivity app for Android that helps you stay on task by
 ### App Blocking (Enchantments)
 - Create custom blocklists ("Enchantments") to block distracting apps
 - Choose between **Blacklist** mode (block specific apps) or **Whitelist** mode (allow only specific apps)
-- Block specific websites in addition to apps
 - **Auto-banish new apps**: opt an enchantment in and newly installed apps are added to it automatically, closing the loophole of installing a fresh distraction mid-session (blacklist mode only)
 - Gentle redirection back to your task when you try to open a blocked app
 - Optionally silence notifications from blocked apps while a session is active
@@ -18,7 +17,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Pre-configured focus sessions with customizable duration and settings
 - One-tap activation for common focus scenarios like "Deep Work", "Quick Focus", or "Sleep Mode"
 - Bind Quick Spells to NFC talismans for physical activation
-- Activate via QR codes or deep links (`focuspocus://preset`)
+- Activate via deep links (`focuspocus://preset`)
 
 ### Scheduled Rituals
 - Schedule automatic focus sessions for specific days and times
@@ -65,10 +64,6 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Example: unlock social media only after 30 minutes in a study app
 - Unlocks can lift enchantment blocks and/or per-app time limits
 
-### Browser URL Blocking
-- Block specific websites during focus sessions
-- Supports 16+ browsers including Chrome, Firefox, Edge, Brave, and DuckDuckGo
-
 ### Session Analytics & Insights
 - Track completed focus sessions with start time, duration, and breaks used
 - View daily app usage trends and per-app statistics
@@ -97,7 +92,7 @@ Provisioning requires a one-time `adb` command from a computer (the same steps a
    adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
    ```
 
-Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). The accessibility service keeps handling websites and time limits; suspension is layered on top for app blocking.
+Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). The accessibility service keeps handling time limits; suspension is layered on top for app blocking.
 
 > **⚠️ Uninstall protection and Android Studio builds:** apps deployed with Android Studio's *Run* button are flagged **test-only**, and Android deliberately allows removing a test-only device owner — so FocusPocus *can* still be uninstalled in that setup, Warden Mode or not. For real uninstall protection, install a normal build instead: `./gradlew assembleDebug && adb install app/build/outputs/apk/debug/app-debug.apk` (or a release build). The app shows a warning in Settings → Warden Mode when it detects a test-only install.
 
@@ -132,7 +127,6 @@ Focus Pocus requires the following permissions:
 | **Notifications** | Show notifications for scheduled rituals and breaks |
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
-| **Camera** | Scan QR codes to activate Quick Spells |
 | **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |
 
 ## Installation
@@ -152,7 +146,7 @@ cd FocusPocus
 
 On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
 
-1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps and websites you want to block during focus sessions (the Focus tab offers this directly when you have none).
+1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps you want to block during focus sessions (the Focus tab offers this directly when you have none).
 
 2. **Start Focusing**: On the Focus tab, select your enchantment and tap "Cast" to begin your focus session.
 
@@ -175,7 +169,7 @@ Your standing protection, always the first thing you see:
 
 ### Spellbook Tab
 Your grimoire of focus-session configuration:
-- **Focus sessions**: **Enchantments** (blocklists of apps and websites) and **Rituals** (scheduled automatic sessions)
+- **Focus sessions**: **Enchantments** (app blocklists) and **Rituals** (scheduled automatic sessions)
 - **More magic**: **Quick Spells** (one-tap presets, also on the Focus tab), **Talismans** (NFC tags and bindings), and **Conditional Unlocks** (earn access after productive time)
 
 ### Insights Tab
@@ -197,7 +191,7 @@ Your grimoire of focus-session configuration:
 - **Min SDK**: 29 (Android 10)
 - **Target SDK**: 36
 - **Architecture**: Single-activity with Compose navigation, ViewModels, and repository-based data layer
-- **Libraries**: Navigation Compose, Gson, ZXing (QR codes), Firebase Crashlytics & Analytics
+- **Libraries**: Navigation Compose, Gson, Firebase Crashlytics & Analytics
 
 ## Project Structure
 
@@ -214,7 +208,6 @@ app/src/main/java/com/infinicada/focuspocus/
 ├── AppTimeLimitManager.kt             # Time limit configuration persistence
 ├── DndController.kt                   # Do Not Disturb management
 ├── UsageStatsHelper.kt                # Device usage statistics queries
-├── BrowserDetector.kt                 # Website blocking for 16+ browsers
 ├── BlockerRepository.kt               # Blocklist persistence
 ├── BootCompletedReceiver.kt           # Restore state after device restart
 ├── Constants.kt                       # Shared constants and preference keys
@@ -224,7 +217,7 @@ app/src/main/java/com/infinicada/focuspocus/
 ├── model/                             # Data models (Blocker, FocusPreset, Schedule,
 │                                      #   AppTimeLimit, ConditionalUnlock, ...)
 ├── limit/                             # Session cooldowns and escalating friction levels
-├── handler/                           # Trigger handling (NFC, QR, deep links)
+├── handler/                           # Trigger handling (NFC, deep links)
 ├── navigation/                        # Navigation routes and destinations
 ├── viewmodel/                         # ViewModels for session, settings, spellbook, insights
 └── ui/                                # Theme, shared composables, and screens

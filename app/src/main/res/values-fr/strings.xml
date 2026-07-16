@@ -26,7 +26,6 @@
     <string name="action_next">Suivant</string>
     <string name="action_skip">Passer</string>
     <string name="action_see_all">Tout voir</string>
-    <string name="action_qr">QR</string>
 
     <!-- Common terms -->
     <string name="label_active">Actif</string>
@@ -95,7 +94,6 @@
     <string name="home_button_bound">Lié</string>
     <string name="home_button_dispel">Dissiper</string>
     <string name="home_button_cast">Lancer</string>
-    <string name="home_scan_qr_code">Scanner un code QR</string>
     <string name="home_triggered_by_talisman">Déclenché par le talisman : %s</string>
     <string name="home_scan_to_dispel">Scanner %s pour dissiper</string>
     <string name="home_scan_talisman_to_dispel">Scannez votre talisman pour dissiper</string>
@@ -178,10 +176,6 @@
         <item quantity="one">%d application</item>
         <item quantity="other">%d applications</item>
     </plurals>
-    <plurals name="spellbook_site_count">
-        <item quantity="one">%d site</item>
-        <item quantity="other">%d sites</item>
-    </plurals>
 
     <!-- SpellsScreen (Enchantments) -->
     <string name="spells_title">Enchantements</string>
@@ -195,11 +189,8 @@
     <string name="spells_select_target_apps">Sélectionner les applications cibles</string>
     <string name="spells_save_enchantment">Enregistrer l\'enchantement</string>
     <string name="spells_char_count">%1$d/%2$d</string>
-    <string name="spells_blocked_websites">Sites web bloqués</string>
     <string name="spells_auto_add_new_apps">Bannir les nouvelles applications</string>
     <string name="spells_auto_add_new_apps_desc">Ajoute automatiquement les applications nouvellement installées à cet enchantement</string>
-    <string name="spells_website_hint">ex. youtube.com</string>
-    <string name="spells_remove_site">Retirer %s</string>
     <string name="spells_select_apps_title">Sélectionner les applications</string>
     <string name="spells_select_enchantment_title">Sélectionner un enchantement</string>
     <string name="spells_pact_circle_note">Cet enchantement porte un cercle de pacte — chacune de ses applications est scellée par défaut. Supprimer l\'enchantement retire aussi le cercle.</string>
@@ -368,10 +359,6 @@
     <string name="talismans_enchanted_items">Objets enchantés</string>
     <string name="talismans_disenchant">Désenchanter</string>
     <string name="talismans_none_bound">Aucun talisman lié.</string>
-    <string name="talismans_qr_title">Code QR : %s</string>
-    <string name="talismans_create_qr">Créer un talisman QR</string>
-    <string name="talismans_create_qr_title">Créer un talisman QR</string>
-    <string name="talismans_create_qr_desc">Créez un talisman basé sur un code QR au lieu d\'une puce NFC. Imprimez ou affichez le code QR et scannez-le pour déclencher.</string>
 
     <!-- QuickSpellsListScreen -->
     <string name="quick_spells_title">Sorts rapides</string>
@@ -380,7 +367,6 @@
     <string name="quick_spells_empty">Aucun sort rapide. Appuyez sur + pour créer le premier !</string>
     <string name="quick_spells_enchantment_missing">Enchantement manquant - veuillez modifier</string>
     <string name="quick_spells_bound_to">Lié à : %s</string>
-    <string name="quick_spells_qr_title">Code QR : %s</string>
     <string name="quick_spells_temp_enable">Activer temporairement %dm</string>
     <string name="quick_spells_temp_disable">Désactiver temporairement %dm</string>
 
@@ -425,9 +411,6 @@
     <string name="pacts_enchantment_label">Enchantement</string>
     <string name="pacts_no_blacklists">Aucun enchantement en liste noire disponible \u2014 cr\u00e9ez-en un d\'abord dans Enchantements.</string>
 
-    <!-- QrCodeDialog -->
-    <string name="qr_code_content_desc">Code QR</string>
-    <string name="qr_code_error">Échec de la génération du code QR</string>
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Sort : %s</string>
@@ -489,15 +472,10 @@
     <string name="toast_no_active_focus">Aucune concentration active à suspendre</string>
     <string name="toast_preset_dispelled">%s dissipé !</string>
     <string name="toast_preset_cast">%s lancé !</string>
-    <string name="toast_invalid_qr">Code QR invalide</string>
-    <string name="toast_quick_spell_not_found">Sort rapide introuvable</string>
-    <string name="toast_talisman_not_found">Talisman introuvable</string>
-    <string name="toast_no_quick_spell_bound">Aucun sort rapide lié à %s</string>
     <string name="toast_ritual_dispelled">Rituel dissipé !</string>
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
     <string name="toast_ritual_locked">Ce rituel est lié à un talisman — scannez-le pour le dissiper</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
-    <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
 
     <!-- App Picker -->
     <string name="app_picker_selected_chip">Sélectionnées (%1$d)</string>

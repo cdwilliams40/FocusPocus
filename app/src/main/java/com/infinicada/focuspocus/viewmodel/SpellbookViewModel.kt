@@ -361,17 +361,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _dataVersion.value++
     }
 
-    fun saveQrTalisman(tag: NamedTag) {
-        if (!talismanRepo.saveQrTalisman(tag, _namedTags.value)) {
-            Toast.makeText(getApplication(), getApplication<Application>().getString(
-                R.string.toast_max_talismans, com.infinicada.focuspocus.Constants.MAX_NAMED_TAGS
-            ), Toast.LENGTH_SHORT).show()
-            return
-        }
-        _namedTags.value = talismanRepo.getNamedTags()
-        _dataVersion.value++
-    }
-
     /**
      * Onboarding: seal [packages] behind the default pact (up to 15 minutes per
      * pact, 30-minute seal, no daily backstop). Each is an ordinary per-app

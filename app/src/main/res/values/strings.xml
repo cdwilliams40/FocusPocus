@@ -26,7 +26,6 @@
     <string name="action_next">Next</string>
     <string name="action_skip">Skip</string>
     <string name="action_see_all">See All</string>
-    <string name="action_qr">QR</string>
 
     <!-- Common terms -->
     <string name="label_active">Active</string>
@@ -97,7 +96,6 @@
     <string name="home_button_bound">Bound</string>
     <string name="home_button_dispel">Dispel</string>
     <string name="home_button_cast">Cast</string>
-    <string name="home_scan_qr_code">Scan QR Code</string>
     <string name="home_triggered_by_talisman">Triggered by Talisman: %s</string>
     <string name="home_scan_to_dispel">Scan %s to dispel</string>
     <string name="home_scan_talisman_to_dispel">Scan your talisman to dispel</string>
@@ -177,10 +175,6 @@
         <item quantity="one">%d app</item>
         <item quantity="other">%d apps</item>
     </plurals>
-    <plurals name="spellbook_site_count">
-        <item quantity="one">%d site</item>
-        <item quantity="other">%d sites</item>
-    </plurals>
 
     <!-- SpellsScreen (Enchantments) -->
     <string name="spells_title">Enchantments</string>
@@ -194,11 +188,8 @@
     <string name="spells_select_target_apps">Select Target Apps</string>
     <string name="spells_save_enchantment">Save Enchantment</string>
     <string name="spells_char_count">%1$d/%2$d</string>
-    <string name="spells_blocked_websites">Blocked Websites</string>
     <string name="spells_auto_add_new_apps">Banish new apps</string>
     <string name="spells_auto_add_new_apps_desc">Automatically add newly installed apps to this enchantment</string>
-    <string name="spells_website_hint">e.g. youtube.com</string>
-    <string name="spells_remove_site">Remove %s</string>
     <string name="spells_select_apps_title">Select Apps</string>
     <string name="spells_select_enchantment_title">Select Enchantment</string>
     <string name="spells_pact_circle_note">This enchantment carries a pact circle — every app in it is sealed by default. Deleting the enchantment removes the circle too.</string>
@@ -376,10 +367,6 @@
     <string name="talismans_enchanted_items">Enchanted Items</string>
     <string name="talismans_disenchant">Disenchant</string>
     <string name="talismans_none_bound">No talismans bound yet.</string>
-    <string name="talismans_qr_title">QR Code: %s</string>
-    <string name="talismans_create_qr">Create QR Talisman</string>
-    <string name="talismans_create_qr_title">Create QR Talisman</string>
-    <string name="talismans_create_qr_desc">Create a talisman backed by a QR code instead of an NFC tag. Print or display the QR code and scan it to trigger.</string>
 
     <!-- QuickSpellsListScreen -->
     <string name="quick_spells_title">Quick Spells</string>
@@ -388,7 +375,6 @@
     <string name="quick_spells_empty">No quick spells yet. Tap + to create your first one!</string>
     <string name="quick_spells_enchantment_missing">Enchantment missing - please edit</string>
     <string name="quick_spells_bound_to">Bound to: %s</string>
-    <string name="quick_spells_qr_title">QR Code: %s</string>
     <string name="quick_spells_temp_enable">Temp Enable %dm</string>
     <string name="quick_spells_temp_disable">Temp Disable %dm</string>
 
@@ -472,9 +458,6 @@
     <string name="conditional_unlocks_delete">Delete</string>
     <string name="toast_max_conditional_unlocks">Maximum of %d conditional unlocks reached</string>
 
-    <!-- QrCodeDialog -->
-    <string name="qr_code_content_desc">QR Code</string>
-    <string name="qr_code_error">Failed to generate QR code</string>
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Spell: %s</string>
@@ -553,15 +536,10 @@
     <string name="toast_no_active_focus">No active focus to pause</string>
     <string name="toast_preset_dispelled">%s Dispelled!</string>
     <string name="toast_preset_cast">%s Cast!</string>
-    <string name="toast_invalid_qr">Invalid QR code</string>
-    <string name="toast_quick_spell_not_found">Quick Spell not found</string>
-    <string name="toast_talisman_not_found">Talisman not found</string>
-    <string name="toast_no_quick_spell_bound">No Quick Spell bound to %s</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
     <string name="toast_ritual_locked">This ritual is bound to a talisman — scan it to dispel</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
-    <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
 
     <!-- Session Complete Dialog -->
     <string name="session_complete_title">Session Complete!</string>

@@ -30,7 +30,7 @@ class TriggerHandler(
     private val validIdPattern = Regex("^[a-f0-9\\-]{1,64}$")
 
     /**
-     * Core preset toggle logic used by NFC, QR, and deep links.
+     * Core preset toggle logic used by NFC and deep links.
      * Returns a TriggerResult describing what happened.
      */
     fun togglePreset(
@@ -39,9 +39,9 @@ class TriggerHandler(
         schedules: List<Schedule> = emptyList()
     ): TriggerResult {
         // A ritual bound to an unbinding talisman is locked against every
-        // other trigger. The NFC path enforces this before reaching here; QR
-        // and deep links funnel through this gate instead — otherwise any
-        // preset toggle could dispel or overwrite a talisman-locked session.
+        // other trigger. The NFC path enforces this before reaching here; deep
+        // links funnel through this gate instead — otherwise any preset
+        // toggle could dispel or overwrite a talisman-locked session.
         val activeScheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         if (activeScheduleId != null &&
             schedules.find { it.id == activeScheduleId }?.unbindingTalismanId != null
@@ -121,47 +121,6 @@ class TriggerHandler(
                     }
                 }
             }
-        }
-    }
-
-    /**
-     * Handle QR code scan result.
-     */
-    fun handleQrResult(
-        contents: String,
-        focusPresets: List<FocusPreset>,
-        namedTags: List<NamedTag>,
-        blockerLists: List<Blocker>,
-        schedules: List<Schedule> = emptyList()
-    ): TriggerResult {
-        val presetPrefix = "focuspocus://preset/"
-        val talismanPrefix = "focuspocus://talisman/"
-
-        return when {
-            contents.startsWith(presetPrefix) -> {
-                val presetId = contents.removePrefix(presetPrefix)
-                if (!validIdPattern.matches(presetId)) {
-                    return TriggerResult.Error(R.string.toast_invalid_qr)
-                }
-                val preset = focusPresets.find { it.id == presetId }
-                    ?: return TriggerResult.Error(R.string.toast_quick_spell_not_found)
-                togglePreset(preset, blockerLists, schedules)
-            }
-            contents.startsWith(talismanPrefix) -> {
-                val talismanId = contents.removePrefix(talismanPrefix)
-                if (!validIdPattern.matches(talismanId)) {
-                    return TriggerResult.Error(R.string.toast_invalid_qr)
-                }
-                val talisman = namedTags.find { it.id == talismanId }
-                    ?: return TriggerResult.Error(R.string.toast_talisman_not_found)
-                val boundPreset = focusPresets.find { it.talismanId == talismanId }
-                if (boundPreset != null) {
-                    togglePreset(boundPreset, blockerLists, schedules)
-                } else {
-                    TriggerResult.Error(R.string.toast_no_quick_spell_bound, listOf(talisman.name))
-                }
-            }
-            else -> TriggerResult.Error(R.string.toast_invalid_qr)
         }
     }
 

@@ -118,7 +118,6 @@ fun Greeting(
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit = {},
-    onScanQrCode: () -> Unit = {},
     onClaimTrial: (Trial) -> Unit = {},
     onBuyExtraBreak: () -> Unit = {},
     onCreateEnchantment: () -> Unit = {},
@@ -164,7 +163,6 @@ fun Greeting(
                     onTakeBreak = onTakeBreak,
                     onEndBreak = onEndBreak,
                     onEmergencyStop = onEmergencyStop,
-                    onScanQrCode = onScanQrCode,
                     onBuyExtraBreak = onBuyExtraBreak
                 )
             } else {
@@ -184,7 +182,6 @@ fun Greeting(
                     onDurationSelected = onDurationSelected,
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
-                    onScanQrCode = onScanQrCode,
                     onClaimTrial = onClaimTrial,
                     onCreateEnchantment = onCreateEnchantment
                 )
@@ -213,7 +210,6 @@ private fun IdleContent(
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
-    onScanQrCode: () -> Unit,
     onClaimTrial: (Trial) -> Unit,
     onCreateEnchantment: () -> Unit
 ) {
@@ -341,11 +337,6 @@ private fun IdleContent(
         Spacer(modifier = Modifier.height(20.dp))
     }
 
-    // QR scan button
-    OutlinedButton(onClick = onScanQrCode) {
-        Text(stringResource(R.string.home_scan_qr_code))
-    }
-
     Spacer(modifier = Modifier.height(16.dp))
 }
 
@@ -379,7 +370,6 @@ private fun ActiveSessionContent(
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit,
-    onScanQrCode: () -> Unit,
     onBuyExtraBreak: () -> Unit
 ) {
     // Status header
@@ -628,14 +618,6 @@ private fun ActiveSessionContent(
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
-    }
-
-    // QR scan in NFC lock mode
-    if (nfcLockMode) {
-        OutlinedButton(onClick = onScanQrCode) {
-            Text(stringResource(R.string.home_scan_qr_code))
-        }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

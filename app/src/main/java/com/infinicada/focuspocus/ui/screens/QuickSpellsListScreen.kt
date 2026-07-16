@@ -29,10 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,17 +53,6 @@ fun QuickSpellsListScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showQrPreset by remember { mutableStateOf<FocusPreset?>(null) }
-
-    val qrPreset = showQrPreset
-    if (qrPreset != null) {
-        QrCodeDialog(
-            content = "focuspocus://preset/${qrPreset.id}",
-            title = stringResource(R.string.quick_spells_qr_title, qrPreset.name),
-            onDismiss = { showQrPreset = null }
-        )
-    }
-
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -162,12 +147,6 @@ fun QuickSpellsListScreen(
                             }
                         }
                         Row {
-                            OutlinedButton(
-                                onClick = { showQrPreset = preset },
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Text(stringResource(R.string.action_qr))
-                            }
                             OutlinedButton(
                                 onClick = { onEditPreset(preset) },
                                 modifier = Modifier.padding(end = 8.dp)

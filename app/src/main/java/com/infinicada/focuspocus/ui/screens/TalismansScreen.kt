@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -20,7 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -38,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,71 +44,10 @@ fun TalismansScreen(
     namedTags: List<NamedTag>,
     onSaveTag: (String) -> Unit,
     onDeleteTag: (NamedTag) -> Unit,
-    onSaveQrTalisman: (NamedTag) -> Unit = {},
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var tagName by remember { mutableStateOf("") }
-    var showQrTalisman by remember { mutableStateOf<NamedTag?>(null) }
-    var showCreateQrDialog by remember { mutableStateOf(false) }
-    var qrTagName by remember { mutableStateOf("") }
-
-    val qrTalisman = showQrTalisman
-    if (qrTalisman != null) {
-        QrCodeDialog(
-            content = "focuspocus://talisman/${qrTalisman.id}",
-            title = stringResource(R.string.talismans_qr_title, qrTalisman.name),
-            onDismiss = { showQrTalisman = null }
-        )
-    }
-
-    if (showCreateQrDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showCreateQrDialog = false
-                qrTagName = ""
-            },
-            title = { Text(stringResource(R.string.talismans_create_qr_title)) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.talismans_create_qr_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextField(
-                        value = qrTagName,
-                        onValueChange = { if (it.length <= 100) qrTagName = it },
-                        label = { Text(stringResource(R.string.talismans_name_label)) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val newTag = NamedTag(UUID.randomUUID().toString(), qrTagName.trim())
-                        onSaveQrTalisman(newTag)
-                        showCreateQrDialog = false
-                        qrTagName = ""
-                        showQrTalisman = newTag
-                    },
-                    enabled = qrTagName.isNotBlank()
-                ) {
-                    Text(stringResource(R.string.talismans_enchant))
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = {
-                    showCreateQrDialog = false
-                    qrTagName = ""
-                }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
-        )
-    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -169,17 +105,6 @@ fun TalismansScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Create QR Talisman
-            item {
-                OutlinedButton(
-                    onClick = { showCreateQrDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.talismans_create_qr))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
             // Enchanted Items Header
             if (namedTags.isNotEmpty()) {
                 item {
@@ -203,12 +128,6 @@ fun TalismansScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(tag.name, style = MaterialTheme.typography.titleMedium)
-                        }
-                        OutlinedButton(
-                            onClick = { showQrTalisman = tag },
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Text(stringResource(R.string.action_qr))
                         }
                         Button(
                             onClick = { onDeleteTag(tag) },

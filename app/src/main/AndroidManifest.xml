@@ -7,9 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Remove the Advertising ID permission added automatically by Firebase Analytics.
          FocusPocus does not serve ads or do cross-app tracking, so AD_ID is unnecessary. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -122,12 +120,6 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
-
-        <activity
-            android:name="com.journeyapps.barcodescanner.CaptureActivity"
-            android:exported="false"
-            android:screenOrientation="unspecified"
-            tools:replace="screenOrientation" />
 
     </application>
 
