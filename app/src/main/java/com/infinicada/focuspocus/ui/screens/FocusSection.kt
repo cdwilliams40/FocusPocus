@@ -64,7 +64,6 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Perk
@@ -87,8 +86,6 @@ fun FocusSection(
     activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
-    focusPresets: List<FocusPreset>,
-    selectedPresetId: String?,
     focusDurationMinutes: Int,
     focusTimeRemaining: Int,
     isOnBreak: Boolean,
@@ -106,7 +103,6 @@ fun FocusSection(
     progressionEnabled: Boolean = false,
     trials: List<Trial> = emptyList(),
     canAffordExtraBreak: Boolean = false,
-    onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
@@ -165,13 +161,10 @@ fun FocusSection(
                 activeBlockers = activeBlockers,
                 activeSchedule = activeSchedule,
                 blockerLists = blockerLists,
-                focusPresets = focusPresets,
-                selectedPresetId = selectedPresetId,
                 focusDurationMinutes = focusDurationMinutes,
                 sessionBreaksEnabled = sessionBreaksEnabled,
                 progressionEnabled = progressionEnabled,
                 trials = trials,
-                onPresetSelected = onPresetSelected,
                 onBlockerToggled = onBlockerToggled,
                 onDurationSelected = onDurationSelected,
                 onSessionBreaksToggled = onSessionBreaksToggled,
@@ -192,13 +185,10 @@ private fun IdleContent(
     activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
-    focusPresets: List<FocusPreset>,
-    selectedPresetId: String?,
     focusDurationMinutes: Int,
     sessionBreaksEnabled: Boolean,
     progressionEnabled: Boolean,
     trials: List<Trial>,
-    onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
@@ -207,9 +197,6 @@ private fun IdleContent(
     onCreateEnchantment: () -> Unit
 ) {
     val canCast = activeBlockers.isNotEmpty()
-    val validPresets = focusPresets.filter { preset ->
-        preset.effectiveBlockerNames.all { name -> blockerLists.any { it.name == name } }
-    }
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -219,23 +206,6 @@ private fun IdleContent(
         )
 
         if (activeSchedule == null) {
-            // Quick Spell chips
-            if (validPresets.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.home_quick_spells),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                PresetChipRow(
-                    presets = validPresets,
-                    selectedPresetId = selectedPresetId,
-                    onPresetSelected = onPresetSelected,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
             if (blockerLists.isEmpty()) {
                 // Pact-first onboarding doesn't create an enchantment, so the
@@ -871,49 +841,5 @@ fun DurationChipRow(
                 )
             )
         }
-    }
-}
-
-// ────────────────────────────────────────────────────────────
-//  PRESET CHIP ROW (unchanged logic, same API)
-// ────────────────────────────────────────────────────────────
-
-@Composable
-fun PresetChipRow(
-    presets: List<FocusPreset>,
-    selectedPresetId: String?,
-    onPresetSelected: (FocusPreset) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        presets.forEach { preset ->
-            FilterChip(
-                selected = selectedPresetId == preset.id,
-                onClick = { onPresetSelected(preset) },
-                label = { Text(preset.name) },
-                leadingIcon = if (selectedPresetId == preset.id) {
-                    { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                } else null,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
-        }
-        // "Custom" chip shown when no preset matches
-        FilterChip(
-            selected = selectedPresetId == null,
-            onClick = { /* Custom is selected by modifying any setting */ },
-            label = { Text(stringResource(R.string.label_custom)) },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        )
     }
 }

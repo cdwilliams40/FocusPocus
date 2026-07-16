@@ -494,3 +494,33 @@ restructure merged the two:
   guard cards still reachable below. The session banner was deleted.
 - The QR scan affordance moved to the Home top-app-bar action slot (it stays
   inline in the NFC-lock session state, where it's a dispel path).
+
+---
+
+## Addendum 2 (July 2026): trims and guard upgrades
+
+A second streamline pass removed two whole features and deepened the guards:
+
+- **Quick Spells (focus presets) removed** — the cast card's one-tap chips made
+  presets redundant. With them went preset-bound talismans, `focuspocus://`
+  deep links, and `PresetRepository`. QR talismans survive and now toggle
+  focus mode directly, exactly like an NFC tap (`TriggerHandler` is now a
+  small pure class returning `NfcResult` for both paths).
+- **Conditional Unlocks removed** — niche, deep in the Spellbook, and a
+  second way around every guard. Enforcement, Warden greying, and the
+  notification listener all lost their unlock escape hatches.
+- **Seal all now** — panic button on the dashboard and widget
+  (`GuardActions.sealAllPacts`): revokes allowances and starts each pact's
+  configured seal.
+- **Per-guard active hours** — `activeDays`/`activeStartTime`/`activeEndTime`
+  on `AppTimeLimit` and `PactGroup`; pure window logic in
+  `limit/GuardSchedule.kt` (overnight windows anchored to their start day);
+  gates `checkTimeLimitAndBlock` and Warden pact greying; editor section in
+  the guard editor; "Off hours" chip on dashboard cards.
+- **Seal-lifted alerts** — opt-in setting; the service's minute tick watches
+  recently-expired seals (`peekAllCooldowns`) and posts on a new guards
+  notification channel (`GuardNotifier`).
+- **Home-screen widget** (`widget/GuardWidgetProvider`) — guard headline or
+  live session state, one-tap Cast (repeats the last setup), Seal all.
+  Deliberately no dispel: stop friction is not bypassable from the launcher.
+- `HomeScreen.kt` renamed `FocusSection.kt` (matches the composable).

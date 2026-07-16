@@ -61,8 +61,6 @@ import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.limit.GuardStatus
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
 import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -75,15 +73,12 @@ import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.BoonsScreen
-import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.FocusSection
 import com.infinicada.focuspocus.ui.screens.GuardEditorScreen
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
 import com.infinicada.focuspocus.ui.screens.PactsHomeScreen
-import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
-import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleListScreen
 import com.infinicada.focuspocus.ui.screens.SettingsScreen
@@ -102,12 +97,7 @@ fun FocusPocusApp(
     isServiceEnabled: Boolean,
     lastScannedTagId: String?,
     nfcTriggerCount: Int,
-    qrTriggerCount: Int,
     onScanQrCode: () -> Unit,
-    pendingDeepLinkPreset: FocusPreset?,
-    showDeepLinkConfirmation: Boolean,
-    onConfirmDeepLink: () -> Unit,
-    onDismissDeepLink: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sessionVM: SessionViewModel = viewModel()
@@ -125,7 +115,6 @@ fun FocusPocusApp(
     val focusDurationMinutes by sessionVM.focusDurationMinutes.collectAsStateWithLifecycle()
     val focusTimeRemaining by sessionVM.focusTimeRemaining.collectAsStateWithLifecycle()
     val sessionBreaksEnabled by sessionVM.sessionBreaksEnabled.collectAsStateWithLifecycle()
-    val selectedPresetId by sessionVM.selectedPresetId.collectAsStateWithLifecycle()
     val isOnBreak by sessionVM.isOnBreak.collectAsStateWithLifecycle()
     val breaksUsedThisSession by sessionVM.breaksUsedThisSession.collectAsStateWithLifecycle()
     val breakTimeRemaining by sessionVM.breakTimeRemaining.collectAsStateWithLifecycle()
@@ -141,11 +130,9 @@ fun FocusPocusApp(
 
     val blockerLists by spellbookVM.blockerLists.collectAsStateWithLifecycle()
     val schedules by spellbookVM.schedules.collectAsStateWithLifecycle()
-    val focusPresets by spellbookVM.focusPresets.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
     val appTimeLimits by spellbookVM.appTimeLimits.collectAsStateWithLifecycle()
     val appTimeLimitConfigs by spellbookVM.appTimeLimitConfigs.collectAsStateWithLifecycle()
-    val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
     val pactsRoute by spellbookVM.pactsRoute.collectAsStateWithLifecycle()
@@ -180,6 +167,7 @@ fun FocusPocusApp(
     val progressionEnabled by settingsVM.progressionEnabled.collectAsStateWithLifecycle()
     val wrapupEnabled by settingsVM.wrapupEnabled.collectAsStateWithLifecycle()
     val trialAlertsEnabled by settingsVM.trialAlertsEnabled.collectAsStateWithLifecycle()
+    val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
     val showProgressionIntroDialog by settingsVM.showProgressionIntroDialog.collectAsStateWithLifecycle()
     val manaBalance by progressionVM.balance.collectAsStateWithLifecycle()
     val trials by progressionVM.trials.collectAsStateWithLifecycle()
@@ -204,14 +192,6 @@ fun FocusPocusApp(
             progressionVM.refresh()
         }
     }
-    LaunchedEffect(qrTriggerCount) {
-        if (qrTriggerCount > 0) {
-            sessionVM.syncFromPrefs()
-            insightsVM.refresh()
-            progressionVM.refresh()
-        }
-    }
-
     // Cross-VM sync when spellbook data changes
     LaunchedEffect(dataVersion) {
         if (dataVersion != 0) {
@@ -237,34 +217,6 @@ fun FocusPocusApp(
     // Sync UI with external changes to activeScheduleId
     LaunchedEffect(activeScheduleId) {
         sessionVM.onActiveScheduleIdChanged(activeScheduleId)
-    }
-
-    // Deep link confirmation dialog
-    if (showDeepLinkConfirmation) {
-        val preset = pendingDeepLinkPreset
-        if (preset != null) {
-            val isActive = manualFocusMode || focusTagId != null
-            val actionDescription = when (preset.action ?: PresetAction.TOGGLE) {
-                PresetAction.TEMP_ENABLE -> stringResource(R.string.main_deep_link_action_temp_enable, preset.name, preset.tempDurationMinutes ?: 30)
-                PresetAction.TEMP_DISABLE -> if (isActive) stringResource(R.string.main_deep_link_action_temp_disable, preset.tempDurationMinutes ?: 30) else stringResource(R.string.main_deep_link_action_temp_disable_inactive)
-                PresetAction.TOGGLE -> if (isActive) stringResource(R.string.main_deep_link_action_dispel, preset.name) else stringResource(R.string.main_deep_link_action_cast, preset.name)
-            }
-            AlertDialog(
-                onDismissRequest = { onDismissDeepLink() },
-                title = { Text(stringResource(R.string.main_deep_link_confirm_title)) },
-                text = { Text(stringResource(R.string.main_deep_link_confirm_message, actionDescription)) },
-                confirmButton = {
-                    Button(onClick = { onConfirmDeepLink() }) {
-                        Text(stringResource(R.string.main_deep_link_allow))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { onDismissDeepLink() }) {
-                        Text(stringResource(R.string.main_deep_link_deny))
-                    }
-                }
-            )
-        }
     }
 
     // Onboarding screen
@@ -408,6 +360,8 @@ fun FocusPocusApp(
             hideStopButton = hideStopButton,
             onHideStopButtonChanged = { settingsVM.setHideStopButton(it) },
             muteNotifications = muteBlockedNotifications,
+            sealLiftedAlertsEnabled = sealLiftedAlertsEnabled,
+            onSealLiftedAlertsEnabledChanged = { settingsVM.setSealLiftedAlertsEnabled(it) },
             isNotificationListenerEnabled = isNotificationListenerEnabled,
             onMuteNotificationsChanged = { enabled ->
                 settingsVM.setMuteNotifications(enabled)
@@ -621,6 +575,7 @@ fun FocusPocusApp(
                             onRequestTime = { pkg, minutes ->
                                 spellbookVM.requestPactTime(pkg, minutes)
                             },
+                            onSealAll = { spellbookVM.sealAllPacts() },
                             focusSection = {
                                 val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
                                 val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
@@ -642,8 +597,6 @@ fun FocusPocusApp(
                                     activeBlockers = activeManualBlockers,
                                     activeSchedule = activeSchedule,
                                     blockerLists = blockerLists,
-                                    focusPresets = focusPresets,
-                                    selectedPresetId = selectedPresetId,
                                     focusDurationMinutes = focusDurationMinutes,
                                     focusTimeRemaining = focusTimeRemaining,
                                     isOnBreak = isOnBreak,
@@ -661,7 +614,6 @@ fun FocusPocusApp(
                                     progressionEnabled = progressionEnabled,
                                     trials = trials,
                                     canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
-                                    onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
                                     onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
                                     onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
                                     onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
@@ -759,13 +711,9 @@ fun FocusPocusApp(
                     when (val currentRoute = spellbookRoute) {
                         is SpellbookRoute.Overview -> SpellbookScreen(
                             blockerLists = blockerLists,
-                            focusPresets = focusPresets,
                             schedules = schedules,
                             namedTags = namedTags,
-                            conditionalUnlocks = conditionalUnlocks,
-                            onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
-                            onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
                             modifier = contentModifier
@@ -811,39 +759,6 @@ fun FocusPocusApp(
                             )
                         }
 
-                        is SpellbookRoute.QuickSpellsList -> QuickSpellsListScreen(
-                            focusPresets = focusPresets,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onEditPreset = { preset -> spellbookVM.navigateTo(SpellbookRoute.EditQuickSpell(preset)) },
-                            onCreatePreset = { spellbookVM.navigateTo(SpellbookRoute.CreateQuickSpell) },
-                            onDeleteFocusPreset = { spellbookVM.deleteFocusPreset(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
-                        is SpellbookRoute.CreateQuickSpell -> QuickSpellEditorScreen(
-                            presetToEdit = null,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onSave = { preset ->
-                                spellbookVM.saveFocusPreset(preset)
-                                spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList)
-                            },
-                            onCancel = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
-                            modifier = contentModifier
-                        )
-                        is SpellbookRoute.EditQuickSpell -> QuickSpellEditorScreen(
-                            presetToEdit = currentRoute.preset,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onSave = { preset ->
-                                spellbookVM.saveFocusPreset(preset)
-                                spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList)
-                            },
-                            onCancel = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
-                            modifier = contentModifier
-                        )
-
                         is SpellbookRoute.RitualsList -> ScheduleListScreen(
                             schedules = schedules,
                             onScheduleClick = { schedule -> spellbookVM.navigateTo(SpellbookRoute.EditRitual(schedule)) },
@@ -885,22 +800,6 @@ fun FocusPocusApp(
                             },
                             onDeleteTag = { spellbookVM.deleteNamedTag(it) },
                             onSaveQrTalisman = { spellbookVM.saveQrTalisman(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
-
-                        is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
-                            conditionalUnlocks = conditionalUnlocks,
-                            installedApps = installedApps,
-                            blockerLists = blockerLists,
-                            appTimeLimits = appTimeLimits,
-                            // Pact-gated apps carry a "(Pact)" label in the pickers;
-                            // GuardStatus owns the explicit-config-wins precedence.
-                            pactPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-                                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
-                            },
-                            onSave = { spellbookVM.saveConditionalUnlock(it) },
-                            onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier
                         )

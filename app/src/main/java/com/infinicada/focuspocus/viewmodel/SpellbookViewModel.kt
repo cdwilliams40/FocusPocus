@@ -21,15 +21,12 @@ import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
-import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.InsightsRepository
-import com.infinicada.focuspocus.data.PresetRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
+import com.infinicada.focuspocus.limit.GuardActions
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.ConditionalUnlock
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -109,6 +106,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      */
     private fun syncWardenGreying() {
         DeviceOwnerManager.syncSuspensions(getApplication())
+        // Guard edits change the widget's headline and button states too.
+        com.infinicada.focuspocus.widget.GuardWidgetProvider.push(getApplication())
     }
 
     /**
@@ -145,12 +144,27 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /** The pact settings governing [packageName] — resolvePactConfig's precedence. */
-    private fun effectivePactConfig(packageName: String): AppTimeLimit? {
-        val configs = _appTimeLimitConfigs.value
-        configs[packageName]?.let { return if (it.pactModeEnabled) it else null }
-        return _pactGroups.value
-            .firstOrNull { packageName in GuardStatus.circleMemberPackages(it, _blockerLists.value, configs) }
-            ?.toAppTimeLimit(packageName)
+    private fun effectivePactConfig(packageName: String): AppTimeLimit? =
+        GuardStatus.effectivePactConfig(
+            packageName, _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
+        )
+
+    /**
+     * The dashboard/widget panic button: immediately seals every pact-gated app
+     * that isn't already sealed, revoking any running allowances. Shows a toast
+     * with the count and reconciles Warden greying.
+     */
+    fun sealAllPacts() {
+        val sealed = GuardActions.sealAllPacts(appPrefs, Gson())
+        Toast.makeText(
+            getApplication(),
+            getApplication<Application>().resources.getQuantityString(
+                R.plurals.toast_sealed_all, sealed, sealed
+            ),
+            Toast.LENGTH_SHORT
+        ).show()
+        syncWardenGreying()
+        _dataVersion.value++
     }
 
     private fun launchApp(packageName: String) {
@@ -166,19 +180,14 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     }
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
-    private val presetRepo: PresetRepository = container.presets
     private val talismanRepo: TalismanRepository = container.talismans
     private val insightsRepo: InsightsRepository = container.insights
-    private val conditionalUnlockRepo: ConditionalUnlockRepository = container.conditionalUnlocks
 
     private val _blockerLists = MutableStateFlow(blockerRepo.getBlockers())
     val blockerLists: StateFlow<List<Blocker>> = _blockerLists.asStateFlow()
 
     private val _schedules = MutableStateFlow(scheduleRepo.getSchedules())
     val schedules: StateFlow<List<Schedule>> = _schedules.asStateFlow()
-
-    private val _focusPresets = MutableStateFlow(presetRepo.getPresets())
-    val focusPresets: StateFlow<List<FocusPreset>> = _focusPresets.asStateFlow()
 
     private val _namedTags = MutableStateFlow(talismanRepo.getNamedTags())
     val namedTags: StateFlow<List<NamedTag>> = _namedTags.asStateFlow()
@@ -191,9 +200,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
     )
     val appTimeLimits: StateFlow<Map<String, Int>> = _appTimeLimits.asStateFlow()
-
-    private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
-    val conditionalUnlocks: StateFlow<List<ConditionalUnlock>> = _conditionalUnlocks.asStateFlow()
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -222,7 +228,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         val blockerNames = _blockerLists.value.map { it.name }.toSet()
         val talismanIds = _namedTags.value.map { it.id }.toSet()
         _schedules.value = scheduleRepo.cleanupOrphanedSchedules(_schedules.value, blockerNames, talismanIds)
-        _focusPresets.value = presetRepo.cleanupOrphanedPresets(_focusPresets.value, talismanIds)
     }
 
     fun loadInstalledApps() {
@@ -270,7 +275,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         if (current is SpellbookRoute.Overview) return false
         _spellbookRoute.value = when (current) {
             is SpellbookRoute.CreateEnchantment, is SpellbookRoute.EditEnchantment -> SpellbookRoute.EnchantmentsList
-            is SpellbookRoute.CreateQuickSpell, is SpellbookRoute.EditQuickSpell -> SpellbookRoute.QuickSpellsList
             is SpellbookRoute.CreateRitual, is SpellbookRoute.EditRitual -> SpellbookRoute.RitualsList
             else -> SpellbookRoute.Overview
         }
@@ -325,22 +329,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             notificationManager.cancel(baseId)
             notificationManager.cancel(baseId + 1)
         }
-        _dataVersion.value++
-    }
-
-    fun saveFocusPreset(preset: FocusPreset) {
-        if (!presetRepo.savePreset(preset, _focusPresets.value)) {
-            Toast.makeText(getApplication(), getApplication<Application>().getString(
-                R.string.toast_max_quick_spells, com.infinicada.focuspocus.Constants.MAX_PRESETS
-            ), Toast.LENGTH_SHORT).show()
-            return
-        }
-        _focusPresets.value = presetRepo.getPresets()
-        _dataVersion.value++
-    }
-
-    fun deleteFocusPreset(preset: FocusPreset) {
-        _focusPresets.value = presetRepo.deletePreset(preset, _focusPresets.value)
         _dataVersion.value++
     }
 
@@ -410,21 +398,5 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
         syncWardenGreying()
-    }
-
-    fun saveConditionalUnlock(rule: ConditionalUnlock) {
-        if (!conditionalUnlockRepo.saveConditionalUnlock(rule, _conditionalUnlocks.value)) {
-            Toast.makeText(getApplication(), getApplication<Application>().getString(
-                R.string.toast_max_conditional_unlocks, com.infinicada.focuspocus.Constants.MAX_CONDITIONAL_UNLOCKS
-            ), Toast.LENGTH_SHORT).show()
-            return
-        }
-        _conditionalUnlocks.value = conditionalUnlockRepo.getConditionalUnlocks()
-        _dataVersion.value++
-    }
-
-    fun deleteConditionalUnlock(rule: ConditionalUnlock) {
-        _conditionalUnlocks.value = conditionalUnlockRepo.deleteConditionalUnlock(rule, _conditionalUnlocks.value)
-        _dataVersion.value++
     }
 }

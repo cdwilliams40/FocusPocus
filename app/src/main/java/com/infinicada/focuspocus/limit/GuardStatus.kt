@@ -109,7 +109,7 @@ object GuardStatus {
     /**
      * Every package currently gated by a pact: explicit pact-style configs plus
      * live circle members. The single home of the precedence rule for UI
-     * consumers (Boons, Conditional Unlocks, the dashboard rollup).
+     * consumers (Boons, the dashboard rollup, the widget).
      */
     fun pactGatedPackages(
         configs: Map<String, AppTimeLimit>,
@@ -118,6 +118,25 @@ object GuardStatus {
     ): Set<String> =
         configs.filterValues { it.pactModeEnabled }.keys +
             groups.flatMap { circleMemberPackages(it, blockers, configs) }
+
+    /**
+     * The pact settings governing [packageName], or null when it isn't
+     * pact-gated — the UI-side mirror of the enforcement layer's
+     * resolvePactConfig precedence: an explicit per-app config wins outright
+     * (a plain ward config means never group-gated), otherwise live membership
+     * in a pact circle applies.
+     */
+    fun effectivePactConfig(
+        packageName: String,
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>
+    ): AppTimeLimit? {
+        configs[packageName]?.let { return if (it.pactModeEnabled) it else null }
+        return groups
+            .firstOrNull { packageName in circleMemberPackages(it, blockers, configs) }
+            ?.toAppTimeLimit(packageName)
+    }
 
     /**
      * Builds the dashboard's card list: one row per explicit config plus one per

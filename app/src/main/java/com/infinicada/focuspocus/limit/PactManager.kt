@@ -63,6 +63,19 @@ class PactManager(
         loadAllowances().filterValues { it <= now }
 
     /**
+     * Drops [packageName]'s allowance outright, active or lapsed — the
+     * "seal all now" path, where the caller starts the seal itself and an
+     * allowance left behind would immediately re-open the app.
+     */
+    fun revokeAllowance(packageName: String) {
+        val allowances = loadAllowances()
+        if (packageName in allowances) {
+            saveAllowances(allowances - packageName)
+            Log.d(tag, "Pact allowance revoked for $packageName")
+        }
+    }
+
+    /**
      * If [packageName] has an allowance that has already lapsed, removes it and
      * returns its expiry time so the caller can start the seal cooldown anchored
      * there. Returns null if there is no allowance or it is still active.

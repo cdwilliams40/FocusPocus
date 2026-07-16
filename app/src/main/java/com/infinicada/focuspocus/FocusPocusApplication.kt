@@ -18,8 +18,9 @@ class FocusPocusApplication : Application() {
         // cheap no-ops when the app is not device owner.
         DeviceOwnerManager.applySelfProtection(this)
         DeviceOwnerManager.syncSuspensions(this)
-        // Channel must exist before anything outside the accessibility service
-        // posts a progression notification.
+        // Channels must exist before anything outside the accessibility service
+        // posts a notification.
         ProgressionNotifier.createChannel(this)
+        GuardNotifier.createChannel(this)
     }
 }

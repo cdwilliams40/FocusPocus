@@ -2,13 +2,11 @@ package com.infinicada.focuspocus
 
 import android.app.Notification
 import android.content.Context
-import android.content.SharedPreferences
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.model.ConditionalUnlock
 
 class FocusNotificationListenerService : NotificationListenerService() {
 
@@ -43,29 +41,12 @@ class FocusNotificationListenerService : NotificationListenerService() {
         val category = sbn.notification?.category
         if (category == Notification.CATEGORY_CALL || category == Notification.CATEGORY_ALARM) return
 
-        val matched = activeBlockers.filter { it.shouldBlock(pkg) }
-        // Mirror the app-blocking path: a conditionally-unlocked blocker's
-        // notifications flow again along with its apps. (Checked here, on the
-        // rare match path, because the unlock test queries usage stats.)
-        if (matched.isNotEmpty() && matched.any { !isConditionallyUnlocked(it.name, prefs) }) {
+        if (activeBlockers.any { it.shouldBlock(pkg) }) {
             try {
                 cancelNotification(sbn.key)
             } catch (e: Exception) {
                 Log.e("FocusNotifListener", "Error cancelling notification", e)
             }
-        }
-    }
-
-    private fun isConditionallyUnlocked(blockerName: String, prefs: SharedPreferences): Boolean {
-        val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-        val rules = PrefsHelper.load<List<ConditionalUnlock>>(
-            prefs, gson, Constants.PrefsKeys.CONDITIONAL_UNLOCKS, type
-        ) ?: return false
-        return rules.any { rule ->
-            blockerName in rule.effectiveUnlockedBlockerNames &&
-                rule.requiredMinutes > 0 &&
-                UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage) >=
-                rule.requiredMinutes.toLong() * 60 * 1000
         }
     }
 

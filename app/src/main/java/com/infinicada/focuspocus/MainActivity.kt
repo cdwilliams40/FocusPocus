@@ -3,7 +3,6 @@ package com.infinicada.focuspocus
 import android.Manifest
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -30,37 +29,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.google.gson.Gson
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
-import com.infinicada.focuspocus.handler.TriggerResult
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.ui.FocusPocusApp
 import com.infinicada.focuspocus.ui.theme.DarkBackground
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import com.infinicada.focuspocus.ui.theme.LightBackground
 import com.infinicada.focuspocus.ui.theme.ThemeMode
-import com.infinicada.focuspocus.viewmodel.SessionViewModel
 import com.infinicada.focuspocus.viewmodel.SettingsViewModel
-import com.infinicada.focuspocus.viewmodel.SpellbookViewModel
 
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
     private var nfcAdapter: NfcAdapter? = null
     private lateinit var sharedPreferences: SharedPreferences
-    private val gson = Gson()
-    private lateinit var triggerHandler: TriggerHandler
+    private val triggerHandler = TriggerHandler()
 
     private var lastScannedTagId by mutableStateOf<String?>(null)
     private var isServiceEnabled by mutableStateOf(false)
-    private var nfcTriggerCount by mutableStateOf(0)
-    private var qrTriggerCount by mutableStateOf(0)
-
-    // Deep link confirmation state
-    private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
-    private var showDeepLinkConfirmation by mutableStateOf(false)
+    private var nfcTriggerCount by mutableIntStateOf(0)
 
     // Session-state keys the accessibility service can change on its own (ending rituals,
     // expiring timed sessions, starting/ending breaks). These are only written on state
@@ -92,7 +80,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         enableEdgeToEdge()
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        triggerHandler = TriggerHandler(this, sharedPreferences, gson)
 
         // Run data cleanup via repositories
         val container = (application as FocusPocusApplication).container
@@ -142,22 +129,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     lastScannedTagId = lastScannedTagId,
                     nfcTriggerCount = nfcTriggerCount,
-                    qrTriggerCount = qrTriggerCount,
                     onScanQrCode = { launchQrScanner() },
-                    pendingDeepLinkPreset = pendingDeepLinkPreset,
-                    showDeepLinkConfirmation = showDeepLinkConfirmation,
-                    onConfirmDeepLink = { confirmDeepLinkAction() },
-                    onDismissDeepLink = { dismissDeepLinkConfirmation() },
                     modifier = Modifier
                 )
             }
-        }
-
-        // Only on a fresh launch: re-running this on recreation (rotation,
-        // process death) would re-show the deep-link confirmation for a link
-        // the user already answered. Warm relaunches come in via onNewIntent.
-        if (savedInstanceState == null) {
-            handleIntent(intent)
         }
     }
 
@@ -165,62 +140,36 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         val container = (application as FocusPocusApplication).container
         val result = triggerHandler.handleQrResult(
             contents,
-            container.presets.getPresets(),
-            container.talismans.getNamedTags(),
-            container.blockers.getBlockers(),
-            container.schedules.getSchedules()
-        )
-        when (result) {
-            is TriggerResult.Success -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                qrTriggerCount++
-            }
-            is TriggerResult.Error -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-            }
-            else -> {}
-        }
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        val data = intent?.data ?: return
-        val container = (application as FocusPocusApplication).container
-        val preset = triggerHandler.resolveDeepLink(
-            data,
-            container.presets.getPresets(),
+            container.session.getActiveScheduleId(),
+            container.schedules.getSchedules(),
             container.talismans.getNamedTags()
         )
-        if (preset != null) {
-            pendingDeepLinkPreset = preset
-            showDeepLinkConfirmation = true
-        }
+        handleTriggerResult(result)
     }
 
-    private fun confirmDeepLinkAction() {
-        pendingDeepLinkPreset?.let { preset ->
-            val container = (application as FocusPocusApplication).container
-            val result = triggerHandler.togglePreset(
-                preset,
-                container.blockers.getBlockers(),
-                container.schedules.getSchedules()
-            )
-            when (result) {
-                is TriggerResult.Success -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                    qrTriggerCount++
-                }
-                is TriggerResult.Error -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                }
-                else -> {}
+    /** Shared outcome handling for NFC taps and QR talisman scans. */
+    private fun handleTriggerResult(result: NfcResult) {
+        val container = (application as FocusPocusApplication).container
+        when (result) {
+            is NfcResult.DispelSchedule -> {
+                container.session.stopSession()
+                Toast.makeText(this, getString(result.messageResId), Toast.LENGTH_SHORT).show()
+                nfcTriggerCount++
             }
+            is NfcResult.Toast -> {
+                Toast.makeText(this, getString(result.messageResId), Toast.LENGTH_SHORT).show()
+            }
+            is NfcResult.ToggleFocusTag -> {
+                val currentFocusTagId = container.session.getFocusTagId()
+                if (currentFocusTagId == null) {
+                    container.session.setFocusTagId(result.tagId)
+                } else {
+                    container.session.setFocusTagId(null)
+                }
+                nfcTriggerCount++
+            }
+            is NfcResult.UnknownTag -> { /* no-op */ }
         }
-        dismissDeepLinkConfirmation()
-    }
-
-    private fun dismissDeepLinkConfirmation() {
-        pendingDeepLinkPreset = null
-        showDeepLinkConfirmation = false
     }
 
     private fun launchQrScanner() {
@@ -230,11 +179,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         options.setBeepEnabled(false)
         options.setOrientationLocked(true)
         scanLauncher.launch(options)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
     }
 
     override fun onResume() {
@@ -278,44 +222,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     tagId = newTagId,
                     activeScheduleId = container.session.getActiveScheduleId(),
                     schedules = container.schedules.getSchedules(),
-                    focusPresets = container.presets.getPresets(),
-                    namedTags = container.talismans.getNamedTags(),
-                    blockerLists = container.blockers.getBlockers()
+                    namedTags = container.talismans.getNamedTags()
                 )
-
-                when (result) {
-                    is NfcResult.DispelSchedule -> {
-                        container.session.stopSession()
-                        Toast.makeText(this, getString(result.messageResId), Toast.LENGTH_SHORT).show()
-                        nfcTriggerCount++
-                    }
-                    is NfcResult.Toast -> {
-                        Toast.makeText(this, getString(result.messageResId), Toast.LENGTH_SHORT).show()
-                    }
-                    is NfcResult.PresetToggled -> {
-                        val triggerResult = result.triggerResult
-                        when (triggerResult) {
-                            is TriggerResult.Success -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                                nfcTriggerCount++
-                            }
-                            is TriggerResult.Error -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                            }
-                            else -> {}
-                        }
-                    }
-                    is NfcResult.ToggleFocusTag -> {
-                        val currentFocusTagId = container.session.getFocusTagId()
-                        if (currentFocusTagId == null) {
-                            container.session.setFocusTagId(newTagId)
-                        } else {
-                            container.session.setFocusTagId(null)
-                        }
-                        nfcTriggerCount++
-                    }
-                    is NfcResult.UnknownTag -> { /* no-op */ }
-                }
+                handleTriggerResult(result)
             }
         }
     }

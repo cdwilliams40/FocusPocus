@@ -21,7 +21,11 @@ data class PactGroup(
     /** Optional healthier substitute offered on the pact overlay. */
     val pactAlternativePackage: String? = null,
     /** Optional daily cap on top of the pact gate. 0 = no daily cap. */
-    val dailyLimitMinutes: Int = 0
+    val dailyLimitMinutes: Int = 0,
+    /** Optional active-hours schedule, same semantics as [AppTimeLimit]. */
+    val activeDays: Set<DayOfWeek>? = null,
+    val activeStartTime: String? = null,
+    val activeEndTime: String? = null
 ) {
     /** The per-app view of this group used by the enforcement layer. */
     fun toAppTimeLimit(packageName: String): AppTimeLimit = AppTimeLimit(
@@ -33,6 +37,9 @@ data class PactGroup(
         cooldownEscalationStepMinutes = cooldownEscalationStepMinutes,
         pactModeEnabled = true,
         pactMaxMinutes = pactMaxMinutes,
-        pactAlternativePackage = pactAlternativePackage
+        pactAlternativePackage = pactAlternativePackage,
+        activeDays = activeDays,
+        activeStartTime = activeStartTime,
+        activeEndTime = activeEndTime
     )
 }

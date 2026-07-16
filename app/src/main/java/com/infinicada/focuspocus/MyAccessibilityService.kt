@@ -23,11 +23,12 @@ import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.GuardSchedule
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.widget.GuardWidgetProvider
 import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import java.util.Calendar
 
 class MyAccessibilityService : AccessibilityService() {
@@ -137,10 +138,6 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var cachedTimeLimitConfigsJson: String? = null
     @Volatile private var cachedTimeLimitConfigs: Map<String, AppTimeLimit> = emptyMap()
 
-    // Cache for conditional unlocks
-    @Volatile private var cachedConditionalUnlocksJson: String? = null
-    @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
-
     // Session cooldown manager — tracks per-app usage sessions and cooldown state
     private lateinit var sessionCooldownManager: SessionCooldownManager
 
@@ -150,6 +147,11 @@ class MyAccessibilityService : AccessibilityService() {
     // Pact expiry warnings already toasted, keyed by package -> allowance expiry.
     // In-memory only; a duplicate toast after a service restart is harmless.
     private val pactWarnedExpiries = HashMap<String, Long>()
+
+    // Seal expiries already announced via the opt-in "seal lifted" notification,
+    // keyed by package -> cooldown expiry. In-memory only: a restart mid-window
+    // just skips (or repeats) one best-effort notification.
+    private val sealLiftNotified = HashMap<String, Long>()
 
     // Open/reflex counter shown on the pact overlay
     private lateinit var openReflexTracker: OpenReflexTracker
@@ -236,6 +238,7 @@ class MyAccessibilityService : AccessibilityService() {
             sessionCooldownManager.resetDailyCooldowns()
             pacingNotifiedToday.clear()
             pactWarnedExpiries.clear()
+            sealLiftNotified.clear()
             lastCooldownResetDate = SessionCooldownManager.todayString()
         }
 
@@ -254,6 +257,12 @@ class MyAccessibilityService : AccessibilityService() {
         // suspension sync below both need the seal on record to stay truthful.
         sealLapsedPacts()
 
+        // Opt-in note when a seal lifts, so nobody has to keep checking the app.
+        maybeNotifySealsLifted()
+
+        // Keep the home-screen widget's guard headline fresh (cheap, best effort).
+        GuardWidgetProvider.push(this)
+
         // Also enforce time limits on whichever app is currently in the foreground.
         // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
         // could stay inside an app past its daily limit indefinitely.
@@ -265,7 +274,7 @@ class MyAccessibilityService : AccessibilityService() {
         maybeSendDailyWrapup()
 
         // Device owner: catch-all reconciliation for anything the event-driven sync
-        // points missed (conditional unlocks flipping, apps installed mid-session).
+        // points missed (apps installed mid-session, missed pref writes).
         DeviceOwnerManager.syncSuspensions(this)
     }
 
@@ -934,7 +943,7 @@ class MyAccessibilityService : AccessibilityService() {
             val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
             for (blocker in activeBlockers) {
-                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
+                if (blocker.shouldBlock(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTimes[packageName] = now
@@ -967,11 +976,16 @@ class MyAccessibilityService : AccessibilityService() {
         val pactConfig = resolvePactConfig(packageName)
         if (limit == null && pactConfig == null) return
 
+        // Active-hours gate: outside its schedule the guard is dormant — no
+        // daily cap, no pact gate, no cooldown block. The governing schedule
+        // follows the same precedence as the config itself (explicit wins).
+        val governingConfig = getCachedTimeLimitConfigs()[packageName] ?: pactConfig
+        if (governingConfig != null && !GuardSchedule.isActiveNow(governingConfig)) return
+
         // 1. Daily limit — always takes precedence; no cooldown interaction.
         // A limit of 0 means "no daily cap" (pacts without a daily backstop).
         val dailyLimit = limit ?: pactConfig?.dailyLimitMinutes ?: 0
         if (dailyLimit > 0 && timeLimitChecker.shouldBlock(packageName, dailyLimit)) {
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
             lastAppBlockTimes[packageName] = now
@@ -996,7 +1010,6 @@ class MyAccessibilityService : AccessibilityService() {
         // 3. Per-session cooldown — active cooldown blocks the app with escalating friction.
         // Covers both passive session limits and the seal after a lapsed pact.
         if (sessionCooldownManager.isInCooldown(packageName, now)) {
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
             val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
             val newAttemptCount = sessionCooldownManager.recordAttempt(packageName, now)
             val frictionLevel = FrictionLevel.fromAttemptCount(newAttemptCount)
@@ -1018,7 +1031,6 @@ class MyAccessibilityService : AccessibilityService() {
         // doesn't apply; the pact IS the session limit).
         if (pactConfig != null) {
             if (pactManager.getAllowanceExpiry(packageName, now) != null) return
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Pact gate: $appName blocked by default")
             lastAppBlockTimes[packageName] = now
@@ -1035,7 +1047,6 @@ class MyAccessibilityService : AccessibilityService() {
         if (config != null && config.sessionLimitMinutes > 0) {
             val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
             if (sessionMinutes >= config.sessionLimitMinutes) {
-                if (isTimeLimitConditionallyUnlocked(packageName)) return
                 sessionCooldownManager.startCooldown(packageName, config, now)
                 val freshState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
                 val appName = AppUtils.getAppName(this, packageName)
@@ -1047,36 +1058,6 @@ class MyAccessibilityService : AccessibilityService() {
                 closeApp()
                 showCooldownOverlay(appName, FrictionLevel.LEVEL_1, freshState.cooldownExpiryMillis)
             }
-        }
-    }
-
-    private fun isConditionallyUnlocked(blockerName: String): Boolean {
-        val rules = getCachedConditionalUnlocks()
-
-        return rules.any { rule ->
-            if (blockerName !in rule.effectiveUnlockedBlockerNames) return@any false
-            if (rule.requiredMinutes <= 0) return@any false
-            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
-            val unlocked = usedMs >= requiredMs
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Conditional unlock check for blocker=$blockerName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
-            unlocked
-        }
-    }
-
-    private fun isTimeLimitConditionallyUnlocked(packageName: String): Boolean {
-        val rules = getCachedConditionalUnlocks()
-
-        return rules.any { rule ->
-            if (packageName !in rule.effectiveUnlockedTimeLimitApps) return@any false
-            if (rule.requiredMinutes <= 0) return@any false
-            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
-            val unlocked = usedMs >= requiredMs
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Conditional unlock check for time-limit app=$packageName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
-            unlocked
         }
     }
 
@@ -1097,35 +1078,6 @@ class MyAccessibilityService : AccessibilityService() {
         return if (single != null) listOf(single) else emptyList()
     }
 
-    private fun getCachedConditionalUnlocks(): List<ConditionalUnlock> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null)
-        if (json == null) {
-            if (cachedConditionalUnlocksJson != null) {
-                cachedConditionalUnlocksJson = null
-                cachedConditionalUnlocks = emptyList()
-            }
-            return emptyList()
-        }
-        if (json == cachedConditionalUnlocksJson) return cachedConditionalUnlocks
-        return try {
-            val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            val parsed: List<ConditionalUnlock>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedConditionalUnlocksJson = null
-                cachedConditionalUnlocks = emptyList()
-                emptyList()
-            } else {
-                cachedConditionalUnlocksJson = json
-                cachedConditionalUnlocks = parsed
-                parsed
-            }
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
-            cachedConditionalUnlocksJson = null
-            cachedConditionalUnlocks = emptyList()
-            emptyList()
-        }
-    }
 
     private fun getCachedTimeLimits(): Map<String, Int> {
         val json = sharedPreferences.getString(Constants.PrefsKeys.APP_TIME_LIMITS, null)
@@ -1236,13 +1188,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         val matchedDomain = allBlockedWebsites.find { domainMatches(domain, it) }
         if (matchedDomain != null) {
-            // Mirror the app-blocking path: a conditionally-unlocked blocker's
-            // websites are unlocked along with its apps. Only enforce when a
-            // still-locked blocker matches this domain. (Checked here, on the
-            // rare block path, because the unlock test queries usage stats.)
             val matchingBlocker = activeBlockers.find { blocker ->
-                blocker.effectiveWebsites.any { domainMatches(domain, it) } &&
-                    !isConditionallyUnlocked(blocker.name)
+                blocker.effectiveWebsites.any { domainMatches(domain, it) }
             } ?: return
             lastWebsiteBlockTime = now
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking restricted website")
@@ -1561,6 +1508,26 @@ class MyAccessibilityService : AccessibilityService() {
                 Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    /**
+     * Posts the opt-in "seal lifted" notification for seals that expired within
+     * the last few minutes. Reads the cooldown store without pruning it, and
+     * remembers what it announced so each lift is reported at most once.
+     */
+    private fun maybeNotifySealsLifted(now: Long = System.currentTimeMillis()) {
+        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, false)) return
+        val recentWindowMs = 10 * 60 * 1000L
+        val lifted = sessionCooldownManager.peekAllCooldowns().filterValues { state ->
+            state.cooldownExpiryMillis in (now - recentWindowMs) until now &&
+                sealLiftNotified[state.packageName] != state.cooldownExpiryMillis
+        }
+        if (lifted.isEmpty()) return
+        lifted.values.forEach { sealLiftNotified[it.packageName] = it.cooldownExpiryMillis }
+        GuardNotifier.postSealsLifted(
+            this, sharedPreferences,
+            lifted.keys.map { AppUtils.getAppName(this, it) }.sorted()
+        )
     }
 
     /**

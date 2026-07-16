@@ -29,8 +29,6 @@
 
     <!-- Common terms -->
     <string name="label_active">Active</string>
-    <string name="label_custom">Custom</string>
-    <string name="label_none">None</string>
     <string name="label_banish">Banish</string>
     <string name="label_shield">Shield</string>
     <string name="label_banish_blacklist">Banish (Blacklist)</string>
@@ -46,7 +44,6 @@
     <string name="duration_4_hours">4 hours</string>
     <string name="duration_8_hours">8 hours</string>
     <string name="duration_unlimited">Unlimited</string>
-    <string name="duration_select">Select Duration</string>
     <string name="duration_label">Duration</string>
     <string name="duration_5_min">5 min</string>
     <string name="duration_10_min">10 min</string>
@@ -69,7 +66,6 @@
     <string name="home_elapsed">elapsed</string>
     <string name="home_session_progress">%1$d of %2$d min</string>
     <string name="session_complete_icon_desc">Session complete</string>
-    <string name="home_quick_spells">Quick Spells</string>
     <string name="home_allow_breaks">Allow Breaks</string>
     <string name="home_remaining">remaining</string>
     <string name="home_break_remaining">break remaining</string>
@@ -153,15 +149,12 @@
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Spellbook</string>
     <string name="spellbook_enchantments">Enchantments</string>
-    <string name="spellbook_quick_spells">Quick Spells</string>
     <string name="spellbook_rituals">Rituals</string>
     <string name="spellbook_talismans">Talismans</string>
     <string name="spellbook_no_enchantments">No enchantments yet. Create one to define which apps to block.</string>
-    <string name="spellbook_no_quick_spells">No quick spells yet. Create presets for one-tap focus sessions.</string>
     <string name="spellbook_no_rituals">No rituals yet. Schedule automatic focus sessions.</string>
     <string name="spellbook_no_talismans">No talismans bound. Scan an NFC tag to get started.</string>
     <string name="spellbook_more_count">+%d more</string>
-    <string name="spellbook_breaks_suffix"> - Breaks</string>
     <string name="spellbook_group_focus">Focus sessions</string>
     <string name="spellbook_group_gear">More magic</string>
 
@@ -374,32 +367,6 @@
     <string name="talismans_create_qr_title">Create QR Talisman</string>
     <string name="talismans_create_qr_desc">Create a talisman backed by a QR code instead of an NFC tag. Print or display the QR code and scan it to trigger.</string>
 
-    <!-- QuickSpellsListScreen -->
-    <string name="quick_spells_title">Quick Spells</string>
-    <string name="quick_spells_create_content_desc">Create quick spell</string>
-    <string name="quick_spells_subtitle">Preset focus configurations for quick access</string>
-    <string name="quick_spells_empty">No quick spells yet. Tap + to create your first one!</string>
-    <string name="quick_spells_enchantment_missing">Enchantment missing - please edit</string>
-    <string name="quick_spells_bound_to">Bound to: %s</string>
-    <string name="quick_spells_qr_title">QR Code: %s</string>
-    <string name="quick_spells_temp_enable">Temp Enable %dm</string>
-    <string name="quick_spells_temp_disable">Temp Disable %dm</string>
-
-    <!-- QuickSpellEditorScreen -->
-    <string name="quick_spell_editor_create_title">Create Quick Spell</string>
-    <string name="quick_spell_editor_edit_title">Edit Quick Spell</string>
-    <string name="quick_spell_editor_name_label">Name</string>
-    <string name="quick_spell_editor_enchantment_label">Enchantment</string>
-    <string name="quick_spell_editor_select_enchantment">Select Enchantment</string>
-    <string name="quick_spell_editor_bind_talisman">Bind to Talisman</string>
-    <string name="quick_spell_editor_none_talisman">None (tap to select)</string>
-    <string name="quick_spell_editor_action_type">Action Type</string>
-    <string name="quick_spell_editor_action_toggle">Toggle</string>
-    <string name="quick_spell_editor_action_temp_enable">Temporary Enable</string>
-    <string name="quick_spell_editor_action_temp_disable">Temporary Disable</string>
-    <string name="quick_spell_editor_temp_duration">Temp Duration</string>
-    <string name="quick_spell_editor_allow_breaks">Allow Breaks</string>
-
     <!-- Guard fields (shared by the editor and the Pacts dashboard) -->
     <string name="time_limits_grant_usage">Grant Usage Access</string>
     <string name="time_limits_required">Required for time limit tracking</string>
@@ -427,43 +394,11 @@
     <string name="pacts_backstop_label">Daily backstop (optional)</string>
     <string name="pacts_backstop_none">None</string>
     <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
-    <string name="conditional_unlocks_pact_app_label">%s (Pact)</string>
     <string name="pacts_group_summary">Enchantment pact \u00b7 %d apps</string>
     <string name="pacts_target_app">Single app</string>
     <string name="pacts_target_enchantment">Whole enchantment (blacklist)</string>
     <string name="pacts_enchantment_label">Enchantment</string>
     <string name="pacts_no_blacklists">No blacklist enchantments available \u2014 create one under Enchantments first.</string>
-
-    <!-- ConditionalUnlocksScreen -->
-    <string name="conditional_unlocks_title">Conditional Unlocks</string>
-    <string name="conditional_unlocks_description">Unlock blocked apps as a reward after spending time in another app.</string>
-    <string name="conditional_unlocks_empty">No conditional unlocks yet.</string>
-    <string name="conditional_unlocks_add">Add Conditional Unlock</string>
-    <string name="conditional_unlocks_rule_summary">Unlock after %1$d min in %2$s</string>
-    <string name="conditional_unlocks_unlocked_apps">Unlocked apps: %d</string>
-    <string name="conditional_unlocks_unlocked_enchantments">Unlocks: %s</string>
-    <string name="conditional_unlocks_editor_title_create">New Conditional Unlock</string>
-    <string name="conditional_unlocks_editor_title_edit">Edit Conditional Unlock</string>
-    <string name="conditional_unlocks_name_label">Rule name</string>
-    <string name="conditional_unlocks_name_placeholder">e.g. Language reward</string>
-    <string name="conditional_unlocks_required_app_label">Required app</string>
-    <string name="conditional_unlocks_required_app_placeholder">Select app to use first</string>
-    <string name="conditional_unlocks_required_minutes_label">Required time</string>
-    <string name="conditional_unlocks_unlocked_apps_label">Apps to unlock</string>
-    <string name="conditional_unlocks_unlocked_apps_placeholder">Select apps to unlock</string>
-    <string name="conditional_unlocks_unlocked_apps_count">%d app(s) selected</string>
-    <string name="conditional_unlocks_enchantments_label">Enchantments to unlock</string>
-    <string name="conditional_unlocks_enchantments_placeholder">Select enchantments</string>
-    <string name="conditional_unlocks_enchantments_count">%d enchantment(s) selected</string>
-    <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
-    <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
-    <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>
-    <string name="conditional_unlocks_time_limit_apps_label">App timers to bypass</string>
-    <string name="conditional_unlocks_time_limit_apps_placeholder">Select time-limited apps</string>
-    <string name="conditional_unlocks_time_limit_apps_count">%d app timer(s) selected</string>
-    <string name="conditional_unlocks_bypassed_timers">Bypassed timers: %s</string>
-    <string name="conditional_unlocks_delete">Delete</string>
-    <string name="toast_max_conditional_unlocks">Maximum of %d conditional unlocks reached</string>
 
     <!-- QrCodeDialog -->
     <string name="qr_code_content_desc">QR Code</string>
@@ -520,39 +455,19 @@
     <string name="main_accessibility_title">Grant Magical Sight</string>
     <string name="main_accessibility_desc">Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus. Without this enchantment, your spells cannot shield you from temptation.</string>
     <string name="main_accessibility_go_to_settings">Go to Settings</string>
-    <string name="main_deep_link_confirm_title">Confirm Action</string>
-    <string name="main_deep_link_action_temp_enable">activate \"%1$s\" for %2$d minutes</string>
-    <string name="main_deep_link_action_temp_disable">start a %d minute break</string>
-    <string name="main_deep_link_action_temp_disable_inactive">pause focus (no active session)</string>
-    <string name="main_deep_link_action_dispel">dispel \"%s\"</string>
-    <string name="main_deep_link_action_cast">cast \"%s\"</string>
-    <string name="main_deep_link_confirm_message">An external link is requesting to %s. Allow this?</string>
-    <string name="main_deep_link_allow">Allow</string>
-    <string name="main_deep_link_deny">Deny</string>
 
     <!-- Toast messages -->
     <string name="toast_data_corrupted_rituals">Ritual data was corrupted and has been reset</string>
     <string name="toast_max_rituals">Maximum of %d rituals reached</string>
     <string name="toast_data_corrupted_enchantments">Enchantment data was corrupted - restored defaults</string>
     <string name="toast_max_enchantments">Maximum of %d enchantments reached</string>
-    <string name="toast_data_corrupted_quick_spells">Quick Spell data was corrupted - restored defaults</string>
-    <string name="toast_max_quick_spells">Maximum of %d quick spells reached</string>
     <string name="toast_max_time_limits">Maximum of %d time limits reached</string>
     <string name="toast_data_corrupted_talismans">Talisman data was corrupted and has been reset</string>
     <string name="toast_max_talismans">Maximum of %d talismans reached</string>
-    <string name="toast_preset_cast_timed">%1$s Cast for %2$d min!</string>
-    <string name="toast_enchantment_missing">Enchantment missing for %s</string>
-    <string name="toast_temp_break">Temporary break for %d min!</string>
-    <string name="toast_no_active_focus">No active focus to pause</string>
-    <string name="toast_preset_dispelled">%s Dispelled!</string>
-    <string name="toast_preset_cast">%s Cast!</string>
     <string name="toast_invalid_qr">Invalid QR code</string>
-    <string name="toast_quick_spell_not_found">Quick Spell not found</string>
     <string name="toast_talisman_not_found">Talisman not found</string>
-    <string name="toast_no_quick_spell_bound">No Quick Spell bound to %s</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
-    <string name="toast_ritual_locked">This ritual is bound to a talisman — scan it to dispel</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
     <string name="main_scan_qr_prompt">Scan a Focus Pocus QR code</string>
 
@@ -713,4 +628,40 @@
     <string name="progression_intro_title">Focusing now earns mana</string>
     <string name="progression_intro_message">Every focus session earns mana — energy you can spend on boons: rewards you define for yourself. Daily trials and permanent sigils mark your progress along the way.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
     <string name="progression_intro_ok">Begin earning</string>
+
+    <!-- Seal all now (dashboard panic button + widget) -->
+    <string name="home_guard_seal_all">Seal all now</string>
+    <string name="home_guard_seal_all_confirm">Every pact-guarded app is sealed immediately and any running allowances end. Each seal lasts its pact\'s configured duration.</string>
+    <string name="home_guard_seal_all_do">Seal them</string>
+    <plurals name="toast_sealed_all">
+        <item quantity="one">%d app sealed</item>
+        <item quantity="other">%d apps sealed</item>
+    </plurals>
+
+    <!-- Per-guard active hours -->
+    <string name="guard_schedule_toggle">Active hours</string>
+    <string name="guard_schedule_desc">Enforce this guard only on certain days or between certain hours</string>
+    <string name="guard_schedule_days_label">Days (none selected = every day)</string>
+    <string name="guard_schedule_hours_toggle">Only between certain hours</string>
+    <string name="guard_active_hours_summary">Active hours: %1$s</string>
+    <string name="home_guard_chip_off_hours">Off hours</string>
+
+    <!-- Seal-lifted notification -->
+    <string name="guards_channel_name">Guards</string>
+    <string name="guards_channel_desc">Seal and pact updates</string>
+    <string name="seal_lifted_notification_title">Seal lifted</string>
+    <string name="seal_lifted_notification_text_one">%1$s is open again.</string>
+    <string name="seal_lifted_notification_text_many">%1$d apps are open again: %2$s</string>
+    <string name="settings_seal_lifted_toggle">Seal lifted alerts</string>
+    <string name="settings_seal_lifted_desc">Notify when a sealed app\'s cooldown ends</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_label">Focus Pocus — Guards</string>
+    <string name="widget_description">Your guards at a glance: seals, pacts, and one-tap casting.</string>
+    <string name="widget_cast">Cast</string>
+    <string name="widget_seal_all">Seal all</string>
+    <string name="widget_no_guards">No pacts yet — tap to set up</string>
+    <string name="widget_session_active">Focus session active</string>
+    <string name="widget_session_time_left">Focus active · %1$d min left</string>
+    <string name="widget_on_break">On a break</string>
 </resources>

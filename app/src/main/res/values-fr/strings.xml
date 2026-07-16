@@ -29,8 +29,6 @@
 
     <!-- Common terms -->
     <string name="label_active">Actif</string>
-    <string name="label_custom">Personnalisé</string>
-    <string name="label_none">Aucun</string>
     <string name="label_banish">Bannir</string>
     <string name="label_shield">Bouclier</string>
     <string name="label_banish_blacklist">Bannir (Liste noire)</string>
@@ -46,7 +44,6 @@
     <string name="duration_4_hours">4 heures</string>
     <string name="duration_8_hours">8 heures</string>
     <string name="duration_unlimited">Illimité</string>
-    <string name="duration_select">Choisir la durée</string>
     <string name="duration_label">Durée</string>
     <string name="duration_5_min">5 min</string>
     <string name="duration_10_min">10 min</string>
@@ -69,7 +66,6 @@
     <string name="home_elapsed">écoulé</string>
     <string name="home_session_progress">%1$d sur %2$d min</string>
     <string name="session_complete_icon_desc">Session terminée</string>
-    <string name="home_quick_spells">Sorts rapides</string>
     <string name="home_allow_breaks">Autoriser les pauses</string>
     <string name="home_remaining">restant</string>
     <string name="home_break_remaining">pause restante</string>
@@ -154,15 +150,12 @@
     <!-- SpellbookScreen -->
     <string name="spellbook_title">Grimoire</string>
     <string name="spellbook_enchantments">Enchantements</string>
-    <string name="spellbook_quick_spells">Sorts rapides</string>
     <string name="spellbook_rituals">Rituels</string>
     <string name="spellbook_talismans">Talismans</string>
     <string name="spellbook_no_enchantments">Aucun enchantement. Créez-en un pour définir les applications à bloquer.</string>
-    <string name="spellbook_no_quick_spells">Aucun sort rapide. Créez des préréglages pour des sessions de concentration en un clic.</string>
     <string name="spellbook_no_rituals">Aucun rituel. Planifiez des sessions de concentration automatiques.</string>
     <string name="spellbook_no_talismans">Aucun talisman lié. Scannez une puce NFC pour commencer.</string>
     <string name="spellbook_more_count">+%d de plus</string>
-    <string name="spellbook_breaks_suffix"> - Pauses</string>
     <string name="spellbook_group_focus">Sessions de concentration</string>
     <string name="spellbook_group_gear">Autres magies</string>
 
@@ -366,32 +359,6 @@
     <string name="talismans_create_qr_title">Créer un talisman QR</string>
     <string name="talismans_create_qr_desc">Créez un talisman basé sur un code QR au lieu d\'une puce NFC. Imprimez ou affichez le code QR et scannez-le pour déclencher.</string>
 
-    <!-- QuickSpellsListScreen -->
-    <string name="quick_spells_title">Sorts rapides</string>
-    <string name="quick_spells_create_content_desc">Créer un sort rapide</string>
-    <string name="quick_spells_subtitle">Configurations de concentration préréglées pour un accès rapide</string>
-    <string name="quick_spells_empty">Aucun sort rapide. Appuyez sur + pour créer le premier !</string>
-    <string name="quick_spells_enchantment_missing">Enchantement manquant - veuillez modifier</string>
-    <string name="quick_spells_bound_to">Lié à : %s</string>
-    <string name="quick_spells_qr_title">Code QR : %s</string>
-    <string name="quick_spells_temp_enable">Activer temporairement %dm</string>
-    <string name="quick_spells_temp_disable">Désactiver temporairement %dm</string>
-
-    <!-- QuickSpellEditorScreen -->
-    <string name="quick_spell_editor_create_title">Créer un sort rapide</string>
-    <string name="quick_spell_editor_edit_title">Modifier le sort rapide</string>
-    <string name="quick_spell_editor_name_label">Nom</string>
-    <string name="quick_spell_editor_enchantment_label">Enchantement</string>
-    <string name="quick_spell_editor_select_enchantment">Sélectionner un enchantement</string>
-    <string name="quick_spell_editor_bind_talisman">Lier à un talisman</string>
-    <string name="quick_spell_editor_none_talisman">Aucun (appuyez pour sélectionner)</string>
-    <string name="quick_spell_editor_action_type">Type d\'action</string>
-    <string name="quick_spell_editor_action_toggle">Basculer</string>
-    <string name="quick_spell_editor_action_temp_enable">Activation temporaire</string>
-    <string name="quick_spell_editor_action_temp_disable">Désactivation temporaire</string>
-    <string name="quick_spell_editor_temp_duration">Durée temporaire</string>
-    <string name="quick_spell_editor_allow_breaks">Autoriser les pauses</string>
-
     <!-- Champs de garde (partagés par l'éditeur et le tableau de bord) -->
     <string name="time_limits_grant_usage">Accorder l\'accès à l\'utilisation</string>
     <string name="time_limits_required">Requis pour le suivi des limites de temps</string>
@@ -411,7 +378,6 @@
     <string name="pacts_backstop_label">Garde-fou quotidien (facultatif)</string>
     <string name="pacts_backstop_none">Aucun</string>
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
-    <string name="conditional_unlocks_pact_app_label">%s (Pacte)</string>
     <string name="pacts_group_summary">Pacte d\'enchantement \u00b7 %d applications</string>
     <string name="pacts_target_app">Une seule application</string>
     <string name="pacts_target_enchantment">Tout un enchantement (liste noire)</string>
@@ -456,39 +422,19 @@
     <string name="main_accessibility_title">Accorder la vue magique</string>
     <string name="main_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour détecter quand vous ouvrez des applications distrayantes et vous guider vers votre concentration. Sans cet enchantement, vos sorts ne peuvent pas vous protéger de la tentation.</string>
     <string name="main_accessibility_go_to_settings">Aller aux paramètres</string>
-    <string name="main_deep_link_confirm_title">Confirmer l\'action</string>
-    <string name="main_deep_link_action_temp_enable">activer « %1$s » pendant %2$d minutes</string>
-    <string name="main_deep_link_action_temp_disable">démarrer une pause de %d minutes</string>
-    <string name="main_deep_link_action_temp_disable_inactive">mettre en pause la concentration (aucune session active)</string>
-    <string name="main_deep_link_action_dispel">dissiper « %s »</string>
-    <string name="main_deep_link_action_cast">lancer « %s »</string>
-    <string name="main_deep_link_confirm_message">Un lien externe demande à %s. Autoriser ?</string>
-    <string name="main_deep_link_allow">Autoriser</string>
-    <string name="main_deep_link_deny">Refuser</string>
 
     <!-- Toast messages -->
     <string name="toast_data_corrupted_rituals">Les données de rituels étaient corrompues et ont été réinitialisées</string>
     <string name="toast_max_rituals">Maximum de %d rituels atteint</string>
     <string name="toast_data_corrupted_enchantments">Les données d\'enchantements étaient corrompues - valeurs par défaut restaurées</string>
     <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
-    <string name="toast_data_corrupted_quick_spells">Les données de sorts rapides étaient corrompues - valeurs par défaut restaurées</string>
-    <string name="toast_max_quick_spells">Maximum de %d sorts rapides atteint</string>
     <string name="toast_max_time_limits">Maximum de %d limites de temps atteint</string>
     <string name="toast_data_corrupted_talismans">Les données de talismans étaient corrompues et ont été réinitialisées</string>
     <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
-    <string name="toast_preset_cast_timed">%1$s lancé pour %2$d min !</string>
-    <string name="toast_enchantment_missing">Enchantement manquant pour %s</string>
-    <string name="toast_temp_break">Pause temporaire de %d min !</string>
-    <string name="toast_no_active_focus">Aucune concentration active à suspendre</string>
-    <string name="toast_preset_dispelled">%s dissipé !</string>
-    <string name="toast_preset_cast">%s lancé !</string>
     <string name="toast_invalid_qr">Code QR invalide</string>
-    <string name="toast_quick_spell_not_found">Sort rapide introuvable</string>
     <string name="toast_talisman_not_found">Talisman introuvable</string>
-    <string name="toast_no_quick_spell_bound">Aucun sort rapide lié à %s</string>
     <string name="toast_ritual_dispelled">Rituel dissipé !</string>
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
-    <string name="toast_ritual_locked">Ce rituel est lié à un talisman — scannez-le pour le dissiper</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
     <string name="main_scan_qr_prompt">Scanner un code QR Focus Pocus</string>
 
@@ -670,35 +616,6 @@
     <string name="time_limits_minutes_value">%d min</string>
 
     <!-- Déblocages conditionnels -->
-    <string name="conditional_unlocks_title">Déblocages conditionnels</string>
-    <string name="conditional_unlocks_description">Débloquez des applications bloquées en récompense du temps passé dans une autre application.</string>
-    <string name="conditional_unlocks_empty">Aucun déblocage conditionnel pour le moment.</string>
-    <string name="conditional_unlocks_add">Ajouter un déblocage conditionnel</string>
-    <string name="conditional_unlocks_rule_summary">Déblocage après %1$d min dans %2$s</string>
-    <string name="conditional_unlocks_unlocked_apps">Applications débloquées : %d</string>
-    <string name="conditional_unlocks_unlocked_enchantments">Débloque : %s</string>
-    <string name="conditional_unlocks_editor_title_create">Nouveau déblocage conditionnel</string>
-    <string name="conditional_unlocks_editor_title_edit">Modifier le déblocage conditionnel</string>
-    <string name="conditional_unlocks_name_label">Nom de la règle</string>
-    <string name="conditional_unlocks_name_placeholder">ex. Récompense de langue</string>
-    <string name="conditional_unlocks_required_app_label">Application requise</string>
-    <string name="conditional_unlocks_required_app_placeholder">Choisir l\'application à utiliser d\'abord</string>
-    <string name="conditional_unlocks_required_minutes_label">Temps requis</string>
-    <string name="conditional_unlocks_unlocked_apps_label">Applications à débloquer</string>
-    <string name="conditional_unlocks_unlocked_apps_placeholder">Choisir les applications à débloquer</string>
-    <string name="conditional_unlocks_unlocked_apps_count">%d application(s) sélectionnée(s)</string>
-    <string name="conditional_unlocks_enchantments_label">Enchantements à débloquer</string>
-    <string name="conditional_unlocks_enchantments_placeholder">Choisir les enchantements</string>
-    <string name="conditional_unlocks_enchantments_count">%d enchantement(s) sélectionné(s)</string>
-    <string name="conditional_unlocks_progress">%1$d / %2$d min aujourd\'hui</string>
-    <string name="conditional_unlocks_grant_usage">Accorder l\'accès à l\'utilisation</string>
-    <string name="conditional_unlocks_usage_required">L\'accès à l\'utilisation est nécessaire pour suivre le temps passé dans les applications</string>
-    <string name="conditional_unlocks_time_limit_apps_label">Minuteurs d\'applications à contourner</string>
-    <string name="conditional_unlocks_time_limit_apps_placeholder">Choisir les applications limitées</string>
-    <string name="conditional_unlocks_time_limit_apps_count">%d minuteur(s) sélectionné(s)</string>
-    <string name="conditional_unlocks_bypassed_timers">Minuteurs contournés : %s</string>
-    <string name="conditional_unlocks_delete">Supprimer</string>
-    <string name="toast_max_conditional_unlocks">Maximum de %d déblocages conditionnels atteint</string>
 
     <!-- Superposition : temps de repos et friction de niveau 3 -->
     <string name="overlay_cooldown_remaining">Repos : %d min restantes</string>
@@ -717,4 +634,40 @@
     <string name="session_complete_breaks">Pauses prises : %1$d</string>
     <string name="session_complete_enchantment">Enchantement : %1$s</string>
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
+
+    <!-- Tout sceller maintenant (bouton panique + widget) -->
+    <string name="home_guard_seal_all">Tout sceller maintenant</string>
+    <string name="home_guard_seal_all_confirm">Toutes les applications sous pacte sont scellées immédiatement et les autorisations en cours prennent fin. Chaque sceau dure le temps configuré pour son pacte.</string>
+    <string name="home_guard_seal_all_do">Sceller</string>
+    <plurals name="toast_sealed_all">
+        <item quantity="one">%d application scellée</item>
+        <item quantity="other">%d applications scellées</item>
+    </plurals>
+
+    <!-- Heures actives par gardien -->
+    <string name="guard_schedule_toggle">Heures actives</string>
+    <string name="guard_schedule_desc">N\'appliquer ce gardien que certains jours ou entre certaines heures</string>
+    <string name="guard_schedule_days_label">Jours (aucun sélectionné = tous les jours)</string>
+    <string name="guard_schedule_hours_toggle">Seulement entre certaines heures</string>
+    <string name="guard_active_hours_summary">Heures actives : %1$s</string>
+    <string name="home_guard_chip_off_hours">Hors plage</string>
+
+    <!-- Notification de levée de sceau -->
+    <string name="guards_channel_name">Gardiens</string>
+    <string name="guards_channel_desc">Mises à jour des sceaux et des pactes</string>
+    <string name="seal_lifted_notification_title">Sceau levé</string>
+    <string name="seal_lifted_notification_text_one">%1$s est à nouveau accessible.</string>
+    <string name="seal_lifted_notification_text_many">%1$d applications sont à nouveau accessibles : %2$s</string>
+    <string name="settings_seal_lifted_toggle">Alertes de levée de sceau</string>
+    <string name="settings_seal_lifted_desc">Notifier quand le sceau d\'une application se lève</string>
+
+    <!-- Widget d\'écran d\'accueil -->
+    <string name="widget_label">Focus Pocus — Gardiens</string>
+    <string name="widget_description">Vos gardiens en un coup d\'œil : sceaux, pactes et lancement en un geste.</string>
+    <string name="widget_cast">Lancer</string>
+    <string name="widget_seal_all">Tout sceller</string>
+    <string name="widget_no_guards">Aucun pacte — touchez pour commencer</string>
+    <string name="widget_session_active">Session de concentration active</string>
+    <string name="widget_session_time_left">Concentration · %1$d min restantes</string>
+    <string name="widget_on_break">En pause</string>
 </resources>

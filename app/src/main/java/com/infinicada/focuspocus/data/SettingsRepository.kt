@@ -149,6 +149,14 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(Constants.PrefsKeys.TRIAL_ALERTS_ENABLED, enabled).apply()
     }
 
+    /** Opt-in "seal lifted" notification; defaults off. */
+    fun getSealLiftedAlertsEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, false)
+
+    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, enabled).apply()
+    }
+
     fun isProgressionIntroShown(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, false)
 

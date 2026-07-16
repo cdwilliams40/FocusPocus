@@ -26,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -56,9 +57,11 @@ import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardHeadline
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
+import com.infinicada.focuspocus.limit.GuardSchedule
 import com.infinicada.focuspocus.limit.GuardState
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -97,9 +100,11 @@ fun PactsHomeScreen(
     onMakePact: () -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
+    onSealAll: () -> Unit,
     focusSection: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showSealAllConfirm by remember { mutableStateOf(false) }
     val names = remember(installedApps) {
         installedApps.associate { it.packageName to it.name }
     }
@@ -182,12 +187,14 @@ fun PactsHomeScreen(
                     is GuardRow.App -> GuardAppCard(
                         row = row,
                         names = names,
+                        nowMillis = nowMillis,
                         onClick = { onGuardClick(row) },
                         onRequestTime = onRequestTime
                     )
                     is GuardRow.Circle -> GuardCircleCard(
                         row = row,
                         names = names,
+                        nowMillis = nowMillis,
                         onClick = { onGuardClick(row) },
                         onRequestTime = onRequestTime
                     )
@@ -203,11 +210,59 @@ fun PactsHomeScreen(
                 ) {
                     Text(stringResource(R.string.home_guard_make_pact))
                 }
+                // Panic button: seal every unsealed pact right now.
+                val anyUnsealedPact = rows.any { row ->
+                    when (row) {
+                        is GuardRow.App ->
+                            row.config.pactModeEnabled && row.state != GuardState.SEALED
+                        is GuardRow.Circle ->
+                            row.memberPackages.size > row.sealedCount
+                    }
+                }
+                if (anyUnsealedPact) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showSealAllConfirm = true },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.home_guard_seal_all))
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
+
+    if (showSealAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSealAllConfirm = false },
+            title = { Text(stringResource(R.string.home_guard_seal_all)) },
+            text = { Text(stringResource(R.string.home_guard_seal_all_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSealAllConfirm = false
+                        onSealAll()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.home_guard_seal_all_do))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSealAllConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
 }
+
 
 // ────────────────────────────────────────────────────────────
 //  HEADER: status headline, today rollup, mana/streak chips
@@ -316,11 +371,14 @@ private fun StreakBadge(streak: Int) {
 private fun GuardAppCard(
     row: GuardRow.App,
     names: Map<String, String>,
+    nowMillis: Long,
     onClick: () -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
     val appName = names[row.packageName] ?: row.packageName
     var showRequestDialog by remember { mutableStateOf(false) }
+    // Recomputed on the dashboard's minute tick via nowMillis.
+    val activeNow = remember(row.config, nowMillis) { GuardSchedule.isActiveNow(row.config) }
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -343,12 +401,20 @@ private fun GuardAppCard(
                 } else {
                     WardCardBody(row)
                 }
+                ActiveHoursLine(
+                    row.config.activeDays, row.config.activeStartTime, row.config.activeEndTime
+                )
             }
-            GuardStateChip(state = row.state)
+            if (activeNow) {
+                GuardStateChip(state = row.state)
+            } else {
+                OffHoursChip()
+            }
         }
         // The in-app pact gate: under Warden greying the OS refuses to open the
         // app at all, so this is where a sealed-by-default app gets its time.
-        if (row.config.pactModeEnabled && row.state == GuardState.QUIET) {
+        // Off hours the app opens freely — no time to request.
+        if (row.config.pactModeEnabled && row.state == GuardState.QUIET && activeNow) {
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { showRequestDialog = true },
@@ -471,10 +537,14 @@ private fun GuardStateLine(row: GuardRow.App) {
 private fun GuardCircleCard(
     row: GuardRow.Circle,
     names: Map<String, String>,
+    nowMillis: Long,
     onClick: () -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
     var showRequestDialog by remember { mutableStateOf(false) }
+    val activeNow = remember(row.group, nowMillis) {
+        GuardSchedule.isActiveNow(row.group.toAppTimeLimit(""))
+    }
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -539,16 +609,23 @@ private fun GuardCircleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary
                 )
+                ActiveHoursLine(
+                    row.group.activeDays, row.group.activeStartTime, row.group.activeEndTime
+                )
             }
-            val circleState = when {
-                row.sealedCount > 0 -> GuardState.SEALED
-                row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
-                row.overLimitCount > 0 -> GuardState.OVER_LIMIT
-                else -> GuardState.QUIET
+            if (activeNow) {
+                val circleState = when {
+                    row.sealedCount > 0 -> GuardState.SEALED
+                    row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
+                    row.overLimitCount > 0 -> GuardState.OVER_LIMIT
+                    else -> GuardState.QUIET
+                }
+                GuardStateChip(state = circleState)
+            } else {
+                OffHoursChip()
             }
-            GuardStateChip(state = circleState)
         }
-        if (row.quietMemberPackages.isNotEmpty()) {
+        if (row.quietMemberPackages.isNotEmpty() && activeNow) {
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = { showRequestDialog = true },
@@ -573,6 +650,53 @@ private fun GuardCircleCard(
                 onRequestTime(pkg, minutes)
             },
             onDismiss = { showRequestDialog = false }
+        )
+    }
+}
+
+/** One-line summary of a guard's active-hours schedule, when it has one. */
+@Composable
+private fun ActiveHoursLine(
+    activeDays: Set<DayOfWeek>?,
+    activeStartTime: String?,
+    activeEndTime: String?
+) {
+    val days = activeDays ?: emptySet()
+    val hasTimes = !activeStartTime.isNullOrBlank() && !activeEndTime.isNullOrBlank()
+    if (days.isEmpty() && !hasTimes) return
+    val parts = mutableListOf<String>()
+    if (days.isNotEmpty() && days.size < DayOfWeek.entries.size) {
+        parts += days.sortedBy { it.ordinal }.joinToString(", ") { day ->
+            day.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+        }
+    }
+    if (hasTimes) {
+        parts += "$activeStartTime–$activeEndTime"
+    }
+    if (parts.isEmpty()) return
+    Text(
+        stringResource(R.string.guard_active_hours_summary, parts.joinToString(" · ")),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+/** Trailing chip for a guard currently outside its active hours. */
+@Composable
+private fun OffHoursChip() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        ),
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.padding(start = 8.dp)
+    ) {
+        Text(
+            stringResource(R.string.home_guard_chip_off_hours),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
 }

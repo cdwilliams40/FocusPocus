@@ -14,12 +14,6 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Gentle redirection back to your task when you try to open a blocked app
 - Optionally silence notifications from blocked apps while a session is active
 
-### Quick Spells (Focus Presets)
-- Pre-configured focus sessions with customizable duration and settings
-- One-tap activation for common focus scenarios like "Deep Work", "Quick Focus", or "Sleep Mode"
-- Bind Quick Spells to NFC talismans for physical activation
-- Activate via QR codes or deep links (`focuspocus://preset`)
-
 ### Scheduled Rituals
 - Schedule automatic focus sessions for specific days and times
 - Perfect for work hours, study sessions, or bedtime routines
@@ -27,8 +21,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Persists across device reboots
 
 ### NFC Talisman Support
-- Use NFC tags as physical "talismans" to toggle focus mode
-- Bind talismans to specific Quick Spells for instant activation
+- Use NFC tags (or printable QR talismans) as physical "talismans" to toggle focus mode
 - Tap again to dispel the focus session
 - Optionally require a talisman tap to end a session early (talisman lock)
 
@@ -57,13 +50,17 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
-- Managed front and center on the **Pacts tab — the app's home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
+- Managed front and center on the **Home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
 - **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
+- **Seal all now**: a panic button (on the dashboard and the widget) that instantly seals every pact-guarded app, ending any running allowances
+- **Per-guard active hours**: optionally enforce a pact or ward only on certain days or between certain hours ("this pact only applies after 9 pm") — overnight windows are supported
+- **Seal lifted alerts**: an opt-in notification when a sealed app's cooldown ends, so you never re-open the app just to check
 
-### Conditional Unlocks
-- Earn access to blocked apps by first spending time in a productive one
-- Example: unlock social media only after 30 minutes in a study app
-- Unlocks can lift enchantment blocks and/or per-app time limits
+### Home-Screen Widget
+- Your guards at a glance: how many apps are sealed, how many pacts are running, or the live state of a focus session
+- **Cast** repeats your last session setup with one tap, straight from the launcher
+- **Seal all** is one tap away when temptation strikes
+- Deliberately no dispel button — stop friction can't be bypassed from the launcher
 
 ### Browser URL Blocking
 - Block specific websites during focus sessions
@@ -132,7 +129,7 @@ Focus Pocus requires the following permissions:
 | **Notifications** | Show notifications for scheduled rituals and breaks |
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
-| **Camera** | Scan QR codes to activate Quick Spells |
+| **Camera** | Scan QR talismans to toggle focus mode |
 | **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |
 
 ## Installation
@@ -150,33 +147,28 @@ cd FocusPocus
 
 ## Setup
 
-On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
+On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Home screen with your new pacts live. For timed focus sessions:
 
-1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps and websites you want to block during focus sessions (the Focus tab offers this directly when you have none).
+1. **Create an Enchantment**: The cast card on the Home screen offers this directly when you have none (blocklists live in the Spellbook tab).
 
-2. **Start Focusing**: On the Focus tab, select your enchantment and tap "Cast" to begin your focus session.
+2. **Start Focusing**: On the Home screen, pick your enchantments and duration with one-tap chips and hit "Cast".
 
 ## Usage
 
-The app has four tabs, plus a Settings screen reached from the top bar.
+The app has three tabs, plus a Settings screen reached from the top bar.
 
-### Pacts Tab (home)
-Your standing protection, always the first thing you see:
-- One card per guard — a **Pact** (sealed by default), a **Ward** (a daily time limit, with optional per-session cooldowns), or a **pact circle** (a pact over a whole enchantment)
-- Live state on every card: *sealed (lifts in X)*, *pact running (X left)*, *limit spent*, or quiet with today's open/reflex counts
-- A banner links to the Focus tab whenever a session or ritual is running
-- "Make a pact" opens the unified guard editor: pick an app or enchantment, choose pact or ward, tune allowances, seals, escalation, substitutes, and daily backstops — and convert between styles anytime
-
-### Focus Tab
-- Select a Quick Spell or customize your session
-- Choose one or more enchantments (blocklists)
-- Set duration and break preferences
-- Tap "Cast" to start or "Dispel" to end
+### Home Tab
+Casting and standing protection on one screen:
+- **Ready to Cast** card up top: enchantment chips, duration chips, a breaks switch, and the Cast button — while a session runs it becomes the full timer with break and dispel controls
+- One card per guard below — a **Pact** (sealed by default), a **Ward** (a daily time limit, with optional per-session cooldowns), or a **pact circle** (a pact over a whole enchantment)
+- Live state on every card: *sealed (lifts in X)*, *pact running (X left)*, *limit spent*, *off hours*, or quiet with today's open/reflex counts
+- "Make a pact" opens the unified guard editor: pick an app or enchantment, choose pact or ward, tune allowances, seals, escalation, substitutes, daily backstops, and active hours — and convert between styles anytime
+- "Seal all now" seals every pact-guarded app on the spot
 
 ### Spellbook Tab
 Your grimoire of focus-session configuration:
 - **Focus sessions**: **Enchantments** (blocklists of apps and websites) and **Rituals** (scheduled automatic sessions)
-- **More magic**: **Quick Spells** (one-tap presets, also on the Focus tab), **Talismans** (NFC tags and bindings), and **Conditional Unlocks** (earn access after productive time)
+- **More magic**: **Talismans** (NFC tags and QR talismans)
 
 ### Insights Tab
 - App opens with reflex breakdown, right below your streaks
@@ -186,7 +178,7 @@ Your grimoire of focus-session configuration:
 ### Settings
 - **Appearance**: Light/Dark/System theme
 - **Focus Behavior**: break duration, breaks per session, auto-breaks (Pomodoro interval), emergency break cadence, hide stop button
-- **Notifications**: mute notifications from blocked apps during focus
+- **Notifications**: mute notifications from blocked apps during focus; opt-in seal-lifted alerts
 - **Security**: talisman lock (require an NFC tap to end sessions)
 - **Privacy**: opt in or out of analytics
 
@@ -218,15 +210,15 @@ app/src/main/java/com/infinicada/focuspocus/
 ├── BlockerRepository.kt               # Blocklist persistence
 ├── BootCompletedReceiver.kt           # Restore state after device restart
 ├── Constants.kt                       # Shared constants and preference keys
-├── data/                              # Repositories (blockers, presets, schedules,
-│                                      #   talismans, sessions, settings, insights,
-│                                      #   conditional unlocks)
-├── model/                             # Data models (Blocker, FocusPreset, Schedule,
-│                                      #   AppTimeLimit, ConditionalUnlock, ...)
-├── limit/                             # Session cooldowns and escalating friction levels
-├── handler/                           # Trigger handling (NFC, QR, deep links)
+├── data/                              # Repositories (blockers, schedules, talismans,
+│                                      #   sessions, settings, insights)
+├── model/                             # Data models (Blocker, Schedule, AppTimeLimit,
+│                                      #   PactGroup, ...)
+├── limit/                             # Pacts, cooldowns, guard schedules, friction levels
+├── handler/                           # Trigger handling (NFC taps, QR talismans)
 ├── navigation/                        # Navigation routes and destinations
 ├── viewmodel/                         # ViewModels for session, settings, spellbook, insights
+├── widget/                            # Home-screen guard widget
 └── ui/                                # Theme, shared composables, and screens
     ├── theme/                         # Arcane Dusk Material 3 theme
     └── screens/                       # Compose screens (Home, Spellbook, Insights,

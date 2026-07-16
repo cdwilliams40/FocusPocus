@@ -87,6 +87,12 @@ class SessionCooldownManager(
         loadCooldownStates().filterValues { it.cooldownExpiryMillis > now }
 
     /**
+     * Read-only view of the whole cooldown store, expired entries included —
+     * the seal-lifted notifier needs the recently-expired ones. Never writes.
+     */
+    fun peekAllCooldowns(): Map<String, CooldownState> = loadCooldownStates()
+
+    /**
      * Starts a new cooldown for [packageName] using [config] to determine duration/escalation.
      * Also resets the in-session start time so the next visit counts as a fresh session.
      */

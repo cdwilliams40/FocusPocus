@@ -11,10 +11,8 @@ class AppContainer(context: Context) {
     val settings = SettingsRepository(prefs)
     val blockers = BlockerListRepository(prefs, gson)
     val schedules = ScheduleRepository(prefs, gson)
-    val presets = PresetRepository(prefs, gson)
     val talismans = TalismanRepository(prefs, gson)
     val session = SessionRepository(context, prefs, gson)
     val insights = InsightsRepository(prefs, gson)
-    val conditionalUnlocks = ConditionalUnlockRepository(prefs, gson)
     val progression = ProgressionRepository(context, prefs, gson)
 }

@@ -8,9 +8,9 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.limit.GuardSchedule
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.PactManager
-import com.infinicada.focuspocus.model.ConditionalUnlock
 
 /**
  * Device-owner enforcement layer.
@@ -201,15 +201,14 @@ object DeviceOwnerManager {
     /**
      * Packages that should be suspended right now: session-blocked apps plus
      * pact-gated apps with no active allowance, each minus its own escape
-     * hatches (breaks, conditional unlocks) and system-critical exemptions.
+     * hatches (breaks, running allowances) and system-critical exemptions.
      */
     private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> =
         computeSessionSuspensions(context, prefs) + computePactSuspensions(context, prefs)
 
     /**
      * Launchable apps blocked by any active blocker while a focus session is
-     * running (and not on a break), minus apps freed by a satisfied conditional
-     * unlock.
+     * running (and not on a break).
      */
     private fun computeSessionSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
         val focusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
@@ -220,7 +219,7 @@ object DeviceOwnerManager {
         val activeNames = getActiveBlockerNames(prefs)
         if (activeNames.isEmpty()) return emptySet()
         val activeBlockers = BlockerRepository.getBlockers(prefs)
-            .filter { it.name in activeNames && !isConditionallyUnlocked(context, prefs, it.name) }
+            .filter { it.name in activeNames }
         if (activeBlockers.isEmpty()) return emptySet()
 
         return computeBlockedPackages(
@@ -235,7 +234,7 @@ object DeviceOwnerManager {
      * suspensions these apply at all times — even outside sessions and during
      * breaks — mirroring the accessibility service's pact gate, which is why
      * breaks are deliberately not consulted here. An app escapes only while its
-     * pact allowance runs or a conditional unlock is satisfied.
+     * pact allowance runs, or while its guard is outside its active hours.
      */
     private fun computePactSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
         if (!prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)) return emptySet()
@@ -245,13 +244,21 @@ object DeviceOwnerManager {
         val groups = pactManager.getGroups()
         if (groups.isEmpty() && configs.values.none { it.pactModeEnabled }) return emptySet()
 
-        val gated = GuardStatus.pactGatedPackages(configs, groups, BlockerRepository.getBlockers(prefs))
+        val blockers = BlockerRepository.getBlockers(prefs)
+        val gated = GuardStatus.pactGatedPackages(configs, groups, blockers)
         if (gated.isEmpty()) return emptySet()
 
+        // Active-hours gate: a guard outside its schedule is dormant, and a
+        // dormant pact must not keep its app greyed out.
+        val activeGated = gated.filterTo(mutableSetOf()) { pkg ->
+            val config = configs[pkg] ?: GuardStatus.effectivePactConfig(pkg, configs, groups, blockers)
+            config == null || GuardSchedule.isActiveNow(config)
+        }
+        if (activeGated.isEmpty()) return emptySet()
+
         return computePactSuspendedPackages(
-            pactGated = gated,
-            allowedPackages = pactManager.getActiveAllowances().keys +
-                getConditionallyUnlockedTimeLimitApps(context, prefs, gated),
+            pactGated = activeGated,
+            allowedPackages = pactManager.getActiveAllowances().keys,
             launchablePackages = getLaunchablePackages(context),
             exemptPackages = getExemptPackages(context)
         )
@@ -260,7 +267,7 @@ object DeviceOwnerManager {
     /**
      * Pure pact-suspension computation, extracted for unit testing: gated
      * packages that are launchable, not exempt, and not currently allowed
-     * (by an active pact allowance or a satisfied conditional unlock).
+     * by an active pact allowance.
      */
     fun computePactSuspendedPackages(
         pactGated: Set<String>,
@@ -333,45 +340,5 @@ object DeviceOwnerManager {
         }
         val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
         return if (single != null) listOf(single) else emptyList()
-    }
-
-    /** Mirrors MyAccessibilityService's conditional-unlock check for blockers. */
-    private fun isConditionallyUnlocked(
-        context: Context,
-        prefs: SharedPreferences,
-        blockerName: String
-    ): Boolean = loadConditionalUnlocks(prefs).any { rule ->
-        blockerName in rule.effectiveUnlockedBlockerNames && isRuleSatisfied(context, rule)
-    }
-
-    /**
-     * Mirrors MyAccessibilityService's conditional-unlock check for time-limit
-     * apps: the subset of [candidates] freed by a satisfied rule. Iterates rules
-     * (one usage query each) rather than candidates, since rules are few.
-     */
-    private fun getConditionallyUnlockedTimeLimitApps(
-        context: Context,
-        prefs: SharedPreferences,
-        candidates: Set<String>
-    ): Set<String> = loadConditionalUnlocks(prefs)
-        .filter { rule ->
-            rule.effectiveUnlockedTimeLimitApps.any { it in candidates } && isRuleSatisfied(context, rule)
-        }
-        .flatMapTo(mutableSetOf()) { it.effectiveUnlockedTimeLimitApps }
-
-    private fun isRuleSatisfied(context: Context, rule: ConditionalUnlock): Boolean =
-        rule.requiredMinutes > 0 &&
-            UsageStatsHelper.getPackageUsageToday(context, rule.requiredAppPackage) >=
-            rule.requiredMinutes.toLong() * 60 * 1000
-
-    private fun loadConditionalUnlocks(prefs: SharedPreferences): List<ConditionalUnlock> {
-        val json = prefs.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            gson.fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing conditional unlocks JSON", e)
-            emptyList()
-        }
     }
 }

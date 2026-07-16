@@ -16,10 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,27 +37,20 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.model.ConditionalUnlock
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.ui.components.GlassCard
 
 /**
  * Spellbook overview: the grimoire of focus-session configuration —
- * Enchantments and Rituals up top, compact rows for the set-and-forget
- * extras (Quick Spells, Talismans, Conditional Unlocks) below. Everyday
- * guards (pacts, wards) live on the Pacts dashboard, not here.
+ * Enchantments and Rituals up top, a compact row for Talismans below.
+ * Everyday guards (pacts, wards) live on the Home dashboard, not here.
  */
 @Composable
 fun SpellbookScreen(
     blockerLists: List<Blocker>,
-    focusPresets: List<FocusPreset>,
     schedules: List<Schedule>,
     namedTags: List<NamedTag>,
-    conditionalUnlocks: List<ConditionalUnlock>,
-    onNavigateToConditionalUnlocks: () -> Unit,
     onNavigateToEnchantments: () -> Unit,
-    onNavigateToQuickSpells: () -> Unit,
     onNavigateToRituals: () -> Unit,
     onNavigateToTalismans: () -> Unit,
     modifier: Modifier = Modifier
@@ -142,28 +133,10 @@ fun SpellbookScreen(
         SpellbookGroupHeader(stringResource(R.string.spellbook_group_gear))
 
         SpellbookCompactRow(
-            title = stringResource(R.string.spellbook_quick_spells),
-            icon = Icons.Filled.AutoFixHigh,
-            count = focusPresets.size,
-            onClick = onNavigateToQuickSpells
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SpellbookCompactRow(
             title = stringResource(R.string.spellbook_talismans),
             icon = Icons.Filled.Nfc,
             count = namedTags.size,
             onClick = onNavigateToTalismans
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SpellbookCompactRow(
-            title = stringResource(R.string.conditional_unlocks_title),
-            icon = Icons.Filled.LockOpen,
-            count = conditionalUnlocks.size,
-            onClick = onNavigateToConditionalUnlocks
         )
 
         Spacer(modifier = Modifier.height(16.dp))

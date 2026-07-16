@@ -52,7 +52,6 @@ object Constants {
         const val NAMED_TAGS = "namedTags"
         const val BLOCKER_LISTS = "blockerLists"
         const val SCHEDULES = "schedules"
-        const val FOCUS_PRESETS = "focusPresets"
 
         // NFC lock mode
         const val NFC_LOCK_MODE = "nfcLockMode"
@@ -86,9 +85,6 @@ object Constants {
         // Pact groups: pact settings bound to a blacklist enchantment
         const val PACT_GROUPS = "pactGroups"
 
-        // Conditional unlocks
-        const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
-
         // Block events for statistics
         const val BLOCK_EVENTS = "blockEvents"
 
@@ -121,49 +117,33 @@ object Constants {
         const val LAST_WRAPUP_DATE = "lastWrapupDate"
         const val WRAPUP_ENABLED = "wrapupEnabled"
         const val TRIAL_ALERTS_ENABLED = "trialAlertsEnabled"
+        // Opt-in notification when a guard's seal (cooldown) lifts
+        const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
         // Snapshot of the usage-stats permission, refreshed whenever a Context is
         // available, so Context-free code (SessionRecorder's award path) can gate
         // usage-dependent trial templates deterministically.
         const val USAGE_PERMISSION_SNAPSHOT = "usagePermissionSnapshot"
     }
 
-    object Defaults {
-        object FocusPresets {
-            const val DEEP_WORK_NAME = "Deep Work"
-            const val DEEP_WORK_DURATION = 240
-            const val DEEP_WORK_BREAKS = true
-
-            const val QUICK_FOCUS_NAME = "Quick Focus"
-            const val QUICK_FOCUS_DURATION = 25
-            const val QUICK_FOCUS_BREAKS = true
-
-            const val SLEEP_MODE_NAME = "Sleep Mode"
-            const val SLEEP_MODE_DURATION = 480
-            const val SLEEP_MODE_BREAKS = false
-
-            const val DEFAULT_BLOCKER_NAME = "Default"
-        }
-    }
-
     // List size limits
     const val MAX_NAMED_TAGS = 100
     const val MAX_BLOCKERS = 50
     const val MAX_SCHEDULES = 50
-    const val MAX_PRESETS = 100
     const val MAX_APPS_PER_BLOCKER = 500
     const val MAX_WEBSITES_PER_BLOCKER = 100
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_APP_TIME_LIMITS = 100
-    const val MAX_CONDITIONAL_UNLOCKS = 50
     const val MAX_BOONS = 50
     const val MAX_MANA_LEDGER = 300
 
     // Notification channels
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
+    const val GUARDS_CHANNEL_ID = "focus_pocus_guards"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val DAILY_WRAPUP_NOTIFICATION_ID = 9003
+    const val SEAL_LIFTED_NOTIFICATION_ID = 9004
 }

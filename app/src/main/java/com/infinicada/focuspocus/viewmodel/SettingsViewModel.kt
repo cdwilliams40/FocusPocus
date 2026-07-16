@@ -82,6 +82,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _trialAlertsEnabled = MutableStateFlow(repo.getTrialAlertsEnabled())
     val trialAlertsEnabled: StateFlow<Boolean> = _trialAlertsEnabled.asStateFlow()
 
+    private val _sealLiftedAlertsEnabled = MutableStateFlow(repo.getSealLiftedAlertsEnabled())
+    val sealLiftedAlertsEnabled: StateFlow<Boolean> = _sealLiftedAlertsEnabled.asStateFlow()
+
     // One-time "focusing now earns mana" intro for existing users (the
     // analytics-consent dialog pattern). New users learn about it organically;
     // the flag is set on onboarding completion too.
@@ -249,6 +252,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTrialAlertsEnabled(enabled: Boolean) {
         _trialAlertsEnabled.value = enabled
         repo.setTrialAlertsEnabled(enabled)
+    }
+
+    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
+        _sealLiftedAlertsEnabled.value = enabled
+        repo.setSealLiftedAlertsEnabled(enabled)
     }
 
     fun dismissProgressionIntroDialog() {

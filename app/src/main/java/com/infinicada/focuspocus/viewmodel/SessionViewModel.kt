@@ -9,7 +9,6 @@ import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.data.SessionRepository
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Sigil
 import com.infinicada.focuspocus.model.Trial
 import kotlinx.coroutines.Job
@@ -41,9 +40,6 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     private val _sessionBreaksEnabled = MutableStateFlow(repo.getSessionBreaksEnabled())
     val sessionBreaksEnabled: StateFlow<Boolean> = _sessionBreaksEnabled.asStateFlow()
-
-    private val _selectedPresetId = MutableStateFlow<String?>(null)
-    val selectedPresetId: StateFlow<String?> = _selectedPresetId.asStateFlow()
 
     // Break state
     private val _isOnBreak = MutableStateFlow(repo.getIsOnBreak())
@@ -244,23 +240,12 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _showSessionSummary.value = false
     }
 
-    fun selectPreset(preset: FocusPreset) {
-        _selectedPresetId.value = preset.id
-        _activeBlockerNames.value = preset.effectiveBlockerNames
-        _focusDurationMinutes.value = preset.durationMinutes
-        _sessionBreaksEnabled.value = preset.breaksEnabled
-        repo.setFocusDurationMinutes(preset.durationMinutes)
-        repo.setSessionBreaksEnabled(preset.breaksEnabled)
-    }
-
     fun selectBlocker(blocker: Blocker) {
         _activeBlockerNames.value = listOf(blocker.name)
-        _selectedPresetId.value = null
     }
 
     fun selectBlockers(blockers: List<Blocker>) {
         _activeBlockerNames.value = blockers.map { it.name }
-        _selectedPresetId.value = null
     }
 
     fun toggleBlocker(blocker: Blocker) {
@@ -270,19 +255,16 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         } else {
             current + blocker.name
         }
-        _selectedPresetId.value = null
     }
 
     fun selectDuration(duration: Int) {
         _focusDurationMinutes.value = duration
         repo.setFocusDurationMinutes(duration)
-        _selectedPresetId.value = null
     }
 
     fun toggleSessionBreaks(enabled: Boolean) {
         _sessionBreaksEnabled.value = enabled
         repo.setSessionBreaksEnabled(enabled)
-        _selectedPresetId.value = null
     }
 
     fun startSession(blockerNames: List<String>) {

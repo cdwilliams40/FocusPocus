@@ -59,13 +59,6 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="focuspocus" android:host="preset" />
-                <data android:scheme="focuspocus" android:host="talisman" />
-            </intent-filter>
         </activity>
 
         <activity
@@ -110,6 +103,18 @@
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".widget.GuardWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/guard_widget_info" />
         </receiver>
 
         <receiver

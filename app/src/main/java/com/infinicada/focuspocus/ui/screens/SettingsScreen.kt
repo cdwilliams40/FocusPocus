@@ -85,6 +85,8 @@ fun SettingsScreen(
     trialAlertsEnabled: Boolean,
     onTrialAlertsEnabledChanged: (Boolean) -> Unit,
     muteNotifications: Boolean,
+    sealLiftedAlertsEnabled: Boolean,
+    onSealLiftedAlertsEnabledChanged: (Boolean) -> Unit,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
@@ -397,6 +399,27 @@ fun SettingsScreen(
                             stringResource(R.string.settings_notification_required),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_seal_lifted_toggle))
+                            Text(
+                                stringResource(R.string.settings_seal_lifted_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = sealLiftedAlertsEnabled,
+                            onCheckedChange = onSealLiftedAlertsEnabledChanged
                         )
                     }
                 }

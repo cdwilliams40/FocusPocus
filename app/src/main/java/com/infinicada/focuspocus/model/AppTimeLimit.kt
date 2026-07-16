@@ -24,5 +24,16 @@ data class AppTimeLimit(
      * Optional healthier substitute offered on the pact overlay ("Open X instead").
      * Reflexes don't disappear — they get rerouted; this gives them somewhere to go.
      */
-    val pactAlternativePackage: String? = null
+    val pactAlternativePackage: String? = null,
+    /**
+     * Optional active-hours schedule: the guard enforces only on these days
+     * (null/empty = every day) …
+     */
+    val activeDays: Set<DayOfWeek>? = null,
+    /**
+     * … and only between these times ("HH:mm"; both null/blank = all day).
+     * An end at or before the start spans midnight, like ritual windows.
+     */
+    val activeStartTime: String? = null,
+    val activeEndTime: String? = null
 )
