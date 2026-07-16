@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -77,7 +78,7 @@ import com.infinicada.focuspocus.ui.screens.BoonsScreen
 import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
-import com.infinicada.focuspocus.ui.screens.Greeting
+import com.infinicada.focuspocus.ui.screens.FocusSection
 import com.infinicada.focuspocus.ui.screens.GuardEditorScreen
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
 import com.infinicada.focuspocus.ui.screens.PactsHomeScreen
@@ -537,6 +538,13 @@ fun FocusPocusApp(
                         containerColor = Color.Transparent
                     ),
                     actions = {
+                        // QR talismans trigger sessions from anywhere; the scanner
+                        // lives up here so the cast card stays free of side doors.
+                        if (currentDestination == AppDestinations.HOME) {
+                            IconButton(onClick = onScanQrCode) {
+                                Icon(Icons.Filled.QrCodeScanner, contentDescription = stringResource(R.string.home_scan_qr_code))
+                            }
+                        }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.main_settings_content_desc))
                         }
@@ -595,19 +603,12 @@ fun FocusPocusApp(
                             todayOpenStats = guardOpenStats,
                             guardLiveStates = guardLiveStates,
                             nowMillis = guardNow,
-                            sessionActive = focusMode,
-                            isOnBreak = isOnBreak,
-                            sessionLabel = activeSchedule?.name
-                                ?: activeManualBlockers.joinToString(", ") { it.name },
-                            sessionTimeRemaining = focusTimeRemaining,
-                            breakTimeRemaining = breakTimeRemaining,
                             progressionEnabled = progressionEnabled,
                             manaBalance = manaBalance,
                             currentStreak = currentStreak,
                             usageAccessGranted = usageAccessGranted,
                             onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
                             onOpenBoons = { showBoons = true },
-                            onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
                             onGuardClick = { row ->
                                 spellbookVM.navigateToPacts(
@@ -619,6 +620,96 @@ fun FocusPocusApp(
                             },
                             onRequestTime = { pkg, minutes ->
                                 spellbookVM.requestPactTime(pkg, minutes)
+                            },
+                            focusSection = {
+                                val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
+                                val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
+                                // Extra-break perk tokens raise the effective max for this
+                                // session, which consistently drives the take-break gate,
+                                // button visibility, and the "x/y breaks" label below.
+                                val effectiveMaxBreaks = (activeSchedule?.maxBreaksPerSession?.coerceAtLeast(1) ?: maxBreaksPerSession) +
+                                    extraBreakTokens
+                                val emergencyBreakAvailable = System.currentTimeMillis() >= lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
+                                val emergencyBreakDaysRemaining = if (!emergencyBreakAvailable) {
+                                    val nextAvailable = lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
+                                    ((nextAvailable - System.currentTimeMillis()) / (24 * 60 * 60 * 1000) + 1).toInt()
+                                } else 0
+
+                                FocusSection(
+                                    focusMode = focusMode,
+                                    activeTagId = focusTagId,
+                                    namedTags = namedTags,
+                                    activeBlockers = activeManualBlockers,
+                                    activeSchedule = activeSchedule,
+                                    blockerLists = blockerLists,
+                                    focusPresets = focusPresets,
+                                    selectedPresetId = selectedPresetId,
+                                    focusDurationMinutes = focusDurationMinutes,
+                                    focusTimeRemaining = focusTimeRemaining,
+                                    isOnBreak = isOnBreak,
+                                    breakTimeRemaining = breakTimeRemaining,
+                                    breakTotalSeconds = effectiveBreakDuration * 60,
+                                    sessionElapsedSeconds = sessionElapsedSeconds,
+                                    breaksUsedThisSession = breaksUsedThisSession,
+                                    maxBreaksPerSession = effectiveMaxBreaks,
+                                    breaksAllowed = breaksAllowed,
+                                    sessionBreaksEnabled = sessionBreaksEnabled,
+                                    hideStopButton = hideStopButton,
+                                    nfcLockMode = nfcLockMode,
+                                    emergencyBreakAvailable = emergencyBreakAvailable,
+                                    emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
+                                    progressionEnabled = progressionEnabled,
+                                    trials = trials,
+                                    canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
+                                    onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
+                                    onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
+                                    onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
+                                    onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
+                                    onStartClicked = {
+                                        if (focusMode) {
+                                            // Stops populate the summary dialog from their
+                                            // RecordResult, so no separate pre-capture step.
+                                            if (activeSchedule != null) {
+                                                if (activeSchedule.unbindingTalismanId == null) {
+                                                    sessionVM.dispelSchedule()
+                                                    progressionVM.refresh()
+                                                }
+                                            } else {
+                                                sessionVM.stopSession()
+                                                progressionVM.refresh()
+                                            }
+                                        } else {
+                                            if (activeManualBlockers.isNotEmpty()) {
+                                                sessionVM.startSession(activeManualBlockers.map { it.name })
+                                            } else {
+                                                if (blockerLists.isNotEmpty()) {
+                                                    showBlockerSelectionDialog = true
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onTakeBreak = {
+                                        if (breaksAllowed && breaksUsedThisSession < effectiveMaxBreaks && !isOnBreak) {
+                                            sessionVM.takeBreak(effectiveBreakDuration)
+                                        }
+                                    },
+                                    onEndBreak = { sessionVM.endBreak() },
+                                    onScanQrCode = onScanQrCode,
+                                    onEmergencyStop = {
+                                        // Deliberately dialog-free: the first stop records
+                                        // (and quietly earns); the second returns empty.
+                                        sessionVM.emergencyStop()
+                                        sessionVM.dispelSchedule()
+                                        progressionVM.refresh()
+                                        Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
+                                    },
+                                    onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
+                                    onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
+                                    onCreateEnchantment = {
+                                        currentDestination = AppDestinations.SPELLBOOK
+                                        spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
+                                    }
+                                )
                             },
                             modifier = contentModifier
                         )
@@ -662,103 +753,6 @@ fun FocusPocusApp(
                             modifier = contentModifier
                         )
                     }
-                }
-
-                AppDestinations.FOCUS -> {
-                    val breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled
-                    val effectiveBreakDuration = activeSchedule?.breakDurationMinutes?.coerceAtLeast(1) ?: breakDurationMinutes
-                    // Extra-break perk tokens raise the effective max for this
-                    // session, which consistently drives the take-break gate,
-                    // button visibility, and the "x/y breaks" label below.
-                    val effectiveMaxBreaks = (activeSchedule?.maxBreaksPerSession?.coerceAtLeast(1) ?: maxBreaksPerSession) +
-                        extraBreakTokens
-                    val emergencyBreakAvailable = System.currentTimeMillis() >= lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
-                    val emergencyBreakDaysRemaining = if (!emergencyBreakAvailable) {
-                        val nextAvailable = lastEmergencyBreakMillis + (emergencyBreakCadenceWeeks * 7L * 24 * 60 * 60 * 1000)
-                        ((nextAvailable - System.currentTimeMillis()) / (24 * 60 * 60 * 1000) + 1).toInt()
-                    } else 0
-
-                    Greeting(
-                        focusMode = focusMode,
-                        activeTagId = focusTagId,
-                        namedTags = namedTags,
-                        activeBlockers = activeManualBlockers,
-                        activeSchedule = activeSchedule,
-                        blockerLists = blockerLists,
-                        focusPresets = focusPresets,
-                        selectedPresetId = selectedPresetId,
-                        focusDurationMinutes = focusDurationMinutes,
-                        focusTimeRemaining = focusTimeRemaining,
-                        isOnBreak = isOnBreak,
-                        breakTimeRemaining = breakTimeRemaining,
-                        breakTotalSeconds = effectiveBreakDuration * 60,
-                        sessionElapsedSeconds = sessionElapsedSeconds,
-                        breaksUsedThisSession = breaksUsedThisSession,
-                        maxBreaksPerSession = effectiveMaxBreaks,
-                        breaksAllowed = breaksAllowed,
-                        sessionBreaksEnabled = sessionBreaksEnabled,
-                        hideStopButton = hideStopButton,
-                        nfcLockMode = nfcLockMode,
-                        emergencyBreakAvailable = emergencyBreakAvailable,
-                        emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                        progressionEnabled = progressionEnabled,
-                        trials = trials,
-                        canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
-                        onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
-                        onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
-                        onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
-                        onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
-                        onStartClicked = {
-                            if (focusMode) {
-                                // Stops populate the summary dialog from their
-                                // RecordResult, so no separate pre-capture step.
-                                if (activeSchedule != null) {
-                                    if (activeSchedule.unbindingTalismanId == null) {
-                                        sessionVM.dispelSchedule()
-                                        progressionVM.refresh()
-                                    }
-                                } else {
-                                    sessionVM.stopSession()
-                                    progressionVM.refresh()
-                                }
-                            } else {
-                                if (activeManualBlockers.isNotEmpty()) {
-                                    sessionVM.startSession(activeManualBlockers.map { it.name })
-                                } else {
-                                    if (blockerLists.isNotEmpty()) {
-                                        showBlockerSelectionDialog = true
-                                    }
-                                }
-                            }
-                        },
-                        onBlockerSelectorClicked = {
-                            if (activeSchedule == null) {
-                                showBlockerSelectionDialog = true
-                            }
-                        },
-                        onTakeBreak = {
-                            if (breaksAllowed && breaksUsedThisSession < effectiveMaxBreaks && !isOnBreak) {
-                                sessionVM.takeBreak(effectiveBreakDuration)
-                            }
-                        },
-                        onEndBreak = { sessionVM.endBreak() },
-                        onScanQrCode = onScanQrCode,
-                        onEmergencyStop = {
-                            // Deliberately dialog-free: the first stop records
-                            // (and quietly earns); the second returns empty.
-                            sessionVM.emergencyStop()
-                            sessionVM.dispelSchedule()
-                            progressionVM.refresh()
-                            Toast.makeText(context, context.getString(R.string.toast_emergency_stop), Toast.LENGTH_SHORT).show()
-                        },
-                        onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
-                        onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
-                        onCreateEnchantment = {
-                            currentDestination = AppDestinations.SPELLBOOK
-                            spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
-                        },
-                        modifier = contentModifier
-                    )
                 }
 
                 AppDestinations.SPELLBOOK -> {

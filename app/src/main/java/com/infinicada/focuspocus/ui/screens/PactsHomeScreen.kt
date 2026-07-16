@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Shield
@@ -68,15 +66,15 @@ import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
-import com.infinicada.focuspocus.ui.components.formatClock
 import com.infinicada.focuspocus.ui.formatDuration
 import kotlinx.coroutines.delay
 
 /**
- * The app's default screen: a dashboard of standing protection. One card per
- * guard (a pact'd or time-limited app, or a whole pact circle) with its live
- * state — sealed, pact running, limit spent, or quiet with today's open
- * counts — plus a banner linking to the Focus tab while a session runs.
+ * The app's single home screen: the focus-session caster (passed in as
+ * [focusSection]) up top, then a dashboard of standing protection — one card
+ * per guard (a pact'd or time-limited app, or a whole pact circle) with its
+ * live state: sealed, pact running, limit spent, or quiet with today's open
+ * counts.
  *
  * All state is hoisted; the row list is derived here from the raw snapshots
  * via [GuardStatus.buildRows] so the ordering/priority logic stays testable.
@@ -90,21 +88,16 @@ fun PactsHomeScreen(
     todayOpenStats: Map<String, AppOpenStats>,
     guardLiveStates: Map<String, GuardLiveState>,
     nowMillis: Long,
-    sessionActive: Boolean,
-    isOnBreak: Boolean,
-    sessionLabel: String,
-    sessionTimeRemaining: Int,
-    breakTimeRemaining: Int,
     progressionEnabled: Boolean,
     manaBalance: Long,
     currentStreak: Int,
     usageAccessGranted: Boolean,
     onGrantUsageAccess: () -> Unit,
     onOpenBoons: () -> Unit,
-    onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
+    focusSection: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val names = remember(installedApps) {
@@ -144,17 +137,11 @@ fun PactsHomeScreen(
             )
         }
 
-        if (sessionActive) {
-            item {
-                SessionBanner(
-                    isOnBreak = isOnBreak,
-                    sessionLabel = sessionLabel,
-                    sessionTimeRemaining = sessionTimeRemaining,
-                    breakTimeRemaining = breakTimeRemaining,
-                    onClick = onOpenFocus
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+        // The focus-session caster (idle) or live session controls (active) —
+        // sessions and standing guards share the one home surface.
+        item {
+            focusSection()
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // Daily limits can't be tracked without usage access — surface the
@@ -319,70 +306,6 @@ private fun StreakBadge(streak: Int) {
             labelColor = MaterialTheme.colorScheme.onTertiaryContainer
         )
     )
-}
-
-// ────────────────────────────────────────────────────────────
-//  ACTIVE SESSION BANNER
-// ────────────────────────────────────────────────────────────
-
-@Composable
-private fun SessionBanner(
-    isOnBreak: Boolean,
-    sessionLabel: String,
-    sessionTimeRemaining: Int,
-    breakTimeRemaining: Int,
-    onClick: () -> Unit
-) {
-    val accent = if (isOnBreak) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        contentPadding = PaddingValues(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = if (isOnBreak) Icons.Filled.Coffee else Icons.Filled.AutoFixHigh,
-                contentDescription = null,
-                tint = accent
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = if (isOnBreak) stringResource(R.string.home_status_on_break)
-                           else stringResource(R.string.home_status_active),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = accent
-                )
-                val detail = when {
-                    isOnBreak -> stringResource(
-                        R.string.home_session_banner_time_left, formatClock(breakTimeRemaining)
-                    )
-                    sessionTimeRemaining > 0 && sessionLabel.isNotEmpty() -> stringResource(
-                        R.string.home_session_banner_detail,
-                        sessionLabel,
-                        formatClock(sessionTimeRemaining)
-                    )
-                    sessionTimeRemaining > 0 -> stringResource(
-                        R.string.home_session_banner_time_left, formatClock(sessionTimeRemaining)
-                    )
-                    else -> sessionLabel
-                }
-                if (detail.isNotEmpty()) {
-                    Text(
-                        text = detail,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.home_session_banner_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -849,12 +772,5 @@ private fun GuardsEmptyState(onMakePact: () -> Unit) {
         Button(onClick = onMakePact) {
             Text(stringResource(R.string.home_guard_make_pact))
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.home_guard_empty_focus_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }

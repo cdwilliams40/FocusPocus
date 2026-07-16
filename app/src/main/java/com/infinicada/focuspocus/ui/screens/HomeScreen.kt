@@ -1,7 +1,6 @@
 package com.infinicada.focuspocus.ui.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -9,11 +8,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,27 +25,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,7 +54,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.pluralStringResource
@@ -71,7 +64,6 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
@@ -82,8 +74,13 @@ import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.formatClock
 
+/**
+ * The focus-session block at the top of the Home tab: the compact cast card
+ * when idle, or the full timer/break/dispel controls while a session runs.
+ * Scrolling is owned by the caller (the Home dashboard's LazyColumn).
+ */
 @Composable
-fun Greeting(
+fun FocusSection(
     focusMode: Boolean,
     activeTagId: String?,
     namedTags: List<NamedTag>,
@@ -114,7 +111,6 @@ fun Greeting(
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
-    onBlockerSelectorClicked: () -> Unit,
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit = {},
@@ -129,72 +125,66 @@ fun Greeting(
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
     } else null
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (focusMode) {
-                // ── ACTIVE / BREAK STATE ──
-                ActiveSessionContent(
-                    isOnBreak = isOnBreak,
-                    activeBlockers = activeBlockers,
-                    activeSchedule = activeSchedule,
-                    focusDurationMinutes = focusDurationMinutes,
-                    focusTimeRemaining = focusTimeRemaining,
-                    breakTimeRemaining = breakTimeRemaining,
-                    breakTotalSeconds = breakTotalSeconds,
-                    sessionElapsedSeconds = sessionElapsedSeconds,
-                    breaksUsedThisSession = breaksUsedThisSession,
-                    maxBreaksPerSession = maxBreaksPerSession,
-                    breaksAllowed = breaksAllowed,
-                    hideStopButton = hideStopButton,
-                    nfcLockMode = nfcLockMode,
-                    emergencyBreakAvailable = emergencyBreakAvailable,
-                    emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                    activeTagId = activeTagId,
-                    activeTagName = activeTagName,
-                    boundTalismanName = boundTalismanName,
-                    progressionEnabled = progressionEnabled,
-                    canAffordExtraBreak = canAffordExtraBreak,
-                    onStartClicked = onStartClicked,
-                    onTakeBreak = onTakeBreak,
-                    onEndBreak = onEndBreak,
-                    onEmergencyStop = onEmergencyStop,
-                    onScanQrCode = onScanQrCode,
-                    onBuyExtraBreak = onBuyExtraBreak
-                )
-            } else {
-                // ── IDLE STATE ──
-                IdleContent(
-                    activeBlockers = activeBlockers,
-                    activeSchedule = activeSchedule,
-                    blockerLists = blockerLists,
-                    focusPresets = focusPresets,
-                    selectedPresetId = selectedPresetId,
-                    focusDurationMinutes = focusDurationMinutes,
-                    sessionBreaksEnabled = sessionBreaksEnabled,
-                    progressionEnabled = progressionEnabled,
-                    trials = trials,
-                    onPresetSelected = onPresetSelected,
-                    onBlockerToggled = onBlockerToggled,
-                    onDurationSelected = onDurationSelected,
-                    onSessionBreaksToggled = onSessionBreaksToggled,
-                    onStartClicked = onStartClicked,
-                    onScanQrCode = onScanQrCode,
-                    onClaimTrial = onClaimTrial,
-                    onCreateEnchantment = onCreateEnchantment
-                )
-            }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (focusMode) {
+            // ── ACTIVE / BREAK STATE ──
+            ActiveSessionContent(
+                isOnBreak = isOnBreak,
+                activeBlockers = activeBlockers,
+                activeSchedule = activeSchedule,
+                focusDurationMinutes = focusDurationMinutes,
+                focusTimeRemaining = focusTimeRemaining,
+                breakTimeRemaining = breakTimeRemaining,
+                breakTotalSeconds = breakTotalSeconds,
+                sessionElapsedSeconds = sessionElapsedSeconds,
+                breaksUsedThisSession = breaksUsedThisSession,
+                maxBreaksPerSession = maxBreaksPerSession,
+                breaksAllowed = breaksAllowed,
+                hideStopButton = hideStopButton,
+                nfcLockMode = nfcLockMode,
+                emergencyBreakAvailable = emergencyBreakAvailable,
+                emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
+                activeTagId = activeTagId,
+                activeTagName = activeTagName,
+                boundTalismanName = boundTalismanName,
+                progressionEnabled = progressionEnabled,
+                canAffordExtraBreak = canAffordExtraBreak,
+                onStartClicked = onStartClicked,
+                onTakeBreak = onTakeBreak,
+                onEndBreak = onEndBreak,
+                onEmergencyStop = onEmergencyStop,
+                onScanQrCode = onScanQrCode,
+                onBuyExtraBreak = onBuyExtraBreak
+            )
+        } else {
+            // ── IDLE STATE ──
+            IdleContent(
+                activeBlockers = activeBlockers,
+                activeSchedule = activeSchedule,
+                blockerLists = blockerLists,
+                focusPresets = focusPresets,
+                selectedPresetId = selectedPresetId,
+                focusDurationMinutes = focusDurationMinutes,
+                sessionBreaksEnabled = sessionBreaksEnabled,
+                progressionEnabled = progressionEnabled,
+                trials = trials,
+                onPresetSelected = onPresetSelected,
+                onBlockerToggled = onBlockerToggled,
+                onDurationSelected = onDurationSelected,
+                onSessionBreaksToggled = onSessionBreaksToggled,
+                onStartClicked = onStartClicked,
+                onClaimTrial = onClaimTrial,
+                onCreateEnchantment = onCreateEnchantment
+            )
         }
     }
 }
 
 // ────────────────────────────────────────────────────────────
-//  IDLE STATE
+//  IDLE STATE — one compact cast card
 // ────────────────────────────────────────────────────────────
 
 @Composable
@@ -213,117 +203,128 @@ private fun IdleContent(
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
-    onScanQrCode: () -> Unit,
     onClaimTrial: (Trial) -> Unit,
     onCreateEnchantment: () -> Unit
 ) {
-    Text(
-        text = stringResource(R.string.home_status_ready),
-        style = MaterialTheme.typography.headlineLarge,
-        color = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(32.dp))
-
-    // Hero Cast Button
     val canCast = activeBlockers.isNotEmpty()
-    CastSpellButton(
-        enabled = canCast,
-        onClick = onStartClicked
-    )
-    if (!canCast) {
-        Spacer(modifier = Modifier.height(8.dp))
-        if (blockerLists.isEmpty()) {
-            // Pact-first onboarding no longer creates an enchantment, so the
-            // old "choose one below" hint would point at an empty dropdown.
-            OutlinedButton(onClick = onCreateEnchantment) {
-                Text(stringResource(R.string.home_create_enchantment))
-            }
-        } else {
-            Text(
-                text = stringResource(R.string.home_cast_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    // Quick Spell chips (above config card when presets exist)
     val validPresets = focusPresets.filter { preset ->
         preset.effectiveBlockerNames.all { name -> blockerLists.any { it.name == name } }
     }
-    if (activeSchedule == null && validPresets.isNotEmpty()) {
+
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(R.string.home_quick_spells),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
+            text = stringResource(R.string.home_status_ready),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
-        PresetChipRow(
-            presets = validPresets,
-            selectedPresetId = selectedPresetId,
-            onPresetSelected = onPresetSelected,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-    }
 
-    // Configuration card
-    if (activeSchedule == null) {
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.home_session_setup),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            SpellSelectorMultiDropdown(
-                blockerLists = blockerLists,
-                selectedBlockers = activeBlockers,
-                enabled = true,
-                onBlockerToggled = onBlockerToggled,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            DurationSelectorDropdown(
-                selectedDuration = focusDurationMinutes,
-                enabled = true,
-                onDurationSelected = onDurationSelected,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        if (activeSchedule == null) {
+            // Quick Spell chips
+            if (validPresets.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.home_allow_breaks),
-                    style = MaterialTheme.typography.bodyMedium
+                    text = stringResource(R.string.home_quick_spells),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Switch(
-                    checked = sessionBreaksEnabled,
-                    onCheckedChange = onSessionBreaksToggled
+                Spacer(modifier = Modifier.height(4.dp))
+                PresetChipRow(
+                    presets = validPresets,
+                    selectedPresetId = selectedPresetId,
+                    onPresetSelected = onPresetSelected,
+                    modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            if (blockerLists.isEmpty()) {
+                // Pact-first onboarding doesn't create an enchantment, so the
+                // first cast usually starts here.
+                OutlinedButton(
+                    onClick = onCreateEnchantment,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.home_create_enchantment))
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.spellbook_enchantments),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                EnchantmentChipFlow(
+                    blockerLists = blockerLists,
+                    selectedBlockers = activeBlockers,
+                    onBlockerToggled = onBlockerToggled,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.duration_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                DurationChipRow(
+                    selectedDuration = focusDurationMinutes,
+                    onDurationSelected = onDurationSelected,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_allow_breaks),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = sessionBreaksEnabled,
+                        onCheckedChange = onSessionBreaksToggled
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onStartClicked,
+            enabled = canCast,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.AutoFixHigh,
+                contentDescription = stringResource(R.string.home_cast_content_desc),
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.home_button_cast),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+        if (!canCast && blockerLists.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_cast_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     // Today's trials — the daily carrot, right where the casting happens
     if (progressionEnabled && trials.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(12.dp))
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = stringResource(R.string.home_trials_title),
@@ -338,15 +339,7 @@ private fun IdleContent(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
     }
-
-    // QR scan button
-    OutlinedButton(onClick = onScanQrCode) {
-        Text(stringResource(R.string.home_scan_qr_code))
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
 }
 
 // ────────────────────────────────────────────────────────────
@@ -640,136 +633,6 @@ private fun ActiveSessionContent(
 }
 
 // ────────────────────────────────────────────────────────────
-//  CAST SPELL BUTTON
-// ────────────────────────────────────────────────────────────
-
-@Composable
-private fun CastSpellButton(
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val scheme = MaterialTheme.colorScheme
-    val primary = scheme.primary
-    val gold = scheme.tertiary
-    val infiniteTransition = rememberInfiniteTransition(label = "castGlow")
-    val glowScale by infiniteTransition.animateFloat(
-        initialValue = 0.88f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowScale"
-    )
-    // A faint golden spark slowly orbiting the button rim
-    val orbitAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(9000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "orbitAngle"
-    )
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(216.dp)
-    ) {
-        if (enabled) {
-            // Soft magical aura behind the button while a cast is possible
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val radius = size.minDimension / 2f * glowScale
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            primary.copy(alpha = 0.38f),
-                            primary.copy(alpha = 0.12f),
-                            Color.Transparent
-                        ),
-                        center = center,
-                        radius = radius
-                    ),
-                    radius = radius
-                )
-            }
-            // Orbiting golden ring
-            Canvas(modifier = Modifier.size(184.dp)) {
-                rotate(degrees = orbitAngle) {
-                    drawCircle(
-                        brush = Brush.sweepGradient(
-                            0f to Color.Transparent,
-                            0.72f to Color.Transparent,
-                            0.9f to gold.copy(alpha = 0.9f),
-                            1f to Color.Transparent
-                        ),
-                        radius = size.minDimension / 2f,
-                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                }
-            }
-        }
-        Button(
-            onClick = onClick,
-            modifier = Modifier.size(160.dp),
-            shape = CircleShape,
-            enabled = enabled,
-            contentPadding = PaddingValues(0.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = scheme.onPrimary,
-                disabledContainerColor = scheme.surfaceContainerHighest,
-                disabledContentColor = scheme.onSurface.copy(alpha = 0.38f)
-            ),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 6.dp,
-                pressedElevation = 2.dp
-            )
-        ) {
-            // Gradient fill drawn inside the circular button so the orb reads
-            // as a lit crystal rather than a flat disc.
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = if (enabled) {
-                            // Stop the blend well short of primaryContainer: the
-                            // label sits low on the orb, and a full blend leaves
-                            // onPrimary text below 3:1 contrast in both themes.
-                            Brush.verticalGradient(
-                                listOf(primary, lerp(primary, scheme.primaryContainer, 0.35f))
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                listOf(scheme.surfaceContainerHighest, scheme.surfaceContainerHighest)
-                            )
-                        }
-                    )
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AutoFixHigh,
-                        contentDescription = stringResource(R.string.home_cast_content_desc),
-                        tint = if (enabled) scheme.onPrimary else scheme.onSurface.copy(alpha = 0.38f),
-                        modifier = Modifier.size(44.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.home_button_cast),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = if (enabled) scheme.onPrimary else scheme.onSurface.copy(alpha = 0.38f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ────────────────────────────────────────────────────────────
 //  CIRCULAR TIMER
 // ────────────────────────────────────────────────────────────
 
@@ -939,90 +802,51 @@ private fun UnlimitedSessionIndicator(elapsedSeconds: Long = 0L) {
 }
 
 // ────────────────────────────────────────────────────────────
-//  SPELL SELECTOR (unchanged logic, same API)
+//  ENCHANTMENT CHIPS — one tap to toggle, selection always visible
 // ────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SpellSelectorMultiDropdown(
+fun EnchantmentChipFlow(
     blockerLists: List<Blocker>,
     selectedBlockers: List<Blocker>,
-    enabled: Boolean,
     onBlockerToggled: (Blocker) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
     val selectedNames = selectedBlockers.map { it.name }.toSet()
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded },
-        modifier = modifier
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedTextField(
-            value = if (selectedBlockers.isEmpty()) stringResource(R.string.home_select_enchantment)
-                    else selectedBlockers.joinToString(", ") { it.name },
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = if (selectedBlockers.isNotEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+        blockerLists.forEach { blocker ->
+            val isSelected = blocker.name in selectedNames
+            FilterChip(
+                selected = isSelected,
+                onClick = { onBlockerToggled(blocker) },
+                label = { Text(blocker.name) },
+                leadingIcon = if (isSelected) {
+                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                } else null,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            blockerLists.forEach { blocker ->
-                val isSelected = blocker.name in selectedNames
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            androidx.compose.material3.Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = null
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Column {
-                                Text(blocker.name)
-                                Text(
-                                    text = if (blocker.mode == BlockerMode.BLACKLIST) stringResource(R.string.label_banish) else stringResource(R.string.label_shield),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    },
-                    onClick = { onBlockerToggled(blocker) }
-                )
-            }
+            )
         }
     }
 }
 
 // ────────────────────────────────────────────────────────────
-//  DURATION SELECTOR (unchanged logic, same API)
+//  DURATION CHIPS — one tap instead of a two-tap dropdown
 // ────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DurationSelectorDropdown(
+fun DurationChipRow(
     selectedDuration: Int,
-    enabled: Boolean,
     onDurationSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     val durations = listOf(
         15 to stringResource(R.string.duration_15_min),
         25 to stringResource(R.string.duration_25_min),
@@ -1032,38 +856,20 @@ fun DurationSelectorDropdown(
         0 to stringResource(R.string.duration_unlimited)
     )
 
-    val selectedLabel = durations.find { it.first == selectedDuration }?.second ?: stringResource(R.string.duration_select)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = !expanded },
-        modifier = modifier
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        OutlinedTextField(
-            value = selectedLabel,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text(stringResource(R.string.duration_label)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            durations.forEach { (minutes, label) ->
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = {
-                        onDurationSelected(minutes)
-                        expanded = false
-                    }
+        durations.forEach { (minutes, label) ->
+            FilterChip(
+                selected = selectedDuration == minutes,
+                onClick = { onDurationSelected(minutes) },
+                label = { Text(label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            }
+            )
         }
     }
 }

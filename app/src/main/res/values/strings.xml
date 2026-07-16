@@ -7,8 +7,7 @@
     <string name="foreground_service_text">Guarding your focus</string>
 
     <!-- Navigation -->
-    <string name="nav_pacts">Pacts</string>
-    <string name="nav_focus">Focus</string>
+    <string name="nav_home">Home</string>
     <string name="nav_spellbook">Spellbook</string>
     <string name="nav_insights">Insights</string>
     <string name="nav_back">Back</string>
@@ -66,13 +65,11 @@
     <string name="home_status_on_break">On Break</string>
     <string name="home_status_active">Focus Spell Active</string>
     <string name="home_status_ready">Ready to Cast</string>
-    <string name="home_session_setup">Session Setup</string>
     <string name="home_unlimited_session">Unlimited</string>
     <string name="home_elapsed">elapsed</string>
     <string name="home_session_progress">%1$d of %2$d min</string>
     <string name="session_complete_icon_desc">Session complete</string>
     <string name="home_quick_spells">Quick Spells</string>
-    <string name="home_select_enchantment">Select Enchantment</string>
     <string name="home_allow_breaks">Allow Breaks</string>
     <string name="home_remaining">remaining</string>
     <string name="home_break_remaining">break remaining</string>
@@ -101,7 +98,7 @@
     <string name="home_triggered_by_talisman">Triggered by Talisman: %s</string>
     <string name="home_scan_to_dispel">Scan %s to dispel</string>
     <string name="home_scan_talisman_to_dispel">Scan your talisman to dispel</string>
-    <string name="home_cast_hint">Choose an enchantment below to begin</string>
+    <string name="home_cast_hint">Select an enchantment to begin</string>
 
     <!-- PactsHomeScreen (guard dashboard) -->
     <plurals name="home_guard_sealed_count">
@@ -118,9 +115,6 @@
     </plurals>
     <string name="home_guard_all_quiet">All quiet</string>
     <string name="home_guard_rollup">Today: %1$d opens · %2$d reflexes caught</string>
-    <string name="home_session_banner_detail">%1$s · %2$s left</string>
-    <string name="home_session_banner_time_left">%1$s left</string>
-    <string name="home_session_banner_hint">Tap to manage on the Focus tab</string>
     <string name="home_guard_seal_lifts">Seal lifts in %1$s</string>
     <string name="home_guard_pact_left">Pact active — %1$s left</string>
     <string name="home_guard_sealed_of">%1$d of %2$d sealed</string>
@@ -133,7 +127,6 @@
     <string name="pacts_request_sealed_toast">Still sealed — the seal lifts in %1$d min</string>
     <string name="home_guard_empty_title">No pacts yet</string>
     <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
-    <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
     <string name="home_create_enchantment">Create an enchantment</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
     <string name="guard_editor_edit_pact">Edit Pact</string>
@@ -153,8 +146,8 @@
     <string name="guard_delete_app_message">It opens freely again right away.</string>
     <string name="guard_delete_circle_message">Every app in this enchantment opens freely again. The enchantment itself is kept.</string>
 
-    <string name="pacts_home_intro_title">Pacts are now your home</string>
-    <string name="pacts_home_intro_message">Your always-on protection — pacts and time limits — now greets you first. Casting focus sessions lives on the Focus tab, one tap away. Everything else works exactly as before.</string>
+    <string name="pacts_home_intro_title">One home for everything</string>
+    <string name="pacts_home_intro_message">Everything now lives on one Home screen: cast focus sessions up top, and watch over your pacts and time limits right below. Everything else works exactly as before.</string>
     <string name="pacts_home_intro_ok">Got it</string>
 
     <!-- SpellbookScreen -->
@@ -334,7 +327,7 @@
     <string name="onboarding_usage_granted">Usage access granted</string>
     <string name="onboarding_grant_usage">Grant Usage Access</string>
     <string name="onboarding_done_title">Your Pacts Are Sealed</string>
-    <string name="onboarding_done_desc">The apps you chose now wait behind a conscious pact. Cast timed focus spells from the Focus tab, and shape rituals, talismans, and enchantments in the Spellbook.</string>
+    <string name="onboarding_done_desc">The apps you chose now wait behind a conscious pact. Cast timed focus spells right from the Home screen, and shape rituals, talismans, and enchantments in the Spellbook.</string>
     <string name="onboarding_analytics_title">Help Improve Focus Pocus</string>
     <string name="onboarding_analytics_desc">We use anonymous crash reports and usage statistics to fix bugs and improve the app. No personal data is collected. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_toggle">Share Analytics</string>

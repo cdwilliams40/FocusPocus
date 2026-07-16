@@ -7,8 +7,7 @@
     <string name="foreground_service_text">Veille sur votre concentration</string>
 
     <!-- Navigation -->
-    <string name="nav_pacts">Pactes</string>
-    <string name="nav_focus">Concentration</string>
+    <string name="nav_home">Accueil</string>
     <string name="nav_spellbook">Grimoire</string>
     <string name="nav_insights">Statistiques</string>
     <string name="nav_back">Retour</string>
@@ -66,13 +65,11 @@
     <string name="home_status_on_break">En pause</string>
     <string name="home_status_active">Sort de concentration actif</string>
     <string name="home_status_ready">Prêt à lancer</string>
-    <string name="home_session_setup">Configuration de session</string>
     <string name="home_unlimited_session">Illimité</string>
     <string name="home_elapsed">écoulé</string>
     <string name="home_session_progress">%1$d sur %2$d min</string>
     <string name="session_complete_icon_desc">Session terminée</string>
     <string name="home_quick_spells">Sorts rapides</string>
-    <string name="home_select_enchantment">Choisir un enchantement</string>
     <string name="home_allow_breaks">Autoriser les pauses</string>
     <string name="home_remaining">restant</string>
     <string name="home_break_remaining">pause restante</string>
@@ -99,7 +96,7 @@
     <string name="home_triggered_by_talisman">Déclenché par le talisman : %s</string>
     <string name="home_scan_to_dispel">Scanner %s pour dissiper</string>
     <string name="home_scan_talisman_to_dispel">Scannez votre talisman pour dissiper</string>
-    <string name="home_cast_hint">Choisissez un enchantement ci-dessous pour commencer</string>
+    <string name="home_cast_hint">Sélectionnez un enchantement pour commencer</string>
 
     <!-- PactsHomeScreen (tableau de bord des pactes) -->
     <plurals name="home_guard_sealed_count">
@@ -119,9 +116,6 @@
     </plurals>
     <string name="home_guard_all_quiet">Tout est calme</string>
     <string name="home_guard_rollup">Aujourd\'hui : %1$d ouvertures · %2$d réflexes attrapés</string>
-    <string name="home_session_banner_detail">%1$s · %2$s restantes</string>
-    <string name="home_session_banner_time_left">%1$s restantes</string>
-    <string name="home_session_banner_hint">Touchez pour gérer dans l\'onglet Concentration</string>
     <string name="home_guard_seal_lifts">Le sceau se lève dans %1$s</string>
     <string name="home_guard_pact_left">Pacte en cours — %1$s restantes</string>
     <string name="home_guard_sealed_of">%1$d sur %2$d scellées</string>
@@ -134,7 +128,6 @@
     <string name="pacts_request_sealed_toast">Toujours scellée — le sceau se lève dans %1$d min</string>
     <string name="home_guard_empty_title">Aucun pacte pour l\'instant</string>
     <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
-    <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
     <string name="home_create_enchantment">Créer un enchantement</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
     <string name="guard_editor_edit_pact">Modifier le pacte</string>
@@ -154,8 +147,8 @@
     <string name="guard_delete_app_message">L\'application s\'ouvrira à nouveau librement, tout de suite.</string>
     <string name="guard_delete_circle_message">Toutes les applications de cet enchantement s\'ouvriront à nouveau librement. L\'enchantement lui-même est conservé.</string>
 
-    <string name="pacts_home_intro_title">Les pactes sont désormais votre accueil</string>
-    <string name="pacts_home_intro_message">Votre protection permanente — pactes et limites de temps — vous accueille désormais en premier. Le lancement des sessions de concentration vit dans l\'onglet Concentration, à un geste de là. Tout le reste fonctionne exactement comme avant.</string>
+    <string name="pacts_home_intro_title">Un seul écran d\'accueil pour tout</string>
+    <string name="pacts_home_intro_message">Tout vit désormais sur un seul écran d\'accueil : lancez vos sessions de concentration en haut, et veillez sur vos pactes et limites de temps juste en dessous. Tout le reste fonctionne exactement comme avant.</string>
     <string name="pacts_home_intro_ok">Compris</string>
 
     <!-- SpellbookScreen -->
@@ -328,7 +321,7 @@
     <string name="onboarding_usage_granted">Accès à l\'utilisation accordé</string>
     <string name="onboarding_grant_usage">Accorder l\'accès à l\'utilisation</string>
     <string name="onboarding_done_title">Vos pactes sont scellés</string>
-    <string name="onboarding_done_desc">Les applications choisies attendent désormais derrière un pacte conscient. Lancez des sorts de concentration minutés depuis l\'onglet Concentration, et façonnez rituels, talismans et enchantements dans le Grimoire.</string>
+    <string name="onboarding_done_desc">Les applications choisies attendent désormais derrière un pacte conscient. Lancez des sorts de concentration minutés directement depuis l\'écran d\'accueil, et façonnez rituels, talismans et enchantements dans le Grimoire.</string>
     <string name="onboarding_analytics_title">Aidez à améliorer Focus Pocus</string>
     <string name="onboarding_analytics_desc">Nous utilisons des rapports de plantage anonymes et des statistiques d\'utilisation pour corriger les bugs et améliorer l\'application. Aucune donnée personnelle n\'est collectée. Vous pouvez modifier ce choix à tout moment dans les paramètres.</string>
     <string name="onboarding_analytics_toggle">Partager les analyses</string>

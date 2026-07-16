@@ -473,3 +473,24 @@ open; delete enchantment carrying a circle → dashboard drops it (existing clea
   time infrastructure.
 - Whether `Greeting`/`HomeScreen.kt` should be renamed `FocusScreen.kt` once the
   dust settles (pure rename, deferred to avoid diff noise during the restructure).
+
+---
+
+## Addendum (July 2026): Pacts + Focus merged into one Home tab
+
+Living with the 4-tab layout showed the Pacts/Focus split to be awkward in
+practice: starting a session and watching guards are the same daily habit, and
+the session banner was a workaround for having split them. A follow-up
+restructure merged the two:
+
+- 3 tabs again: **Home · Spellbook · Insights**. `AppDestinations.FOCUS` is gone.
+- Home = the guard dashboard with the focus caster embedded at the top
+  (`PactsHomeScreen` takes a `focusSection` composable slot; `Greeting` was
+  renamed `FocusSection` and no longer owns its own scrolling).
+- Idle: one compact "Ready to Cast" card — Quick Spell chips, enchantment
+  toggle chips, duration chips, breaks switch, full-width Cast button. The
+  two `ExposedDropdownMenu` selectors and the 216 dp cast orb were retired.
+- Active: the full timer/breaks/dispel UI renders in place of the card, with
+  guard cards still reachable below. The session banner was deleted.
+- The QR scan affordance moved to the Home top-app-bar action slot (it stays
+  inline in the NFC-lock session state, where it's a dispel path).
