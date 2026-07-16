@@ -12,27 +12,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="IntentFilterUniqueDataAttributes"
-        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
-        errorLine1="                &lt;data android:scheme=&quot;focuspocus&quot; android:host=&quot;preset&quot; />"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="66"
-            column="17"/>
-    </issue>
 
-    <issue
-        id="IntentFilterUniqueDataAttributes"
-        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
-        errorLine1="                &lt;data android:scheme=&quot;focuspocus&quot; android:host=&quot;talisman&quot; />"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="67"
-            column="17"/>
-    </issue>
 
     <issue
         id="QueryPermissionsNeeded"
@@ -221,16 +201,6 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/infinicada/focuspocus/ui/screens/HomeScreen.kt"
-            line="117"
-            column="5"/>
-    </issue>
 
     <issue
         id="ModifierParameter"
@@ -321,522 +291,52 @@
             column="5"/>
     </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;home_take_break_with_count&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;home_take_break_with_count&quot;>Take a Break (%1$d left)&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="84"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;home_nfc_lock_active&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;home_nfc_lock_active&quot;>Talisman Lock Active&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="85"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;insights_daily_trend&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;insights_daily_trend&quot;>Daily Focus (Last 7 Days)&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="234"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;rituals_conflict_warning&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;rituals_conflict_warning&quot;>Warning: Overlaps with \&quot;%1$s\&quot;&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="287"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;rituals_overnight_info&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;rituals_overnight_info&quot;>This ritual runs overnight. It will start in the evening and end the next morning.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="288"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_daily_limit_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_daily_limit_label&quot;>Daily Limit&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="343"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_no_apps_found&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_no_apps_found&quot;>No apps found&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="344"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_enable_cooldown&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_enable_cooldown&quot;>Per-session cooldown&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="345"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_enable_cooldown_desc&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_enable_cooldown_desc&quot;>Block the app for a cooldown period after continuous use&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="346"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_session_limit_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_session_limit_label&quot;>Session limit (per continuous use)&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="347"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_cooldown_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_cooldown_label&quot;>Cooldown duration&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="348"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_cooldown_desc&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_cooldown_desc&quot;>Session: %1$d min → %2$d min cooldown&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="349"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;time_limits_minutes_value&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;time_limits_minutes_value&quot;>%d min&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="350"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_title&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_title&quot;>Conditional Unlocks&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="353"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_description&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_description&quot;>Unlock blocked apps as a reward after spending time in another app.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="354"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_empty&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_empty&quot;>No conditional unlocks yet.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="355"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_add&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_add&quot;>Add Conditional Unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="356"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_rule_summary&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_rule_summary&quot;>Unlock after %1$d min in %2$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="357"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_unlocked_apps&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps&quot;>Unlocked apps: %d&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="358"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_unlocked_enchantments&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_enchantments&quot;>Unlocks: %s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="359"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_editor_title_create&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_editor_title_create&quot;>New Conditional Unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="360"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_editor_title_edit&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_editor_title_edit&quot;>Edit Conditional Unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="361"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_name_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_name_label&quot;>Rule name&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="362"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_name_placeholder&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_name_placeholder&quot;>e.g. Language reward&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="363"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_required_app_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_required_app_label&quot;>Required app&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="364"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_required_app_placeholder&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_required_app_placeholder&quot;>Select app to use first&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="365"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_required_minutes_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_required_minutes_label&quot;>Required time&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="366"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_unlocked_apps_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_label&quot;>Apps to unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="367"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_unlocked_apps_placeholder&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_placeholder&quot;>Select apps to unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="368"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_unlocked_apps_count&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_count&quot;>%d app(s) selected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="369"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_enchantments_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_enchantments_label&quot;>Enchantments to unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="370"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_enchantments_placeholder&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_enchantments_placeholder&quot;>Select enchantments&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="371"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_enchantments_count&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_enchantments_count&quot;>%d enchantment(s) selected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="372"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_progress&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_progress&quot;>%1$d / %2$d min today&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="373"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_grant_usage&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_grant_usage&quot;>Grant Usage Access&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="374"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_usage_required&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_usage_required&quot;>Usage access is required to track time spent in apps&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="375"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_time_limit_apps_label&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_time_limit_apps_label&quot;>App timers to bypass&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="376"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_time_limit_apps_placeholder&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_time_limit_apps_placeholder&quot;>Select time-limited apps&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="377"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_time_limit_apps_count&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_time_limit_apps_count&quot;>%d app timer(s) selected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="378"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_bypassed_timers&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_bypassed_timers&quot;>Bypassed timers: %s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="379"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;conditional_unlocks_delete&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_delete&quot;>Delete&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="380"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;spellbook_conditional_unlocks&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;spellbook_conditional_unlocks&quot;>Conditional Unlocks&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="381"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;spellbook_no_conditional_unlocks&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;spellbook_no_conditional_unlocks&quot;>No conditional unlocks yet. Reward yourself by unlocking apps after focused use of another.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="382"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;toast_max_conditional_unlocks&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;toast_max_conditional_unlocks&quot;>Maximum of %d conditional unlocks reached&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="383"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;overlay_cooldown_remaining&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;overlay_cooldown_remaining&quot;>Cooldown: %d min remaining&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="394"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;overlay_level3_prompt&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;overlay_level3_prompt&quot;>To close this overlay, type the phrase below:&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="395"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;overlay_level3_hint&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;overlay_level3_hint&quot;>Type the phrase to continue&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="396"
-            column="13"/>
-    </issue>
 
     <issue
         id="MissingTranslation"
@@ -904,93 +404,13 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;pacing_toast_50&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;pacing_toast_50&quot;>%1$s: %2$d of %3$d min used today — halfway through. Save some for later!&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="421"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;pacing_toast_75&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;pacing_toast_75&quot;>%1$s: %2$d of %3$d min used today — only %4$d min left.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="422"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;pacing_toast_90&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;pacing_toast_90&quot;>%1$s: %2$d of %3$d min used today — almost gone!&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="423"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;session_complete_title&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;session_complete_title&quot;>Session Complete!&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="466"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;session_complete_duration&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;session_complete_duration&quot;>Focus time: %1$d minutes&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="467"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;session_complete_breaks&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;session_complete_breaks&quot;>Breaks taken: %1$d&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="468"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;session_complete_enchantment&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;session_complete_enchantment&quot;>Enchantment: %1$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="469"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;session_complete_great_work&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;session_complete_great_work&quot;>Great work! You stayed focused.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="470"
-            column="13"/>
-    </issue>
 
     <issue
         id="PluralsCandidate"
@@ -1091,49 +511,9 @@
             column="5"/>
     </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;app&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_count&quot;>%d app(s) selected&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="369"
-            column="5"/>
-    </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;enchantment&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_enchantments_count&quot;>%d enchantment(s) selected&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="372"
-            column="5"/>
-    </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;app&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_time_limit_apps_count&quot;>%d app timer(s) selected&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="378"
-            column="5"/>
-    </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;conditional&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;toast_max_conditional_unlocks&quot;>Maximum of %d conditional unlocks reached&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="383"
-            column="5"/>
-    </issue>
 
     <issue
         id="PluralsCandidate"
@@ -1157,16 +537,6 @@
             column="5"/>
     </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;minute&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;main_deep_link_action_temp_disable&quot;>start a %d minute break&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="432"
-            column="5"/>
-    </issue>
 
     <issue
         id="PluralsCandidate"
@@ -1190,16 +560,6 @@
             column="5"/>
     </issue>
 
-    <issue
-        id="PluralsCandidate"
-        message="Formatting %d followed by words (&quot;quick&quot;): This should probably be a plural rather than a string"
-        errorLine1="    &lt;string name=&quot;toast_max_quick_spells&quot;>Maximum of %d quick spells reached&lt;/string>"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="446"
-            column="5"/>
-    </issue>
 
     <issue
         id="PluralsCandidate"
@@ -1263,27 +623,7 @@
             file="src/main/res/mipmap-anydpi-v26"/>
     </issue>
 
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    private var nfcTriggerCount by mutableStateOf(0)"
-        errorLine2="                                   ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/infinicada/focuspocus/MainActivity.kt"
-            line="52"
-            column="36"/>
-    </issue>
 
-    <issue
-        id="AutoboxingStateCreation"
-        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
-        errorLine1="    private var qrTriggerCount by mutableStateOf(0)"
-        errorLine2="                                  ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/infinicada/focuspocus/MainActivity.kt"
-            line="53"
-            column="35"/>
-    </issue>
 
     <issue
         id="UnusedResources"
@@ -1471,71 +811,11 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.time_limits_daily_limit` appears to be unused"
-        errorLine1="    &lt;string name=&quot;time_limits_daily_limit&quot;>Daily Limit: %s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="342"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.conditional_unlocks_empty` appears to be unused"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_empty&quot;>No conditional unlocks yet.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="355"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.conditional_unlocks_unlocked_apps` appears to be unused"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps&quot;>Unlocked apps: %d&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="358"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.conditional_unlocks_unlocked_apps_label` appears to be unused"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_label&quot;>Apps to unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="367"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.conditional_unlocks_unlocked_apps_placeholder` appears to be unused"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_placeholder&quot;>Select apps to unlock&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="368"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.conditional_unlocks_unlocked_apps_count` appears to be unused"
-        errorLine1="    &lt;string name=&quot;conditional_unlocks_unlocked_apps_count&quot;>%d app(s) selected&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="369"
-            column="13"/>
-    </issue>
 
     <issue
         id="UnusedResources"
@@ -1647,16 +927,6 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.toast_data_corrupted_quick_spells` appears to be unused"
-        errorLine1="    &lt;string name=&quot;toast_data_corrupted_quick_spells&quot;>Quick Spell data was corrupted - restored defaults&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="445"
-            column="13"/>
-    </issue>
 
     <issue
         id="UnusedResources"
@@ -2310,16 +1580,6 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                    prefs.edit()"
-        errorLine2="                    ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/infinicada/focuspocus/handler/TriggerHandler.kt"
-            line="59"
-            column="21"/>
-    </issue>
 
     <issue
         id="UseTomlInstead"

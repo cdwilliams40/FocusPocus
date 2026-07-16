@@ -49,15 +49,12 @@
             android:textStyle="bold"
             android:maxLines="1" />
 
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="1dp" />
-
         <TextView
             android:id="@+id/widget_seal_button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="8dp"
             android:background="@drawable/widget_button_bg"
             android:gravity="center"
             android:paddingTop="8dp"
