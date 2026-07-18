@@ -765,4 +765,18 @@
     <string name="accessibility_disclosure_body">Focus Pocus utilise l\'API AccessibilityService d\'Android pour une seule chose : remarquer quelle application passe au premier plan, afin de bloquer ou rediriger les applications que vous avez choisi de garder. Elle n\'écoute que les changements de fenêtre — elle ne peut lire ni le contenu de l\'écran, ni les frappes, ni les mots de passe. Rien de ce qu\'elle observe ne quitte votre appareil ni n\'est partagé.</string>
     <string name="accessibility_disclosure_agree">Accepter et continuer</string>
     <string name="accessibility_disclosure_later">Pas maintenant</string>
+
+    <!-- Sauvegarde / restauration -->
+    <string name="settings_backup">Sauvegarde</string>
+    <string name="settings_backup_desc">Enregistrez vos enchantements, pactes, rituels, historique et réglages dans un fichier — une réinstallation ou un nouveau téléphone ne devrait pas vous coûter vos séries. L\'état de session en cours et les sceaux actifs restent sur l\'appareil.</string>
+    <string name="settings_backup_export">Enregistrer la sauvegarde…</string>
+    <string name="settings_backup_import">Restaurer une sauvegarde…</string>
+    <string name="backup_export_done">Sauvegarde enregistrée</string>
+    <string name="backup_export_failed">Impossible d\'enregistrer la sauvegarde</string>
+    <string name="backup_import_done">Sauvegarde restaurée — redémarrage</string>
+    <string name="backup_import_invalid">Ce fichier n\'est pas une sauvegarde Focus Pocus</string>
+    <string name="backup_import_newer">Cette sauvegarde provient d\'une version plus récente de Focus Pocus</string>
+    <string name="backup_import_confirm_title">Restaurer une sauvegarde ?</string>
+    <string name="backup_import_confirm_message">La restauration remplace vos enchantements, pactes, rituels, historique et réglages actuels par ceux de la sauvegarde, puis redémarre l\'application. C\'est irréversible.</string>
+    <string name="backup_import_confirm_yes">Choisir le fichier</string>
 </resources>

@@ -463,6 +463,40 @@ fun FocusPocusApp(
             },
             analyticsConsent = analyticsConsent,
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
+            onExportBackup = { uri ->
+                val ok = settingsVM.exportBackup(uri)
+                Toast.makeText(
+                    context,
+                    context.getString(
+                        if (ok) R.string.backup_export_done else R.string.backup_export_failed
+                    ),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onImportBackup = { uri ->
+                when (settingsVM.importBackup(uri)) {
+                    is com.infinicada.focuspocus.BackupCodec.ImportResult.Success -> {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_done),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        settingsVM.restartApp()
+                    }
+                    is com.infinicada.focuspocus.BackupCodec.ImportResult.UnsupportedVersion ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_newer),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    else ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_invalid),
+                            Toast.LENGTH_LONG
+                        ).show()
+                }
+            },
             namedTags = namedTags,
             focusMode = focusMode,
             progressionEnabled = progressionEnabled,

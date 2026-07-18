@@ -754,4 +754,18 @@
     <string name="accessibility_disclosure_body">Focus Pocus uses Android\'s AccessibilityService API for exactly one thing: noticing which app comes to the foreground, so the apps you chose to guard can be blocked or redirected. It listens only to window-change events — it cannot read screen content, keystrokes, or passwords. Nothing it observes leaves your device or is shared with anyone.</string>
     <string name="accessibility_disclosure_agree">Agree &amp; continue</string>
     <string name="accessibility_disclosure_later">Not now</string>
+
+    <!-- Backup / restore -->
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_desc">Save your enchantments, pacts, rituals, history, and settings to a file — a reinstall or a new phone shouldn\'t cost you your streaks. Live session state and running seals stay on the device.</string>
+    <string name="settings_backup_export">Save backup…</string>
+    <string name="settings_backup_import">Restore from backup…</string>
+    <string name="backup_export_done">Backup saved</string>
+    <string name="backup_export_failed">Couldn\'t save the backup</string>
+    <string name="backup_import_done">Backup restored — restarting</string>
+    <string name="backup_import_invalid">That file isn\'t a Focus Pocus backup</string>
+    <string name="backup_import_newer">This backup comes from a newer version of Focus Pocus</string>
+    <string name="backup_import_confirm_title">Restore from backup?</string>
+    <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
+    <string name="backup_import_confirm_yes">Choose file</string>
 </resources>

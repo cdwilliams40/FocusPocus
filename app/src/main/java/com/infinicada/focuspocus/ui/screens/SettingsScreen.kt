@@ -6,6 +6,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -112,6 +114,8 @@ fun SettingsScreen(
     onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
+    onExportBackup: (android.net.Uri) -> Unit,
+    onImportBackup: (android.net.Uri) -> Unit,
     namedTags: List<NamedTag>,
     focusMode: Boolean,
     onNavigateBack: () -> Unit,
@@ -718,6 +722,61 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Backup Card
+            val exportLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument("application/json")
+            ) { uri -> uri?.let(onExportBackup) }
+            val importLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri -> uri?.let(onImportBackup) }
+            var showImportConfirm by remember { mutableStateOf(false) }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_backup), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.settings_backup_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { exportLauncher.launch("focus-pocus-backup.json") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_backup_export))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showImportConfirm = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_backup_import))
+                    }
+                }
+            }
+            if (showImportConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showImportConfirm = false },
+                    title = { Text(stringResource(R.string.backup_import_confirm_title)) },
+                    text = { Text(stringResource(R.string.backup_import_confirm_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showImportConfirm = false
+                            importLauncher.launch(arrayOf("application/json", "text/plain"))
+                        }) {
+                            Text(stringResource(R.string.backup_import_confirm_yes))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showImportConfirm = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
         }

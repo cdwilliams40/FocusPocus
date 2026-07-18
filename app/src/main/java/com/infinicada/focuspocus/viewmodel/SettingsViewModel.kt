@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.infinicada.focuspocus.BackupCodec
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
@@ -20,6 +21,11 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repo: SettingsRepository =
         (application as FocusPocusApplication).container.settings
+
+    private val appPrefs = application.getSharedPreferences(
+        Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE
+    )
+    private val gson = com.google.gson.Gson()
 
     private val _themeMode = MutableStateFlow(repo.getThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -257,6 +263,52 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTrialAlertsEnabled(enabled: Boolean) {
         _trialAlertsEnabled.value = enabled
         repo.setTrialAlertsEnabled(enabled)
+    }
+
+    // ── Backup / restore ──
+
+    /** Writes the grimoire export to [uri]. Returns false on any failure. */
+    fun exportBackup(uri: android.net.Uri): Boolean = try {
+        val json = BackupCodec.export(
+            appPrefs, gson, com.infinicada.focuspocus.BuildConfig.VERSION_CODE
+        )
+        val resolver = getApplication<Application>().contentResolver
+        // "wt" truncates — overwriting a longer previous backup must not leave
+        // a stale JSON tail. Some providers only support "w"; fall back.
+        val stream = try {
+            resolver.openOutputStream(uri, "wt")
+        } catch (e: Exception) {
+            resolver.openOutputStream(uri)
+        }
+        stream?.use { it.write(json.toByteArray(Charsets.UTF_8)); true } ?: false
+    } catch (e: Exception) {
+        Log.e("SettingsViewModel", "Backup export failed", e)
+        false
+    }
+
+    /** Reads and replace-restores a backup from [uri]. Null = unreadable file. */
+    fun importBackup(uri: android.net.Uri): BackupCodec.ImportResult? = try {
+        getApplication<Application>().contentResolver.openInputStream(uri)
+            ?.use { it.readBytes().toString(Charsets.UTF_8) }
+            ?.let { BackupCodec.import(appPrefs, gson, it) }
+    } catch (e: Exception) {
+        Log.e("SettingsViewModel", "Backup import failed", e)
+        null
+    }
+
+    /**
+     * Full process restart after a restore: every ViewModel and manager holds
+     * pre-import state, and a clean relaunch is the only honest reset.
+     */
+    fun restartApp() {
+        val app = getApplication<Application>()
+        val intent = app.packageManager.getLaunchIntentForPackage(app.packageName)
+        intent?.addFlags(
+            android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+        )
+        if (intent != null) app.startActivity(intent)
+        Runtime.getRuntime().exit(0)
     }
 
     fun dismissProgressionIntroDialog() {
