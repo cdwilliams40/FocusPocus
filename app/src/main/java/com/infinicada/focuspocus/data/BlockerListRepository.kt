@@ -15,7 +15,9 @@ class BlockerListRepository(
     fun getBlockers(): List<Blocker> {
         val type = object : TypeToken<List<Blocker>>() {}.type
         val stored = PrefsHelper.load<List<Blocker>>(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, type)
-        if (stored != null) return stored
+        // Drop records Gson (Unsafe) left with a null name/mode so a corrupt
+        // enchantment can't crash shouldBlock on the UI or notification-listener path.
+        if (stored != null) return Blocker.sanitize(stored)
         // First run: persist the starter blocker instead of synthesizing it on
         // every read. The accessibility service reads the same key through
         // BlockerRepository and synthesizes nothing, so an unpersisted default

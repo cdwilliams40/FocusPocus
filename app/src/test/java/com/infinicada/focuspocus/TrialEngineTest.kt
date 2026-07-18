@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
 import com.infinicada.focuspocus.model.TrialType
@@ -9,6 +10,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Calendar
+import java.util.Locale
 
 class TrialEngineTest {
 
@@ -18,6 +20,31 @@ class TrialEngineTest {
     private val noneExtra = TrialEngine.Eligibility(
         hasSchedules = false, canJudgeLimits = false, hasReflexHistory = false
     )
+
+    // ── locale-independent date keys ──
+
+    @Test
+    fun `date keys stay ASCII-parseable under a non-Latin default locale`() {
+        // Persian's default number system emits non-ASCII digits from String.format
+        // with no explicit locale. The machine keys must stay ASCII or the downstream
+        // parsers (weekKeyForDay's BASIC_ISO_DATE, the yyyyMMdd retention cutoff)
+        // reject them. \d matches only [0-9], so a localized digit fails these.
+        val original = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("fa-IR"))
+
+            val dayKey = SessionCooldownManager.todayString()
+            assertTrue("todayString must be ASCII digits, got $dayKey", dayKey.matches(Regex("\\d{8}")))
+
+            val weekKey = TrialEngine.weekKeyForDay(dayKey)
+            assertTrue("weekKeyForDay must resolve, got $weekKey", weekKey.matches(Regex("\\d{4}-W\\d{2}")))
+
+            val dateKey = TrialEngine.dateKeyOf(1_700_000_000_000L)
+            assertTrue("dateKeyOf must be ASCII digits, got $dateKey", dateKey.matches(Regex("\\d{8}")))
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
 
     // ── week keys ──
 
