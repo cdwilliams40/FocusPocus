@@ -311,7 +311,6 @@
     <string name="onboarding_accessibility_title">Grant Magical Sight</string>
     <string name="onboarding_accessibility_desc">Focus Pocus needs Accessibility permission to notice when you open a sealed or blocked app and offer you a conscious choice instead.</string>
     <string name="onboarding_accessibility_enabled">Accessibility enabled</string>
-    <string name="onboarding_enable_accessibility">Enable Accessibility Service</string>
     <string name="onboarding_pact_title">Seal Your First Apps</string>
     <string name="onboarding_pact_desc">Pick the apps that eat your attention. They\'ll be sealed by default — opening one asks how much time you truly need.</string>
     <string name="onboarding_pact_pick">Choose apps to seal (%d selected)</string>

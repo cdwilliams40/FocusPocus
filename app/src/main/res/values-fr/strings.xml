@@ -305,7 +305,6 @@
     <string name="onboarding_accessibility_title">Accorder la vue magique</string>
     <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour remarquer l\'ouverture d\'une application scellée ou bloquée et vous proposer un choix conscient à la place.</string>
     <string name="onboarding_accessibility_enabled">Accessibilité activée</string>
-    <string name="onboarding_enable_accessibility">Activer le service d\'accessibilité</string>
     <string name="onboarding_pact_title">Scellez vos premières applications</string>
     <string name="onboarding_pact_desc">Choisissez les applications qui dévorent votre attention. Elles seront scellées par défaut — en ouvrir une demande de combien de temps vous avez vraiment besoin.</string>
     <string name="onboarding_pact_pick">Choisir les applications à sceller (%d sélectionnées)</string>
