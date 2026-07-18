@@ -437,6 +437,18 @@
     <string name="ritual_ended_title">Rituel terminé</string>
     <string name="ritual_ended_message">%s est terminé.</string>
 
+    <!-- Focus session countdown notification -->
+    <string name="focus_session_channel_name">Session de concentration</string>
+    <string name="focus_session_channel_description">Compte à rebours pendant qu\'un sort est actif</string>
+    <string name="focus_session_notification_title">Sort actif</string>
+    <string name="focus_session_notification_title_spell">Sort actif : %s</string>
+    <string name="focus_session_notification_title_ritual">Rituel actif : %s</string>
+    <string name="focus_session_notification_unlimited">Session de concentration en cours</string>
+    <string name="focus_session_notification_break">En pause</string>
+    <string name="focus_session_notification_ends_at">Se termine à %s</string>
+    <string name="focus_session_notification_resumes_at">La concentration reprend à %s</string>
+    <string name="focus_session_notification_resumes_at_named">%1$s — la concentration reprend à %2$s</string>
+
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Verrouillage par talisman</string>
     <string name="service_daily_time_limit">Limite de temps quotidienne atteinte</string>

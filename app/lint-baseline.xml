@@ -840,61 +840,6 @@
 
     <issue
         id="MissingTranslation"
-        message="&quot;focus_session_channel_name&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;focus_session_channel_name&quot;>Focus Session&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="409"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;focus_session_channel_description&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;focus_session_channel_description&quot;>Ongoing countdown while a spell is active&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="410"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;focus_session_notification_title&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_title&quot;>Spell Active&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="411"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;focus_session_notification_unlimited&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_unlimited&quot;>Focus session in progress&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="412"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;focus_session_notification_break&quot; is not translated in &quot;fr&quot; (French)"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_break&quot;>On break&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="413"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
         message="&quot;service_time_limit_warning&quot; is not translated in &quot;fr&quot; (French)"
         errorLine1="    &lt;string name=&quot;service_time_limit_warning&quot;>%s will be blocked in about 1 minute&lt;/string>"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -1556,61 +1501,6 @@
         <location
             file="src/main/res/values/strings.xml"
             line="400"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.focus_session_channel_name` appears to be unused"
-        errorLine1="    &lt;string name=&quot;focus_session_channel_name&quot;>Focus Session&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="409"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.focus_session_channel_description` appears to be unused"
-        errorLine1="    &lt;string name=&quot;focus_session_channel_description&quot;>Ongoing countdown while a spell is active&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="410"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.focus_session_notification_title` appears to be unused"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_title&quot;>Spell Active&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="411"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.focus_session_notification_unlimited` appears to be unused"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_unlimited&quot;>Focus session in progress&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="412"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.string.focus_session_notification_break` appears to be unused"
-        errorLine1="    &lt;string name=&quot;focus_session_notification_break&quot;>On break&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="413"
             column="13"/>
     </issue>
 

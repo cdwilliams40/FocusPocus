@@ -38,6 +38,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Breaks temporarily allow access to all apps and suspend Do Not Disturb
 - Emergency break feature with weekly cadence-based cooldown
 - Session and break timers are enforced by the background service using wall-clock timestamps, so they end on time even if the app is closed or the device reboots
+- **Live session notification**: while a session runs, a silent ongoing notification names the active spell or ritual and ticks down the time until it ends — or until focus resumes when you're on a break; untimed sessions show elapsed time instead
 - Optionally hide the stop button so a session can't be ended early on impulse
 
 ### Per-App Time Limits (Wards)
@@ -124,7 +125,7 @@ Focus Pocus requires the following permissions:
 | **Accessibility Service** | Detect when you open apps and redirect from blocked apps |
 | **Usage Stats** | Track per-app usage for time limit enforcement |
 | **NFC** | Read NFC tags for talisman features |
-| **Notifications** | Show notifications for scheduled rituals and breaks |
+| **Notifications** | Show notifications for scheduled rituals and breaks, plus the live countdown while a session is active |
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
 | **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |

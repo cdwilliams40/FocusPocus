@@ -492,8 +492,13 @@
     <string name="focus_session_channel_name">Focus Session</string>
     <string name="focus_session_channel_description">Ongoing countdown while a spell is active</string>
     <string name="focus_session_notification_title">Spell Active</string>
+    <string name="focus_session_notification_title_spell">Spell active: %s</string>
+    <string name="focus_session_notification_title_ritual">Ritual active: %s</string>
     <string name="focus_session_notification_unlimited">Focus session in progress</string>
     <string name="focus_session_notification_break">On break</string>
+    <string name="focus_session_notification_ends_at">Ends at %s</string>
+    <string name="focus_session_notification_resumes_at">Focus resumes at %s</string>
+    <string name="focus_session_notification_resumes_at_named">%1$s — focus resumes at %2$s</string>
 
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Talisman Lock</string>

@@ -236,6 +236,10 @@ class MyAccessibilityService : AccessibilityService() {
         // Device owner: catch-all reconciliation for anything the event-driven sync
         // points missed (conditional unlocks flipping, apps installed mid-session).
         DeviceOwnerManager.syncSuspensions(this)
+
+        // Re-assert the session-countdown notification (or clear a stale one):
+        // heals swipe-dismissals on Android 14+ and posts lost to rate limits.
+        SessionNotifier.update(this)
     }
 
     /**
