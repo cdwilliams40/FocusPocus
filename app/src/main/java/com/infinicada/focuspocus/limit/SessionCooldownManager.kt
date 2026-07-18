@@ -8,6 +8,7 @@ import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.PrefsHelper
 import com.infinicada.focuspocus.model.AppTimeLimit
 import java.util.Calendar
+import java.util.Locale
 
 /**
  * Manages per-app session cooldowns and the escalating friction state that goes with them.
@@ -188,16 +189,17 @@ class SessionCooldownManager(
 
         /** Detects a date change between [previousDateStr] and now. [previousDateStr] format: "yyyyMMdd". */
         fun isNewDay(previousDateStr: String?): Boolean {
-            val cal = Calendar.getInstance()
-            val today = "%04d%02d%02d".format(
-                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
-            )
-            return previousDateStr != today
+            return previousDateStr != todayString()
         }
 
         fun todayString(): String {
             val cal = Calendar.getInstance()
-            return "%04d%02d%02d".format(
+            // Locale.ROOT: the default locale's number system (e.g. Persian) would
+            // emit non-ASCII digits, and these keys are parsed downstream by
+            // SimpleDateFormat(Locale.US) and LocalDate.parse(BASIC_ISO_DATE), both
+            // of which reject them. Matches TrialEngine.weekKeyForDay.
+            return String.format(
+                Locale.ROOT, "%04d%02d%02d",
                 cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH)
             )
         }

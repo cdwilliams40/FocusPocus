@@ -32,7 +32,9 @@ object BlockerRepository {
 
             return try {
                 val type = object : TypeToken<List<Blocker>>() {}.type
-                val parsed: List<Blocker> = gson.fromJson(json, type)
+                // Drop records Gson (Unsafe) left with a null name/mode — a null mode
+                // makes shouldBlock throw, which silently disables all blocking here.
+                val parsed: List<Blocker> = Blocker.sanitize(gson.fromJson(json, type))
                 cachedBlockerListsJson = json
                 cachedBlockerLists = parsed
                 parsed

@@ -205,7 +205,15 @@ class MyAccessibilityService : AccessibilityService() {
             sessionCooldownManager.resetDailyCooldowns()
             pacingNotifiedToday.clear()
             pactWarnedExpiries.clear()
+            // A day's usage resets at midnight, so a cached "over limit" verdict
+            // from yesterday would otherwise keep an app blocked into the new day
+            // until the entry's TTL lapses.
+            timeLimitChecker.clearCache()
             lastCooldownResetDate = SessionCooldownManager.todayString()
+            // Persist so a restart across midnight doesn't re-skip this reset.
+            sharedPreferences.edit()
+                .putString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, lastCooldownResetDate)
+                .apply()
         }
 
         // Pacing notification for the app currently in the foreground.
@@ -298,7 +306,12 @@ class MyAccessibilityService : AccessibilityService() {
         sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
         pactManager = PactManager(sharedPreferences, gson)
         openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
-        lastCooldownResetDate = SessionCooldownManager.todayString()
+        // Read the last rollover date from prefs (not today): if the service was
+        // down across midnight, the next tick must still see the day change and
+        // run resetDailyCooldowns. Seeding it to today would skip that day's
+        // reset, carrying yesterday's escalation counters into the new day.
+        lastCooldownResetDate =
+            sharedPreferences.getString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, null)
         Log.d("MyAccessibilityService", "Service connected")
 
         // Clean up any break or timed session that expired while the service was down

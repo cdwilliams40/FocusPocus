@@ -179,7 +179,11 @@ object TrialEngine {
     /** "yyyyMMdd" day key for an epoch timestamp (matches SessionCooldownManager.todayString). */
     fun dateKeyOf(timestampMillis: Long): String {
         val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestampMillis }
-        return "%04d%02d%02d".format(
+        // Locale.ROOT so a non-Latin default locale can't emit digits that the
+        // ASCII-only key parsers (weekKeyForDay's BASIC_ISO_DATE, retention cutoffs)
+        // reject — matches SessionCooldownManager.todayString.
+        return String.format(
+            java.util.Locale.ROOT, "%04d%02d%02d",
             cal.get(java.util.Calendar.YEAR),
             cal.get(java.util.Calendar.MONTH) + 1,
             cal.get(java.util.Calendar.DAY_OF_MONTH)

@@ -77,6 +77,11 @@ object Constants {
         // Active per-app cooldown states (expiry time, attempt counts)
         const val APP_COOLDOWN_STATES = "appCooldownStates"
 
+        // "yyyyMMdd" date the daily cooldown rollover last ran. Persisted so a
+        // service restart across midnight still detects the missed rollover
+        // instead of assuming today was already reset.
+        const val LAST_COOLDOWN_RESET_DATE = "lastCooldownResetDate"
+
         // Active pact allowances (packageName -> allowance expiry epoch millis)
         const val PACT_ALLOWANCES = "pactAllowances"
 

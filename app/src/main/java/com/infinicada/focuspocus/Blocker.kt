@@ -20,6 +20,24 @@ data class Blocker(
             BlockerMode.WHITELIST -> !effectiveApps.contains(packageName)
         }
     }
+
+    companion object {
+        /**
+         * Drops records Gson left in an unusable state. Gson instantiates classes
+         * via Unsafe — no constructor, no Kotlin null checks — so a blocker persisted
+         * by a build with broken R8 keep rules (v1.4 obfuscated the [BlockerMode] enum
+         * constant names) can come back with a null [name] or [mode] despite the
+         * non-null Kotlin types. A null [mode] makes [shouldBlock]'s exhaustive
+         * `when` throw: the accessibility service and DeviceOwnerManager swallow it
+         * (silently disabling ALL blocking / suspension), and
+         * FocusNotificationListenerService lets it crash the process. Filtering such
+         * records here — as PactManager, Progression and OpenReflexTracker already do
+         * for their models — keeps one corrupt enchantment from poisoning the rest.
+         */
+        @Suppress("SENSELESS_COMPARISON")
+        fun sanitize(blockers: List<Blocker>?): List<Blocker> =
+            blockers?.filterNotNull()?.filter { it.name != null && it.mode != null } ?: emptyList()
+    }
 }
 
 enum class BlockerMode {
