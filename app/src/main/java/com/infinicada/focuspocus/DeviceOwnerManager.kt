@@ -9,6 +9,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.model.ConditionalUnlock
 
@@ -245,7 +246,12 @@ object DeviceOwnerManager {
         val groups = pactManager.getGroups()
         if (groups.isEmpty() && configs.values.none { it.pactModeEnabled }) return emptySet()
 
-        val gated = GuardStatus.pactGatedPackages(configs, groups, BlockerRepository.getBlockers(prefs))
+        // Guard hours: an app whose pact is outside its window is free, so it
+        // must not stay greyed out. The minute tick re-syncs suspensions, so
+        // greying follows the window within a minute of it opening or closing.
+        val gated = GuardStatus.pactGatedConfigs(configs, groups, BlockerRepository.getBlockers(prefs))
+            .filterValues { GuardWindow.isActiveNow(it) }
+            .keys
         if (gated.isEmpty()) return emptySet()
 
         return computePactSuspendedPackages(

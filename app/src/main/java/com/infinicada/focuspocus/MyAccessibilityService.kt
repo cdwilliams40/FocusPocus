@@ -22,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
@@ -951,10 +952,18 @@ class MyAccessibilityService : AccessibilityService() {
         val pactConfig = resolvePactConfig(packageName)
         if (limit == null && pactConfig == null) return
 
+        // Guard hours: outside its window a guard stands down — no daily limit,
+        // no pact gate, no session limit. Two deliberate exceptions: an active
+        // seal keeps blocking (step 3 — a seal is a seal), and lapse→seal
+        // conversion (step 2) still runs, since it's bookkeeping anchored at
+        // the lapse moment, not new enforcement.
+        val governingConfig = getCachedTimeLimitConfigs()[packageName] ?: pactConfig
+        val windowActive = governingConfig == null || GuardWindow.isActiveNow(governingConfig)
+
         // 1. Daily limit — always takes precedence; no cooldown interaction.
         // A limit of 0 means "no daily cap" (pacts without a daily backstop).
         val dailyLimit = limit ?: pactConfig?.dailyLimitMinutes ?: 0
-        if (dailyLimit > 0 && timeLimitChecker.shouldBlock(packageName, dailyLimit)) {
+        if (windowActive && dailyLimit > 0 && timeLimitChecker.shouldBlock(packageName, dailyLimit)) {
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
@@ -999,8 +1008,9 @@ class MyAccessibilityService : AccessibilityService() {
         // 4. Pact gate: a pact-gated app (per-app config or pact group) with no active
         // allowance is blocked by default — offer to make a pact. With an active
         // allowance the app is simply allowed (the passive session limit below
-        // doesn't apply; the pact IS the session limit).
-        if (pactConfig != null) {
+        // doesn't apply; the pact IS the session limit). Off guard hours the
+        // gate stands down entirely.
+        if (pactConfig != null && windowActive) {
             if (pactManager.getAllowanceExpiry(packageName, now) != null) return
             if (isTimeLimitConditionallyUnlocked(packageName)) return
             val appName = AppUtils.getAppName(this, packageName)
@@ -1016,7 +1026,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // 5. Session limit — if the user has been in this app too long, start a cooldown.
         val config = getCachedTimeLimitConfigs()[packageName]
-        if (config != null && config.sessionLimitMinutes > 0) {
+        if (windowActive && config != null && config.sessionLimitMinutes > 0) {
             val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
             if (sessionMinutes >= config.sessionLimitMinutes) {
                 if (isTimeLimitConditionallyUnlocked(packageName)) return

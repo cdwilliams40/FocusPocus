@@ -60,6 +60,7 @@ import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.limit.GuardState
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
@@ -523,6 +524,7 @@ private fun PactCardBody(row: GuardRow.App, names: Map<String, String>) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    GuardScheduleSummary(row.config.activeDays, row.config.activeStartTime, row.config.activeEndTime)
     GuardStateLine(row)
     Text(
         stringResource(R.string.pacts_today_stats, row.opensToday, row.reflexesToday),
@@ -568,6 +570,7 @@ private fun WardCardBody(row: GuardRow.App) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    GuardScheduleSummary(row.config.activeDays, row.config.activeStartTime, row.config.activeEndTime)
     GuardStateLine(row)
 }
 
@@ -585,8 +588,43 @@ private fun GuardStateLine(row: GuardRow.App) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.tertiary
         )
+        GuardState.SCHEDULED_OFF -> Text(
+            stringResource(R.string.home_guard_off_schedule),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         else -> {}
     }
+}
+
+/**
+ * One-line guard-hours summary ("Guard hours: M T W T F · 21:00–07:00"),
+ * shown only when the guard actually carries a schedule. Day initials match
+ * the editor's chips.
+ */
+@Composable
+private fun GuardScheduleSummary(
+    days: Set<com.infinicada.focuspocus.model.DayOfWeek>?,
+    startTime: String?,
+    endTime: String?
+) {
+    val hasWindow = GuardWindow.parseMinutes(startTime) != null &&
+        GuardWindow.parseMinutes(endTime) != null
+    if (days.isNullOrEmpty() && !hasWindow) return
+    val daysText = if (days.isNullOrEmpty()) {
+        stringResource(R.string.guard_schedule_every_day)
+    } else {
+        com.infinicada.focuspocus.model.DayOfWeek.entries
+            .filter { it in days }
+            .joinToString(" ") { it.name.take(1) }
+    }
+    val hoursText = if (hasWindow) "$startTime–$endTime"
+                    else stringResource(R.string.guard_schedule_all_day)
+    Text(
+        stringResource(R.string.guard_schedule_summary, daysText, hoursText),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -647,6 +685,18 @@ private fun GuardCircleCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                GuardScheduleSummary(
+                    row.group.activeDays, row.group.activeStartTime, row.group.activeEndTime
+                )
+                if (row.offScheduleCount > 0 && row.sealedCount == 0 &&
+                    row.pactActiveCount == 0 && row.quietMemberPackages.isEmpty()
+                ) {
+                    Text(
+                        stringResource(R.string.home_guard_off_schedule),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (row.sealedCount > 0) {
                     Text(
                         stringResource(
@@ -666,6 +716,8 @@ private fun GuardCircleCard(
                 row.sealedCount > 0 -> GuardState.SEALED
                 row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
                 row.overLimitCount > 0 -> GuardState.OVER_LIMIT
+                row.quietMemberPackages.isEmpty() && row.offScheduleCount > 0 ->
+                    GuardState.SCHEDULED_OFF
                 else -> GuardState.QUIET
             }
             GuardStateChip(state = circleState)
@@ -717,6 +769,11 @@ private fun GuardStateChip(state: GuardState) {
             R.string.home_guard_chip_over,
             MaterialTheme.colorScheme.errorContainer,
             MaterialTheme.colorScheme.onErrorContainer
+        )
+        GuardState.SCHEDULED_OFF -> Triple(
+            R.string.home_guard_chip_off,
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.onSurfaceVariant
         )
         GuardState.QUIET -> return
     }

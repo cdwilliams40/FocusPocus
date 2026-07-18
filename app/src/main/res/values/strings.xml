@@ -713,4 +713,16 @@
         <item quantity="one">%d app sealed</item>
         <item quantity="other">%d apps sealed</item>
     </plurals>
+
+    <!-- Guard hours (per-guard schedules) -->
+    <string name="guard_schedule_toggle">Guard hours</string>
+    <string name="guard_schedule_desc">Enforce this guard only on chosen days and hours. Outside them the app is free — though a running seal still holds.</string>
+    <string name="guard_schedule_days">Active days — none selected means every day</string>
+    <string name="guard_schedule_hours_toggle">Between certain hours</string>
+    <string name="guard_schedule_hours_desc">An end before the start runs overnight, e.g. 21:00–07:00.</string>
+    <string name="guard_schedule_summary">Guard hours: %1$s · %2$s</string>
+    <string name="guard_schedule_every_day">Every day</string>
+    <string name="guard_schedule_all_day">All day</string>
+    <string name="home_guard_off_schedule">Off hours — not enforced right now</string>
+    <string name="home_guard_chip_off">OFF HOURS</string>
 </resources>

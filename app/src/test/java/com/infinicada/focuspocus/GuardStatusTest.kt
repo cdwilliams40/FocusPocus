@@ -301,6 +301,27 @@ class GuardStatusTest {
         assertFalse(GuardStatus.hasPactRows(rows))
     }
 
+    // ── Guard hours ──
+
+    @Test
+    fun `outside its window a guard shows SCHEDULED_OFF unless sealed`() {
+        val live = GuardLiveState(usedMinutesToday = 999, allowanceExpiryMillis = t0 + 60_000)
+        assertEquals(
+            GuardState.SCHEDULED_OFF,
+            GuardStatus.resolveState(ward("a", daily = 60), live, t0, windowActive = false)
+        )
+        assertEquals(
+            GuardState.SCHEDULED_OFF,
+            GuardStatus.resolveState(pact("a"), live, t0, windowActive = false)
+        )
+        // A running seal still shows SEALED — a seal is a seal.
+        val sealed = live.copy(cooldownExpiryMillis = t0 + 60_000)
+        assertEquals(
+            GuardState.SEALED,
+            GuardStatus.resolveState(pact("a"), sealed, t0, windowActive = false)
+        )
+    }
+
     // ── pactGatedConfigs ──
 
     @Test
