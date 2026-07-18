@@ -55,9 +55,18 @@ object ProtectionHealth {
         if (enabled == null) {
             false
         } else {
+            // SimpleStringSplitter is both Iterator and Iterable, which makes
+            // the sequence extensions ambiguous — walk it explicitly.
             val splitter = TextUtils.SimpleStringSplitter(':')
             splitter.setString(enabled)
-            splitter.asSequence().any { ComponentName.unflattenFromString(it) == expected }
+            var found = false
+            while (splitter.hasNext()) {
+                if (ComponentName.unflattenFromString(splitter.next()) == expected) {
+                    found = true
+                    break
+                }
+            }
+            found
         }
     } catch (e: Exception) {
         Log.e(TAG, "Error checking accessibility state", e)
