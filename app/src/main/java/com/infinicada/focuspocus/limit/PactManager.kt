@@ -76,6 +76,19 @@ class PactManager(
         return expiry
     }
 
+    /**
+     * Drops any allowance for [packageName], active or lapsed, without starting
+     * a seal — the panic "seal everything now" action revokes running pact time
+     * and starts its own seal separately.
+     */
+    fun revokeAllowance(packageName: String) {
+        val allowances = loadAllowances()
+        if (packageName in allowances) {
+            saveAllowances(allowances - packageName)
+            Log.d(tag, "Pact allowance revoked for $packageName")
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Pact groups (pact settings bound to a blacklist enchantment)
     // -------------------------------------------------------------------------

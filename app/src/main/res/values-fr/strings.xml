@@ -714,4 +714,14 @@
     <string name="session_complete_breaks">Pauses prises : %1$d</string>
     <string name="session_complete_enchantment">Enchantement : %1$s</string>
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
+
+    <!-- Scellement d\'urgence (Tout sceller maintenant) -->
+    <string name="home_seal_all">Tout sceller maintenant</string>
+    <string name="home_seal_all_confirm_title">Tout sceller maintenant ?</string>
+    <string name="home_seal_all_confirm_message">Chaque application liée à un pacte est scellée immédiatement pour sa durée de scellement configurée, et tout temps de pacte en cours est révoqué. Les sceaux ne peuvent pas être levés en avance.</string>
+    <string name="home_seal_all_confirm_action">Les sceller</string>
+    <plurals name="home_seal_all_result">
+        <item quantity="one">%d application scellée</item>
+        <item quantity="other">%d applications scellées</item>
+    </plurals>
 </resources>

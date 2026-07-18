@@ -103,6 +103,7 @@ fun PactsHomeScreen(
     onOpenBoons: () -> Unit,
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
+    onSealAll: () -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -210,6 +211,50 @@ fun PactsHomeScreen(
 
             item {
                 Spacer(modifier = Modifier.height(8.dp))
+                // Panic button: only meaningful when some pact-gated app isn't
+                // already sealed — otherwise there is nothing left to seal.
+                val anySealablePact = rows.any { r ->
+                    when (r) {
+                        is GuardRow.App -> r.config.pactModeEnabled && r.state != GuardState.SEALED
+                        is GuardRow.Circle -> r.sealedCount < r.memberPackages.size
+                    }
+                }
+                if (anySealablePact) {
+                    var showSealAllDialog by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = { showSealAllDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Filled.Shield,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_seal_all))
+                    }
+                    if (showSealAllDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showSealAllDialog = false },
+                            title = { Text(stringResource(R.string.home_seal_all_confirm_title)) },
+                            text = { Text(stringResource(R.string.home_seal_all_confirm_message)) },
+                            confirmButton = {
+                                Button(onClick = {
+                                    showSealAllDialog = false
+                                    onSealAll()
+                                }) {
+                                    Text(stringResource(R.string.home_seal_all_confirm_action))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showSealAllDialog = false }) {
+                                    Text(stringResource(R.string.action_cancel))
+                                }
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 OutlinedButton(
                     onClick = onMakePact,
                     modifier = Modifier.fillMaxWidth()

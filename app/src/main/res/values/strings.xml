@@ -703,4 +703,14 @@
     <string name="progression_intro_title">Focusing now earns mana</string>
     <string name="progression_intro_message">Every focus session earns mana — energy you can spend on boons: rewards you define for yourself. Daily trials and permanent sigils mark your progress along the way.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
     <string name="progression_intro_ok">Begin earning</string>
+
+    <!-- Panic seal (Seal everything now) -->
+    <string name="home_seal_all">Seal everything now</string>
+    <string name="home_seal_all_confirm_title">Seal everything now?</string>
+    <string name="home_seal_all_confirm_message">Every pact-bound app is sealed immediately for its configured seal length, and any running pact time is revoked. Seals can\'t be lifted early.</string>
+    <string name="home_seal_all_confirm_action">Seal them</string>
+    <plurals name="home_seal_all_result">
+        <item quantity="one">%d app sealed</item>
+        <item quantity="other">%d apps sealed</item>
+    </plurals>
 </resources>

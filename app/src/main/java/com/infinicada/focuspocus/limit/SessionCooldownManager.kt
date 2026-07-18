@@ -119,6 +119,28 @@ class SessionCooldownManager(
     }
 
     /**
+     * Seals [packageName] for its base cooldown length without counting a daily
+     * offence: the "seal everything now" panic action is the user *choosing*
+     * protection, so it must neither escalate nor consume an escalation step.
+     * The existing [CooldownState.cooldownNumber] is preserved untouched for the
+     * day's later real offences. No-op semantics on duration: always the base
+     * [AppTimeLimit.cooldownMinutes], never the escalated length.
+     */
+    fun startPanicSeal(packageName: String, config: AppTimeLimit, now: Long = System.currentTimeMillis()) {
+        val states = loadCooldownStates().toMutableMap()
+        val existingNumber = states[packageName]?.cooldownNumber ?: 0
+        states[packageName] = CooldownState(
+            packageName = packageName,
+            cooldownExpiryMillis = now + config.cooldownMinutes.toLong() * 60 * 1000,
+            attemptCount = 0,
+            cooldownNumber = existingNumber
+        )
+        saveCooldownStates(states)
+        sessionStartTimes.remove(packageName)
+        Log.d(tag, "Panic seal started for $packageName: ${config.cooldownMinutes}m")
+    }
+
+    /**
      * Increments the attempt count for [packageName]'s current cooldown and returns
      * the updated count. Returns 1 if no state exists (first attempt).
      */

@@ -601,6 +601,16 @@ fun FocusPocusApp(
                             onOpenBoons = { showBoons = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
+                            onSealAll = {
+                                val sealedCount = spellbookVM.sealAllPacts()
+                                Toast.makeText(
+                                    context,
+                                    context.resources.getQuantityString(
+                                        R.plurals.home_seal_all_result, sealedCount, sealedCount
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
                             onGuardClick = { row ->
                                 spellbookVM.navigateToPacts(
                                     when (row) {

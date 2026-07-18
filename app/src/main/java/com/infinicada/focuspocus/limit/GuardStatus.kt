@@ -120,6 +120,28 @@ object GuardStatus {
             groups.flatMap { circleMemberPackages(it, blockers, configs) }
 
     /**
+     * Every pact-gated package mapped to the config that governs it: explicit
+     * pact-style configs win outright, then live circle membership (first
+     * matching group, same as the service's synthesized-config cache). This is
+     * [pactGatedPackages] with the governing settings attached — the panic
+     * seal needs each app's own seal length.
+     */
+    fun pactGatedConfigs(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>
+    ): Map<String, AppTimeLimit> {
+        val result = mutableMapOf<String, AppTimeLimit>()
+        configs.forEach { (pkg, config) -> if (config.pactModeEnabled) result[pkg] = config }
+        groups.forEach { group ->
+            circleMemberPackages(group, blockers, configs).forEach { pkg ->
+                if (pkg !in result) result[pkg] = group.toAppTimeLimit(pkg)
+            }
+        }
+        return result
+    }
+
+    /**
      * Builds the dashboard's card list: one row per explicit config plus one per
      * pact circle, ordered most-urgent first — sealed, then active pacts, then
      * spent limits, then quiet rows by today's opens descending, with the
