@@ -721,6 +721,7 @@
     <string name="home_seal_all_confirm_action">Les sceller</string>
     <plurals name="home_seal_all_result">
         <item quantity="one">%d application scellée</item>
+        <item quantity="many">%d applications scellées</item>
         <item quantity="other">%d applications scellées</item>
     </plurals>
 
