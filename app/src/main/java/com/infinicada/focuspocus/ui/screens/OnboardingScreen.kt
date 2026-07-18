@@ -319,13 +319,23 @@ private fun AccessibilityStep(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(modifier = Modifier.height(16.dp))
+        // Prominent disclosure (Play policy): what the AccessibilityService
+        // API sees and why, stated on the step itself before the settings
+        // redirect — agreeing is the redirect.
+        Text(
+            stringResource(R.string.accessibility_disclosure_body),
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isEnabled) {
             StatusConfirmedCard(stringResource(R.string.onboarding_accessibility_enabled))
         } else {
             Button(onClick = onEnable) {
-                Text(stringResource(R.string.onboarding_enable_accessibility))
+                Text(stringResource(R.string.accessibility_disclosure_agree))
             }
         }
     }

@@ -325,18 +325,37 @@ fun FocusPocusApp(
         )
     }
 
-    // Accessibility service required dialog
-    if (!isServiceEnabled) {
+    // Accessibility prominent disclosure + consent, required by Play policy
+    // before any redirect into the accessibility settings. Dismissable ("Not
+    // now") — the Protection Health card in Settings remains the re-entry
+    // point, so declining doesn't strand the user.
+    var accessibilityDialogDismissed by rememberSaveable { mutableStateOf(false) }
+    if (!isServiceEnabled && !accessibilityDialogDismissed) {
         AlertDialog(
-            onDismissRequest = {},
+            onDismissRequest = { accessibilityDialogDismissed = true },
             title = { Text(stringResource(R.string.main_accessibility_title)) },
-            text = { Text(stringResource(R.string.main_accessibility_desc)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.main_accessibility_desc))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.accessibility_disclosure_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     context.startActivity(intent)
                 }) {
-                    Text(stringResource(R.string.main_accessibility_go_to_settings))
+                    Text(stringResource(R.string.accessibility_disclosure_agree))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { accessibilityDialogDismissed = true }) {
+                    Text(stringResource(R.string.accessibility_disclosure_later))
                 }
             }
         )

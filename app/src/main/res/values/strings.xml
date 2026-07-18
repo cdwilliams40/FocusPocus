@@ -750,4 +750,9 @@
     <string name="settings_protection_problem_desc">Needs attention</string>
     <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so seals and limits hold.</string>
     <string name="home_battery_warning_fix">Review battery settings</string>
+
+    <!-- Accessibility prominent disclosure -->
+    <string name="accessibility_disclosure_body">Focus Pocus uses Android\'s AccessibilityService API for exactly one thing: noticing which app comes to the foreground, so the apps you chose to guard can be blocked or redirected. It listens only to window-change events — it cannot read screen content, keystrokes, or passwords. Nothing it observes leaves your device or is shared with anyone.</string>
+    <string name="accessibility_disclosure_agree">Agree &amp; continue</string>
+    <string name="accessibility_disclosure_later">Not now</string>
 </resources>
