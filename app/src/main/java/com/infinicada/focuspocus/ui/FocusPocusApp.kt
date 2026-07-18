@@ -158,6 +158,7 @@ fun FocusPocusApp(
     val hideStopButton by settingsVM.hideStopButton.collectAsStateWithLifecycle()
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
+    val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
     val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
@@ -408,6 +409,8 @@ fun FocusPocusApp(
                 val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                 context.startActivity(intent)
             },
+            sealLiftedAlertsEnabled = sealLiftedAlertsEnabled,
+            onSealLiftedAlertsChanged = { settingsVM.setSealLiftedAlertsEnabled(it) },
             nfcLockMode = nfcLockMode,
             onNfcLockModeChanged = { settingsVM.setNfcLockMode(it) },
             isDeviceOwner = isDeviceOwner,

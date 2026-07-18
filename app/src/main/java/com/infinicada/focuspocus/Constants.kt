@@ -130,6 +130,9 @@ object Constants {
         // available, so Context-free code (SessionRecorder's award path) can gate
         // usage-dependent trial templates deterministically.
         const val USAGE_PERMISSION_SNAPSHOT = "usagePermissionSnapshot"
+
+        // Opt-in "seal lifted" notification when a guard's cooldown expires
+        const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
     }
 
     object Defaults {
@@ -166,10 +169,13 @@ object Constants {
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
     const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
+    const val GUARDS_CHANNEL_ID = "focus_pocus_guards"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val DAILY_WRAPUP_NOTIFICATION_ID = 9003
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
+    // Tag-keyed by package name, so one id serves every app's seal-lifted note
+    const val SEAL_LIFTED_NOTIFICATION_ID = 9005
 }

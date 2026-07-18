@@ -736,4 +736,12 @@
     <string name="guard_schedule_all_day">Toute la journée</string>
     <string name="home_guard_off_schedule">Hors heures — non appliquée en ce moment</string>
     <string name="home_guard_chip_off">HORS HEURES</string>
+
+    <!-- Canal Gardes + notification de sceau levé -->
+    <string name="guards_channel_name">Gardes</string>
+    <string name="guards_channel_desc">Alertes de levée de sceau pour les pactes et protections</string>
+    <string name="seal_lifted_title">Sceau levé</string>
+    <string name="seal_lifted_message">%1$s est de nouveau accessible.</string>
+    <string name="settings_seal_lifted_toggle">Alertes de levée de sceau</string>
+    <string name="settings_seal_lifted_desc">Une note discrète quand une application scellée redevient accessible, pour ne pas vérifier en ouvrant l\'application.</string>
 </resources>

@@ -48,6 +48,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _nfcLockMode = MutableStateFlow(repo.getNfcLockMode())
     val nfcLockMode: StateFlow<Boolean> = _nfcLockMode.asStateFlow()
 
+    private val _sealLiftedAlertsEnabled = MutableStateFlow(repo.getSealLiftedAlertsEnabled())
+    val sealLiftedAlertsEnabled: StateFlow<Boolean> = _sealLiftedAlertsEnabled.asStateFlow()
+
     private val _isDeviceOwner = MutableStateFlow(DeviceOwnerManager.isDeviceOwner(application))
     val isDeviceOwner: StateFlow<Boolean> = _isDeviceOwner.asStateFlow()
 
@@ -141,6 +144,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setNfcLockMode(enabled: Boolean) {
         _nfcLockMode.value = enabled
         repo.setNfcLockMode(enabled)
+    }
+
+    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
+        _sealLiftedAlertsEnabled.value = enabled
+        repo.setSealLiftedAlertsEnabled(enabled)
     }
 
     fun refreshDeviceOwnerState() {

@@ -232,6 +232,11 @@ class MyAccessibilityService : AccessibilityService() {
         // suspension sync below both need the seal on record to stay truthful.
         sealLapsedPacts()
 
+        // Opt-in "seal lifted" notes: fire for any seal that expired since the
+        // previous tick. Runs after sealLapsedPacts so a seal starting and the
+        // same app's older state can't race within one tick.
+        maybeNotifySealsLifted()
+
         // Also enforce time limits on whichever app is currently in the foreground.
         // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
         // could stay inside an app past its daily limit indefinitely.
@@ -1452,6 +1457,28 @@ class MyAccessibilityService : AccessibilityService() {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    // Packages whose seal was active on the previous minute tick. Null until
+    // the first tick seeds it; in-memory only — a service restart just skips
+    // one comparison (a lift while the service is down is missed, best-effort
+    // like the wrap-up).
+    @Volatile private var lastActiveSealPackages: Set<String>? = null
+
+    /**
+     * Fires an opt-in notification for every seal that has lifted since the
+     * previous minute tick. Detection is a set difference over the read-only
+     * cooldown peek, so it also catches seals ended early (perk redemption) —
+     * a lift is a lift, however it happened.
+     */
+    private fun maybeNotifySealsLifted() {
+        val active = sessionCooldownManager.peekActiveCooldowns().keys
+        val previous = lastActiveSealPackages
+        lastActiveSealPackages = active
+        if (previous == null) return
+        (previous - active).forEach { pkg ->
+            GuardNotifier.postSealLifted(this, sharedPreferences, pkg)
         }
     }
 

@@ -87,6 +87,8 @@ fun SettingsScreen(
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
+    sealLiftedAlertsEnabled: Boolean,
+    onSealLiftedAlertsChanged: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     nfcLockMode: Boolean,
     onNfcLockModeChanged: (Boolean) -> Unit,
@@ -397,6 +399,27 @@ fun SettingsScreen(
                             stringResource(R.string.settings_notification_required),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_seal_lifted_toggle))
+                            Text(
+                                stringResource(R.string.settings_seal_lifted_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = sealLiftedAlertsEnabled,
+                            onCheckedChange = onSealLiftedAlertsChanged
                         )
                     }
                 }

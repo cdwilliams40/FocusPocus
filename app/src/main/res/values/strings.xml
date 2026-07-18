@@ -725,4 +725,12 @@
     <string name="guard_schedule_all_day">All day</string>
     <string name="home_guard_off_schedule">Off hours — not enforced right now</string>
     <string name="home_guard_chip_off">OFF HOURS</string>
+
+    <!-- Guards channel + seal-lifted notification -->
+    <string name="guards_channel_name">Guards</string>
+    <string name="guards_channel_desc">Seal-lifted alerts for pacts and wards</string>
+    <string name="seal_lifted_title">Seal lifted</string>
+    <string name="seal_lifted_message">%1$s is open again.</string>
+    <string name="settings_seal_lifted_toggle">Seal-lifted alerts</string>
+    <string name="settings_seal_lifted_desc">A quiet note when a sealed app opens up again, so you don\'t check by opening the app.</string>
 </resources>

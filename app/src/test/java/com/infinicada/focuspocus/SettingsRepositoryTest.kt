@@ -193,4 +193,13 @@ class SettingsRepositoryTest {
         repo.clearWardenRemovalRequest()
         assertEquals(0L, repo.getWardenRemovalRequestMillis())
     }
+
+    @Test
+    fun `seal-lifted alerts default off (opt-in) and toggle`() {
+        assertFalse(repo.getSealLiftedAlertsEnabled())
+        repo.setSealLiftedAlertsEnabled(true)
+        assertTrue(repo.getSealLiftedAlertsEnabled())
+        repo.setSealLiftedAlertsEnabled(false)
+        assertFalse(repo.getSealLiftedAlertsEnabled())
+    }
 }
