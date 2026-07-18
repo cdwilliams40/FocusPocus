@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
+import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
@@ -374,6 +375,10 @@ fun FocusPocusApp(
         mutableStateOf(notificationManager.isNotificationPolicyAccessGranted)
     }
 
+    // Enforcement health — recomputed on every return to the foreground of
+    // the surfaces that show it (Settings card, dashboard battery banner).
+    var protectionStatus by remember { mutableStateOf(ProtectionHealth.check(context)) }
+
     if (showSettings) {
         // Re-check on every return to the foreground, so granting notification
         // access or running the device-owner adb command is picked up as soon as
@@ -381,10 +386,16 @@ fun FocusPocusApp(
         LifecycleResumeEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
             settingsVM.refreshDeviceOwnerState()
+            protectionStatus = ProtectionHealth.check(context)
             onPauseOrDispose { }
         }
         BackHandler { showSettings = false }
         SettingsScreen(
+            protectionStatus = protectionStatus,
+            onFixAccessibility = { ProtectionHealth.openAccessibilitySettings(context) },
+            onFixUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+            onFixNotifications = { ProtectionHealth.openNotificationSettings(context) },
+            onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
             themeMode = themeMode,
             onThemeModeChanged = { settingsVM.setThemeMode(it) },
             breakDurationMinutes = breakDurationMinutes,
@@ -564,6 +575,7 @@ fun FocusPocusApp(
                         LifecycleResumeEffect(Unit) {
                             guardTick++
                             usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            protectionStatus = ProtectionHealth.check(context)
                             onPauseOrDispose { }
                         }
                         var guardLiveStates by remember {
@@ -601,6 +613,8 @@ fun FocusPocusApp(
                             currentStreak = currentStreak,
                             usageAccessGranted = usageAccessGranted,
                             onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+                            batteryUnrestricted = protectionStatus.batteryUnrestricted,
+                            onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
                             onOpenBoons = { showBoons = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },

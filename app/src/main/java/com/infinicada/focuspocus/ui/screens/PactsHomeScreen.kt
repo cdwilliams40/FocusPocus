@@ -101,6 +101,8 @@ fun PactsHomeScreen(
     currentStreak: Int,
     usageAccessGranted: Boolean,
     onGrantUsageAccess: () -> Unit,
+    batteryUnrestricted: Boolean,
+    onFixBattery: () -> Unit,
     onOpenBoons: () -> Unit,
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
@@ -155,6 +157,29 @@ fun PactsHomeScreen(
                     breakTimeRemaining = breakTimeRemaining,
                     onClick = onOpenFocus
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        // OEM battery optimizers are the classic silent killer of the
+        // enforcement service — warn on the dashboard as soon as any guard
+        // exists to be broken. (Accessibility-off already has its own modal.)
+        if (!batteryUnrestricted && rows.isNotEmpty()) {
+            item {
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.home_battery_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onFixBattery) {
+                        Text(stringResource(R.string.home_battery_warning_fix))
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }

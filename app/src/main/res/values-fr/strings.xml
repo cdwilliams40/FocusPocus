@@ -744,4 +744,21 @@
     <string name="seal_lifted_message">%1$s est de nouveau accessible.</string>
     <string name="settings_seal_lifted_toggle">Alertes de levée de sceau</string>
     <string name="settings_seal_lifted_desc">Une note discrète quand une application scellée redevient accessible, pour ne pas vérifier en ouvrant l\'application.</string>
+
+    <!-- Santé de la protection -->
+    <string name="settings_protection_health">Santé de la protection</string>
+    <string name="settings_protection_all_good">Tout ce dont l\'application a besoin est en place.</string>
+    <string name="settings_protection_accessibility">Service de blocage</string>
+    <string name="settings_protection_accessibility_off">Le service d\'accessibilité est désactivé — rien n\'est bloqué.</string>
+    <string name="settings_protection_usage">Accès à l\'utilisation</string>
+    <string name="settings_protection_usage_off">Les limites quotidiennes et déblocages conditionnels ne peuvent pas être suivis.</string>
+    <string name="settings_protection_notifications">Notifications</string>
+    <string name="settings_protection_notifications_off">Les alertes de rituels, comptes à rebours et notes de sceau ne s\'afficheront pas.</string>
+    <string name="settings_protection_battery">Batterie sans restriction</string>
+    <string name="settings_protection_battery_off">L\'optimisation de la batterie peut tuer l\'application en arrière-plan.</string>
+    <string name="settings_protection_fix">Corriger</string>
+    <string name="settings_protection_ok_desc">En place</string>
+    <string name="settings_protection_problem_desc">Attention requise</string>
+    <string name="home_battery_warning">L\'optimisation de la batterie peut tuer l\'application en arrière-plan. Exemptez Focus Pocus pour que les sceaux et limites tiennent.</string>
+    <string name="home_battery_warning_fix">Vérifier les réglages batterie</string>
 </resources>

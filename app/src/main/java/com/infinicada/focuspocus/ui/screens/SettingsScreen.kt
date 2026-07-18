@@ -20,7 +20,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
@@ -64,6 +67,11 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    protectionStatus: ProtectionHealth.Status,
+    onFixAccessibility: () -> Unit,
+    onFixUsageAccess: () -> Unit,
+    onFixNotifications: () -> Unit,
+    onFixBattery: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
     breakDurationMinutes: Int,
@@ -131,6 +139,50 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Protection Health Card — the "am I actually protected?" glance
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_protection_health),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (protectionStatus.allHealthy) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_protection_all_good),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.accessibilityEnabled,
+                        title = stringResource(R.string.settings_protection_accessibility),
+                        problem = stringResource(R.string.settings_protection_accessibility_off),
+                        onFix = onFixAccessibility
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.usageAccessGranted,
+                        title = stringResource(R.string.settings_protection_usage),
+                        problem = stringResource(R.string.settings_protection_usage_off),
+                        onFix = onFixUsageAccess
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.notificationsEnabled,
+                        title = stringResource(R.string.settings_protection_notifications),
+                        problem = stringResource(R.string.settings_protection_notifications_off),
+                        onFix = onFixNotifications
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.batteryUnrestricted,
+                        title = stringResource(R.string.settings_protection_battery),
+                        problem = stringResource(R.string.settings_protection_battery_off),
+                        onFix = onFixBattery
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Appearance Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -670,6 +722,51 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    }
+}
+
+/** One protection check: a status icon and, when unhealthy, the why + a fix link. */
+@Composable
+private fun ProtectionHealthRow(
+    healthy: Boolean,
+    title: String,
+    problem: String,
+    onFix: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (healthy) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
+            contentDescription = stringResource(
+                if (healthy) R.string.settings_protection_ok_desc
+                else R.string.settings_protection_problem_desc
+            ),
+            tint = if (healthy) MaterialTheme.colorScheme.primary
+                   else MaterialTheme.colorScheme.error
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            if (!healthy) {
+                Text(
+                    problem,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        if (!healthy) {
+            TextButton(onClick = onFix) {
+                Text(stringResource(R.string.settings_protection_fix))
+            }
+        }
     }
 }
 

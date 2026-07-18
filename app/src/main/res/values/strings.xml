@@ -733,4 +733,21 @@
     <string name="seal_lifted_message">%1$s is open again.</string>
     <string name="settings_seal_lifted_toggle">Seal-lifted alerts</string>
     <string name="settings_seal_lifted_desc">A quiet note when a sealed app opens up again, so you don\'t check by opening the app.</string>
+
+    <!-- Protection health -->
+    <string name="settings_protection_health">Protection health</string>
+    <string name="settings_protection_all_good">Everything enforcement needs is in place.</string>
+    <string name="settings_protection_accessibility">Blocking service</string>
+    <string name="settings_protection_accessibility_off">Accessibility service is off — nothing is blocked.</string>
+    <string name="settings_protection_usage">Usage access</string>
+    <string name="settings_protection_usage_off">Daily limits and conditional unlocks can\'t be tracked.</string>
+    <string name="settings_protection_notifications">Notifications</string>
+    <string name="settings_protection_notifications_off">Ritual alerts, countdowns, and seal notes won\'t show.</string>
+    <string name="settings_protection_battery">Unrestricted battery</string>
+    <string name="settings_protection_battery_off">Battery optimization can kill enforcement in the background.</string>
+    <string name="settings_protection_fix">Fix</string>
+    <string name="settings_protection_ok_desc">In place</string>
+    <string name="settings_protection_problem_desc">Needs attention</string>
+    <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so seals and limits hold.</string>
+    <string name="home_battery_warning_fix">Review battery settings</string>
 </resources>
