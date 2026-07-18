@@ -760,28 +760,8 @@ class MyAccessibilityService : AccessibilityService() {
         )
     }
 
-    /**
-     * Wall-clock millis when [schedule]'s window ends, resolved from "now" at
-     * activation: the next occurrence of the end time (tomorrow for overnight
-     * schedules). Null if the schedule's end time is malformed.
-     */
-    private fun computeScheduleEndMillis(schedule: Schedule): Long? {
-        val parts = schedule.effectiveEndTime.split(":")
-        if (parts.size != 2) return null
-        val endHour = parts[0].toIntOrNull() ?: return null
-        val endMinute = parts[1].toIntOrNull() ?: return null
-        if (endHour !in 0..23 || endMinute !in 0..59) return null
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, endHour)
-            set(Calendar.MINUTE, endMinute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        if (cal.timeInMillis <= System.currentTimeMillis()) {
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-        return cal.timeInMillis
-    }
+    // computeScheduleEndMillis is a shared top-level function in ScheduleUtils.kt,
+    // used by both this service and the RitualAlarmScheduler backstop.
 
     private fun deactivateSchedule(schedule: Schedule) {
         SessionManager.stopSession(this, sharedPreferences, gson)

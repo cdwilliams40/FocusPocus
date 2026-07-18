@@ -338,6 +338,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         _schedules.value = scheduleRepo.getSchedules()
         _dataVersion.value++
+        // The next-transition alarm may now point at the wrong moment.
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun deleteSchedule(schedule: Schedule) {
@@ -352,6 +354,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             notificationManager.cancel(baseId + 1)
         }
         _dataVersion.value++
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun saveFocusPreset(preset: FocusPreset) {
