@@ -2,6 +2,7 @@ package com.infinicada.focuspocus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,8 +37,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,9 +57,11 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
+import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
@@ -161,6 +167,25 @@ fun GuardEditorScreen(
         mutableIntStateOf(initial?.cooldownEscalationStepMinutes?.takeIf { it > 0 } ?: 15)
     }
 
+    // ── Guard hours (shared by every target and style) ──
+    val initialStartMins = GuardWindow.parseMinutes(initial?.activeStartTime)
+    val initialEndMins = GuardWindow.parseMinutes(initial?.activeEndTime)
+    var scheduleEnabled by remember {
+        mutableStateOf(!(initial?.activeDays.isNullOrEmpty()) || (initialStartMins != null && initialEndMins != null))
+    }
+    var selectedActiveDays by remember { mutableStateOf(initial?.activeDays ?: emptySet()) }
+    var hoursEnabled by remember { mutableStateOf(initialStartMins != null && initialEndMins != null) }
+    val windowStartState = rememberTimePickerState(
+        initialHour = (initialStartMins ?: 21 * 60) / 60,
+        initialMinute = (initialStartMins ?: 0) % 60
+    )
+    val windowEndState = rememberTimePickerState(
+        initialHour = (initialEndMins ?: 7 * 60) / 60,
+        initialMinute = (initialEndMins ?: 0) % 60
+    )
+    var showWindowStartPicker by remember { mutableStateOf(false) }
+    var showWindowEndPicker by remember { mutableStateOf(false) }
+
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val pactMaxOptions = listOf(
@@ -214,6 +239,20 @@ fun GuardEditorScreen(
     }
 
     fun save() {
+        // Guard hours normalize on save: schedule off (or an identical
+        // start/end pair) persists as nulls — "always active", the historical
+        // shape — so unscheduled guards keep serializing exactly as before.
+        val windowStartMins = windowStartState.hour * 60 + windowStartState.minute
+        val windowEndMins = windowEndState.hour * 60 + windowEndState.minute
+        val saveWindow = scheduleEnabled && hoursEnabled && windowStartMins != windowEndMins
+        val activeDaysToSave = if (scheduleEnabled) selectedActiveDays.takeIf { it.isNotEmpty() } else null
+        val startToSave = if (saveWindow) {
+            "%02d:%02d".format(windowStartState.hour, windowStartState.minute)
+        } else null
+        val endToSave = if (saveWindow) {
+            "%02d:%02d".format(windowEndState.hour, windowEndState.minute)
+        } else null
+
         if (isCircle) {
             val blockerName = editingGroup?.blockerName ?: targetEnchantment?.name ?: return
             onSaveGroup(
@@ -224,7 +263,10 @@ fun GuardEditorScreen(
                     cooldownEscalationEnabled = escalationEnabled,
                     cooldownEscalationStepMinutes = escalationStepMinutes,
                     pactAlternativePackage = alternativePackage,
-                    dailyLimitMinutes = backstopMinutes
+                    dailyLimitMinutes = backstopMinutes,
+                    activeDays = activeDaysToSave,
+                    activeStartTime = startToSave,
+                    activeEndTime = endToSave
                 )
             )
         } else {
@@ -240,7 +282,10 @@ fun GuardEditorScreen(
                         cooldownEscalationStepMinutes = escalationStepMinutes,
                         pactModeEnabled = true,
                         pactMaxMinutes = pactMaxMinutes,
-                        pactAlternativePackage = alternativePackage
+                        pactAlternativePackage = alternativePackage,
+                        activeDays = activeDaysToSave,
+                        activeStartTime = startToSave,
+                        activeEndTime = endToSave
                     )
                 } else {
                     AppTimeLimit(
@@ -253,7 +298,10 @@ fun GuardEditorScreen(
                         // don't persist a value chosen for the other style.
                         cooldownEscalationEnabled = sessionCooldownEnabled && escalationEnabled,
                         cooldownEscalationStepMinutes = escalationStepMinutes,
-                        pactModeEnabled = false
+                        pactModeEnabled = false,
+                        activeDays = activeDaysToSave,
+                        activeStartTime = startToSave,
+                        activeEndTime = endToSave
                     )
                 }
             )
@@ -581,6 +629,129 @@ fun GuardEditorScreen(
                         onSelect = { escalationStepMinutes = it }
                     )
                 }
+            }
+
+            // ── Guard hours (both styles; circles too) ──
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.guard_schedule_toggle),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        stringResource(R.string.guard_schedule_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = scheduleEnabled,
+                    onCheckedChange = { scheduleEnabled = it }
+                )
+            }
+            if (scheduleEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.guard_schedule_days),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    DayOfWeek.entries.forEach { day ->
+                        FilterChip(
+                            selected = selectedActiveDays.contains(day),
+                            onClick = {
+                                selectedActiveDays = if (selectedActiveDays.contains(day)) {
+                                    selectedActiveDays - day
+                                } else {
+                                    selectedActiveDays + day
+                                }
+                            },
+                            label = { Text(day.name.take(1)) }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.guard_schedule_hours_toggle),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.guard_schedule_hours_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = hoursEnabled,
+                        onCheckedChange = { hoursEnabled = it }
+                    )
+                }
+                if (hoursEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val windowOvernight = windowEndState.hour * 60 + windowEndState.minute <=
+                        windowStartState.hour * 60 + windowStartState.minute
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { showWindowStartPicker = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.rituals_start_time,
+                                    "%02d:%02d".format(windowStartState.hour, windowStartState.minute)
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(
+                            onClick = { showWindowEndPicker = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (windowOvernight) R.string.rituals_end_time_next_day
+                                    else R.string.rituals_end_time,
+                                    "%02d:%02d".format(windowEndState.hour, windowEndState.minute)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            if (showWindowStartPicker) {
+                AlertDialog(
+                    onDismissRequest = { showWindowStartPicker = false },
+                    confirmButton = {
+                        Button(onClick = { showWindowStartPicker = false }) {
+                            Text(stringResource(R.string.action_ok))
+                        }
+                    },
+                    text = { TimePicker(state = windowStartState) }
+                )
+            }
+            if (showWindowEndPicker) {
+                AlertDialog(
+                    onDismissRequest = { showWindowEndPicker = false },
+                    confirmButton = {
+                        Button(onClick = { showWindowEndPicker = false }) {
+                            Text(stringResource(R.string.action_ok))
+                        }
+                    },
+                    text = { TimePicker(state = windowEndState) }
+                )
             }
 
             // A ward (or a pact's daily backstop) is inert without usage

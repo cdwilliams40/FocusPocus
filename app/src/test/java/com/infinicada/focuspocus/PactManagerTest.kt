@@ -169,4 +169,20 @@ class PactManagerTest {
         pactModeEnabled = true,
         pactMaxMinutes = pactMaxMinutes
     )
+
+    @Test
+    fun `revokeAllowance drops an active allowance without starting a seal`() {
+        manager.grantAllowance(pkg, minutes = 10, now = t0)
+        manager.revokeAllowance(pkg)
+
+        assertNull(manager.getAllowanceExpiry(pkg, t0))
+        // Nothing left to lapse either — revocation is not a lapse.
+        assertNull(manager.takeLapsedAllowance(pkg, t0 + 11 * 60 * 1000L))
+    }
+
+    @Test
+    fun `revokeAllowance is a no-op for unknown packages`() {
+        manager.revokeAllowance("com.example.unknown")
+        assertNull(manager.getAllowanceExpiry("com.example.unknown", t0))
+    }
 }

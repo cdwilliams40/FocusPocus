@@ -311,7 +311,6 @@
     <string name="onboarding_accessibility_title">Grant Magical Sight</string>
     <string name="onboarding_accessibility_desc">Focus Pocus needs Accessibility permission to notice when you open a sealed or blocked app and offer you a conscious choice instead.</string>
     <string name="onboarding_accessibility_enabled">Accessibility enabled</string>
-    <string name="onboarding_enable_accessibility">Enable Accessibility Service</string>
     <string name="onboarding_pact_title">Seal Your First Apps</string>
     <string name="onboarding_pact_desc">Pick the apps that eat your attention. They\'ll be sealed by default — opening one asks how much time you truly need.</string>
     <string name="onboarding_pact_pick">Choose apps to seal (%d selected)</string>
@@ -703,4 +702,70 @@
     <string name="progression_intro_title">Focusing now earns mana</string>
     <string name="progression_intro_message">Every focus session earns mana — energy you can spend on boons: rewards you define for yourself. Daily trials and permanent sigils mark your progress along the way.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
     <string name="progression_intro_ok">Begin earning</string>
+
+    <!-- Panic seal (Seal everything now) -->
+    <string name="home_seal_all">Seal everything now</string>
+    <string name="home_seal_all_confirm_title">Seal everything now?</string>
+    <string name="home_seal_all_confirm_message">Every pact-bound app is sealed immediately for its configured seal length, and any running pact time is revoked. Seals can\'t be lifted early.</string>
+    <string name="home_seal_all_confirm_action">Seal them</string>
+    <plurals name="home_seal_all_result">
+        <item quantity="one">%d app sealed</item>
+        <item quantity="other">%d apps sealed</item>
+    </plurals>
+
+    <!-- Guard hours (per-guard schedules) -->
+    <string name="guard_schedule_toggle">Guard hours</string>
+    <string name="guard_schedule_desc">Enforce this guard only on chosen days and hours. Outside them the app is free — though a running seal still holds.</string>
+    <string name="guard_schedule_days">Active days — none selected means every day</string>
+    <string name="guard_schedule_hours_toggle">Between certain hours</string>
+    <string name="guard_schedule_hours_desc">An end before the start runs overnight, e.g. 21:00–07:00.</string>
+    <string name="guard_schedule_summary">Guard hours: %1$s · %2$s</string>
+    <string name="guard_schedule_every_day">Every day</string>
+    <string name="guard_schedule_all_day">All day</string>
+    <string name="home_guard_off_schedule">Off hours — not enforced right now</string>
+    <string name="home_guard_chip_off">OFF HOURS</string>
+
+    <!-- Guards channel + seal-lifted notification -->
+    <string name="guards_channel_name">Guards</string>
+    <string name="guards_channel_desc">Seal-lifted alerts for pacts and wards</string>
+    <string name="seal_lifted_title">Seal lifted</string>
+    <string name="seal_lifted_message">%1$s is open again.</string>
+    <string name="settings_seal_lifted_toggle">Seal-lifted alerts</string>
+    <string name="settings_seal_lifted_desc">A quiet note when a sealed app opens up again, so you don\'t check by opening the app.</string>
+
+    <!-- Protection health -->
+    <string name="settings_protection_health">Protection health</string>
+    <string name="settings_protection_all_good">Everything enforcement needs is in place.</string>
+    <string name="settings_protection_accessibility">Blocking service</string>
+    <string name="settings_protection_accessibility_off">Accessibility service is off — nothing is blocked.</string>
+    <string name="settings_protection_usage">Usage access</string>
+    <string name="settings_protection_usage_off">Daily limits and conditional unlocks can\'t be tracked.</string>
+    <string name="settings_protection_notifications">Notifications</string>
+    <string name="settings_protection_notifications_off">Ritual alerts, countdowns, and seal notes won\'t show.</string>
+    <string name="settings_protection_battery">Unrestricted battery</string>
+    <string name="settings_protection_battery_off">Battery optimization can kill enforcement in the background.</string>
+    <string name="settings_protection_fix">Fix</string>
+    <string name="settings_protection_ok_desc">In place</string>
+    <string name="settings_protection_problem_desc">Needs attention</string>
+    <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so seals and limits hold.</string>
+    <string name="home_battery_warning_fix">Review battery settings</string>
+
+    <!-- Accessibility prominent disclosure -->
+    <string name="accessibility_disclosure_body">Focus Pocus uses Android\'s AccessibilityService API for exactly one thing: noticing which app comes to the foreground, so the apps you chose to guard can be blocked or redirected. It listens only to window-change events — it cannot read screen content, keystrokes, or passwords. Nothing it observes leaves your device or is shared with anyone.</string>
+    <string name="accessibility_disclosure_agree">Agree &amp; continue</string>
+    <string name="accessibility_disclosure_later">Not now</string>
+
+    <!-- Backup / restore -->
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_desc">Save your enchantments, pacts, rituals, history, and settings to a file — a reinstall or a new phone shouldn\'t cost you your streaks. Live session state and running seals stay on the device.</string>
+    <string name="settings_backup_export">Save backup…</string>
+    <string name="settings_backup_import">Restore from backup…</string>
+    <string name="backup_export_done">Backup saved</string>
+    <string name="backup_export_failed">Couldn\'t save the backup</string>
+    <string name="backup_import_done">Backup restored — restarting</string>
+    <string name="backup_import_invalid">That file isn\'t a Focus Pocus backup</string>
+    <string name="backup_import_newer">This backup comes from a newer version of Focus Pocus</string>
+    <string name="backup_import_confirm_title">Restore from backup?</string>
+    <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
+    <string name="backup_import_confirm_yes">Choose file</string>
 </resources>

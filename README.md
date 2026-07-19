@@ -24,6 +24,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Perfect for work hours, study sessions, or bedtime routines
 - Optional unbinding talisman requirement to end a ritual early
 - Persists across device reboots
+- Backed by an exact-alarm backstop: rituals start and end on time even if the accessibility service was killed
 
 ### NFC Talisman Support
 - Use NFC tags as physical "talismans" to toggle focus mode
@@ -59,6 +60,28 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
 - Managed front and center on the **Pacts tab — the app's home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
 - **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
+
+### Guard Hours (Per-Guard Schedules)
+- Give any pact, ward, or pact circle a schedule: active days and an optional daily time window ("this pact only applies 21:00–07:00 on weekdays")
+- Overnight windows wrap past midnight with the same semantics as rituals
+- Outside its hours a guard stands down — the app is free, and Warden greying releases it — though a running seal always holds
+- The dashboard shows each guard's hours and an **Off hours** state
+
+### Seal Everything Now (Panic Button)
+- One tap on the Pacts dashboard seals every pact-bound app for its configured seal length and revokes running pact time
+- Sealing this way never counts as an offence — choosing protection doesn't make later real lapses harsher
+
+### Seal-Lifted Alerts
+- Optional quiet notification when a sealed app opens up again, so you don't "check" by opening the app (off by default)
+
+### Protection Health
+- A Settings card answers "am I actually protected right now?": accessibility service alive, usage access granted, notifications allowed, battery optimization exempted — each with a one-tap fix
+- The dashboard warns when an OEM battery optimizer could kill enforcement in the background
+
+### Backup & Restore
+- Export enchantments, guards, rituals, presets, talismans, history, and settings to a JSON file; restore on a reinstall or a new phone
+- Live session state and running seals deliberately stay on the device, so a restore can't resurrect a stale seal
+- Restores are versioned, validated, and applied atomically before an automatic app restart
 
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one

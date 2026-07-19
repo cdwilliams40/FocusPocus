@@ -58,6 +58,14 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit().putBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, enabled).apply()
     }
 
+    /** Opt-in (default off): notify when a guard's seal lifts. */
+    fun getSealLiftedAlertsEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, false)
+
+    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, enabled).apply()
+    }
+
     fun getNfcLockMode(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 

@@ -305,7 +305,6 @@
     <string name="onboarding_accessibility_title">Accorder la vue magique</string>
     <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour remarquer l\'ouverture d\'une application scellée ou bloquée et vous proposer un choix conscient à la place.</string>
     <string name="onboarding_accessibility_enabled">Accessibilité activée</string>
-    <string name="onboarding_enable_accessibility">Activer le service d\'accessibilité</string>
     <string name="onboarding_pact_title">Scellez vos premières applications</string>
     <string name="onboarding_pact_desc">Choisissez les applications qui dévorent votre attention. Elles seront scellées par défaut — en ouvrir une demande de combien de temps vous avez vraiment besoin.</string>
     <string name="onboarding_pact_pick">Choisir les applications à sceller (%d sélectionnées)</string>
@@ -714,4 +713,71 @@
     <string name="session_complete_breaks">Pauses prises : %1$d</string>
     <string name="session_complete_enchantment">Enchantement : %1$s</string>
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
+
+    <!-- Scellement d\'urgence (Tout sceller maintenant) -->
+    <string name="home_seal_all">Tout sceller maintenant</string>
+    <string name="home_seal_all_confirm_title">Tout sceller maintenant ?</string>
+    <string name="home_seal_all_confirm_message">Chaque application liée à un pacte est scellée immédiatement pour sa durée de scellement configurée, et tout temps de pacte en cours est révoqué. Les sceaux ne peuvent pas être levés en avance.</string>
+    <string name="home_seal_all_confirm_action">Les sceller</string>
+    <plurals name="home_seal_all_result">
+        <item quantity="one">%d application scellée</item>
+        <item quantity="many">%d applications scellées</item>
+        <item quantity="other">%d applications scellées</item>
+    </plurals>
+
+    <!-- Heures de garde (horaires par garde) -->
+    <string name="guard_schedule_toggle">Heures de garde</string>
+    <string name="guard_schedule_desc">N\'appliquer cette garde que certains jours et à certaines heures. En dehors, l\'application est libre — mais un sceau en cours tient toujours.</string>
+    <string name="guard_schedule_days">Jours actifs — aucun sélectionné signifie tous les jours</string>
+    <string name="guard_schedule_hours_toggle">Entre certaines heures</string>
+    <string name="guard_schedule_hours_desc">Une fin avant le début s\'étend sur la nuit, p. ex. 21:00–07:00.</string>
+    <string name="guard_schedule_summary">Heures de garde : %1$s · %2$s</string>
+    <string name="guard_schedule_every_day">Tous les jours</string>
+    <string name="guard_schedule_all_day">Toute la journée</string>
+    <string name="home_guard_off_schedule">Hors heures — non appliquée en ce moment</string>
+    <string name="home_guard_chip_off">HORS HEURES</string>
+
+    <!-- Canal Gardes + notification de sceau levé -->
+    <string name="guards_channel_name">Gardes</string>
+    <string name="guards_channel_desc">Alertes de levée de sceau pour les pactes et protections</string>
+    <string name="seal_lifted_title">Sceau levé</string>
+    <string name="seal_lifted_message">%1$s est de nouveau accessible.</string>
+    <string name="settings_seal_lifted_toggle">Alertes de levée de sceau</string>
+    <string name="settings_seal_lifted_desc">Une note discrète quand une application scellée redevient accessible, pour ne pas vérifier en ouvrant l\'application.</string>
+
+    <!-- Santé de la protection -->
+    <string name="settings_protection_health">Santé de la protection</string>
+    <string name="settings_protection_all_good">Tout ce dont l\'application a besoin est en place.</string>
+    <string name="settings_protection_accessibility">Service de blocage</string>
+    <string name="settings_protection_accessibility_off">Le service d\'accessibilité est désactivé — rien n\'est bloqué.</string>
+    <string name="settings_protection_usage">Accès à l\'utilisation</string>
+    <string name="settings_protection_usage_off">Les limites quotidiennes et déblocages conditionnels ne peuvent pas être suivis.</string>
+    <string name="settings_protection_notifications">Notifications</string>
+    <string name="settings_protection_notifications_off">Les alertes de rituels, comptes à rebours et notes de sceau ne s\'afficheront pas.</string>
+    <string name="settings_protection_battery">Batterie sans restriction</string>
+    <string name="settings_protection_battery_off">L\'optimisation de la batterie peut tuer l\'application en arrière-plan.</string>
+    <string name="settings_protection_fix">Corriger</string>
+    <string name="settings_protection_ok_desc">En place</string>
+    <string name="settings_protection_problem_desc">Attention requise</string>
+    <string name="home_battery_warning">L\'optimisation de la batterie peut tuer l\'application en arrière-plan. Exemptez Focus Pocus pour que les sceaux et limites tiennent.</string>
+    <string name="home_battery_warning_fix">Vérifier les réglages batterie</string>
+
+    <!-- Divulgation visible : accessibilité -->
+    <string name="accessibility_disclosure_body">Focus Pocus utilise l\'API AccessibilityService d\'Android pour une seule chose : remarquer quelle application passe au premier plan, afin de bloquer ou rediriger les applications que vous avez choisi de garder. Elle n\'écoute que les changements de fenêtre — elle ne peut lire ni le contenu de l\'écran, ni les frappes, ni les mots de passe. Rien de ce qu\'elle observe ne quitte votre appareil ni n\'est partagé.</string>
+    <string name="accessibility_disclosure_agree">Accepter et continuer</string>
+    <string name="accessibility_disclosure_later">Pas maintenant</string>
+
+    <!-- Sauvegarde / restauration -->
+    <string name="settings_backup">Sauvegarde</string>
+    <string name="settings_backup_desc">Enregistrez vos enchantements, pactes, rituels, historique et réglages dans un fichier — une réinstallation ou un nouveau téléphone ne devrait pas vous coûter vos séries. L\'état de session en cours et les sceaux actifs restent sur l\'appareil.</string>
+    <string name="settings_backup_export">Enregistrer la sauvegarde…</string>
+    <string name="settings_backup_import">Restaurer une sauvegarde…</string>
+    <string name="backup_export_done">Sauvegarde enregistrée</string>
+    <string name="backup_export_failed">Impossible d\'enregistrer la sauvegarde</string>
+    <string name="backup_import_done">Sauvegarde restaurée — redémarrage</string>
+    <string name="backup_import_invalid">Ce fichier n\'est pas une sauvegarde Focus Pocus</string>
+    <string name="backup_import_newer">Cette sauvegarde provient d\'une version plus récente de Focus Pocus</string>
+    <string name="backup_import_confirm_title">Restaurer une sauvegarde ?</string>
+    <string name="backup_import_confirm_message">La restauration remplace vos enchantements, pactes, rituels, historique et réglages actuels par ceux de la sauvegarde, puis redémarre l\'application. C\'est irréversible.</string>
+    <string name="backup_import_confirm_yes">Choisir le fichier</string>
 </resources>

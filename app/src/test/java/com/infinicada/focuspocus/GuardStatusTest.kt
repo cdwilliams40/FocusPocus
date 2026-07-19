@@ -300,4 +300,53 @@ class GuardStatusTest {
         )
         assertFalse(GuardStatus.hasPactRows(rows))
     }
+
+    // ── Guard hours ──
+
+    @Test
+    fun `outside its window a guard shows SCHEDULED_OFF unless sealed`() {
+        val live = GuardLiveState(usedMinutesToday = 999, allowanceExpiryMillis = t0 + 60_000)
+        assertEquals(
+            GuardState.SCHEDULED_OFF,
+            GuardStatus.resolveState(ward("a", daily = 60), live, t0, windowActive = false)
+        )
+        assertEquals(
+            GuardState.SCHEDULED_OFF,
+            GuardStatus.resolveState(pact("a"), live, t0, windowActive = false)
+        )
+        // A running seal still shows SEALED — a seal is a seal.
+        val sealed = live.copy(cooldownExpiryMillis = t0 + 60_000)
+        assertEquals(
+            GuardState.SEALED,
+            GuardStatus.resolveState(pact("a"), sealed, t0, windowActive = false)
+        )
+    }
+
+    // ── pactGatedConfigs ──
+
+    @Test
+    fun `pactGatedConfigs maps explicit pacts and circle members to their governing config`() {
+        val configs = mapOf(
+            "com.pact" to pact("com.pact"),
+            "com.ward" to ward("com.ward")
+        )
+        val group = PactGroup(blockerName = "Doomscroll", pactMaxMinutes = 5, cooldownMinutes = 45)
+        val blockers = listOf(
+            Blocker(
+                name = "Doomscroll",
+                mode = BlockerMode.BLACKLIST,
+                apps = setOf("com.member", "com.pact", "com.ward")
+            )
+        )
+
+        val gated = GuardStatus.pactGatedConfigs(configs, listOf(group), blockers)
+
+        // Explicit pact config wins as itself; explicit ward excludes the app entirely.
+        assertEquals(setOf("com.pact", "com.member"), gated.keys)
+        assertEquals(configs["com.pact"], gated["com.pact"])
+        // The circle member carries the group's settings.
+        assertEquals(45, gated.getValue("com.member").cooldownMinutes)
+        assertEquals(5, gated.getValue("com.member").pactMaxMinutes)
+        assertTrue(gated.getValue("com.member").pactModeEnabled)
+    }
 }

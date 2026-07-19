@@ -18,8 +18,11 @@ data class GuardLiveState(
     val usedMinutesToday: Int = 0
 )
 
-/** Display state of a guarded app. Declaration order is the dashboard sort order. */
-enum class GuardState { SEALED, PACT_ACTIVE, OVER_LIMIT, QUIET }
+/**
+ * Display state of a guarded app. Declaration order is the dashboard sort
+ * order; SCHEDULED_OFF (outside its guard hours, so not enforced) sorts last.
+ */
+enum class GuardState { SEALED, PACT_ACTIVE, OVER_LIMIT, QUIET, SCHEDULED_OFF }
 
 /** Aggregate counts for the dashboard headline. */
 data class GuardHeadline(
@@ -59,13 +62,16 @@ sealed class GuardRow {
         val memberPackages: List<String>,
         /**
          * Members whose pact gate is requestable right now — quiet ones, i.e.
-         * not sealed, no running allowance, under any daily backstop. Feeds the
-         * dashboard's request-time picker.
+         * not sealed, no running allowance, under any daily backstop, and
+         * inside the circle's guard hours. Feeds the dashboard's request-time
+         * picker.
          */
         val quietMemberPackages: List<String>,
         val sealedCount: Int,
         val pactActiveCount: Int,
         val overLimitCount: Int,
+        /** Members currently outside the circle's guard hours (not enforced). */
+        val offScheduleCount: Int,
         val opensToday: Int,
         val reflexesToday: Int
     ) : GuardRow()
@@ -77,9 +83,20 @@ sealed class GuardRow {
  */
 object GuardStatus {
 
-    /** The display state for one config given its live enforcement snapshot. */
-    fun resolveState(config: AppTimeLimit, live: GuardLiveState, now: Long): GuardState = when {
+    /**
+     * The display state for one config given its live enforcement snapshot.
+     * [windowActive] is the guard-hours verdict (GuardWindow) — outside its
+     * window a guard shows SCHEDULED_OFF, except that a running seal still
+     * shows SEALED (a seal is a seal, and enforcement agrees).
+     */
+    fun resolveState(
+        config: AppTimeLimit,
+        live: GuardLiveState,
+        now: Long,
+        windowActive: Boolean = true
+    ): GuardState = when {
         (live.cooldownExpiryMillis ?: 0L) > now -> GuardState.SEALED
+        !windowActive -> GuardState.SCHEDULED_OFF
         config.pactModeEnabled && (live.allowanceExpiryMillis ?: 0L) > now -> GuardState.PACT_ACTIVE
         config.dailyLimitMinutes > 0 && live.usedMinutesToday >= config.dailyLimitMinutes ->
             GuardState.OVER_LIMIT
@@ -120,6 +137,28 @@ object GuardStatus {
             groups.flatMap { circleMemberPackages(it, blockers, configs) }
 
     /**
+     * Every pact-gated package mapped to the config that governs it: explicit
+     * pact-style configs win outright, then live circle membership (first
+     * matching group, same as the service's synthesized-config cache). This is
+     * [pactGatedPackages] with the governing settings attached — the panic
+     * seal needs each app's own seal length.
+     */
+    fun pactGatedConfigs(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>
+    ): Map<String, AppTimeLimit> {
+        val result = mutableMapOf<String, AppTimeLimit>()
+        configs.forEach { (pkg, config) -> if (config.pactModeEnabled) result[pkg] = config }
+        groups.forEach { group ->
+            circleMemberPackages(group, blockers, configs).forEach { pkg ->
+                if (pkg !in result) result[pkg] = group.toAppTimeLimit(pkg)
+            }
+        }
+        return result
+    }
+
+    /**
      * Builds the dashboard's card list: one row per explicit config plus one per
      * pact circle, ordered most-urgent first — sealed, then active pacts, then
      * spent limits, then quiet rows by today's opens descending, with the
@@ -138,7 +177,7 @@ object GuardStatus {
         val appRows = configs.map { (pkg, config) ->
             val live = liveStates[pkg] ?: GuardLiveState()
             val stats = openStats[pkg] ?: AppOpenStats()
-            val state = resolveState(config, live, now)
+            val state = resolveState(config, live, now, GuardWindow.isActiveNow(config, now))
             GuardRow.App(
                 packageName = pkg,
                 config = config,
@@ -161,15 +200,20 @@ object GuardStatus {
             var sealedCount = 0
             var pactActiveCount = 0
             var overLimitCount = 0
+            var offScheduleCount = 0
             var opens = 0
             var reflexes = 0
+            val windowActive = GuardWindow.isActiveAt(
+                group.activeDays, group.activeStartTime, group.activeEndTime, now
+            )
             members.forEach { pkg ->
                 val live = liveStates[pkg] ?: GuardLiveState()
-                when (resolveState(group.toAppTimeLimit(pkg), live, now)) {
+                when (resolveState(group.toAppTimeLimit(pkg), live, now, windowActive)) {
                     GuardState.SEALED -> sealedCount++
                     GuardState.PACT_ACTIVE -> pactActiveCount++
                     GuardState.OVER_LIMIT -> overLimitCount++
                     GuardState.QUIET -> quietMembers.add(pkg)
+                    GuardState.SCHEDULED_OFF -> offScheduleCount++
                 }
                 val stats = openStats[pkg] ?: AppOpenStats()
                 opens += stats.opens
@@ -177,7 +221,7 @@ object GuardStatus {
             }
             GuardRow.Circle(
                 group, members, quietMembers,
-                sealedCount, pactActiveCount, overLimitCount, opens, reflexes
+                sealedCount, pactActiveCount, overLimitCount, offScheduleCount, opens, reflexes
             )
         }
 
@@ -197,7 +241,7 @@ object GuardStatus {
                     GuardState.SEALED -> sealedCount++
                     GuardState.PACT_ACTIVE -> pactActiveCount++
                     GuardState.OVER_LIMIT -> overLimitCount++
-                    GuardState.QUIET -> {}
+                    GuardState.QUIET, GuardState.SCHEDULED_OFF -> {}
                 }
                 is GuardRow.Circle -> {
                     sealedCount += row.sealedCount
@@ -245,7 +289,9 @@ object GuardStatus {
             row.sealedCount > 0 -> GuardState.SEALED.ordinal
             row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE.ordinal
             row.overLimitCount > 0 -> GuardState.OVER_LIMIT.ordinal
-            else -> GuardState.QUIET.ordinal
+            row.quietMemberPackages.isNotEmpty() || row.offScheduleCount == 0 ->
+                GuardState.QUIET.ordinal
+            else -> GuardState.SCHEDULED_OFF.ordinal
         }
     }
 

@@ -144,6 +144,32 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         return true
     }
 
+    /**
+     * Panic action: seals every pact-gated app (explicit pacts and live circle
+     * members) right now, revoking any running allowances. Apps already sealed
+     * keep their current seal. Uses the non-escalating panic seal — choosing
+     * protection is not an offence. Returns how many apps were newly sealed.
+     */
+    fun sealAllPacts(): Int {
+        val now = System.currentTimeMillis()
+        val targets = GuardStatus.pactGatedConfigs(
+            _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
+        )
+        var sealed = 0
+        targets.forEach { (pkg, config) ->
+            pactManager.revokeAllowance(pkg)
+            if (sessionCooldownManager.getCooldownState(pkg, now) == null) {
+                sessionCooldownManager.startPanicSeal(pkg, config, now)
+                sealed++
+            }
+        }
+        if (targets.isNotEmpty()) {
+            syncWardenGreying()
+            _dataVersion.value++
+        }
+        return sealed
+    }
+
     /** The pact settings governing [packageName] — resolvePactConfig's precedence. */
     private fun effectivePactConfig(packageName: String): AppTimeLimit? {
         val configs = _appTimeLimitConfigs.value
@@ -312,6 +338,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         _schedules.value = scheduleRepo.getSchedules()
         _dataVersion.value++
+        // The next-transition alarm may now point at the wrong moment.
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun deleteSchedule(schedule: Schedule) {
@@ -326,6 +354,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             notificationManager.cancel(baseId + 1)
         }
         _dataVersion.value++
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun saveFocusPreset(preset: FocusPreset) {

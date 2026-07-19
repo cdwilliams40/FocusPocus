@@ -6,6 +6,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,7 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
@@ -54,6 +58,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
@@ -64,6 +69,11 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    protectionStatus: ProtectionHealth.Status,
+    onFixAccessibility: () -> Unit,
+    onFixUsageAccess: () -> Unit,
+    onFixNotifications: () -> Unit,
+    onFixBattery: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
     breakDurationMinutes: Int,
@@ -87,6 +97,8 @@ fun SettingsScreen(
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
+    sealLiftedAlertsEnabled: Boolean,
+    onSealLiftedAlertsChanged: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     nfcLockMode: Boolean,
     onNfcLockModeChanged: (Boolean) -> Unit,
@@ -102,6 +114,8 @@ fun SettingsScreen(
     onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
+    onExportBackup: (android.net.Uri) -> Unit,
+    onImportBackup: (android.net.Uri) -> Unit,
     namedTags: List<NamedTag>,
     focusMode: Boolean,
     onNavigateBack: () -> Unit,
@@ -129,6 +143,50 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Protection Health Card — the "am I actually protected?" glance
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_protection_health),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (protectionStatus.allHealthy) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_protection_all_good),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.accessibilityEnabled,
+                        title = stringResource(R.string.settings_protection_accessibility),
+                        problem = stringResource(R.string.settings_protection_accessibility_off),
+                        onFix = onFixAccessibility
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.usageAccessGranted,
+                        title = stringResource(R.string.settings_protection_usage),
+                        problem = stringResource(R.string.settings_protection_usage_off),
+                        onFix = onFixUsageAccess
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.notificationsEnabled,
+                        title = stringResource(R.string.settings_protection_notifications),
+                        problem = stringResource(R.string.settings_protection_notifications_off),
+                        onFix = onFixNotifications
+                    )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.batteryUnrestricted,
+                        title = stringResource(R.string.settings_protection_battery),
+                        problem = stringResource(R.string.settings_protection_battery_off),
+                        onFix = onFixBattery
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Appearance Card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -399,6 +457,27 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_seal_lifted_toggle))
+                            Text(
+                                stringResource(R.string.settings_seal_lifted_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = sealLiftedAlertsEnabled,
+                            onCheckedChange = onSealLiftedAlertsChanged
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -645,8 +724,108 @@ fun SettingsScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Backup Card
+            val exportLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument("application/json")
+            ) { uri -> uri?.let(onExportBackup) }
+            val importLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri -> uri?.let(onImportBackup) }
+            var showImportConfirm by remember { mutableStateOf(false) }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_backup), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.settings_backup_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { exportLauncher.launch("focus-pocus-backup.json") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_backup_export))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showImportConfirm = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_backup_import))
+                    }
+                }
+            }
+            if (showImportConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showImportConfirm = false },
+                    title = { Text(stringResource(R.string.backup_import_confirm_title)) },
+                    text = { Text(stringResource(R.string.backup_import_confirm_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showImportConfirm = false
+                            importLauncher.launch(arrayOf("application/json", "text/plain"))
+                        }) {
+                            Text(stringResource(R.string.backup_import_confirm_yes))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showImportConfirm = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    }
+}
+
+/** One protection check: a status icon and, when unhealthy, the why + a fix link. */
+@Composable
+private fun ProtectionHealthRow(
+    healthy: Boolean,
+    title: String,
+    problem: String,
+    onFix: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (healthy) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
+            contentDescription = stringResource(
+                if (healthy) R.string.settings_protection_ok_desc
+                else R.string.settings_protection_problem_desc
+            ),
+            tint = if (healthy) MaterialTheme.colorScheme.primary
+                   else MaterialTheme.colorScheme.error
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            if (!healthy) {
+                Text(
+                    problem,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        if (!healthy) {
+            TextButton(onClick = onFix) {
+                Text(stringResource(R.string.settings_protection_fix))
+            }
+        }
     }
 }
 

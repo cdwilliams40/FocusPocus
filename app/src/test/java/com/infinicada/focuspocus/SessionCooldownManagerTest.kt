@@ -159,4 +159,40 @@ class SessionCooldownManagerTest {
         // Expired cooldown: attempts no longer count against it.
         assertEquals(1, manager.recordAttempt(pkg, now = t0 + 40 * 60_000L))
     }
+
+    @Test
+    fun `startPanicSeal blocks for the base duration without counting an offence`() {
+        manager.startPanicSeal(pkg, escalatingConfig, now = t0)
+
+        val state = manager.getCooldownState(pkg, now = t0)
+        assertNotNull(state)
+        // Base duration only — never the escalated length.
+        assertEquals(t0 + 30 * 60_000L, state!!.cooldownExpiryMillis)
+        // No offence counted: the day's escalation counter is untouched.
+        assertEquals(0, state.cooldownNumber)
+    }
+
+    @Test
+    fun `startPanicSeal preserves the day's existing escalation counter`() {
+        manager.startCooldown(pkg, escalatingConfig, now = t0)          // offence #1
+        manager.startPanicSeal(pkg, escalatingConfig, now = t0 + 60 * 60_000L)
+
+        val state = manager.getCooldownState(pkg, now = t0 + 60 * 60_000L)
+        assertEquals(1, state!!.cooldownNumber)
+        // Panic seal runs for the base 30m even though escalation is enabled.
+        assertEquals(t0 + 60 * 60_000L + 30 * 60_000L, state.cooldownExpiryMillis)
+
+        // The next real offence still escalates as offence #2 (30 + 15).
+        manager.startCooldown(pkg, escalatingConfig, now = t0 + 120 * 60_000L)
+        val next = manager.getCooldownState(pkg, now = t0 + 120 * 60_000L)
+        assertEquals(2, next!!.cooldownNumber)
+        assertEquals(t0 + 120 * 60_000L + 45 * 60_000L, next.cooldownExpiryMillis)
+    }
+
+    @Test
+    fun `startPanicSeal drops the in-session start time`() {
+        manager.onAppForegrounded(pkg, now = t0)
+        manager.startPanicSeal(pkg, config, now = t0 + 5 * 60_000L)
+        assertEquals(0, manager.getInSessionMinutes(pkg, now = t0 + 6 * 60_000L))
+    }
 }

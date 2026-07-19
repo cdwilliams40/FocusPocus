@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
+import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
@@ -158,6 +159,7 @@ fun FocusPocusApp(
     val hideStopButton by settingsVM.hideStopButton.collectAsStateWithLifecycle()
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
+    val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
     val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
@@ -323,18 +325,37 @@ fun FocusPocusApp(
         )
     }
 
-    // Accessibility service required dialog
-    if (!isServiceEnabled) {
+    // Accessibility prominent disclosure + consent, required by Play policy
+    // before any redirect into the accessibility settings. Dismissable ("Not
+    // now") — the Protection Health card in Settings remains the re-entry
+    // point, so declining doesn't strand the user.
+    var accessibilityDialogDismissed by rememberSaveable { mutableStateOf(false) }
+    if (!isServiceEnabled && !accessibilityDialogDismissed) {
         AlertDialog(
-            onDismissRequest = {},
+            onDismissRequest = { accessibilityDialogDismissed = true },
             title = { Text(stringResource(R.string.main_accessibility_title)) },
-            text = { Text(stringResource(R.string.main_accessibility_desc)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.main_accessibility_desc))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.accessibility_disclosure_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     context.startActivity(intent)
                 }) {
-                    Text(stringResource(R.string.main_accessibility_go_to_settings))
+                    Text(stringResource(R.string.accessibility_disclosure_agree))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { accessibilityDialogDismissed = true }) {
+                    Text(stringResource(R.string.accessibility_disclosure_later))
                 }
             }
         )
@@ -373,6 +394,10 @@ fun FocusPocusApp(
         mutableStateOf(notificationManager.isNotificationPolicyAccessGranted)
     }
 
+    // Enforcement health — recomputed on every return to the foreground of
+    // the surfaces that show it (Settings card, dashboard battery banner).
+    var protectionStatus by remember { mutableStateOf(ProtectionHealth.check(context)) }
+
     if (showSettings) {
         // Re-check on every return to the foreground, so granting notification
         // access or running the device-owner adb command is picked up as soon as
@@ -380,10 +405,16 @@ fun FocusPocusApp(
         LifecycleResumeEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
             settingsVM.refreshDeviceOwnerState()
+            protectionStatus = ProtectionHealth.check(context)
             onPauseOrDispose { }
         }
         BackHandler { showSettings = false }
         SettingsScreen(
+            protectionStatus = protectionStatus,
+            onFixAccessibility = { ProtectionHealth.openAccessibilitySettings(context) },
+            onFixUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+            onFixNotifications = { ProtectionHealth.openNotificationSettings(context) },
+            onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
             themeMode = themeMode,
             onThemeModeChanged = { settingsVM.setThemeMode(it) },
             breakDurationMinutes = breakDurationMinutes,
@@ -408,6 +439,8 @@ fun FocusPocusApp(
                 val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                 context.startActivity(intent)
             },
+            sealLiftedAlertsEnabled = sealLiftedAlertsEnabled,
+            onSealLiftedAlertsChanged = { settingsVM.setSealLiftedAlertsEnabled(it) },
             nfcLockMode = nfcLockMode,
             onNfcLockModeChanged = { settingsVM.setNfcLockMode(it) },
             isDeviceOwner = isDeviceOwner,
@@ -430,6 +463,40 @@ fun FocusPocusApp(
             },
             analyticsConsent = analyticsConsent,
             onAnalyticsConsentChanged = { settingsVM.applyAnalyticsConsent(it) },
+            onExportBackup = { uri ->
+                val ok = settingsVM.exportBackup(uri)
+                Toast.makeText(
+                    context,
+                    context.getString(
+                        if (ok) R.string.backup_export_done else R.string.backup_export_failed
+                    ),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onImportBackup = { uri ->
+                when (settingsVM.importBackup(uri)) {
+                    is com.infinicada.focuspocus.BackupCodec.ImportResult.Success -> {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_done),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        settingsVM.restartApp()
+                    }
+                    is com.infinicada.focuspocus.BackupCodec.ImportResult.UnsupportedVersion ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_newer),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    else ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_invalid),
+                            Toast.LENGTH_LONG
+                        ).show()
+                }
+            },
             namedTags = namedTags,
             focusMode = focusMode,
             progressionEnabled = progressionEnabled,
@@ -561,6 +628,7 @@ fun FocusPocusApp(
                         LifecycleResumeEffect(Unit) {
                             guardTick++
                             usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            protectionStatus = ProtectionHealth.check(context)
                             onPauseOrDispose { }
                         }
                         var guardLiveStates by remember {
@@ -598,9 +666,21 @@ fun FocusPocusApp(
                             currentStreak = currentStreak,
                             usageAccessGranted = usageAccessGranted,
                             onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+                            batteryUnrestricted = protectionStatus.batteryUnrestricted,
+                            onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
                             onOpenBoons = { showBoons = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
+                            onSealAll = {
+                                val sealedCount = spellbookVM.sealAllPacts()
+                                Toast.makeText(
+                                    context,
+                                    context.resources.getQuantityString(
+                                        R.plurals.home_seal_all_result, sealedCount, sealedCount
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
                             onGuardClick = { row ->
                                 spellbookVM.navigateToPacts(
                                     when (row) {
