@@ -151,6 +151,17 @@
     <string name="guard_delete_confirm_title">Retirer %1$s ?</string>
     <string name="guard_delete_app_message">L\'application s\'ouvrira à nouveau librement, tout de suite.</string>
     <string name="guard_delete_circle_message">Toutes les applications de cet enchantement s\'ouvriront à nouveau librement. L\'enchantement lui-même est conservé.</string>
+    <string name="guard_delete_pact_message">Un pacte engage pour un jour : il reste en vigueur pendant 24 heures après confirmation, puis se lève.</string>
+    <string name="guard_delete_circle_pact_message">Un pacte engage pour un jour : le cercle reste en vigueur pendant 24 heures après confirmation, puis se lève. L\'enchantement lui-même est conservé.</string>
+
+    <!-- Révision de pacte : les modifications d'un pacte existant patientent 24 h -->
+    <string name="pact_revision_notice">Un pacte engage pour un jour : toute modification ou suppression prend effet 24 heures après confirmation. D\'ici là, les termes actuels restent en vigueur.</string>
+    <string name="pact_revision_pending_change">Les nouveaux termes prendront effet dans %1$s</string>
+    <string name="pact_revision_pending_removal">Le pacte se lèvera dans %1$s</string>
+    <string name="pact_revision_pending_header">Modification en attente</string>
+    <string name="pact_revision_keep">Garder les termes actuels</string>
+    <string name="pact_revision_queued_change_toast">Le pacte tient — les nouveaux termes prendront effet dans 24 heures</string>
+    <string name="pact_revision_queued_removal_toast">Le pacte tient — il se lèvera dans 24 heures</string>
 
     <string name="pacts_home_intro_title">Les pactes sont désormais votre accueil</string>
     <string name="pacts_home_intro_message">Votre protection permanente — pactes et limites de temps — vous accueille désormais en premier. Le lancement des sessions de concentration vit dans l\'onglet Concentration, à un geste de là. Tout le reste fonctionne exactement comme avant.</string>

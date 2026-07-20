@@ -18,6 +18,8 @@ import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.PactRevisionManager
+import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
@@ -49,6 +51,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val openReflexTracker = OpenReflexTracker(appPrefs, Gson())
     private val pactManager = PactManager(appPrefs, Gson())
     private val sessionCooldownManager = SessionCooldownManager(appPrefs, Gson())
+    private val pactRevisionManager = PactRevisionManager(appPrefs, Gson())
+
+    init {
+        // Write through any pact revision that came due while the app was
+        // closed, before the flows below snapshot the stores. (Init blocks and
+        // property initializers run in declaration order.)
+        if (pactRevisionManager.applyDueRevisions()) {
+            DeviceOwnerManager.syncSuspensions(application)
+        }
+    }
 
     /** Today's open/reflex counters per package, for the Pacts dashboard. */
     fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
@@ -87,18 +99,78 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _pactGroups = MutableStateFlow(pactManager.getGroups())
     val pactGroups: StateFlow<List<PactGroup>> = _pactGroups.asStateFlow()
 
+    private val _pendingPactRevisions = MutableStateFlow(pactRevisionManager.getRevisions())
+    val pendingPactRevisions: StateFlow<List<PendingPactRevision>> =
+        _pendingPactRevisions.asStateFlow()
+
+    /**
+     * Saving over an existing circle is a pact modification, so it queues for
+     * 24 h instead of applying; the circle's current terms stay enforced until
+     * then. A brand-new circle, or terms identical to the enforced ones
+     * (which just withdraws any pending request), applies immediately.
+     */
     fun savePactGroup(group: PactGroup) {
+        val existing = _pactGroups.value.find { it.blockerName == group.blockerName }
+        if (existing != null && existing != group) {
+            pactRevisionManager.queueCircleRevision(group.blockerName, group)
+            onRevisionQueued(removal = false)
+            return
+        }
+        if (existing == group) {
+            // Re-confirming the enforced terms = "keep current terms".
+            pactRevisionManager.cancelCircleRevision(group.blockerName)
+            _pendingPactRevisions.value = pactRevisionManager.getRevisions()
+            _dataVersion.value++
+            return
+        }
         pactManager.saveGroup(group)
         _pactGroups.value = pactManager.getGroups()
         _dataVersion.value++
         syncWardenGreying()
     }
 
+    /** Removing a circle is always a pact modification — it queues for 24 h. */
     fun deletePactGroup(blockerName: String) {
-        pactManager.deleteGroup(blockerName)
+        if (_pactGroups.value.none { it.blockerName == blockerName }) return
+        pactRevisionManager.queueCircleRevision(blockerName, null)
+        onRevisionQueued(removal = true)
+    }
+
+    fun cancelCirclePactRevision(blockerName: String) {
+        pactRevisionManager.cancelCircleRevision(blockerName)
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
+        _dataVersion.value++
+    }
+
+    fun cancelAppPactRevision(packageName: String) {
+        pactRevisionManager.cancelAppRevision(packageName)
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
+        _dataVersion.value++
+    }
+
+    /**
+     * Writes through any pact revision whose 24 h has elapsed and refreshes
+     * every snapshot derived from the stores. Called from the dashboard's
+     * minute tick so a due change lands without waiting for a restart; the
+     * accessibility service runs the same reconciliation for enforcement.
+     */
+    fun applyDuePactRevisions() {
+        if (!pactRevisionManager.applyDueRevisions()) return
+        _appTimeLimitConfigs.value = insightsRepo.getAppTimeLimitConfigs()
+        _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _pactGroups.value = pactManager.getGroups()
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
         _dataVersion.value++
         syncWardenGreying()
+    }
+
+    private fun onRevisionQueued(removal: Boolean) {
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
+        _dataVersion.value++
+        Toast.makeText(getApplication(), getApplication<Application>().getString(
+            if (removal) R.string.pact_revision_queued_removal_toast
+            else R.string.pact_revision_queued_change_toast
+        ), Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -321,10 +393,14 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _blockerLists.value = blockerRepo.deleteBlocker(blocker)
         // A pact group is bound to its enchantment by name; deleting the
         // enchantment would leave the group behind, silently gating nothing.
+        // This orphan cleanup is immediate (the circle already gates nothing),
+        // and any queued revision for it would only resurrect a dead circle.
         if (pactManager.getGroups().any { it.blockerName == blocker.name }) {
             pactManager.deleteGroup(blocker.name)
             _pactGroups.value = pactManager.getGroups()
         }
+        pactRevisionManager.cancelCircleRevision(blocker.name)
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
         _dataVersion.value++
         syncWardenGreying()
     }
@@ -410,20 +486,55 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    /**
+     * Saving over an app whose enforced guard is a pact — an explicit
+     * pact-style config, or live membership in a pact circle that this config
+     * would override — is a pact modification, so it queues for 24 h. Terms
+     * identical to the enforced config just withdraw any pending request.
+     * Everything else (new guards, ward edits) applies immediately.
+     */
     fun saveAppTimeLimitConfig(config: AppTimeLimit) {
+        val existing = _appTimeLimitConfigs.value[config.packageName]
+        val pactGoverned = PactRevisionManager.requiresDelayForApp(
+            config.packageName, _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
+        )
+        if (pactGoverned && existing != config) {
+            pactRevisionManager.queueAppRevision(config.packageName, config)
+            onRevisionQueued(removal = false)
+            return
+        }
+        if (pactGoverned && existing == config) {
+            pactRevisionManager.cancelAppRevision(config.packageName)
+            _pendingPactRevisions.value = pactRevisionManager.getRevisions()
+            _dataVersion.value++
+            return
+        }
         if (!insightsRepo.saveAppTimeLimitConfig(config, _appTimeLimitConfigs.value)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(
                 R.string.toast_max_time_limits, com.infinicada.focuspocus.Constants.MAX_APP_TIME_LIMITS
             ), Toast.LENGTH_SHORT).show()
             return
         }
+        // An immediate save supersedes any request queued while the app was
+        // still pact-governed (e.g. its circle has since dissolved) — a stale
+        // revision firing later must not clobber this newer state.
+        pactRevisionManager.cancelAppRevision(config.packageName)
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
         _appTimeLimitConfigs.value = insightsRepo.getAppTimeLimitConfigs()
         _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++
         syncWardenGreying()
     }
 
+    /** Removing a pact-style config queues for 24 h; removing a ward is immediate. */
     fun deleteAppTimeLimit(packageName: String) {
+        if (_appTimeLimitConfigs.value[packageName]?.pactModeEnabled == true) {
+            pactRevisionManager.queueAppRevision(packageName, null)
+            onRevisionQueued(removal = true)
+            return
+        }
+        pactRevisionManager.cancelAppRevision(packageName)
+        _pendingPactRevisions.value = pactRevisionManager.getRevisions()
         _appTimeLimitConfigs.value = insightsRepo.deleteAppTimeLimitConfig(packageName, _appTimeLimitConfigs.value)
         _appTimeLimits.value = _appTimeLimitConfigs.value.mapValues { (_, v) -> v.dailyLimitMinutes }
         _dataVersion.value++

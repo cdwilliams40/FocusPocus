@@ -150,6 +150,17 @@
     <string name="guard_delete_confirm_title">Remove %1$s?</string>
     <string name="guard_delete_app_message">It opens freely again right away.</string>
     <string name="guard_delete_circle_message">Every app in this enchantment opens freely again. The enchantment itself is kept.</string>
+    <string name="guard_delete_pact_message">A pact binds for a day: it stays in force for 24 hours after you confirm, then lifts.</string>
+    <string name="guard_delete_circle_pact_message">A pact binds for a day: the circle stays in force for 24 hours after you confirm, then lifts. The enchantment itself is kept.</string>
+
+    <!-- Pact revision cooling-off: changes to an existing pact hold for 24 h -->
+    <string name="pact_revision_notice">A pact binds for a day: any change or removal takes effect 24 hours after you confirm it. Until then, the current terms hold.</string>
+    <string name="pact_revision_pending_change">New terms take effect in %1$s</string>
+    <string name="pact_revision_pending_removal">Pact lifts in %1$s</string>
+    <string name="pact_revision_pending_header">Change pending</string>
+    <string name="pact_revision_keep">Keep current terms</string>
+    <string name="pact_revision_queued_change_toast">The pact holds — new terms take effect in 24 hours</string>
+    <string name="pact_revision_queued_removal_toast">The pact holds — it lifts in 24 hours</string>
 
     <string name="pacts_home_intro_title">Pacts are now your home</string>
     <string name="pacts_home_intro_message">Your always-on protection — pacts and time limits — now greets you first. Casting focus sessions lives on the Focus tab, one tap away. Everything else works exactly as before.</string>

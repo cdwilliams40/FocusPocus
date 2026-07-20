@@ -91,6 +91,9 @@ object Constants {
         // Pact groups: pact settings bound to a blacklist enchantment
         const val PACT_GROUPS = "pactGroups"
 
+        // Queued modifications to existing pacts, applied 24 h after request
+        const val PACT_PENDING_REVISIONS = "pactPendingRevisions"
+
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 

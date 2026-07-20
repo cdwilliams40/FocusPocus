@@ -62,6 +62,7 @@ import com.infinicada.focuspocus.limit.GuardState
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -90,6 +91,7 @@ fun PactsHomeScreen(
     blockerLists: List<Blocker>,
     todayOpenStats: Map<String, AppOpenStats>,
     guardLiveStates: Map<String, GuardLiveState>,
+    pendingRevisions: List<PendingPactRevision>,
     nowMillis: Long,
     sessionActive: Boolean,
     isOnBreak: Boolean,
@@ -222,12 +224,18 @@ fun PactsHomeScreen(
                     is GuardRow.App -> GuardAppCard(
                         row = row,
                         names = names,
+                        pendingRevision = pendingRevisions.find { it.packageName == row.packageName },
+                        nowMillis = nowMillis,
                         onClick = { onGuardClick(row) },
                         onRequestTime = onRequestTime
                     )
                     is GuardRow.Circle -> GuardCircleCard(
                         row = row,
                         names = names,
+                        pendingRevision = pendingRevisions.find {
+                            it.packageName == null && it.blockerName == row.group.blockerName
+                        },
+                        nowMillis = nowMillis,
                         onClick = { onGuardClick(row) },
                         onRequestTime = onRequestTime
                     )
@@ -464,6 +472,8 @@ private fun SessionBanner(
 private fun GuardAppCard(
     row: GuardRow.App,
     names: Map<String, String>,
+    pendingRevision: PendingPactRevision?,
+    nowMillis: Long,
     onClick: () -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
@@ -491,6 +501,7 @@ private fun GuardAppCard(
                 } else {
                     WardCardBody(row)
                 }
+                PendingRevisionLine(pendingRevision, nowMillis)
             }
             GuardStateChip(state = row.state)
         }
@@ -656,6 +667,8 @@ private fun GuardScheduleSummary(
 private fun GuardCircleCard(
     row: GuardRow.Circle,
     names: Map<String, String>,
+    pendingRevision: PendingPactRevision?,
+    nowMillis: Long,
     onClick: () -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit
 ) {
@@ -736,6 +749,7 @@ private fun GuardCircleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary
                 )
+                PendingRevisionLine(pendingRevision, nowMillis)
             }
             val circleState = when {
                 row.sealedCount > 0 -> GuardState.SEALED
@@ -774,6 +788,25 @@ private fun GuardCircleCard(
             onDismiss = { showRequestDialog = false }
         )
     }
+}
+
+/**
+ * One line on a guard card while a 24 h revision is queued: what happens
+ * (new terms vs. the pact lifting) and how long the current terms still hold.
+ */
+@Composable
+private fun PendingRevisionLine(revision: PendingPactRevision?, nowMillis: Long) {
+    if (revision == null) return
+    val minutesLeft = GuardStatus.minutesUntil(revision.appliesAtMillis, nowMillis).coerceAtLeast(1)
+    Text(
+        stringResource(
+            if (revision.isRemoval) R.string.pact_revision_pending_removal
+            else R.string.pact_revision_pending_change,
+            formatDuration(minutesLeft)
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary
+    )
 }
 
 /** Trailing state chip; quiet rows deliberately carry none. */
