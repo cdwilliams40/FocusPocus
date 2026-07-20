@@ -60,6 +60,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
 - Managed front and center on the **Pacts tab — the app's home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
 - **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
+- **A pact binds for a day**: changing or removing an existing pact (or circle) takes effect only 24 hours after you confirm it — the current terms stay enforced in the meantime, and you can cancel the pending change to keep them. Creating a new pact, and tuning wards, stays instant
 
 ### Guard Hours (Per-Guard Schedules)
 - Give any pact, ward, or pact circle a schedule: active days and an optional daily time window ("this pact only applies 21:00–07:00 on weekdays")

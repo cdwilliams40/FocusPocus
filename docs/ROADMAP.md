@@ -15,7 +15,7 @@ Focus Pocus already covers more of the category's surface than most shipping com
 | Pillar | What we have |
 |---|---|
 | Blocking engine | Accessibility-based foreground detection, blacklist/whitelist enchantments, auto-banish new installs, notification silencing |
-| Standing protection | Pacts (sealed-by-default with anti-reflex pause, substitutes, daily backstops), Wards (daily limits, session cooldowns, escalating friction), pact circles over live enchantments |
+| Standing protection | Pacts (sealed-by-default with anti-reflex pause, substitutes, daily backstops), Wards (daily limits, session cooldowns, escalating friction), pact circles over live enchantments, 24 h cooling-off on pact changes/removal |
 | Sessions | Timed sessions, breaks, Pomodoro auto-breaks, emergency stop with cadence cooldown, hide-stop-button, live countdown notification, wall-clock enforcement across reboots |
 | Automation | Scheduled rituals, NFC talismans (start/stop/lock), deep links, Quick Spells |
 | Hard mode | Warden device-owner mode: OS-level app suspension, around-the-clock grey-out of pacted apps, uninstall protection, 24 h removal cooling-off |

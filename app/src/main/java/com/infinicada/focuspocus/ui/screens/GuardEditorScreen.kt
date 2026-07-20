@@ -59,12 +59,15 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.PactRevisionManager
+import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
+import com.infinicada.focuspocus.ui.formatDuration
 
 /**
  * The unified guard editor: creates and edits pacts and wards over the single
@@ -86,11 +89,13 @@ fun GuardEditorScreen(
     editPackageName: String?,
     editCircleName: String?,
     usageAccessGranted: Boolean,
+    pendingRevision: PendingPactRevision?,
     onGrantUsageAccess: () -> Unit,
     onSaveConfig: (AppTimeLimit) -> Unit,
     onDeleteConfig: (String) -> Unit,
     onSaveGroup: (PactGroup) -> Unit,
     onDeleteGroup: (String) -> Unit,
+    onCancelPendingRevision: () -> Unit,
     onOpenEnchantment: (Blocker) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -770,6 +775,37 @@ fun GuardEditorScreen(
                 }
             }
 
+            // ── Pact cooling-off ──
+            // True when saving or removing would be queued for 24 h: the
+            // target's currently enforced guard is a pact — an existing pact
+            // config or circle, or (create mode) an app a pact circle covers,
+            // since the new explicit config would override that circle.
+            val revisionDelayApplies = when {
+                editingGroup != null -> true
+                editingConfig != null -> editingConfig.pactModeEnabled
+                isCircle -> false
+                else -> selectedApp?.let {
+                    PactRevisionManager.requiresDelayForApp(
+                        it.packageName, appTimeLimitConfigs, pactGroups, blockerLists
+                    )
+                } ?: false
+            }
+            if (pendingRevision != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                PendingRevisionCard(
+                    revision = pendingRevision,
+                    onCancel = onCancelPendingRevision
+                )
+            }
+            if (revisionDelayApplies) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.pact_revision_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -815,8 +851,13 @@ fun GuardEditorScreen(
             text = {
                 Text(
                     stringResource(
-                        if (editingGroup != null) R.string.guard_delete_circle_message
-                        else R.string.guard_delete_app_message
+                        when {
+                            // Circles are always pact-style, so their removal
+                            // rides the 24 h cooling-off like any pact change.
+                            editingGroup != null -> R.string.guard_delete_circle_pact_message
+                            editingConfig?.pactModeEnabled == true -> R.string.guard_delete_pact_message
+                            else -> R.string.guard_delete_app_message
+                        }
                     )
                 )
             },
@@ -915,6 +956,49 @@ private fun EditedTargetHeader(
             TextButton(onClick = { onOpenEnchantment(enchantment) }) {
                 Text(stringResource(R.string.guard_circle_members_link))
             }
+        }
+    }
+}
+
+/**
+ * The queued 24 h revision for the guard being edited: what is pending, when
+ * it takes effect, and the one action that needs no cooling-off — keeping the
+ * current terms.
+ */
+@Composable
+private fun PendingRevisionCard(
+    revision: PendingPactRevision,
+    onCancel: () -> Unit
+) {
+    val minutesLeft = GuardStatus
+        .minutesUntil(revision.appliesAtMillis, remember { System.currentTimeMillis() })
+        .coerceAtLeast(1)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.medium
+            )
+            .padding(12.dp)
+    ) {
+        Text(
+            stringResource(R.string.pact_revision_pending_header),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            stringResource(
+                if (revision.isRemoval) R.string.pact_revision_pending_removal
+                else R.string.pact_revision_pending_change,
+                formatDuration(minutesLeft)
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TextButton(onClick = onCancel) {
+            Text(stringResource(R.string.pact_revision_keep))
         }
     }
 }

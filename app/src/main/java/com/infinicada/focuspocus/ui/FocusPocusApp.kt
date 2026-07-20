@@ -162,6 +162,7 @@ fun FocusPocusApp(
     val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
     val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
+    val pendingPactRevisions by spellbookVM.pendingPactRevisions.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
     val deviceOwnerSuspendPacts by settingsVM.deviceOwnerSuspendPacts.collectAsStateWithLifecycle()
     val wardenRemovalRequestMillis by settingsVM.wardenRemovalRequestMillis.collectAsStateWithLifecycle()
@@ -640,6 +641,11 @@ fun FocusPocusApp(
                         var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
                         LaunchedEffect(dataVersion, guardTick) {
                             val snapshot = withContext(Dispatchers.IO) {
+                                // A pact revision coming due while the dashboard
+                                // is open lands on this same tick (it bumps
+                                // dataVersion, which re-runs this effect with
+                                // nothing further due).
+                                spellbookVM.applyDuePactRevisions()
                                 spellbookVM.getGuardLiveState() to spellbookVM.getTodayOpenStats()
                             }
                             guardLiveStates = snapshot.first
@@ -654,6 +660,7 @@ fun FocusPocusApp(
                             blockerLists = blockerLists,
                             todayOpenStats = guardOpenStats,
                             guardLiveStates = guardLiveStates,
+                            pendingRevisions = pendingPactRevisions,
                             nowMillis = guardNow,
                             sessionActive = focusMode,
                             isOnBreak = isOnBreak,
@@ -699,14 +706,24 @@ fun FocusPocusApp(
                             usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
                             onPauseOrDispose { }
                         }
+                        val editPackageName = (route as? PactsRoute.EditGuard)?.packageName
+                        val editCircleName = (route as? PactsRoute.EditCircle)?.blockerName
                         GuardEditorScreen(
                             installedApps = installedApps,
                             blockerLists = blockerLists,
                             pactGroups = pactGroups,
                             appTimeLimitConfigs = appTimeLimitConfigs,
-                            editPackageName = (route as? PactsRoute.EditGuard)?.packageName,
-                            editCircleName = (route as? PactsRoute.EditCircle)?.blockerName,
+                            editPackageName = editPackageName,
+                            editCircleName = editCircleName,
                             usageAccessGranted = usageAccessGranted,
+                            pendingRevision = pendingPactRevisions.find {
+                                if (editPackageName != null) {
+                                    it.packageName == editPackageName
+                                } else {
+                                    editCircleName != null &&
+                                        it.packageName == null && it.blockerName == editCircleName
+                                }
+                            },
                             onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
                             onSaveConfig = { config ->
                                 spellbookVM.saveAppTimeLimitConfig(config)
@@ -723,6 +740,13 @@ fun FocusPocusApp(
                             onDeleteGroup = { name ->
                                 spellbookVM.deletePactGroup(name)
                                 spellbookVM.navigateToPacts(PactsRoute.Overview)
+                            },
+                            onCancelPendingRevision = {
+                                if (editPackageName != null) {
+                                    spellbookVM.cancelAppPactRevision(editPackageName)
+                                } else if (editCircleName != null) {
+                                    spellbookVM.cancelCirclePactRevision(editCircleName)
+                                }
                             },
                             onOpenEnchantment = { blocker ->
                                 spellbookVM.navigateToPacts(PactsRoute.Overview)

@@ -25,6 +25,7 @@ import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
@@ -117,6 +118,10 @@ class MyAccessibilityService : AccessibilityService() {
     // Pact manager — tracks Pact Mode allowances (blocked-by-default apps)
     private lateinit var pactManager: PactManager
 
+    // Pact revision manager — writes through queued pact modifications once
+    // their 24 h cooling-off has elapsed
+    private lateinit var pactRevisionManager: PactRevisionManager
+
     // Pact expiry warnings already toasted, keyed by package -> allowance expiry.
     // In-memory only; a duplicate toast after a service restart is harmless.
     private val pactWarnedExpiries = HashMap<String, Long>()
@@ -198,6 +203,12 @@ class MyAccessibilityService : AccessibilityService() {
         enforceTimedSessionExpiry()
         checkSchedules()
         maybeStartAutoBreak()
+
+        // Write through pact modifications whose 24 h cooling-off has elapsed.
+        // Runs before the pact/seal work below so revised terms govern this
+        // very tick, and before the suspension sync so Warden greying follows.
+        // The config caches key on the stored JSON, so they refresh themselves.
+        pactRevisionManager.applyDueRevisions()
 
         // Reset daily counters when the calendar date rolls over. Expired cooldown
         // entries are pruned here too (not on every tick): they must survive until
@@ -311,6 +322,7 @@ class MyAccessibilityService : AccessibilityService() {
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
         pactManager = PactManager(sharedPreferences, gson)
+        pactRevisionManager = PactRevisionManager(sharedPreferences, gson)
         openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
         // Read the last rollover date from prefs (not today): if the service was
         // down across midnight, the next tick must still see the day change and
@@ -327,6 +339,9 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             enforceTimedSessionExpiry()
             checkMissedScheduleActivation()
+            // Pact revisions that came due while the service was down apply
+            // before the suspension sync reads the stores.
+            pactRevisionManager.applyDueRevisions()
             DeviceOwnerManager.syncSuspensions(this)
             // Re-assert uninstall protection on every service start: provisioning
             // can happen while the app is already running (adb), in which case
