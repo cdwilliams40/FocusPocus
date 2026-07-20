@@ -13,8 +13,8 @@ android {
         applicationId = "com.infinicada.focuspocus"
         minSdk = 29
         targetSdk = 36
-        versionCode = 30
-        versionName = "1.6"
+        versionCode = 32
+        versionName = "1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
