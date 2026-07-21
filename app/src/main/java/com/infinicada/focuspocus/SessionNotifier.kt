@@ -163,7 +163,7 @@ object SessionNotifier {
         val scheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         val scheduleName = scheduleId?.let { loadScheduleName(prefs, gson, it) }
         val sessionName = scheduleName
-            ?: activeBlockerNames(prefs, gson).joinToString(", ").ifEmpty { null }
+            ?: BlockerRepository.getActiveBlockerNames(prefs).joinToString(", ").ifEmpty { null }
 
         if (prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) {
             val breakEnd = prefs.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
@@ -191,21 +191,6 @@ object SessionNotifier {
             countdownEndMillis = endMillis.takeIf { it > nowMillis },
             countUpStartMillis = startMillis.takeIf { it in 1..nowMillis }
         )
-    }
-
-    private fun activeBlockerNames(prefs: SharedPreferences, gson: Gson): List<String> {
-        val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<String>>() {}.type
-                val parsed: List<String>? = gson.fromJson(json, type)
-                if (parsed != null) return parsed
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing active blockers JSON", e)
-            }
-        }
-        val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        return if (single != null) listOf(single) else emptyList()
     }
 
     private fun loadScheduleName(prefs: SharedPreferences, gson: Gson, scheduleId: String): String? {

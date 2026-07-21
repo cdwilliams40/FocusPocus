@@ -203,22 +203,35 @@ object DeviceOwnerManager {
      * Packages that should be suspended right now: session-blocked apps plus
      * pact-gated apps with no active allowance, each minus its own escape
      * hatches (breaks, conditional unlocks) and system-critical exemptions.
+     *
+     * The launchable/exempt snapshots are queried once here and shared by both
+     * computations — they are binder round-trips enumerating installed apps,
+     * and this runs on the accessibility service's minute tick.
      */
-    private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> =
-        computeSessionSuspensions(context, prefs) + computePactSuspensions(context, prefs)
+    private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
+        val launchable = getLaunchablePackages(context)
+        val exempt = getExemptPackages(context)
+        return computeSessionSuspensions(context, prefs, launchable, exempt) +
+            computePactSuspensions(context, prefs, launchable, exempt)
+    }
 
     /**
      * Launchable apps blocked by any active blocker while a focus session is
      * running (and not on a break), minus apps freed by a satisfied conditional
      * unlock.
      */
-    private fun computeSessionSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
+    private fun computeSessionSuspensions(
+        context: Context,
+        prefs: SharedPreferences,
+        launchablePackages: Set<String>,
+        exemptPackages: Set<String>
+    ): Set<String> {
         val focusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
             prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
         if (!focusActive) return emptySet()
         if (prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return emptySet()
 
-        val activeNames = getActiveBlockerNames(prefs)
+        val activeNames = BlockerRepository.getActiveBlockerNames(prefs)
         if (activeNames.isEmpty()) return emptySet()
         val activeBlockers = BlockerRepository.getBlockers(prefs)
             .filter { it.name in activeNames && !isConditionallyUnlocked(context, prefs, it.name) }
@@ -226,8 +239,8 @@ object DeviceOwnerManager {
 
         return computeBlockedPackages(
             activeBlockers = activeBlockers,
-            launchablePackages = getLaunchablePackages(context),
-            exemptPackages = getExemptPackages(context)
+            launchablePackages = launchablePackages,
+            exemptPackages = exemptPackages
         )
     }
 
@@ -238,7 +251,12 @@ object DeviceOwnerManager {
      * breaks are deliberately not consulted here. An app escapes only while its
      * pact allowance runs or a conditional unlock is satisfied.
      */
-    private fun computePactSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
+    private fun computePactSuspensions(
+        context: Context,
+        prefs: SharedPreferences,
+        launchablePackages: Set<String>,
+        exemptPackages: Set<String>
+    ): Set<String> {
         if (!prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)) return emptySet()
 
         val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
@@ -258,8 +276,8 @@ object DeviceOwnerManager {
             pactGated = gated,
             allowedPackages = pactManager.getActiveAllowances().keys +
                 getConditionallyUnlockedTimeLimitApps(context, prefs, gated),
-            launchablePackages = getLaunchablePackages(context),
-            exemptPackages = getExemptPackages(context)
+            launchablePackages = launchablePackages,
+            exemptPackages = exemptPackages
         )
     }
 
@@ -293,13 +311,42 @@ object DeviceOwnerManager {
         }
     }
 
-    private fun getLaunchablePackages(context: Context): Set<String> = try {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        context.packageManager.queryIntentActivities(intent, 0)
-            .mapTo(mutableSetOf()) { it.activityInfo.packageName }
-    } catch (e: Exception) {
-        Log.e(TAG, "Error querying launchable packages", e)
-        emptySet()
+    /**
+     * How long the launchable/exempt snapshots may serve from cache. Package
+     * add/remove invalidates them immediately via [invalidatePackageCaches]
+     * (wired to the accessibility service's package receiver); the TTL is a
+     * backstop for changes with no broadcast hook (an IME being enabled, a
+     * default-launcher switch) and for syncs while the service isn't running.
+     */
+    private const val PACKAGE_CACHE_TTL_MS = 5L * 60 * 1000
+
+    @Volatile private var cachedLaunchablePackages: Set<String>? = null
+    @Volatile private var cachedLaunchableAtMillis = 0L
+    @Volatile private var cachedExemptPackages: Set<String>? = null
+    @Volatile private var cachedExemptAtMillis = 0L
+
+    /** Call when a package is added, removed, or replaced. */
+    fun invalidatePackageCaches() {
+        cachedLaunchablePackages = null
+        cachedExemptPackages = null
+    }
+
+    private fun getLaunchablePackages(context: Context): Set<String> {
+        val now = System.currentTimeMillis()
+        cachedLaunchablePackages?.let {
+            if (now - cachedLaunchableAtMillis < PACKAGE_CACHE_TTL_MS) return it
+        }
+        val fresh = try {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            context.packageManager.queryIntentActivities(intent, 0)
+                .mapTo(mutableSetOf()) { it.activityInfo.packageName }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying launchable packages", e)
+            return cachedLaunchablePackages ?: emptySet()
+        }
+        cachedLaunchablePackages = fresh
+        cachedLaunchableAtMillis = now
+        return fresh
     }
 
     /**
@@ -308,6 +355,10 @@ object DeviceOwnerManager {
      * the persisted bookkeeping clean.
      */
     private fun getExemptPackages(context: Context): Set<String> {
+        val now = System.currentTimeMillis()
+        cachedExemptPackages?.let {
+            if (now - cachedExemptAtMillis < PACKAGE_CACHE_TTL_MS) return it
+        }
         val exempt = mutableSetOf(context.packageName, "com.android.systemui", "android")
         try {
             val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -323,22 +374,9 @@ object DeviceOwnerManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error querying input methods", e)
         }
+        cachedExemptPackages = exempt
+        cachedExemptAtMillis = now
         return exempt
-    }
-
-    private fun getActiveBlockerNames(prefs: SharedPreferences): List<String> {
-        val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
-        if (json != null) {
-            try {
-                val type = object : TypeToken<List<String>>() {}.type
-                val parsed: List<String>? = gson.fromJson(json, type)
-                if (parsed != null) return parsed
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing active blockers JSON", e)
-            }
-        }
-        val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        return if (single != null) listOf(single) else emptyList()
     }
 
     /** Mirrors MyAccessibilityService's conditional-unlock check for blockers. */

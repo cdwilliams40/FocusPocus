@@ -193,16 +193,33 @@ class SessionCooldownManager(
     // -------------------------------------------------------------------------
 
     private fun loadCooldownStates(): Map<String, CooldownState> {
+        val json = prefs.getString(Constants.PrefsKeys.APP_COOLDOWN_STATES, null) ?: return emptyMap()
+        cachedStatesJson?.let { if (it == json) return cachedStates }
         val type = object : TypeToken<Map<String, CooldownState>>() {}.type
-        return PrefsHelper.load(prefs, gson, Constants.PrefsKeys.APP_COOLDOWN_STATES, type)
-            ?: emptyMap()
+        val parsed = PrefsHelper.load<Map<String, CooldownState>>(
+            prefs, gson, Constants.PrefsKeys.APP_COOLDOWN_STATES, type
+        ) ?: emptyMap()
+        cachedStatesJson = json
+        cachedStates = parsed
+        return parsed
     }
 
     private fun saveCooldownStates(states: Map<String, CooldownState>) {
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.APP_COOLDOWN_STATES, states)
+        val json = gson.toJson(states)
+        prefs.edit().putString(Constants.PrefsKeys.APP_COOLDOWN_STATES, json).apply()
+        cachedStatesJson = json
+        cachedStates = states
     }
 
     companion object {
+        // Parsed-store cache, shared across instances (the service, ViewModels,
+        // and the Warden sync each construct their own manager). A blocked open
+        // attempt reads this store three times in a row on the accessibility
+        // service's main thread (isInCooldown → getCooldownState →
+        // recordAttempt); keying on the raw stored JSON collapses those to one
+        // parse. A racing writer just costs one redundant parse.
+        @Volatile private var cachedStatesJson: String? = null
+        @Volatile private var cachedStates: Map<String, CooldownState> = emptyMap()
         /** Returns the cooldown minutes remaining from the given [cooldownState] relative to [now]. */
         fun minutesRemaining(cooldownState: CooldownState, now: Long = System.currentTimeMillis()): Int {
             val remainingMs = cooldownState.cooldownExpiryMillis - now

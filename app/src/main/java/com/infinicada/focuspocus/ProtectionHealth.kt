@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus
 
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
@@ -104,9 +105,29 @@ object ProtectionHealth {
      * The optimization *list* screen, not the direct exemption request — the
      * request path needs the REQUEST_IGNORE_BATTERY_OPTIMIZATIONS permission
      * Play scrutinizes, and the list keeps the choice in the user's hands.
+     *
+     * Warden mode is the exception: Settings disables the battery controls of
+     * an active device admin (the same OS protection that removes its
+     * force-stop button), so the list screen is a dead end there — the user
+     * lands on a toggle they cannot flip. The direct consent dialog still
+     * works because it rides the device-idle allowlist, which the admin
+     * greying doesn't touch, and it still leaves the decision to the user.
      */
-    fun openBatteryOptimizationSettings(context: Context) =
+    @SuppressLint("BatteryLife")
+    fun openBatteryOptimizationSettings(context: Context) {
+        if (DeviceOwnerManager.isDeviceOwner(context)) {
+            try {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(Uri.fromParts("package", context.packageName, null))
+                )
+                return
+            } catch (e: Exception) {
+                Log.e(TAG, "Exemption dialog unavailable, falling back to the list screen", e)
+            }
+        }
         startSafely(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+    }
 
     private fun startSafely(context: Context, intent: Intent) {
         try {

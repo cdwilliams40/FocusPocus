@@ -86,6 +86,7 @@ class MyAccessibilityService : AccessibilityService() {
         launcherCacheResolved = false
         cachedLauncherPackageName = null
         cachedInputMethodPackageNames = null
+        DeviceOwnerManager.invalidatePackageCaches()
     }
 
     // Cache for parsed schedules to avoid re-parsing JSON every minute
@@ -1074,22 +1075,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun getActiveBlockerNames(): List<String> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
-        if (json != null) {
-            return try {
-                val type = object : TypeToken<List<String>>() {}.type
-                gson.fromJson(json, type) ?: emptyList()
-            } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing active blockers JSON", e)
-                // Fall back to single blocker pref
-                val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-                if (single != null) listOf(single) else emptyList()
-            }
-        }
-        val single = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        return if (single != null) listOf(single) else emptyList()
-    }
+    private fun getActiveBlockerNames(): List<String> =
+        BlockerRepository.getActiveBlockerNames(sharedPreferences)
 
     private fun getCachedConditionalUnlocks(): List<ConditionalUnlock> {
         val json = sharedPreferences.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null)

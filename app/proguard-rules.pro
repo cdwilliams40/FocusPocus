@@ -43,7 +43,3 @@
 -keep class com.infinicada.focuspocus.limit.AppOpenStats { *; }
 -keep class com.infinicada.focuspocus.limit.OpenReflexTracker$Store { *; }
 -keep class com.infinicada.focuspocus.limit.PendingPactRevision { *; }
-
-# --- ZXing (QR code library) ---
--keep class com.google.zxing.** { *; }
--keep class com.journeyapps.** { *; }

@@ -94,6 +94,8 @@ class PactManager(
     // -------------------------------------------------------------------------
 
     fun getGroups(): List<PactGroup> {
+        val json = prefs.getString(Constants.PrefsKeys.PACT_GROUPS, null) ?: return emptyList()
+        cachedGroupsJson?.let { if (it == json) return cachedGroups }
         val type = object : TypeToken<List<PactGroup>>() {}.type
         val groups = PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, type)
             ?: emptyList<PactGroup>()
@@ -102,33 +104,61 @@ class PactManager(
         // non-null Kotlin type. Such groups can't be matched to an enchantment —
         // drop them instead of letting the null leak into lookups and the UI.
         @Suppress("SENSELESS_COMPARISON")
-        return groups.filterNotNull().filter { it.blockerName != null }
+        val sanitized = groups.filterNotNull().filter { it.blockerName != null }
+        cachedGroupsJson = json
+        cachedGroups = sanitized
+        return sanitized
     }
 
     /** Adds or replaces the group bound to the same enchantment. */
     fun saveGroup(group: PactGroup) {
         val updated = getGroups().filter { it.blockerName != group.blockerName } + group
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, updated)
+        saveGroups(updated)
         Log.d(tag, "Pact group saved for enchantment ${group.blockerName}")
     }
 
     fun deleteGroup(blockerName: String) {
         val updated = getGroups().filter { it.blockerName != blockerName }
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, updated)
+        saveGroups(updated)
         Log.d(tag, "Pact group removed for enchantment $blockerName")
     }
 
+    private fun saveGroups(groups: List<PactGroup>) {
+        val json = gson.toJson(groups)
+        prefs.edit().putString(Constants.PrefsKeys.PACT_GROUPS, json).apply()
+        cachedGroupsJson = json
+        cachedGroups = groups
+    }
+
     private fun loadAllowances(): Map<String, Long> {
+        val json = prefs.getString(Constants.PrefsKeys.PACT_ALLOWANCES, null) ?: return emptyMap()
+        cachedAllowancesJson?.let { if (it == json) return cachedAllowances }
         val type = object : TypeToken<Map<String, Long>>() {}.type
-        return PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_ALLOWANCES, type)
-            ?: emptyMap()
+        val parsed = PrefsHelper.load<Map<String, Long>>(
+            prefs, gson, Constants.PrefsKeys.PACT_ALLOWANCES, type
+        ) ?: emptyMap()
+        cachedAllowancesJson = json
+        cachedAllowances = parsed
+        return parsed
     }
 
     private fun saveAllowances(allowances: Map<String, Long>) {
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.PACT_ALLOWANCES, allowances)
+        val json = gson.toJson(allowances)
+        prefs.edit().putString(Constants.PrefsKeys.PACT_ALLOWANCES, json).apply()
+        cachedAllowancesJson = json
+        cachedAllowances = allowances
     }
 
     companion object {
+        // Parsed-store caches, shared across instances (the service, ViewModels,
+        // and the Warden sync each construct their own manager). Allowances are
+        // read on every open attempt of a pact-gated app and on every minute
+        // tick; groups on every Warden sync. Keyed on the raw stored JSON, like
+        // the service's other caches; a racing writer costs one redundant parse.
+        @Volatile private var cachedAllowancesJson: String? = null
+        @Volatile private var cachedAllowances: Map<String, Long> = emptyMap()
+        @Volatile private var cachedGroupsJson: String? = null
+        @Volatile private var cachedGroups: List<PactGroup> = emptyList()
         /** Candidate allowance durations offered on the pact overlay, in minutes. */
         val DEFAULT_CHOICES = listOf(2, 5, 10, 15, 30)
 

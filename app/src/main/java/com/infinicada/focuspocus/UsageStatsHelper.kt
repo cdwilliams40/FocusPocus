@@ -30,6 +30,21 @@ object UsageStatsHelper {
     /** See [getForegroundUsageSince]: pre-window context for apps already in the foreground. */
     private const val EVENT_LOOKBACK_MS = 6L * 60 * 60 * 1000
 
+    /**
+     * How long a cached today-usage snapshot stays valid. The underlying query
+     * walks the whole day's event stream, and several callers hit it from the
+     * accessibility service's main thread (conditional unlocks check once per
+     * rule per block attempt, daily limits, pacing, the Warden minute sync) —
+     * so they must share one scan rather than each paying for their own. The
+     * cost is enforcement decisions lagging real usage by up to this long,
+     * the same trade TimeLimitChecker already makes for its verdict cache.
+     */
+    private const val TODAY_USAGE_CACHE_TTL_MS = 15_000L
+
+    @Volatile private var cachedTodayUsage: Map<String, Long>? = null
+    @Volatile private var cachedTodayUsageDayStart = 0L
+    @Volatile private var cachedTodayUsageAtMillis = 0L
+
     fun hasUsageStatsPermission(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
             ?: return false
@@ -41,8 +56,30 @@ object UsageStatsHelper {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
+    /**
+     * Per-package foreground time since local midnight, served from a
+     * [TODAY_USAGE_CACHE_TTL_MS] cache shared by every today-window caller.
+     * The day-start key invalidates the snapshot at midnight rollover; a
+     * racing refresh just costs one redundant scan.
+     */
+    fun getTodayForegroundUsage(context: Context): Map<String, Long> {
+        val dayStart = startOfTodayMillis()
+        val now = System.currentTimeMillis()
+        val cached = cachedTodayUsage
+        if (cached != null && cachedTodayUsageDayStart == dayStart &&
+            now - cachedTodayUsageAtMillis < TODAY_USAGE_CACHE_TTL_MS
+        ) {
+            return cached
+        }
+        val fresh = getForegroundUsageSince(context, dayStart)
+        cachedTodayUsage = fresh
+        cachedTodayUsageDayStart = dayStart
+        cachedTodayUsageAtMillis = now
+        return fresh
+    }
+
     fun getTodayUsage(context: Context): List<AppUsage> {
-        return getForegroundUsageSince(context, startOfTodayMillis())
+        return getTodayForegroundUsage(context)
             .filter { it.value > 0 }
             .map { (packageName, totalTime) ->
                 AppUsage(
@@ -77,7 +114,7 @@ object UsageStatsHelper {
     }
 
     fun getPackageUsageToday(context: Context, packageName: String): Long {
-        return getForegroundUsageSince(context, startOfTodayMillis())[packageName] ?: 0L
+        return getTodayForegroundUsage(context)[packageName] ?: 0L
     }
 
     fun startOfTodayMillis(): Long {

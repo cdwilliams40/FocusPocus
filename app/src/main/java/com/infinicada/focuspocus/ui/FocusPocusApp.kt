@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.infinicada.focuspocus.DndController
@@ -193,6 +194,14 @@ fun FocusPocusApp(
     val sessionSummaryStreak by sessionVM.sessionSummaryStreak.collectAsStateWithLifecycle()
     val sessionSummaryTrials by sessionVM.sessionSummaryTrials.collectAsStateWithLifecycle()
     val sessionSummarySigils by sessionVM.sessionSummarySigils.collectAsStateWithLifecycle()
+
+    // Pause the per-second countdown tickers while the UI can't be seen —
+    // the accessibility service enforces session expiry from the persisted
+    // end timestamps regardless, so backgrounded ticking is pure waste.
+    LifecycleStartEffect(Unit) {
+        sessionVM.onUiStarted()
+        onStopOrDispose { sessionVM.onUiStopped() }
+    }
 
     // Sync on external triggers (NFC, deep links). MainActivity bumps
     // nfcTriggerCount on every onResume and on session-pref changes, so this

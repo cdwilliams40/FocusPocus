@@ -8,6 +8,7 @@ import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.FocusSession
+import com.infinicada.focuspocus.calculateCurrentStreak
 import com.infinicada.focuspocus.data.InsightsRepository
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.OpenReflexTracker
@@ -22,7 +23,9 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
     private val _focusSessions = MutableStateFlow(repo.getFocusSessions())
     val focusSessions: StateFlow<List<FocusSession>> = _focusSessions.asStateFlow()
 
-    private val _currentStreak = MutableStateFlow(repo.getCurrentStreak())
+    // Derived from the sessions already loaded above — repo.getCurrentStreak()
+    // would re-parse the whole session store for a second time.
+    private val _currentStreak = MutableStateFlow(calculateCurrentStreak(_focusSessions.value))
     val currentStreak: StateFlow<Int> = _currentStreak.asStateFlow()
 
     private val _longestStreak = MutableStateFlow(repo.getLongestStreak())
@@ -43,7 +46,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
 
     fun refresh() {
         _focusSessions.value = repo.getFocusSessions()
-        _currentStreak.value = repo.getCurrentStreak()
+        _currentStreak.value = calculateCurrentStreak(_focusSessions.value)
         _longestStreak.value = repo.getLongestStreak()
         _blockEvents.value = repo.getBlockEvents()
         _appOpenDailyStats.value = openReflexTracker.getDailyStats()

@@ -69,20 +69,6 @@ class FocusNotificationListenerService : NotificationListenerService() {
         }
     }
 
-    private fun getActiveBlockerNames(prefs: android.content.SharedPreferences): List<String> {
-        val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
-        if (json != null) {
-            return try {
-                val type = object : TypeToken<List<String>>() {}.type
-                gson.fromJson(json, type) ?: emptyList()
-            } catch (e: Exception) {
-                Log.e("FocusNotifListener", "Error parsing active blockers JSON")
-                // Fall back to single blocker pref
-                val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-                if (single != null) listOf(single) else emptyList()
-            }
-        }
-        val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        return if (single != null) listOf(single) else emptyList()
-    }
+    private fun getActiveBlockerNames(prefs: android.content.SharedPreferences): List<String> =
+        BlockerRepository.getActiveBlockerNames(prefs)
 }

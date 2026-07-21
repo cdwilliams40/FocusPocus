@@ -108,6 +108,28 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private var breakTimerJob: Job? = null
     private var elapsedTimerJob: Job? = null
 
+    // The tickers are display-only — the accessibility service enforces expiry
+    // from the persisted wall-clock end timestamps regardless — so they pause
+    // while the UI can't be seen. viewModelScope outlives backgrounding, and
+    // without this gate a backgrounded app keeps waking every second for a
+    // countdown nobody is looking at. FocusPocusApp flips it on ON_START/ON_STOP.
+    private var uiVisible = true
+
+    fun onUiStarted() {
+        if (uiVisible) return
+        uiVisible = true
+        // Re-derive state from the persisted end timestamps (which kept
+        // counting while the tickers were paused) and restart the tickers.
+        syncFromPrefs()
+    }
+
+    fun onUiStopped() {
+        uiVisible = false
+        focusTimerJob?.cancel()
+        breakTimerJob?.cancel()
+        elapsedTimerJob?.cancel()
+    }
+
     init {
         normalizePersistedState()
         startTimersIfNeeded()
@@ -140,6 +162,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun startTimersIfNeeded() {
+        if (!uiVisible) return
         if (_isOnBreak.value && _breakTimeRemaining.value > 0) {
             startBreakTimer()
         }
