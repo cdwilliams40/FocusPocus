@@ -54,4 +54,39 @@ object BlockerRepository {
     fun getBlocker(prefs: SharedPreferences, name: String): Blocker? {
         return getBlockers(prefs).find { it.name == name }
     }
+
+    private var cachedActiveNamesKey: Pair<String?, String?>? = null
+    private var cachedActiveNames: List<String> = emptyList()
+
+    /**
+     * Names of the blockers active in the current session, from the
+     * ACTIVE_BLOCKERS JSON list with the legacy single-blocker key as
+     * fallback. Shared by the accessibility service, the Warden sync, the
+     * session notification, and the notification listener — all of which
+     * previously each re-parsed the JSON on their own hot paths. Cached on
+     * the raw stored strings, same as [getBlockers] above.
+     */
+    fun getActiveBlockerNames(prefs: SharedPreferences): List<String> {
+        synchronized(this) {
+            val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
+            val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
+            val key = json to single
+            cachedActiveNamesKey?.let { if (it == key) return cachedActiveNames }
+
+            val parsed: List<String>? = if (json != null) {
+                try {
+                    val type = object : TypeToken<List<String>>() {}.type
+                    gson.fromJson(json, type)
+                } catch (e: Exception) {
+                    Log.e("BlockerRepository", "Error parsing active blockers JSON", e)
+                    null
+                }
+            } else null
+            val names = parsed ?: single?.let { listOf(it) } ?: emptyList()
+
+            cachedActiveNamesKey = key
+            cachedActiveNames = names
+            return names
+        }
+    }
 }

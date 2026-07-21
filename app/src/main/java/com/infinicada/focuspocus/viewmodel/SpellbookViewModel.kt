@@ -56,9 +56,10 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     init {
         // Write through any pact revision that came due while the app was
         // closed, before the flows below snapshot the stores. (Init blocks and
-        // property initializers run in declaration order.)
+        // property initializers run in declaration order.) The suspension sync
+        // itself doesn't feed the snapshots, so it can leave the main thread.
         if (pactRevisionManager.applyDueRevisions()) {
-            DeviceOwnerManager.syncSuspensions(application)
+            syncWardenGreying()
         }
     }
 
@@ -177,10 +178,14 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * Reconciles Warden-mode greying after any edit that changes which apps are
      * pact-gated (configs, groups, or the enchantment membership behind a
      * circle) — a newly pact'd app greys out immediately, a released one
-     * un-greys. No-op when the device isn't provisioned.
+     * un-greys. No-op when the device isn't provisioned. Runs off the main
+     * thread: on a provisioned device the sync enumerates launchable packages
+     * and queries usage stats, which would jank every save tap.
      */
     private fun syncWardenGreying() {
-        DeviceOwnerManager.syncSuspensions(getApplication())
+        viewModelScope.launch(Dispatchers.Default) {
+            DeviceOwnerManager.syncSuspensions(getApplication())
+        }
     }
 
     /**
@@ -210,9 +215,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             return false
         }
         pactManager.grantAllowance(packageName, minutes, now)
-        syncWardenGreying()
         _dataVersion.value++
-        launchApp(packageName)
+        // Under Warden greying the OS refuses to open a still-suspended app,
+        // so the launch must chain after the sync completes — not go through
+        // the fire-and-forget syncWardenGreying.
+        viewModelScope.launch {
+            withContext(Dispatchers.Default) {
+                DeviceOwnerManager.syncSuspensions(getApplication())
+            }
+            launchApp(packageName)
+        }
         return true
     }
 

@@ -74,8 +74,7 @@ object AppTimeLimitManager {
 
     fun getAllUsedMinutesToday(context: Context): Map<String, Int> {
         if (!UsageStatsHelper.hasUsageStatsPermission(context)) return emptyMap()
-        return UsageStatsHelper
-            .getForegroundUsageSince(context, UsageStatsHelper.startOfTodayMillis())
+        return UsageStatsHelper.getTodayForegroundUsage(context)
             .mapValues { (_, totalMs) -> (totalMs / 1000 / 60).toInt() }
     }
 }

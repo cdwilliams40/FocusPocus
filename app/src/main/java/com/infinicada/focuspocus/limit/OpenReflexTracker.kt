@@ -77,9 +77,10 @@ class OpenReflexTracker(
 
     private fun loadDays(): Map<String, Map<String, AppOpenStats>> {
         val json = prefs.getString(Constants.PrefsKeys.APP_OPEN_STATS, null) ?: return emptyMap()
-        return try {
+        cachedDaysJson?.let { if (it == json) return cachedDays }
+        val days = try {
             val store = gson.fromJson(json, Store::class.java)
-            val days = when {
+            val parsed = when {
                 store?.days != null -> store.days
                 // Migration from the original single-day shape
                 store?.date != null && store.stats != null -> mapOf(store.date to store.stats)
@@ -89,10 +90,13 @@ class OpenReflexTracker(
             // 1.4), Gson fills these maps with LinkedTreeMap instead of AppOpenStats
             // and the cast only explodes later, mid-composition on the Insights and
             // Spellbook screens. Treat such data as corrupt rather than crash.
-            if (days.values.any(::hasPoisonedValues)) emptyMap() else days
+            if (parsed.values.any(::hasPoisonedValues)) emptyMap() else parsed
         } catch (e: Exception) {
             emptyMap()
         }
+        cachedDaysJson = json
+        cachedDays = days
+        return days
     }
 
     /**
@@ -106,9 +110,12 @@ class OpenReflexTracker(
     private fun save(days: Map<String, Map<String, AppOpenStats>>) {
         val cutoff = retentionCutoff(today())
         val pruned = days.filterKeys { it >= cutoff }
+        val json = gson.toJson(Store(days = pruned))
         prefs.edit()
-            .putString(Constants.PrefsKeys.APP_OPEN_STATS, gson.toJson(Store(days = pruned)))
+            .putString(Constants.PrefsKeys.APP_OPEN_STATS, json)
             .apply()
+        cachedDaysJson = json
+        cachedDays = pruned
     }
 
     /** Oldest "yyyyMMdd" date to retain, relative to [todayStr] (lexicographic compare is safe). */
@@ -128,5 +135,14 @@ class OpenReflexTracker(
 
         /** How many days of per-app open history to retain. */
         const val RETENTION_DAYS = 30
+
+        // Parsed-store cache, shared across instances (the service and the
+        // ViewModels each construct their own tracker): recordOpen/recordClose
+        // run on every foreground transition of a tracked app, and re-parsing
+        // the full retained history there costs the accessibility service's
+        // main thread. Keyed on the raw stored JSON, like the service's other
+        // caches; a racing writer just costs one redundant parse.
+        @Volatile private var cachedDaysJson: String? = null
+        @Volatile private var cachedDays: Map<String, Map<String, AppOpenStats>> = emptyMap()
     }
 }
