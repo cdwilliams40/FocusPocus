@@ -4,8 +4,11 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -30,9 +33,16 @@ fun AppIcon(packageName: String, contentDescription: String?, modifier: Modifier
     // thread: AppIcon renders per row in large LazyColumns (app picker, insights),
     // so a synchronous decode janks every newly composed row while scrolling.
     // Cache hits skip the load entirely and draw on first composition.
-    val icon by produceState(initialValue = iconCache.get(packageName), packageName) {
-        if (value == null) {
-            value = withContext(Dispatchers.IO) {
+    //
+    // The state must be keyed on packageName: when a reused slot rebinds to a
+    // different app (a list reordering or scrolling without item keys), an
+    // unkeyed holder — produceState's included — would carry the previous
+    // app's bitmap across the switch, and the null-check below would then
+    // skip the reload, leaving the wrong icon on the row permanently.
+    var icon by remember(packageName) { mutableStateOf<ImageBitmap?>(iconCache.get(packageName)) }
+    LaunchedEffect(packageName) {
+        if (icon == null) {
+            icon = withContext(Dispatchers.IO) {
                 try {
                     context.packageManager.getApplicationIcon(packageName)
                         .toBitmap().asImageBitmap()

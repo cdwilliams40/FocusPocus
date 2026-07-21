@@ -219,7 +219,19 @@ fun PactsHomeScreen(
                 GuardsEmptyState(onMakePact = onMakePact)
             }
         } else {
-            items(rows) { row ->
+            items(
+                rows,
+                // Stable identity per card: re-sorting (a guard changing state
+                // moves its card) must MOVE each item's composition rather than
+                // rebind reused slots to different apps — rebinding is what let
+                // a slot keep the previous app's icon and per-item state.
+                key = { row ->
+                    when (row) {
+                        is GuardRow.App -> "app:${row.packageName}"
+                        is GuardRow.Circle -> "circle:${row.group.blockerName}"
+                    }
+                }
+            ) { row ->
                 when (row) {
                     is GuardRow.App -> GuardAppCard(
                         row = row,
