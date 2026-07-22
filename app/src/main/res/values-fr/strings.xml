@@ -134,6 +134,16 @@
     <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
     <string name="home_create_enchantment">Créer un enchantement</string>
+    <string name="home_request_time_hint">Touchez une appli pour choisir vos minutes et l\'ouvrir.</string>
+    <string name="home_section_live">En ce moment</string>
+    <string name="home_section_guards">Vos pactes et gardes</string>
+    <string name="home_guard_edit_label">Modifier</string>
+    <string name="home_talisman_activate">Activer</string>
+    <string name="home_talisman_activate_desc">Activer %s</string>
+    <string name="home_talisman_action_cast">Lance %s</string>
+    <string name="home_talisman_action_temp_enable">Lance %1$s pendant %2$d min</string>
+    <string name="home_talisman_action_temp_disable">Fait une pause de %d min — nécessite une session active</string>
+    <string name="home_talisman_toggle_desc">Démarre une session de concentration avec vos enchantements sélectionnés</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
     <string name="guard_editor_edit_pact">Modifier le pacte</string>
     <string name="guard_editor_edit_ward">Modifier la garde</string>
@@ -409,8 +419,6 @@
 
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
     <string name="pacts_config_summary">Jusqu\'\u00e0 %1$d min par pacte \u2192 scell\u00e9e %2$d min ensuite</string>
-    <string name="pacts_alternative_summary">\u00c0 la place : %s</string>
-    <string name="pacts_backstop_summary">Garde-fou quotidien : %d min</string>
     <string name="pacts_backstop_label">Garde-fou quotidien (facultatif)</string>
     <string name="pacts_backstop_none">Aucun</string>
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>

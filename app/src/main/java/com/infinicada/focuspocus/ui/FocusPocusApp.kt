@@ -107,6 +107,7 @@ fun FocusPocusApp(
     showDeepLinkConfirmation: Boolean,
     onConfirmDeepLink: () -> Unit,
     onDismissDeepLink: () -> Unit,
+    onActivateTalismanPreset: (FocusPreset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sessionVM: SessionViewModel = viewModel()
@@ -861,6 +862,12 @@ fun FocusPocusApp(
                             currentDestination = AppDestinations.SPELLBOOK
                             spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
                         },
+                        onActivateTalismanPreset = onActivateTalismanPreset,
+                        // Same effect as tapping the physical tag while idle:
+                        // anchor a talisman session on this tag. Dispelling is
+                        // not offered here — the session controls (and any
+                        // talisman lock) own that.
+                        onActivateFocusTag = { tag -> sessionVM.setFocusTagId(tag.id) },
                         modifier = contentModifier
                     )
                 }

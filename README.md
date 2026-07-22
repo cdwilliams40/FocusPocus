@@ -58,7 +58,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
 - Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
 - Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
-- Managed front and center on the **Pacts tab — the app's home screen**: one card per guard with its live state (sealed, pact running, limit spent, or quiet) and today's open/reflex counts
+- Managed front and center on the **Pacts tab — the app's home screen**: a **Request time** panel offers every requestable app as a one-tap icon grid, and the guards below it split into *Happening now* (seals, running pacts, spent limits — with countdowns) and the standing guard list, each card showing its live state and today's open/reflex counts
 - **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
 - **A pact binds for a day**: changing or removing an existing pact (or circle) takes effect only 24 hours after you confirm it — the current terms stay enforced in the meantime, and you can cancel the pending change to keep them. Creating a new pact, and tuning wards, stays instant
 
@@ -103,7 +103,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 ### Warden Mode (Device Owner)
 - Optionally provision FocusPocus as the Android *device owner* for OS-level enforcement
 - Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the accessibility service
-- **Pact-bound apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact allowance is running. To open one, request time with the **Request time** button on its Pacts-dashboard card; the allowance un-greys the app for exactly the minutes you chose
+- **Pact-bound apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact allowance is running. To open one, tap it in the **Request time** panel at the top of the Pacts dashboard; the allowance un-greys the app for exactly the minutes you chose
 - FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
 - Fully reversible from Settings (but never mid-session), and removal must be **requested 24 hours in advance** — a cancelable cooling-off countdown separates the urge from the act
 
@@ -181,16 +181,18 @@ The app has four tabs, plus a Settings screen reached from the top bar.
 
 ### Pacts Tab (home)
 Your standing protection, always the first thing you see:
-- One card per guard — a **Pact** (sealed by default), a **Ward** (a daily time limit, with optional per-session cooldowns), or a **pact circle** (a pact over a whole enchantment)
-- Live state on every card: *sealed (lifts in X)*, *pact running (X left)*, *limit spent*, or quiet with today's open/reflex counts
+- A **Request time** panel up top: every app you can currently request pact time for, as a one-tap icon grid, most-opened-today first — tap the app, sit out the anti-reflex pause, pick your minutes, and it opens
+- Below it, guards split into **Happening now** (sealed, pact running, or limit spent — with live countdowns) and **Your pacts & wards** — one compact card per **Pact** (sealed by default), **Ward** (a daily time limit, with optional per-session cooldowns), or **pact circle** (a pact over a whole enchantment); pact and circle cards also show today's open/reflex counts
+- Tap any card to open the unified guard editor with its full settings: allowances, seals, escalation, substitutes, daily backstops, guard hours — and convert between styles anytime
 - A banner links to the Focus tab whenever a session or ritual is running
-- "Make a pact" opens the unified guard editor: pick an app or enchantment, choose pact or ward, tune allowances, seals, escalation, substitutes, and daily backstops — and convert between styles anytime
+- "Make a pact" creates a new guard in the same editor; "Seal everything now" is the panic button
 
 ### Focus Tab
 - Select a Quick Spell or customize your session
 - Choose one or more enchantments (blocklists)
 - Set duration and break preferences
 - Tap "Cast" to start or "Dispel" to end
+- **Activate any talisman by hand** — casting its bound Quick Spell or starting a talisman session exactly as a physical NFC tap would
 
 ### Spellbook Tab
 Your grimoire of focus-session configuration:

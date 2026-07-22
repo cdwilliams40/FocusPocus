@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Link
@@ -45,12 +45,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
@@ -63,6 +65,7 @@ import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.PendingPactRevision
+import com.infinicada.focuspocus.limit.RequestTarget
 import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
@@ -70,15 +73,23 @@ import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
+import com.infinicada.focuspocus.ui.components.SectionHeader
 import com.infinicada.focuspocus.ui.components.formatClock
 import com.infinicada.focuspocus.ui.formatDuration
 import kotlinx.coroutines.delay
 
+/** Tiles per row in the "Request time" app grid. */
+private const val REQUEST_GRID_COLUMNS = 4
+
 /**
- * The app's default screen: a dashboard of standing protection. One card per
- * guard (a pact'd or time-limited app, or a whole pact circle) with its live
- * state — sealed, pact running, limit spent, or quiet with today's open
- * counts — plus a banner linking to the Focus tab while a session runs.
+ * The app's default screen: a dashboard of standing protection, organized by
+ * what the user came to do. A "Request time" panel up top offers every
+ * currently-requestable pact app as a tappable icon — one tap picks the app,
+ * then the usual anti-reflex pause and minute choice. Below it, guards split
+ * into "Happening now" (seals, running pacts, spent limits, with countdowns)
+ * and the standing guard list; tapping any card opens its editor. The panic
+ * seal and the make-a-pact CTA close the list, and a banner links to the
+ * Focus tab while a session runs.
  *
  * All state is hoisted; the row list is derived here from the raw snapshots
  * via [GuardStatus.buildRows] so the ordering/priority logic stays testable.
@@ -129,8 +140,27 @@ fun PactsHomeScreen(
             now = nowMillis
         )
     }
+    val requestTargets = remember(
+        appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
+    ) {
+        GuardStatus.requestTargets(
+            configs = appTimeLimitConfigs,
+            groups = pactGroups,
+            blockers = blockerLists,
+            liveStates = guardLiveStates,
+            openStats = todayOpenStats,
+            names = names,
+            now = nowMillis
+        )
+    }
     val headline = remember(rows) { GuardStatus.headlineCounts(rows) }
     val rollup = remember(rows) { GuardStatus.todayRollup(rows) }
+    val liveRows = remember(rows) { rows.filter { GuardStatus.isLive(it) } }
+    val standingRows = remember(rows) { rows.filter { !GuardStatus.isLive(it) } }
+
+    // The tapped tile's request flow; holds a snapshot of the target so a
+    // background refresh can't swap the app mid-choice.
+    var requestTarget by remember { mutableStateOf<RequestTarget?>(null) }
 
     LazyColumn(
         modifier = modifier
@@ -219,43 +249,39 @@ fun PactsHomeScreen(
                 GuardsEmptyState(onMakePact = onMakePact)
             }
         } else {
-            items(
-                rows,
-                // Stable identity per card: re-sorting (a guard changing state
-                // moves its card) must MOVE each item's composition rather than
-                // rebind reused slots to different apps — rebinding is what let
-                // a slot keep the previous app's icon and per-item state.
-                key = { row ->
-                    when (row) {
-                        is GuardRow.App -> "app:${row.packageName}"
-                        is GuardRow.Circle -> "circle:${row.group.blockerName}"
-                    }
-                }
-            ) { row ->
-                when (row) {
-                    is GuardRow.App -> GuardAppCard(
-                        row = row,
+            // ── Request time: the dashboard's primary action, one tap per app ──
+            if (requestTargets.isNotEmpty()) {
+                item(key = "request-panel") {
+                    SectionHeader(stringResource(R.string.pacts_request_time))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    RequestTimePanel(
+                        targets = requestTargets,
                         names = names,
-                        pendingRevision = pendingRevisions.find { it.packageName == row.packageName },
-                        nowMillis = nowMillis,
-                        onClick = { onGuardClick(row) },
-                        onRequestTime = onRequestTime
+                        onTargetClick = { requestTarget = it }
                     )
-                    is GuardRow.Circle -> GuardCircleCard(
-                        row = row,
-                        names = names,
-                        pendingRevision = pendingRevisions.find {
-                            it.packageName == null && it.blockerName == row.group.blockerName
-                        },
-                        nowMillis = nowMillis,
-                        onClick = { onGuardClick(row) },
-                        onRequestTime = onRequestTime
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            item {
+            // ── Happening now: seals, running pacts, spent limits ──
+            if (liveRows.isNotEmpty()) {
+                item(key = "live-header") {
+                    SectionHeader(stringResource(R.string.home_section_live))
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            guardCards(liveRows, names, pendingRevisions, nowMillis, onGuardClick)
+
+            // ── Standing guards, quiet or off their hours ──
+            if (standingRows.isNotEmpty()) {
+                item(key = "standing-header") {
+                    SectionHeader(stringResource(R.string.home_section_guards))
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            guardCards(standingRows, names, pendingRevisions, nowMillis, onGuardClick)
+
+            item(key = "bottom-actions") {
                 Spacer(modifier = Modifier.height(8.dp))
                 // Panic button: only meaningful when some pact-gated app isn't
                 // already sealed — otherwise there is nothing left to seal.
@@ -310,6 +336,20 @@ fun PactsHomeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+
+    requestTarget?.let { target ->
+        PactRequestDialog(
+            packageName = target.packageName,
+            appName = names[target.packageName] ?: target.packageName,
+            choicesMinutes = PactManager.choicesFor(target.config),
+            sealMinutes = target.config.cooldownMinutes,
+            onRequest = { minutes ->
+                requestTarget = null
+                onRequestTime(target.packageName, minutes)
+            },
+            onDismiss = { requestTarget = null }
+        )
     }
 }
 
@@ -477,24 +517,156 @@ private fun SessionBanner(
 }
 
 // ────────────────────────────────────────────────────────────
+//  REQUEST-TIME PANEL
+// ────────────────────────────────────────────────────────────
+
+/**
+ * The fast lane: every requestable pact app as an icon tile, most-opened
+ * first. One tap selects the app; the dialog then holds the same anti-reflex
+ * pause as the pact overlay before the minute choice.
+ */
+@Composable
+private fun RequestTimePanel(
+    targets: List<RequestTarget>,
+    names: Map<String, String>,
+    onTargetClick: (RequestTarget) -> Unit
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Text(
+            stringResource(R.string.home_request_time_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        targets.chunked(REQUEST_GRID_COLUMNS).forEachIndexed { index, rowTargets ->
+            if (index > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowTargets.forEach { target ->
+                    RequestTimeTile(
+                        target = target,
+                        appName = names[target.packageName] ?: target.packageName,
+                        onClick = { onTargetClick(target) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                // Pad partial rows so tiles keep the same width as full rows.
+                repeat(REQUEST_GRID_COLUMNS - rowTargets.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestTimeTile(
+    target: RequestTarget,
+    appName: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(
+                onClick = onClick,
+                onClickLabel = stringResource(R.string.pacts_request_time)
+            )
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+    ) {
+        AppIcon(
+            packageName = target.packageName,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = appName,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 //  GUARD CARDS
 // ────────────────────────────────────────────────────────────
 
+/** Emits one compact card per row, keyed stably so re-sorting moves compositions. */
+private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
+    rows: List<GuardRow>,
+    names: Map<String, String>,
+    pendingRevisions: List<PendingPactRevision>,
+    nowMillis: Long,
+    onGuardClick: (GuardRow) -> Unit
+) {
+    items(
+        rows,
+        // Stable identity per card: re-sorting (a guard changing state moves
+        // its card, possibly across sections) must MOVE each item's
+        // composition rather than rebind reused slots to different apps —
+        // rebinding is what let a slot keep the previous app's icon and
+        // per-item state.
+        key = { row ->
+            when (row) {
+                is GuardRow.App -> "app:${row.packageName}"
+                is GuardRow.Circle -> "circle:${row.group.blockerName}"
+            }
+        }
+    ) { row ->
+        when (row) {
+            is GuardRow.App -> GuardAppCard(
+                row = row,
+                names = names,
+                pendingRevision = pendingRevisions.find { it.packageName == row.packageName },
+                nowMillis = nowMillis,
+                onClick = { onGuardClick(row) }
+            )
+            is GuardRow.Circle -> GuardCircleCard(
+                row = row,
+                pendingRevision = pendingRevisions.find {
+                    it.packageName == null && it.blockerName == row.group.blockerName
+                },
+                nowMillis = nowMillis,
+                onClick = { onGuardClick(row) }
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+/**
+ * A compact guard card: identity, one config line, live state, and the state
+ * chip. Tapping opens the guard's editor, which holds the full settings
+ * (substitute app, daily backstop, escalation, guard hours).
+ */
 @Composable
 private fun GuardAppCard(
     row: GuardRow.App,
     names: Map<String, String>,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
-    onClick: () -> Unit,
-    onRequestTime: (packageName: String, minutes: Int) -> Unit
+    onClick: () -> Unit
 ) {
     val appName = names[row.packageName] ?: row.packageName
-    var showRequestDialog by remember { mutableStateOf(false) }
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(
+                onClick = onClick,
+                onClickLabel = stringResource(R.string.home_guard_edit_label)
+            ),
         contentPadding = PaddingValues(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -509,48 +681,28 @@ private fun GuardAppCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(appName, style = MaterialTheme.typography.titleSmall)
                 if (row.config.pactModeEnabled) {
-                    PactCardBody(row, names)
+                    PactCardBody(row)
                 } else {
                     WardCardBody(row)
                 }
                 PendingRevisionLine(pendingRevision, nowMillis)
             }
             GuardStateChip(state = row.state)
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .size(20.dp)
+            )
         }
-        // The in-app pact gate: under Warden greying the OS refuses to open the
-        // app at all, so this is where a sealed-by-default app gets its time.
-        if (row.config.pactModeEnabled && row.state == GuardState.QUIET) {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { showRequestDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.pacts_request_time))
-            }
-        }
-    }
-    if (showRequestDialog) {
-        PactRequestDialog(
-            targets = listOf(
-                PactRequestTarget(
-                    packageName = row.packageName,
-                    appName = appName,
-                    choicesMinutes = PactManager.choicesFor(row.config),
-                    sealMinutes = row.config.cooldownMinutes
-                )
-            ),
-            onRequest = { pkg, minutes ->
-                showRequestDialog = false
-                onRequestTime(pkg, minutes)
-            },
-            onDismiss = { showRequestDialog = false }
-        )
     }
 }
 
 /** Config summary, live state, and today's counters for a pact-style row. */
 @Composable
-private fun PactCardBody(row: GuardRow.App, names: Map<String, String>) {
+private fun PactCardBody(row: GuardRow.App) {
     val effectiveMax = if (row.config.pactMaxMinutes > 0) row.config.pactMaxMinutes
                        else PactManager.DEFAULT_MAX_MINUTES
     Text(
@@ -558,20 +710,6 @@ private fun PactCardBody(row: GuardRow.App, names: Map<String, String>) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    row.config.pactAlternativePackage?.let { altPkg ->
-        Text(
-            stringResource(R.string.pacts_alternative_summary, names[altPkg] ?: altPkg),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-    if (row.config.dailyLimitMinutes > 0) {
-        Text(
-            stringResource(R.string.pacts_backstop_summary, row.config.dailyLimitMinutes),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
     GuardScheduleSummary(row.config.activeDays, row.config.activeStartTime, row.config.activeEndTime)
     GuardStateLine(row)
     Text(
@@ -678,17 +816,18 @@ private fun GuardScheduleSummary(
 @Composable
 private fun GuardCircleCard(
     row: GuardRow.Circle,
-    names: Map<String, String>,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
-    onClick: () -> Unit,
-    onRequestTime: (packageName: String, minutes: Int) -> Unit
+    onClick: () -> Unit
 ) {
-    var showRequestDialog by remember { mutableStateOf(false) }
+    val circleState = GuardStatus.displayState(row)
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(
+                onClick = onClick,
+                onClickLabel = stringResource(R.string.home_guard_edit_label)
+            ),
         contentPadding = PaddingValues(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -728,19 +867,10 @@ private fun GuardCircleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                row.group.pactAlternativePackage?.let { altPkg ->
-                    Text(
-                        stringResource(R.string.pacts_alternative_summary, names[altPkg] ?: altPkg),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
                 GuardScheduleSummary(
                     row.group.activeDays, row.group.activeStartTime, row.group.activeEndTime
                 )
-                if (row.offScheduleCount > 0 && row.sealedCount == 0 &&
-                    row.pactActiveCount == 0 && row.quietMemberPackages.isEmpty()
-                ) {
+                if (circleState == GuardState.SCHEDULED_OFF) {
                     Text(
                         stringResource(R.string.home_guard_off_schedule),
                         style = MaterialTheme.typography.bodySmall,
@@ -763,42 +893,16 @@ private fun GuardCircleCard(
                 )
                 PendingRevisionLine(pendingRevision, nowMillis)
             }
-            val circleState = when {
-                row.sealedCount > 0 -> GuardState.SEALED
-                row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
-                row.overLimitCount > 0 -> GuardState.OVER_LIMIT
-                row.quietMemberPackages.isEmpty() && row.offScheduleCount > 0 ->
-                    GuardState.SCHEDULED_OFF
-                else -> GuardState.QUIET
-            }
             GuardStateChip(state = circleState)
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .size(20.dp)
+            )
         }
-        if (row.quietMemberPackages.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { showRequestDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.pacts_request_time))
-            }
-        }
-    }
-    if (showRequestDialog) {
-        PactRequestDialog(
-            targets = row.quietMemberPackages.map { pkg ->
-                PactRequestTarget(
-                    packageName = pkg,
-                    appName = names[pkg] ?: pkg,
-                    choicesMinutes = PactManager.choicesFor(row.group.toAppTimeLimit(pkg)),
-                    sealMinutes = row.group.cooldownMinutes
-                )
-            },
-            onRequest = { pkg, minutes ->
-                showRequestDialog = false
-                onRequestTime(pkg, minutes)
-            },
-            onDismiss = { showRequestDialog = false }
-        )
     }
 }
 
@@ -866,29 +970,23 @@ private fun GuardStateChip(state: GuardState) {
 //  REQUEST-TIME DIALOG
 // ────────────────────────────────────────────────────────────
 
-/** One requestable app offered by [PactRequestDialog]. */
-private data class PactRequestTarget(
-    val packageName: String,
-    val appName: String,
-    val choicesMinutes: List<Int>,
-    val sealMinutes: Int
-)
-
 /**
  * The pact overlay's in-app twin. With Warden greying on, a pact-gated app is
  * OS-suspended and its launcher icon leads only to a system "app is paused"
  * dialog — so the conscious time choice happens here instead, and granting it
- * un-greys the app. Multiple targets (a pact circle) get a picker step first,
- * and the same few-second pause gates the choices so the dashboard doesn't
- * become a lower-friction side door than the overlay it mirrors.
+ * un-greys the app. The same few-second pause gates the choices so the
+ * dashboard doesn't become a lower-friction side door than the overlay it
+ * mirrors.
  */
 @Composable
 private fun PactRequestDialog(
-    targets: List<PactRequestTarget>,
-    onRequest: (packageName: String, minutes: Int) -> Unit,
+    packageName: String,
+    appName: String,
+    choicesMinutes: List<Int>,
+    sealMinutes: Int,
+    onRequest: (minutes: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selected by remember { mutableStateOf(targets.singleOrNull()) }
     var remainingSeconds by remember { mutableIntStateOf(3) }
     val countdownDone = remainingSeconds <= 0
 
@@ -901,62 +999,47 @@ private fun PactRequestDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.pacts_request_time)) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(
+                    packageName = packageName,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(stringResource(R.string.pacts_request_time))
+            }
+        },
         text = {
-            val target = selected
-            if (target == null) {
-                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                    items(targets) { candidate ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selected = candidate }
-                                .padding(vertical = 8.dp)
-                        ) {
-                            AppIcon(
-                                packageName = candidate.packageName,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(candidate.appName, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                }
-            } else {
-                Column {
+            Column {
+                Text(
+                    stringResource(R.string.overlay_pact_prompt, appName),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (!countdownDone) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.overlay_pact_prompt, target.appName),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        stringResource(
-                            R.string.overlay_pact_seal_desc, target.appName, target.sealMinutes
-                        ),
+                        stringResource(R.string.overlay_pact_wait, remainingSeconds),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (!countdownDone) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.overlay_pact_wait, remainingSeconds),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                choicesMinutes.forEach { minutes ->
+                    OutlinedButton(
+                        onClick = { onRequest(minutes) },
+                        enabled = countdownDone,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.overlay_pact_choice, minutes))
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    target.choicesMinutes.forEach { minutes ->
-                        OutlinedButton(
-                            onClick = { onRequest(target.packageName, minutes) },
-                            enabled = countdownDone,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.overlay_pact_choice, minutes))
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         },
