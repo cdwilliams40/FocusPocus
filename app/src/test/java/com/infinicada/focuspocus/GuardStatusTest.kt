@@ -322,6 +322,142 @@ class GuardStatusTest {
         )
     }
 
+    // ── requestTargets ──
+
+    @Test
+    fun `requestTargets offers quiet pacts only`() {
+        val configs = mapOf(
+            "com.quiet" to pact("com.quiet"),
+            "com.sealed" to pact("com.sealed"),
+            "com.running" to pact("com.running"),
+            "com.spent" to pact("com.spent", backstop = 30),
+            "com.ward" to ward("com.ward")
+        )
+        val liveStates = mapOf(
+            "com.sealed" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000),
+            "com.running" to GuardLiveState(allowanceExpiryMillis = t0 + 60_000),
+            "com.spent" to GuardLiveState(usedMinutesToday = 30)
+        )
+
+        val targets = GuardStatus.requestTargets(
+            configs, emptyList(), emptyList(), liveStates, emptyMap(), emptyMap(), t0
+        )
+
+        assertEquals(listOf("com.quiet"), targets.map { it.packageName })
+        assertEquals(configs["com.quiet"], targets.single().config)
+    }
+
+    @Test
+    fun `requestTargets includes quiet circle members with the circle's settings`() {
+        val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b")))
+        val groups = listOf(PactGroup(blockerName = "Doom", pactMaxMinutes = 5, cooldownMinutes = 45))
+        val liveStates = mapOf("com.a" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000))
+
+        val targets = GuardStatus.requestTargets(
+            emptyMap(), groups, blockers, liveStates, emptyMap(), emptyMap(), t0
+        )
+
+        assertEquals(listOf("com.b"), targets.map { it.packageName })
+        assertEquals(45, targets.single().config.cooldownMinutes)
+        assertEquals(5, targets.single().config.pactMaxMinutes)
+        assertTrue(targets.single().config.pactModeEnabled)
+    }
+
+    @Test
+    fun `requestTargets honors explicit-config precedence over circles`() {
+        val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b")))
+        val groups = listOf(PactGroup(blockerName = "Doom"))
+        // Explicit ward config governs com.a: not pact-gated, never requestable.
+        val configs = mapOf("com.a" to ward("com.a", daily = 0))
+
+        val targets = GuardStatus.requestTargets(
+            configs, groups, blockers, emptyMap(), emptyMap(), emptyMap(), t0
+        )
+
+        assertEquals(listOf("com.b"), targets.map { it.packageName })
+    }
+
+    @Test
+    fun `requestTargets uses only the first circle governing a package`() {
+        // com.shared sits in both circles; the first (its governing circle)
+        // has spent its daily backstop, so the app is not requestable — the
+        // second circle's quiet verdict must not resurrect it.
+        val blockers = listOf(
+            Blocker("First", BlockerMode.BLACKLIST, setOf("com.shared")),
+            Blocker("Second", BlockerMode.BLACKLIST, setOf("com.shared", "com.other"))
+        )
+        val groups = listOf(
+            PactGroup(blockerName = "First", dailyLimitMinutes = 30),
+            PactGroup(blockerName = "Second")
+        )
+        val liveStates = mapOf("com.shared" to GuardLiveState(usedMinutesToday = 30))
+
+        val targets = GuardStatus.requestTargets(
+            emptyMap(), groups, blockers, liveStates, emptyMap(), emptyMap(), t0
+        )
+
+        assertEquals(listOf("com.other"), targets.map { it.packageName })
+    }
+
+    @Test
+    fun `requestTargets orders by opens descending then name`() {
+        val configs = mapOf(
+            "com.idle" to pact("com.idle"),
+            "com.busy" to pact("com.busy"),
+            "com.also.idle" to pact("com.also.idle")
+        )
+        val openStats = mapOf("com.busy" to AppOpenStats(opens = 9, reflexOpens = 1))
+        val names = mapOf(
+            "com.idle" to "Zeta",
+            "com.busy" to "Busy",
+            "com.also.idle" to "Alpha"
+        )
+
+        val targets = GuardStatus.requestTargets(
+            configs, emptyList(), emptyList(), emptyMap(), openStats, names, t0
+        )
+
+        assertEquals(listOf("com.busy", "com.also.idle", "com.idle"), targets.map { it.packageName })
+    }
+
+    // ── displayState & isLive ──
+
+    @Test
+    fun `circle display state picks the most urgent member state`() {
+        fun circle(
+            sealed: Int = 0, active: Int = 0, over: Int = 0,
+            quiet: List<String> = emptyList(), off: Int = 0
+        ) = GuardRow.Circle(
+            group = PactGroup(blockerName = "Doom"),
+            memberPackages = quiet, quietMemberPackages = quiet,
+            sealedCount = sealed, pactActiveCount = active, overLimitCount = over,
+            offScheduleCount = off, opensToday = 0, reflexesToday = 0
+        )
+
+        assertEquals(GuardState.SEALED, GuardStatus.displayState(circle(sealed = 1, active = 2)))
+        assertEquals(GuardState.PACT_ACTIVE, GuardStatus.displayState(circle(active = 1)))
+        assertEquals(GuardState.OVER_LIMIT, GuardStatus.displayState(circle(over = 1)))
+        assertEquals(GuardState.QUIET, GuardStatus.displayState(circle(quiet = listOf("a"), off = 1)))
+        assertEquals(GuardState.SCHEDULED_OFF, GuardStatus.displayState(circle(off = 2)))
+        // An empty circle (deleted enchantment) is quiet, not off-hours.
+        assertEquals(GuardState.QUIET, GuardStatus.displayState(circle()))
+    }
+
+    @Test
+    fun `isLive splits happening-now states from standing guards`() {
+        val liveStates = mapOf("com.sealed" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000))
+        val rows = GuardStatus.buildRows(
+            mapOf(
+                "com.sealed" to pact("com.sealed"),
+                "com.quiet" to pact("com.quiet")
+            ),
+            emptyList(), emptyList(), liveStates, emptyMap(), emptyMap(), t0
+        ).filterIsInstance<GuardRow.App>().associateBy { it.packageName }
+
+        assertTrue(GuardStatus.isLive(rows.getValue("com.sealed")))
+        assertFalse(GuardStatus.isLive(rows.getValue("com.quiet")))
+    }
+
     // ── pactGatedConfigs ──
 
     @Test

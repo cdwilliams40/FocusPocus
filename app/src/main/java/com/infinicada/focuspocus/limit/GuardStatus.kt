@@ -78,6 +78,18 @@ sealed class GuardRow {
 }
 
 /**
+ * One app the dashboard's "Request time" panel can offer right now: a
+ * pact-gated app that is quiet (not sealed, no running allowance, under any
+ * daily backstop, inside its guard hours), with the settings that govern it.
+ */
+data class RequestTarget(
+    val packageName: String,
+    /** The governing pact settings — explicit config, or synthesized from its circle. */
+    val config: AppTimeLimit,
+    val opensToday: Int
+)
+
+/**
  * Pure resolution and ordering logic for the Pacts dashboard, kept free of
  * Android types so it is unit-testable.
  */
@@ -230,6 +242,83 @@ object GuardStatus {
         )
     }
 
+    /**
+     * The apps the "Request time" panel offers: every pact-gated app whose gate
+     * is requestable right now — explicit pact configs in the QUIET state plus
+     * quiet circle members. Precedence mirrors resolvePactConfig: an explicit
+     * config always governs its app, then the first circle containing it; an
+     * app whose governing guard isn't quiet is never offered under a later
+     * circle's terms. Ordered by today's opens descending (the app being
+     * wrestled with floats up), display name as the tiebreaker.
+     */
+    fun requestTargets(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>,
+        liveStates: Map<String, GuardLiveState>,
+        openStats: Map<String, AppOpenStats>,
+        names: Map<String, String>,
+        now: Long
+    ): List<RequestTarget> {
+        val targets = mutableListOf<RequestTarget>()
+        configs.forEach { (pkg, config) ->
+            if (!config.pactModeEnabled) return@forEach
+            val live = liveStates[pkg] ?: GuardLiveState()
+            if (resolveState(config, live, now, GuardWindow.isActiveNow(config, now)) == GuardState.QUIET) {
+                targets += RequestTarget(pkg, config, (openStats[pkg] ?: AppOpenStats()).opens)
+            }
+        }
+        // Track every circle-governed package, not just the quiet ones, so a
+        // package sealed under its governing (first) circle can't slip in as
+        // requestable via a later circle that also contains it.
+        val governed = mutableSetOf<String>()
+        groups.forEach { group ->
+            val windowActive = GuardWindow.isActiveAt(
+                group.activeDays, group.activeStartTime, group.activeEndTime, now
+            )
+            circleMemberPackages(group, blockers, configs).forEach { pkg ->
+                if (!governed.add(pkg)) return@forEach
+                val config = group.toAppTimeLimit(pkg)
+                val live = liveStates[pkg] ?: GuardLiveState()
+                if (resolveState(config, live, now, windowActive) == GuardState.QUIET) {
+                    targets += RequestTarget(pkg, config, (openStats[pkg] ?: AppOpenStats()).opens)
+                }
+            }
+        }
+        return targets.sortedWith(
+            compareBy(
+                { -it.opensToday },
+                { (names[it.packageName] ?: it.packageName).lowercase() }
+            )
+        )
+    }
+
+    /**
+     * The display state of a whole row — an app row's own state, a circle's
+     * most-urgent member state. Drives the trailing chip, the section split,
+     * and the sort priority, so all three always agree.
+     */
+    fun displayState(row: GuardRow): GuardState = when (row) {
+        is GuardRow.App -> row.state
+        is GuardRow.Circle -> when {
+            row.sealedCount > 0 -> GuardState.SEALED
+            row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE
+            row.overLimitCount > 0 -> GuardState.OVER_LIMIT
+            row.quietMemberPackages.isNotEmpty() || row.offScheduleCount == 0 -> GuardState.QUIET
+            else -> GuardState.SCHEDULED_OFF
+        }
+    }
+
+    /**
+     * True when something is actively happening on this row — a seal, a running
+     * pact, or a spent limit. Splits the dashboard into "happening now" vs.
+     * standing guards.
+     */
+    fun isLive(row: GuardRow): Boolean = when (displayState(row)) {
+        GuardState.SEALED, GuardState.PACT_ACTIVE, GuardState.OVER_LIMIT -> true
+        GuardState.QUIET, GuardState.SCHEDULED_OFF -> false
+    }
+
     /** Headline counts across every row, circles included. */
     fun headlineCounts(rows: List<GuardRow>): GuardHeadline {
         var sealedCount = 0
@@ -283,17 +372,7 @@ object GuardStatus {
         }
     }
 
-    private fun statePriority(row: GuardRow): Int = when (row) {
-        is GuardRow.App -> row.state.ordinal
-        is GuardRow.Circle -> when {
-            row.sealedCount > 0 -> GuardState.SEALED.ordinal
-            row.pactActiveCount > 0 -> GuardState.PACT_ACTIVE.ordinal
-            row.overLimitCount > 0 -> GuardState.OVER_LIMIT.ordinal
-            row.quietMemberPackages.isNotEmpty() || row.offScheduleCount == 0 ->
-                GuardState.QUIET.ordinal
-            else -> GuardState.SCHEDULED_OFF.ordinal
-        }
-    }
+    private fun statePriority(row: GuardRow): Int = displayState(row).ordinal
 
     private fun opensOf(row: GuardRow): Int = when (row) {
         is GuardRow.App -> row.opensToday

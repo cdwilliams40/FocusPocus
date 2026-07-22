@@ -136,6 +136,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     showDeepLinkConfirmation = showDeepLinkConfirmation,
                     onConfirmDeepLink = { confirmDeepLinkAction() },
                     onDismissDeepLink = { dismissDeepLinkConfirmation() },
+                    onActivateTalismanPreset = { preset -> runPresetToggle(preset) },
                     modifier = Modifier
                 )
             }
@@ -163,27 +164,35 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         }
     }
 
-    private fun confirmDeepLinkAction() {
-        pendingDeepLinkPreset?.let { preset ->
-            val container = (application as FocusPocusApplication).container
-            val result = triggerHandler.togglePreset(
-                preset,
-                container.blockers.getBlockers(),
-                container.schedules.getSchedules()
-            )
-            when (result) {
-                is TriggerResult.Success -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                    // Same sync mechanism as prefs-change and NFC triggers: force
-                    // the ViewModels to re-read session state from prefs.
-                    nfcTriggerCount++
-                }
-                is TriggerResult.Error -> {
-                    Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                }
-                else -> {}
+    /**
+     * Toggles [preset] exactly as an NFC tap or confirmed deep link would —
+     * one path, so the ritual-lock gate and session bookkeeping in
+     * [TriggerHandler.togglePreset] apply to every trigger source, including
+     * the Focus tab's in-app talisman activation.
+     */
+    private fun runPresetToggle(preset: FocusPreset) {
+        val container = (application as FocusPocusApplication).container
+        val result = triggerHandler.togglePreset(
+            preset,
+            container.blockers.getBlockers(),
+            container.schedules.getSchedules()
+        )
+        when (result) {
+            is TriggerResult.Success -> {
+                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
+                // Same sync mechanism as prefs-change and NFC triggers: force
+                // the ViewModels to re-read session state from prefs.
+                nfcTriggerCount++
             }
+            is TriggerResult.Error -> {
+                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
+            }
+            else -> {}
         }
+    }
+
+    private fun confirmDeepLinkAction() {
+        pendingDeepLinkPreset?.let { runPresetToggle(it) }
         dismissDeepLinkConfirmation()
     }
 

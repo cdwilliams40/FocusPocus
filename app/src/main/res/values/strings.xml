@@ -133,6 +133,16 @@
     <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
     <string name="home_create_enchantment">Create an enchantment</string>
+    <string name="home_request_time_hint">Tap an app to choose your minutes and open it.</string>
+    <string name="home_section_live">Happening now</string>
+    <string name="home_section_guards">Your pacts &amp; wards</string>
+    <string name="home_guard_edit_label">Edit</string>
+    <string name="home_talisman_activate">Activate</string>
+    <string name="home_talisman_activate_desc">Activate %s</string>
+    <string name="home_talisman_action_cast">Casts %s</string>
+    <string name="home_talisman_action_temp_enable">Casts %1$s for %2$d min</string>
+    <string name="home_talisman_action_temp_disable">Takes a %d min break — needs an active session</string>
+    <string name="home_talisman_toggle_desc">Starts a focus session with your selected enchantments</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
     <string name="guard_editor_edit_pact">Edit Pact</string>
     <string name="guard_editor_edit_ward">Edit Ward</string>
@@ -425,8 +435,6 @@
 
     <!-- Pact fields (shared by the editor and the Pacts dashboard) -->
     <string name="pacts_config_summary">Up to %1$d min per pact \u2192 sealed %2$d min after</string>
-    <string name="pacts_alternative_summary">Instead: %s</string>
-    <string name="pacts_backstop_summary">Daily backstop: %d min</string>
     <string name="pacts_backstop_label">Daily backstop (optional)</string>
     <string name="pacts_backstop_none">None</string>
     <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
