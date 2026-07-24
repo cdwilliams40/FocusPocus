@@ -1,10 +1,8 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- App-level -->
     <string name="app_name">Focus Pocus</string>
     <string name="accessibility_service_label">Focus Pocus</string>
     <string name="accessibility_service_description">This service helps you focus by monitoring the apps you use.</string>
-    <string name="foreground_service_title">Focus Pocus Active</string>
-    <string name="foreground_service_text">Guarding your focus</string>
 
     <!-- Navigation -->
     <string name="nav_pacts">Pacts</string>
@@ -68,19 +66,16 @@
     <string name="home_session_setup">Session Setup</string>
     <string name="home_unlimited_session">Unlimited</string>
     <string name="home_elapsed">elapsed</string>
-    <string name="home_session_progress">%1$d of %2$d min</string>
     <string name="session_complete_icon_desc">Session complete</string>
     <string name="home_quick_spells">Quick Spells</string>
     <string name="home_select_enchantment">Select Enchantment</string>
     <string name="home_allow_breaks">Allow Breaks</string>
     <string name="home_remaining">remaining</string>
     <string name="home_break_remaining">break remaining</string>
-    <string name="home_enchantment_name">Enchantment: %s</string>
     <string name="home_ritual_name">Ritual: %s</string>
     <string name="home_unbind_with">Unbind with: %s</string>
-    <string name="home_breaks_used">Breaks: %1$d / %2$d used</string>
-    <string name="home_take_break">Take a Break</string>
-    <string name="home_take_break_with_count">Take a Break (%1$d left)</string>
+    <string name="home_breaks_used" tools:ignore="PluralsCandidate">Breaks: %1$d / %2$d used</string>
+    <string name="home_take_break_with_count" tools:ignore="PluralsCandidate">Take a Break (%1$d left)</string>
     <string name="home_nfc_lock_active">Talisman Lock Active</string>
     <string name="home_end_break_early">End Break Early</string>
     <string name="home_emergency_stop">Emergency Stop</string>
@@ -90,7 +85,10 @@
         <item quantity="one">Emergency stop available in %d day</item>
         <item quantity="other">Emergency stop available in %d days</item>
     </plurals>
-    <string name="home_day_streak">%d day streak</string>
+    <plurals name="home_day_streak">
+        <item quantity="one">%d day streak</item>
+        <item quantity="other">%d day streak</item>
+    </plurals>
     <string name="home_dispel_content_desc">Dispel spell</string>
     <string name="home_cast_content_desc">Cast spell</string>
     <string name="home_button_bound">Bound</string>
@@ -177,7 +175,6 @@
     <string name="pacts_home_intro_ok">Got it</string>
 
     <!-- SpellbookScreen -->
-    <string name="spellbook_title">Spellbook</string>
     <string name="spellbook_enchantments">Enchantments</string>
     <string name="spellbook_quick_spells">Quick Spells</string>
     <string name="spellbook_rituals">Rituals</string>
@@ -186,7 +183,7 @@
     <string name="spellbook_no_quick_spells">No quick spells yet. Create presets for one-tap focus sessions.</string>
     <string name="spellbook_no_rituals">No rituals yet. Schedule automatic focus sessions.</string>
     <string name="spellbook_no_talismans">No talismans bound. Scan an NFC tag to get started.</string>
-    <string name="spellbook_more_count">+%d more</string>
+    <string name="spellbook_more_count" tools:ignore="PluralsCandidate">+%d more</string>
     <string name="spellbook_breaks_suffix"> - Breaks</string>
     <string name="spellbook_group_focus">Focus sessions</string>
     <string name="spellbook_group_gear">More magic</string>
@@ -208,7 +205,6 @@
     <string name="spells_enchantment_name_label">Enchantment Name</string>
     <string name="spells_select_target_apps">Select Target Apps</string>
     <string name="spells_save_enchantment">Save Enchantment</string>
-    <string name="spells_char_count">%1$d/%2$d</string>
     <string name="spells_auto_add_new_apps">Banish new apps</string>
     <string name="spells_auto_add_new_apps_desc">Automatically add newly installed apps to this enchantment</string>
     <string name="spells_select_apps_title">Select Apps</string>
@@ -223,9 +219,15 @@
     <string name="settings_theme_system">Match System</string>
     <string name="settings_focus_behavior">Focus Behavior</string>
     <string name="settings_cannot_change_active">Cannot change while a spell is active</string>
-    <string name="settings_break_duration">Default Break Duration: %d minutes</string>
+    <plurals name="settings_break_duration">
+        <item quantity="one">Default Break Duration: %d minute</item>
+        <item quantity="other">Default Break Duration: %d minutes</item>
+    </plurals>
     <string name="settings_breaks_per_session">Default Breaks Per Session: %d</string>
-    <string name="settings_emergency_cooldown">Emergency Stop Cooldown: %d weeks</string>
+    <plurals name="settings_emergency_cooldown">
+        <item quantity="one">Emergency Stop Cooldown: %d week</item>
+        <item quantity="other">Emergency Stop Cooldown: %d weeks</item>
+    </plurals>
     <string name="settings_emergency_cooldown_desc">One emergency stop per cooldown period when you need to end a session early</string>
     <string name="settings_auto_break">Auto-break (Pomodoro)</string>
     <string name="settings_auto_break_desc">Automatically start a break after each stretch of focus</string>
@@ -281,7 +283,6 @@
     <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>
 
     <!-- InsightsScreen -->
-    <string name="insights_title">Usage Insights</string>
     <string name="insights_today">Today</string>
     <string name="insights_this_week">This Week</string>
     <string name="insights_this_month">This Month</string>
@@ -300,7 +301,10 @@
     <string name="insights_opens_row_count">%1$d \u00b7 %2$d rfx</string>
     <string name="insights_reflex_hint">Reflex = abandoned within 30 seconds of opening</string>
     <string name="insights_blocking_stats">Blocking Stats</string>
-    <string name="insights_total_blocks">%d total blocks</string>
+    <plurals name="insights_total_blocks">
+        <item quantity="one">%d total block</item>
+        <item quantity="other">%d total blocks</item>
+    </plurals>
     <string name="insights_most_blocked">Most Blocked</string>
     <string name="insights_time_limit_status">Time Limit Status</string>
     <string name="insights_time_used">%1$d / %2$d min</string>
@@ -366,7 +370,10 @@
     <string name="rituals_select_unbinding_talisman">Select Unbinding Talisman</string>
     <string name="rituals_none_unbind">None (Unbind Freely)</string>
     <string name="rituals_allow_breaks">Allow Breaks</string>
-    <string name="rituals_break_duration">Break Duration: %d minutes</string>
+    <plurals name="rituals_break_duration">
+        <item quantity="one">Break Duration: %d minute</item>
+        <item quantity="other">Break Duration: %d minutes</item>
+    </plurals>
     <string name="rituals_breaks_per_session">Breaks Per Session: %d</string>
     <string name="rituals_days_active">Days Active:</string>
     <string name="rituals_start_time">Start: %s</string>
@@ -448,10 +455,8 @@
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
     <string name="conditional_unlocks_description">Unlock blocked apps as a reward after spending time in another app.</string>
-    <string name="conditional_unlocks_empty">No conditional unlocks yet.</string>
     <string name="conditional_unlocks_add">Add Conditional Unlock</string>
     <string name="conditional_unlocks_rule_summary">Unlock after %1$d min in %2$s</string>
-    <string name="conditional_unlocks_unlocked_apps">Unlocked apps: %d</string>
     <string name="conditional_unlocks_unlocked_enchantments">Unlocks: %s</string>
     <string name="conditional_unlocks_editor_title_create">New Conditional Unlock</string>
     <string name="conditional_unlocks_editor_title_edit">Edit Conditional Unlock</string>
@@ -460,21 +465,24 @@
     <string name="conditional_unlocks_required_app_label">Required app</string>
     <string name="conditional_unlocks_required_app_placeholder">Select app to use first</string>
     <string name="conditional_unlocks_required_minutes_label">Required time</string>
-    <string name="conditional_unlocks_unlocked_apps_label">Apps to unlock</string>
-    <string name="conditional_unlocks_unlocked_apps_placeholder">Select apps to unlock</string>
-    <string name="conditional_unlocks_unlocked_apps_count">%d app(s) selected</string>
     <string name="conditional_unlocks_enchantments_label">Enchantments to unlock</string>
     <string name="conditional_unlocks_enchantments_placeholder">Select enchantments</string>
-    <string name="conditional_unlocks_enchantments_count">%d enchantment(s) selected</string>
+    <plurals name="conditional_unlocks_enchantments_count">
+        <item quantity="one">%d enchantment selected</item>
+        <item quantity="other">%d enchantments selected</item>
+    </plurals>
     <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
     <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
     <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>
     <string name="conditional_unlocks_time_limit_apps_label">App timers to bypass</string>
     <string name="conditional_unlocks_time_limit_apps_placeholder">Select time-limited apps</string>
-    <string name="conditional_unlocks_time_limit_apps_count">%d app timer(s) selected</string>
+    <plurals name="conditional_unlocks_time_limit_apps_count">
+        <item quantity="one">%d app timer selected</item>
+        <item quantity="other">%d app timers selected</item>
+    </plurals>
     <string name="conditional_unlocks_bypassed_timers">Bypassed timers: %s</string>
     <string name="conditional_unlocks_delete">Delete</string>
-    <string name="toast_max_conditional_unlocks">Maximum of %d conditional unlocks reached</string>
+    <string name="toast_max_conditional_unlocks" tools:ignore="PluralsCandidate">Maximum of %d conditional unlocks reached</string>
 
 
     <!-- OverlayActivity -->
@@ -500,7 +508,7 @@
     <string name="rituals_channel_name">Rituals</string>
     <string name="rituals_channel_description">Notifications for scheduled rituals</string>
     <string name="auto_break_started_title">Break time</string>
-    <string name="auto_break_started_message">You\'ve focused for %1$d minutes — enjoy a %2$d-minute break.</string>
+    <string name="auto_break_started_message" tools:ignore="PluralsCandidate">You\'ve focused for %1$d minutes — enjoy a %2$d-minute break.</string>
     <string name="ritual_started_title">Ritual Started</string>
     <string name="ritual_started_message">%s is now active.</string>
     <string name="ritual_ended_title">Ritual Ended</string>
@@ -521,7 +529,6 @@
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Talisman Lock</string>
     <string name="service_daily_time_limit">Daily Time Limit Reached</string>
-    <string name="service_time_limit_warning">%s will be blocked in about 1 minute</string>
 
     <!-- Pacing toasts (near-limit warnings) -->
     <string name="pacing_toast_50">%1$s: %2$d of %3$d min used today — halfway through. Save some for later!</string>
@@ -534,8 +541,14 @@
     <string name="main_accessibility_desc">Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus. Without this enchantment, your spells cannot shield you from temptation.</string>
     <string name="main_accessibility_go_to_settings">Go to Settings</string>
     <string name="main_deep_link_confirm_title">Confirm Action</string>
-    <string name="main_deep_link_action_temp_enable">activate \"%1$s\" for %2$d minutes</string>
-    <string name="main_deep_link_action_temp_disable">start a %d minute break</string>
+    <plurals name="main_deep_link_action_temp_enable">
+        <item quantity="one">activate \"%1$s\" for %2$d minute</item>
+        <item quantity="other">activate \"%1$s\" for %2$d minutes</item>
+    </plurals>
+    <plurals name="main_deep_link_action_temp_disable">
+        <item quantity="one">start a %d minute break</item>
+        <item quantity="other">start a %d minute break</item>
+    </plurals>
     <string name="main_deep_link_action_temp_disable_inactive">pause focus (no active session)</string>
     <string name="main_deep_link_action_dispel">dispel \"%s\"</string>
     <string name="main_deep_link_action_cast">cast \"%s\"</string>
@@ -544,15 +557,11 @@
     <string name="main_deep_link_deny">Deny</string>
 
     <!-- Toast messages -->
-    <string name="toast_data_corrupted_rituals">Ritual data was corrupted and has been reset</string>
-    <string name="toast_max_rituals">Maximum of %d rituals reached</string>
-    <string name="toast_data_corrupted_enchantments">Enchantment data was corrupted - restored defaults</string>
-    <string name="toast_max_enchantments">Maximum of %d enchantments reached</string>
-    <string name="toast_data_corrupted_quick_spells">Quick Spell data was corrupted - restored defaults</string>
-    <string name="toast_max_quick_spells">Maximum of %d quick spells reached</string>
-    <string name="toast_max_time_limits">Maximum of %d time limits reached</string>
-    <string name="toast_data_corrupted_talismans">Talisman data was corrupted and has been reset</string>
-    <string name="toast_max_talismans">Maximum of %d talismans reached</string>
+    <string name="toast_max_rituals" tools:ignore="PluralsCandidate">Maximum of %d rituals reached</string>
+    <string name="toast_max_enchantments" tools:ignore="PluralsCandidate">Maximum of %d enchantments reached</string>
+    <string name="toast_max_quick_spells" tools:ignore="PluralsCandidate">Maximum of %d quick spells reached</string>
+    <string name="toast_max_time_limits" tools:ignore="PluralsCandidate">Maximum of %d time limits reached</string>
+    <string name="toast_max_talismans" tools:ignore="PluralsCandidate">Maximum of %d talismans reached</string>
     <string name="toast_preset_cast_timed">%1$s Cast for %2$d min!</string>
     <string name="toast_enchantment_missing">Enchantment missing for %s</string>
     <string name="toast_temp_break">Temporary break for %d min!</string>
@@ -566,14 +575,20 @@
 
     <!-- Session Complete Dialog -->
     <string name="session_complete_title">Session Complete!</string>
-    <string name="session_complete_duration">Focus time: %1$d minutes</string>
+    <plurals name="session_complete_duration">
+        <item quantity="one">Focus time: %1$d minute</item>
+        <item quantity="other">Focus time: %1$d minutes</item>
+    </plurals>
     <string name="session_complete_breaks">Breaks taken: %1$d</string>
     <string name="session_complete_enchantment">Enchantment: %1$s</string>
     <string name="session_complete_great_work">Great work! You stayed focused.</string>
 
     <!-- App Picker -->
     <string name="app_picker_selected_chip">Selected (%1$d)</string>
-    <string name="app_picker_selected_count">%1$d selected</string>
+    <plurals name="app_picker_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="app_picker_open_search">Search apps</string>
     <string name="app_picker_close_search">Close search</string>
     <string name="app_picker_clear_search">Clear search</string>

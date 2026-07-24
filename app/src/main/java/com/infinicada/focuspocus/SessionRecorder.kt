@@ -2,6 +2,7 @@ package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.infinicada.focuspocus.model.Sigil
 import com.infinicada.focuspocus.model.Trial
@@ -99,13 +100,13 @@ object SessionRecorder {
         val newStreak = calculateCurrentStreak(pruned)
         val currentLongest = prefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
 
-        val editor = prefs.edit()
-            .putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
-            .remove(Constants.PrefsKeys.SESSION_START_TIME)
-        if (newStreak > currentLongest) {
-            editor.putInt(Constants.PrefsKeys.LONGEST_STREAK, newStreak)
+        prefs.edit {
+            putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(pruned))
+            remove(Constants.PrefsKeys.SESSION_START_TIME)
+            if (newStreak > currentLongest) {
+                putInt(Constants.PrefsKeys.LONGEST_STREAK, newStreak)
+            }
         }
-        editor.apply()
 
         // Award after the session list is committed, while ACTIVE_SCHEDULE_ID
         // and HIDE_STOP_BUTTON still describe this session (SessionManager

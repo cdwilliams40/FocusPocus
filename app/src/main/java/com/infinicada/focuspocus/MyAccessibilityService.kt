@@ -1,7 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.infinicada.focuspocus.model.DayOfWeek
-import com.infinicada.focuspocus.model.Schedule
 import android.accessibilityservice.AccessibilityService
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -14,11 +12,12 @@ import android.content.SharedPreferences
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
-import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.FrictionLevel
@@ -29,6 +28,8 @@ import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
+import com.infinicada.focuspocus.model.DayOfWeek
+import com.infinicada.focuspocus.model.Schedule
 import java.util.Calendar
 
 class MyAccessibilityService : AccessibilityService() {
@@ -75,9 +76,7 @@ class MyAccessibilityService : AccessibilityService() {
             } else blocker
         }
         if (updated != blockers) {
-            sharedPreferences.edit()
-                .putString(Constants.PrefsKeys.BLOCKER_LISTS, gson.toJson(updated))
-                .apply()
+            sharedPreferences.edit { putString(Constants.PrefsKeys.BLOCKER_LISTS, gson.toJson(updated)) }
             Log.d("MyAccessibilityService", "Auto-added new app to opted-in enchantments")
         }
     }
@@ -224,9 +223,7 @@ class MyAccessibilityService : AccessibilityService() {
             timeLimitChecker.clearCache()
             lastCooldownResetDate = SessionCooldownManager.todayString()
             // Persist so a restart across midnight doesn't re-skip this reset.
-            sharedPreferences.edit()
-                .putString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, lastCooldownResetDate)
-                .apply()
+            sharedPreferences.edit { putString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, lastCooldownResetDate) }
         }
 
         // Pacing notification for the app currently in the foreground.
@@ -303,7 +300,7 @@ class MyAccessibilityService : AccessibilityService() {
             manaToday = manaToday,
             streak = calculateCurrentStreak(sessions)
         )
-        sharedPreferences.edit().putString(Constants.PrefsKeys.LAST_WRAPUP_DATE, todayKey).apply()
+        sharedPreferences.edit { putString(Constants.PrefsKeys.LAST_WRAPUP_DATE, todayKey) }
     }
 
     /**
@@ -518,16 +515,16 @@ class MyAccessibilityService : AccessibilityService() {
                 // The focus countdown was frozen at break start; restart its end-time
                 // clock from the frozen remaining value so expiry keeps being enforced.
                 val focusRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                val editor = sharedPreferences.edit()
-                    .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-                    .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
-                    .remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
+                sharedPreferences.edit {
+                    putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+                    putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
+                    remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                     // A fresh focus stretch begins now that the break is over
-                    .putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
-                if (focusRemaining > 0) {
-                    editor.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + focusRemaining * 1000L)
+                    putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
+                    if (focusRemaining > 0) {
+                        putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + focusRemaining * 1000L)
+                    }
                 }
-                editor.apply()
                 Log.d("MyAccessibilityService", "Break expired while UI was away — resuming focus mode")
                 DndController.updateDndState(this)
                 DeviceOwnerManager.syncSuspensions(this)
@@ -588,19 +585,19 @@ class MyAccessibilityService : AccessibilityService() {
         val breakDuration = (activeSchedule?.breakDurationMinutes
             ?: sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5)).coerceAtLeast(1)
 
-        val editor = sharedPreferences.edit()
-            .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
-            .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakDuration * 60)
-            .putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
-            .putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed + 1)
         // Freeze the focus countdown for the duration of the break.
         val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        if (focusEnd > 0L) {
-            val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
-            editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
-            editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+        sharedPreferences.edit {
+            putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+            putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakDuration * 60)
+            putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
+            putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed + 1)
+            if (focusEnd > 0L) {
+                val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
+                putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
+                remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+            }
         }
-        editor.apply()
 
         DndController.updateDndState(this)
         DeviceOwnerManager.syncSuspensions(this)
@@ -699,7 +696,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // Clear the dangling reference so focus mode can deactivate and new
                 // schedules can activate again.
                 Log.w("MyAccessibilityService", "Active schedule $activeScheduleId no longer exists, clearing dangling reference")
-                sharedPreferences.edit().remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID).apply()
+                sharedPreferences.edit { remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID) }
             }
         }
 
@@ -832,8 +829,11 @@ class MyAccessibilityService : AccessibilityService() {
         if (event == null) return
 
         try {
-            when (event.eventType) {
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
+            // The service subscribes to typeWindowStateChanged only (see
+            // accessibility_service_config.xml), but the framework is free to
+            // deliver other types, so this stays a guard rather than a switch.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                handleWindowStateChanged(event)
             }
         } catch (e: Exception) {
             // Never let a single bad event crash the service — a dead service means
@@ -1180,7 +1180,7 @@ class MyAccessibilityService : AccessibilityService() {
         val prunedJson = gson.toJson(pruned)
         cachedBlockEventsJson = prunedJson
         cachedBlockEvents = pruned
-        sharedPreferences.edit().putString(Constants.PrefsKeys.BLOCK_EVENTS, prunedJson).apply()
+        sharedPreferences.edit { putString(Constants.PrefsKeys.BLOCK_EVENTS, prunedJson) }
     }
 
     private var cachedLauncherPackageName: String? = null

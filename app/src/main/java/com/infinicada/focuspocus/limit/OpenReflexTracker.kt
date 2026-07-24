@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus.limit
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.infinicada.focuspocus.Constants
 import java.text.SimpleDateFormat
@@ -111,9 +112,7 @@ class OpenReflexTracker(
         val cutoff = retentionCutoff(today())
         val pruned = days.filterKeys { it >= cutoff }
         val json = gson.toJson(Store(days = pruned))
-        prefs.edit()
-            .putString(Constants.PrefsKeys.APP_OPEN_STATS, json)
-            .apply()
+        prefs.edit { putString(Constants.PrefsKeys.APP_OPEN_STATS, json) }
         cachedDaysJson = json
         cachedDays = pruned
     }

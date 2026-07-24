@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.GuardStatus
@@ -186,9 +187,7 @@ object DeviceOwnerManager {
             nowSuspended -= toUnsuspend.filter { it !in failed || !isPackageInstalled(context, it) }.toSet()
         }
 
-        prefs.edit()
-            .putStringSet(Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES, nowSuspended)
-            .apply()
+        prefs.edit { putStringSet(Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES, nowSuspended) }
         Log.d(TAG, "Suspension sync: ${nowSuspended.size} package(s) suspended")
     }
 

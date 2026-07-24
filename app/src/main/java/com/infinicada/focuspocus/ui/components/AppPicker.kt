@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -323,7 +324,7 @@ private fun PickerTopBar(
             )
             if (selectionCount != null) {
                 Text(
-                    stringResource(R.string.app_picker_selected_count, selectionCount),
+                    pluralStringResource(R.plurals.app_picker_selected_count, selectionCount, selectionCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

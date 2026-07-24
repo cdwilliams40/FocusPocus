@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -235,7 +236,7 @@ fun SettingsScreen(
                     }
 
                     Text(
-                        stringResource(R.string.settings_break_duration, breakDurationMinutes),
+                        pluralStringResource(R.plurals.settings_break_duration, breakDurationMinutes, breakDurationMinutes),
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Slider(
@@ -303,7 +304,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        stringResource(R.string.settings_emergency_cooldown, emergencyBreakCadenceWeeks),
+                        pluralStringResource(R.plurals.settings_emergency_cooldown, emergencyBreakCadenceWeeks, emergencyBreakCadenceWeeks),
                         color = if (focusMode) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                     )
                     Text(

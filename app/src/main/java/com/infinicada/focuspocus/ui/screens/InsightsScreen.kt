@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -28,10 +28,10 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,18 +54,19 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.AppTimeLimitManager
-import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
-import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.Constants
+import com.infinicada.focuspocus.FocusSession
+import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.model.Trial
@@ -76,12 +77,12 @@ import com.infinicada.focuspocus.ui.components.SigilTile
 import com.infinicada.focuspocus.ui.components.StatTile
 import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.ledgerReason
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Local calendar date as "yyyyMMdd" — recomposition key for day-bound windows. */
 private fun currentDateStamp(): String =
@@ -269,7 +270,7 @@ fun UsageStatsScreen(
                         selected = selectedTabIndex == index,
                         onClick = {
                             selectedTabIndex = index
-                            sharedPreferences.edit().putInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, index).apply()
+                            sharedPreferences.edit { putInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, index) }
                         },
                         label = { Text(label) }
                     )
@@ -557,7 +558,7 @@ fun UsageStatsScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            stringResource(R.string.insights_total_blocks, totalBlocks),
+                            pluralStringResource(R.plurals.insights_total_blocks, totalBlocks, totalBlocks),
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.primary
                         )

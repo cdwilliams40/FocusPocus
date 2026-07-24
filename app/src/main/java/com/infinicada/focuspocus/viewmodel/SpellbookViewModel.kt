@@ -335,6 +335,16 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _focusPresets.value = presetRepo.cleanupOrphanedPresets(_focusPresets.value, talismanIds)
     }
 
+    /**
+     * Loads every launchable app for the pickers.
+     *
+     * Deliberate broad package visibility: an app blocker's whole purpose is
+     * letting the user choose from everything launchable on the device, and the
+     * manifest's `<queries>` ACTION_MAIN filter grants exactly that without
+     * QUERY_ALL_PACKAGES. Narrowing it would hide the very apps a user wants to
+     * guard, so the lint warning is suppressed rather than worked around.
+     */
+    @Suppress("QueryPermissionsNeeded")
     fun loadInstalledApps() {
         viewModelScope.launch {
             val apps = withContext(Dispatchers.IO) {

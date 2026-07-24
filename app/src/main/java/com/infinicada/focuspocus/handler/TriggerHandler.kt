@@ -3,6 +3,7 @@ package com.infinicada.focuspocus.handler
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
@@ -78,22 +79,22 @@ class TriggerHandler(
                 if (isActive) {
                     val breakSeconds = tempDuration * 60
                     val now = System.currentTimeMillis()
-                    val editor = prefs.edit()
-                        .putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
-                        .putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakSeconds)
-                        .putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakSeconds * 1000L)
                     // Freeze the focus countdown for the length of the break, mirroring
                     // SessionRepository.writeBreakState: park the remaining seconds and drop
                     // the end timestamp so the break-end path recomputes it. Without this the
                     // stale FOCUS_TIME_REMAINING from session start would restart the full
                     // countdown when the break expires.
                     val focusEnd = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-                    if (focusEnd > 0L) {
-                        val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
-                        editor.putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
-                        editor.remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+                    prefs.edit {
+                        putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+                        putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakSeconds)
+                        putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakSeconds * 1000L)
+                        if (focusEnd > 0L) {
+                            val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
+                            putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
+                            remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
+                        }
                     }
-                    editor.apply()
                     DndController.updateDndState(context)
                     DeviceOwnerManager.syncSuspensions(context)
                     TriggerResult.Success(R.string.toast_temp_break, listOf(tempDuration))

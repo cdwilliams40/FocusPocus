@@ -2,6 +2,7 @@ package com.infinicada.focuspocus.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
@@ -98,6 +99,6 @@ class ProgressionRepository(
         } catch (e: Exception) {
             false
         }
-        prefs.edit().putBoolean(Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT, granted).apply()
+        prefs.edit { putBoolean(Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT, granted) }
     }
 }

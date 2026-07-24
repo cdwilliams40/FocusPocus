@@ -2,6 +2,7 @@ package com.infinicada.focuspocus.limit
 
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
@@ -206,7 +207,7 @@ class SessionCooldownManager(
 
     private fun saveCooldownStates(states: Map<String, CooldownState>) {
         val json = gson.toJson(states)
-        prefs.edit().putString(Constants.PrefsKeys.APP_COOLDOWN_STATES, json).apply()
+        prefs.edit { putString(Constants.PrefsKeys.APP_COOLDOWN_STATES, json) }
         cachedStatesJson = json
         cachedStates = states
     }

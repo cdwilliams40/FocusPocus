@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.UsageStatsHelper
@@ -376,7 +377,7 @@ fun ConditionalUnlockEditorScreen(
                 ) {
                     OutlinedTextField(
                         value = if (selectedBlockerNames.isEmpty()) ""
-                        else stringResource(R.string.conditional_unlocks_enchantments_count, selectedBlockerNames.size),
+                        else pluralStringResource(R.plurals.conditional_unlocks_enchantments_count, selectedBlockerNames.size, selectedBlockerNames.size),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.conditional_unlocks_enchantments_label)) },
@@ -436,7 +437,7 @@ fun ConditionalUnlockEditorScreen(
                     ) {
                         OutlinedTextField(
                             value = if (selectedTimeLimitApps.isEmpty()) ""
-                            else stringResource(R.string.conditional_unlocks_time_limit_apps_count, selectedTimeLimitApps.size),
+                            else pluralStringResource(R.plurals.conditional_unlocks_time_limit_apps_count, selectedTimeLimitApps.size, selectedTimeLimitApps.size),
                             onValueChange = {},
                             readOnly = true,
                             label = { Text(stringResource(R.string.conditional_unlocks_time_limit_apps_label)) },
