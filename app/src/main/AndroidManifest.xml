@@ -21,6 +21,21 @@
          policy-friendly default). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         tools:ignore="BatteryLife" />
+    <!-- Fallback enforcement mode (UsageStats polling instead of an accessibility
+         service). Closing a blocked app and raising the overlay are activity
+         starts from a background service, which Android 10+ only permits for apps
+         holding SYSTEM_ALERT_WINDOW — the accessibility service is exempt, a plain
+         foreground service is not. Requested at runtime, only when the user turns
+         the fallback on; the app never asks for it in accessibility mode. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Lets the app tell the user *why* their accessibility service was turned
+         off: Advanced Protection revokes it from every app that hasn't declared
+         itself an accessibility tool. Read-only, and used purely to word the
+         enforcement-health copy. -->
+    <uses-permission android:name="android.permission.QUERY_ADVANCED_PROTECTION_MODE" />
+
     <!-- Remove the Advertising ID permission added automatically by Firebase Analytics.
          FocusPocus does not serve ads or do cross-app tracking, so AD_ID is unnecessary. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -98,6 +113,19 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Fallback enforcement: polls UsageStats for the foreground app when no
+             accessibility service is driving blocking. specialUse because no
+             existing foreground-service type describes "enforce the user's own
+             app blocking" — it is not media, location, sync or a short task. -->
+        <service
+            android:name=".enforcement.FallbackEnforcementService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Enforces the user's own app-blocking rules by watching which app is in the foreground, for devices where an accessibility service is unavailable." />
         </service>
 
         <service

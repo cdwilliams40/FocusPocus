@@ -755,8 +755,6 @@
     <!-- Protection health -->
     <string name="settings_protection_health">Protection health</string>
     <string name="settings_protection_all_good">Everything enforcement needs is in place.</string>
-    <string name="settings_protection_accessibility">Blocking service</string>
-    <string name="settings_protection_accessibility_off">Accessibility service is off — nothing is blocked.</string>
     <string name="settings_protection_usage">Usage access</string>
     <string name="settings_protection_usage_off">Daily limits and conditional unlocks can\'t be tracked.</string>
     <string name="settings_protection_notifications">Notifications</string>
@@ -766,6 +764,31 @@
     <string name="settings_protection_fix">Fix</string>
     <string name="settings_protection_ok_desc">In place</string>
     <string name="settings_protection_problem_desc">Needs attention</string>
+
+    <!-- Enforcement mode -->
+    <string name="settings_enforcement_mode">Enforcement mode</string>
+    <string name="settings_enforcement_mode_desc">How Focus Pocus notices which app you just opened. Your blocking rules are the same either way — only the detection differs.</string>
+    <string name="settings_enforcement_auto">Automatic</string>
+    <string name="settings_enforcement_auto_desc">Use the accessibility service when it\'s available, and fall back to usage polling when it isn\'t. Recommended.</string>
+    <string name="settings_enforcement_accessibility">Accessibility service</string>
+    <string name="settings_enforcement_accessibility_desc">Instant, no ongoing notification. Blocking stops entirely if your device or Google Play takes the service away.</string>
+    <string name="settings_enforcement_fallback">Usage polling</string>
+    <string name="settings_enforcement_fallback_desc">Needs no accessibility service. Blocks about a second later and keeps an ongoing notification.</string>
+    <string name="settings_enforcement_active">Currently enforcing: %1$s</string>
+    <string name="settings_enforcement_active_none">Nothing</string>
+    <string name="settings_enforcement_blocked_warning">Your device is refusing accessibility services to apps that aren\'t screen readers, so Focus Pocus can\'t use one. Usage polling is how blocking keeps working.</string>
+    <string name="settings_enforcement_needs_overlay">Usage polling also needs “display over other apps” — without it the block is detected but the overlay can\'t appear.</string>
+    <string name="settings_enforcement_grant_overlay">Grant</string>
+    <string name="settings_protection_enforcing">Blocking service</string>
+    <string name="settings_protection_enforcing_off">Nothing is watching for app opens — nothing is blocked.</string>
+    <string name="settings_protection_overlay">Display over other apps</string>
+    <string name="settings_protection_overlay_off">Usage polling can detect a block but not show the overlay.</string>
+
+    <!-- Fallback enforcement notification -->
+    <string name="enforcement_channel_name">Blocking active</string>
+    <string name="enforcement_channel_description">Ongoing note shown while Focus Pocus enforces blocking without an accessibility service.</string>
+    <string name="enforcement_fallback_notification_title">Focus Pocus is guarding</string>
+    <string name="enforcement_fallback_notification_text">Watching for blocked apps without an accessibility service.</string>
     <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so seals and limits hold.</string>
     <string name="home_battery_warning_fix">Review battery settings</string>
 

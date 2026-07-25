@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.infinicada.focuspocus.enforcement.EnforcementController
 
 class BootCompletedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -17,6 +18,12 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 // Alarms don't survive reboots (and clock changes move the
                 // target) — re-arm the ritual backstop.
                 RitualAlarmScheduler.scheduleNext(context)
+                // Foreground services don't survive a reboot, so the polling
+                // fallback has to be restarted here if it's the active enforcer.
+                // BOOT_COMPLETED is one of the documented exemptions from the
+                // background foreground-service start restriction, so this is the
+                // one place it can be done.
+                EnforcementController.reconcile(context)
             }
         }
     }

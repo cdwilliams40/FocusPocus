@@ -24,7 +24,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Perfect for work hours, study sessions, or bedtime routines
 - Optional unbinding talisman requirement to end a ritual early
 - Persists across device reboots
-- Backed by an exact-alarm backstop: rituals start and end on time even if the accessibility service was killed
+- Backed by an exact-alarm backstop: rituals start and end on time even if the enforcement service was killed
 
 ### NFC Talisman Support
 - Use NFC tags as physical "talismans" to toggle focus mode
@@ -75,8 +75,17 @@ A mystical focus and productivity app for Android that helps you stay on task by
 ### Seal-Lifted Alerts
 - Optional quiet notification when a sealed app opens up again, so you don't "check" by opening the app (off by default)
 
+### Enforcement Modes (blocking without an accessibility service)
+Blocking needs to know which app you just opened. There are two ways to find that out, and Focus Pocus ships both — the rules they enforce are identical, only the detection differs.
+
+- **Accessibility service** — instant, no ongoing notification. It is also the path the platform keeps taking away: Android 17's Advanced Protection Mode revokes accessibility from every app that hasn't declared itself an accessibility tool (screen readers, switch access, voice input, Braille — a blocker isn't one), Android 13+ blocks sideloaded builds from being granted it, and OEM battery optimizers kill the service outright.
+- **Usage polling** — reads the system's usage-event stream about once a second. Needs no accessibility service. Costs ~1 s of detection lag, an ongoing notification, and a "display over other apps" grant (a background service can't raise the block overlay without it).
+- **Automatic** (default) — accessibility while it works, polling the moment it doesn't. Includes a liveness heartbeat, so an accessibility service killed by an OEM optimizer — which stays listed as "enabled" forever — is noticed and covered for rather than silently ending all blocking.
+
+Pick one in Settings → Enforcement mode.
+
 ### Protection Health
-- A Settings card answers "am I actually protected right now?": accessibility service alive, usage access granted, notifications allowed, battery optimization exempted — each with a one-tap fix
+- A Settings card answers "am I actually protected right now?": something is enforcing (and which detector), usage access granted, notifications allowed, battery optimization exempted, overlay permission granted when polling needs it — each with a one-tap fix
 - The dashboard warns when an OEM battery optimizer could kill enforcement in the background
 
 ### Backup & Restore
@@ -102,7 +111,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 
 ### Warden Mode (Device Owner)
 - Optionally provision FocusPocus as the Android *device owner* for OS-level enforcement
-- Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the accessibility service
+- Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the detector
 - **Pact-bound apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact allowance is running. To open one, tap it in the **Request time** panel at the top of the Pacts dashboard; the allowance un-greys the app for exactly the minutes you chose
 - FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
 - Fully reversible from Settings (but never mid-session), and removal must be **requested 24 hours in advance** — a cancelable cooling-off countdown separates the urge from the act
@@ -117,7 +126,7 @@ Provisioning requires a one-time `adb` command from a computer (the same steps a
    adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
    ```
 
-Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). The accessibility service keeps handling time limits; suspension is layered on top for app blocking.
+Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). Whichever detector is active keeps handling time limits; suspension is layered on top for app blocking.
 
 > **⚠️ Uninstall protection and Android Studio builds:** apps deployed with Android Studio's *Run* button are flagged **test-only**, and Android deliberately allows removing a test-only device owner — so FocusPocus *can* still be uninstalled in that setup, Warden Mode or not. For real uninstall protection, install a normal build instead: `./gradlew assembleDebug && adb install app/build/outputs/apk/debug/app-debug.apk` (or a release build). The app shows a warning in Settings → Warden Mode when it detects a test-only install.
 
@@ -146,8 +155,9 @@ Focus Pocus requires the following permissions:
 
 | Permission | Purpose |
 |------------|---------|
-| **Accessibility Service** | Detect when you open apps and redirect from blocked apps |
-| **Usage Stats** | Track per-app usage for time limit enforcement |
+| **Accessibility Service** (optional) | Detect when you open apps and redirect from blocked apps. Not required — usage polling covers the same job where accessibility is unavailable |
+| **Usage Stats** | Track per-app usage for time limit enforcement, and detect the foreground app in usage-polling mode |
+| **Display over other apps** (usage polling only) | Lets the block overlay appear from the background; without it polling can detect a block but not act on it |
 | **NFC** | Read NFC tags for talisman features |
 | **Notifications** | Show notifications for scheduled rituals and breaks, plus the live countdown while a session is active |
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
@@ -169,7 +179,7 @@ cd FocusPocus
 
 ## Setup
 
-On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
+On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility or its usage-polling alternative, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
 
 1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps you want to block during focus sessions (the Focus tab offers this directly when you have none).
 
@@ -226,7 +236,13 @@ Your grimoire of focus-session configuration:
 app/src/main/java/com/infinicada/focuspocus/
 ├── MainActivity.kt                    # Single activity hosting the Compose UI
 ├── FocusPocusApplication.kt           # Application class and initialization
-├── MyAccessibilityService.kt          # Background blocking, timer/break enforcement, auto-breaks
+├── MyAccessibilityService.kt          # Foreground-app detector (accessibility events)
+├── enforcement/
+│   ├── BlockingEngine.kt              # All blocking decisions: rules, limits, pacts, seals, ticks
+│   ├── EnforcementMode.kt             # Which detector the user picked, and which one may run
+│   ├── EnforcementController.kt       # Keeps exactly one detector running; permission probes
+│   ├── ForegroundAppMonitor.kt        # Foreground app from the UsageStats event stream
+│   └── FallbackEnforcementService.kt  # Polling detector for devices without accessibility
 ├── FocusNotificationListenerService.kt# Silences notifications from blocked apps
 ├── OverlayActivity.kt                 # Blocker overlay shown when an app is blocked
 ├── SessionManager.kt                  # Focus session state management

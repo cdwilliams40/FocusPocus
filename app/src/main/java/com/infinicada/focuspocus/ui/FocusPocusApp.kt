@@ -58,6 +58,7 @@ import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
+import com.infinicada.focuspocus.enforcement.EnforcementController
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
@@ -426,6 +427,14 @@ fun FocusPocusApp(
             onFixUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
             onFixNotifications = { ProtectionHealth.openNotificationSettings(context) },
             onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
+            onFixOverlay = { EnforcementController.openOverlaySettings(context) },
+            enforcementMode = protectionStatus.mode,
+            onEnforcementModeChanged = { mode ->
+                EnforcementController.setMode(context, mode)
+                // setMode reconciles, so the status is already stale — re-read it
+                // rather than waiting for the next resume.
+                protectionStatus = ProtectionHealth.check(context)
+            },
             themeMode = themeMode,
             onThemeModeChanged = { settingsVM.setThemeMode(it) },
             breakDurationMinutes = breakDurationMinutes,

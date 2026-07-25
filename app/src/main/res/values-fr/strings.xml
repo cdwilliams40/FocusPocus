@@ -767,8 +767,6 @@
     <!-- Santé de la protection -->
     <string name="settings_protection_health">Santé de la protection</string>
     <string name="settings_protection_all_good">Tout ce dont l\'application a besoin est en place.</string>
-    <string name="settings_protection_accessibility">Service de blocage</string>
-    <string name="settings_protection_accessibility_off">Le service d\'accessibilité est désactivé — rien n\'est bloqué.</string>
     <string name="settings_protection_usage">Accès à l\'utilisation</string>
     <string name="settings_protection_usage_off">Les limites quotidiennes et déblocages conditionnels ne peuvent pas être suivis.</string>
     <string name="settings_protection_notifications">Notifications</string>
@@ -778,6 +776,31 @@
     <string name="settings_protection_fix">Corriger</string>
     <string name="settings_protection_ok_desc">En place</string>
     <string name="settings_protection_problem_desc">Attention requise</string>
+
+    <!-- Mode d\'application -->
+    <string name="settings_enforcement_mode">Mode d\'application</string>
+    <string name="settings_enforcement_mode_desc">Comment Focus Pocus repère l\'application que vous venez d\'ouvrir. Vos règles de blocage restent les mêmes — seule la détection change.</string>
+    <string name="settings_enforcement_auto">Automatique</string>
+    <string name="settings_enforcement_auto_desc">Utilise le service d\'accessibilité quand il est disponible, et bascule sur la surveillance de l\'utilisation sinon. Recommandé.</string>
+    <string name="settings_enforcement_accessibility">Service d\'accessibilité</string>
+    <string name="settings_enforcement_accessibility_desc">Instantané, sans notification permanente. Le blocage s\'arrête complètement si votre appareil ou Google Play retire le service.</string>
+    <string name="settings_enforcement_fallback">Surveillance de l\'utilisation</string>
+    <string name="settings_enforcement_fallback_desc">Ne nécessite aucun service d\'accessibilité. Bloque environ une seconde plus tard et garde une notification permanente.</string>
+    <string name="settings_enforcement_active">Application en cours : %1$s</string>
+    <string name="settings_enforcement_active_none">Aucune</string>
+    <string name="settings_enforcement_blocked_warning">Votre appareil refuse les services d\'accessibilité aux applications qui ne sont pas des lecteurs d\'écran, donc Focus Pocus ne peut pas en utiliser un. La surveillance de l\'utilisation permet au blocage de continuer.</string>
+    <string name="settings_enforcement_needs_overlay">La surveillance de l\'utilisation nécessite aussi « affichage par-dessus les autres applications » — sans cela, le blocage est détecté mais la superposition ne peut pas s\'afficher.</string>
+    <string name="settings_enforcement_grant_overlay">Autoriser</string>
+    <string name="settings_protection_enforcing">Service de blocage</string>
+    <string name="settings_protection_enforcing_off">Rien ne surveille les ouvertures d\'applications — rien n\'est bloqué.</string>
+    <string name="settings_protection_overlay">Affichage par-dessus les autres applications</string>
+    <string name="settings_protection_overlay_off">La surveillance de l\'utilisation peut détecter un blocage mais pas afficher la superposition.</string>
+
+    <!-- Notification de l\'application de secours -->
+    <string name="enforcement_channel_name">Blocage actif</string>
+    <string name="enforcement_channel_description">Note permanente affichée pendant que Focus Pocus applique le blocage sans service d\'accessibilité.</string>
+    <string name="enforcement_fallback_notification_title">Focus Pocus veille</string>
+    <string name="enforcement_fallback_notification_text">Surveillance des applications bloquées sans service d\'accessibilité.</string>
     <string name="home_battery_warning">L\'optimisation de la batterie peut tuer l\'application en arrière-plan. Exemptez Focus Pocus pour que les sceaux et limites tiennent.</string>
     <string name="home_battery_warning_fix">Vérifier les réglages batterie</string>
 

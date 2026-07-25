@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.app.Application
 import com.google.firebase.FirebaseApp
 import com.infinicada.focuspocus.data.AppContainer
+import com.infinicada.focuspocus.enforcement.EnforcementController
 
 class FocusPocusApplication : Application() {
     val container by lazy { AppContainer(this) }
@@ -36,5 +37,10 @@ class FocusPocusApplication : Application() {
         // while the process was down.
         SessionNotifier.createChannel(this)
         SessionNotifier.attach(this)
+        // Decide which detector should be enforcing and start it if it's the
+        // polling fallback. Runs on every process start because that is the one
+        // moment guaranteed to follow an accessibility service that was revoked
+        // or killed without ever reaching its onDestroy.
+        EnforcementController.reconcile(this)
     }
 }

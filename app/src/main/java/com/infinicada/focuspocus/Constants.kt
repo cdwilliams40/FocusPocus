@@ -136,6 +136,18 @@ object Constants {
 
         // Opt-in "seal lifted" notification when a guard's cooldown expires
         const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
+
+        // Which foreground-app detector drives enforcement: accessibility, the
+        // UsageStats-polling fallback, or whichever is available (the default).
+        // Stores an EnforcementMode name; unrecognised values read as the default.
+        const val ENFORCEMENT_MODE = "enforcementMode"
+
+        // Epoch millis the accessibility service last proved it was alive. The
+        // ENABLED_ACCESSIBILITY_SERVICES setting keeps listing a service an OEM
+        // battery optimizer has killed, so the setting alone can't tell "on" from
+        // "on paper"; a stale stamp is what lets the fallback step in. Absent/0
+        // means "never recorded", which is trusted rather than treated as dead.
+        const val ACCESSIBILITY_HEARTBEAT_MILLIS = "accessibilityHeartbeatMillis"
     }
 
     object Defaults {
@@ -173,6 +185,8 @@ object Constants {
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
     const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
     const val GUARDS_CHANNEL_ID = "focus_pocus_guards"
+    // The ongoing notification the polling fallback is required to show
+    const val ENFORCEMENT_CHANNEL_ID = "focus_pocus_enforcement"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001

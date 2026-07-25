@@ -27,7 +27,7 @@ Focus Pocus already covers more of the category's surface than most shipping com
 
 1. **Distribution** — the app is not on the Play Store; policy compliance is unresolved.
 2. **Coverage** — websites, other devices, and contexts (place/time-of-day per guard) are unprotected.
-3. **Durability** — no backup/export; a single SharedPreferences file holds everything; rituals depend on the accessibility service being alive.
+3. **Durability** — no backup/export; a single SharedPreferences file holds everything. (Rituals no longer depend on the accessibility service: the alarm backstop fires them, and the polling fallback keeps blocking alive without it.)
 4. **Reach** — no widgets, no Wear OS, two locales, phone-portrait-first layouts.
 
 ## 2. Definition of "best in class"
@@ -81,10 +81,20 @@ dead service.
   - Write the declaration narrative now; include the in-app prominent disclosure
     screen the policy requires (shown before the permission prompt, not only in
     onboarding).
-  - Build the **fallback enforcement mode**: UsageStats-polling foreground detection +
-    overlay, selectable if approval is denied or revoked later. Slower (1–2 s
-    detection) but policy-safe; Warden suspension already covers the strict case
-    without accessibility. This de-risks the entire distribution strategy.
+  - ~~Build the **fallback enforcement mode**~~ — **shipped.** UsageStats-polling
+    foreground detection driving the same `BlockingEngine` as the accessibility
+    path, selectable in Settings (Automatic / Accessibility service / Usage
+    polling) and entered automatically when accessibility is revoked or its
+    heartbeat goes stale. Costs ~1 s detection latency, an ongoing notification,
+    and a `SYSTEM_ALERT_WINDOW` grant (a background service cannot start the
+    overlay without it). Warden suspension still covers the strict case.
+  - **Accessibility is now the fragile path, not just the scrutinised one.**
+    Android 17's Advanced Protection Mode revokes `AccessibilityService` from every
+    app that hasn't declared `android:isAccessibilityTool="true"` — a declaration
+    Google restricts to screen readers, switch access, voice input and Braille, so
+    a blocker cannot make it honestly. There is no verification programme to apply
+    to. Plan for accessibility being unavailable on a growing share of devices and
+    treat the polling path as the one that has to be good.
 - **Package visibility.** Audit for `QUERY_ALL_PACKAGES` vs. scoped `<queries>`; app
   pickers legitimately need broad visibility (blocker category is a permitted use),
   but the declaration must be filed with the same care.
@@ -261,7 +271,7 @@ ads (ads in a focus app are self-refuting — never).
 
 | Risk | Mitigation |
 |---|---|
-| Accessibility declaration denied | Fallback UsageStats enforcement mode (§4.1) built *before* submission; Warden covers strict users regardless |
+| Accessibility declaration denied, or revoked by the OS (Advanced Protection) | Fallback UsageStats enforcement mode shipped (§4.1); mode is user-selectable and entered automatically on revocation; Warden covers strict users regardless |
 | VPN + accessibility + device-admin in one app looks alarming in review | Ship VPN in its own release with careful review notes; every mechanism strictly opt-in with prominent disclosure |
 | SharedPreferences scaling wall (one file, full rewrite per `apply()`) | Room/DataStore migration staged in Horizon 1 while data is still small |
 | Ritual/service death on aggressive OEMs | AlarmManager migration + health surface + dontkillmyapp guidance (§4.2) |
@@ -272,7 +282,7 @@ ads (ads in a focus app are self-refuting — never).
 
 1. **Compliance groundwork PR**: prominent-disclosure screen, privacy policy, data
    safety inventory, `<queries>` audit.
-2. **UsageStats fallback enforcement mode** (the de-risking keystone).
+2. ~~**UsageStats fallback enforcement mode**~~ — shipped.
 3. **Backup/export/restore** (the trust keystone).
 4. **Widgets + panic button + per-guard schedules** (the visible-delta trio for the
    store listing).

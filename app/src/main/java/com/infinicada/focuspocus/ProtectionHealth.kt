@@ -10,13 +10,20 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
+import com.infinicada.focuspocus.enforcement.ActiveEnforcer
+import com.infinicada.focuspocus.enforcement.EnforcementController
+import com.infinicada.focuspocus.enforcement.EnforcementMode
 
 /**
  * Enforcement health: one place that answers "am I actually protected right
- * now?". Blocking silently degrades when the accessibility service is off,
- * usage access is revoked, notifications are blocked, or an OEM battery
- * optimizer kills the service — this surfaces each so the user learns before
- * they need it, not after.
+ * now?". Blocking silently degrades when no detector is running, usage access is
+ * revoked, notifications are blocked, or an OEM battery optimizer kills the
+ * service — this surfaces each so the user learns before they need it, not after.
+ *
+ * "Am I protected" is not the same question as "is accessibility on" any more.
+ * Since the polling fallback exists, the honest answer is whichever detector
+ * [EnforcementController] resolved, which is why [Status.enforcing] rather than
+ * [Status.accessibilityEnabled] is what the card should key off.
  *
  * Every probe fails healthy on error: a broken system query must not paint
  * false alarms over a working setup.
@@ -25,25 +32,57 @@ object ProtectionHealth {
     private const val TAG = "ProtectionHealth"
 
     data class Status(
-        /** The accessibility service — the enforcement engine itself. */
+        /** The accessibility service — the fastest detector, and the revocable one. */
         val accessibilityEnabled: Boolean,
-        /** Usage access — daily limits and conditional unlocks depend on it. */
+        /** Usage access — daily limits, conditional unlocks, and fallback detection. */
         val usageAccessGranted: Boolean,
         /** Notifications — ritual alerts, countdowns, seal-lifted notes. */
         val notificationsEnabled: Boolean,
         /** Battery optimization exemption — OEM optimizers kill the service. */
-        val batteryUnrestricted: Boolean
+        val batteryUnrestricted: Boolean,
+        /** "Display over other apps" — the fallback cannot act on a block without it. */
+        val overlayGranted: Boolean,
+        /** The detector the user asked for. */
+        val mode: EnforcementMode,
+        /** The detector actually running, which is what enforcement really depends on. */
+        val activeEnforcer: ActiveEnforcer,
+        /**
+         * Advanced Protection (or an equivalent device policy) is refusing this
+         * app an accessibility service, rather than the user having left it off.
+         * Wording only — see [EnforcementController.isAccessibilityBlockedByDevice].
+         */
+        val accessibilityBlockedByDevice: Boolean
     ) {
+        /**
+         * *Something* is detecting app opens. Deliberately not "accessibility is
+         * on": a user running the polling fallback is protected, and a permanently
+         * red row would teach them to ignore this card.
+         */
+        val enforcing: Boolean
+            get() = activeEnforcer != ActiveEnforcer.NONE
+
+        /**
+         * Whether the overlay grant is worth asking about. In accessibility mode it
+         * is genuinely unnecessary, so showing it as missing would be noise.
+         */
+        val overlayRelevant: Boolean
+            get() = mode == EnforcementMode.FALLBACK ||
+                (mode == EnforcementMode.AUTO && !accessibilityEnabled)
+
         val allHealthy: Boolean
-            get() = accessibilityEnabled && usageAccessGranted &&
-                notificationsEnabled && batteryUnrestricted
+            get() = enforcing && usageAccessGranted && notificationsEnabled &&
+                batteryUnrestricted && (!overlayRelevant || overlayGranted)
     }
 
     fun check(context: Context): Status = Status(
         accessibilityEnabled = isAccessibilityServiceEnabled(context),
         usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context),
         notificationsEnabled = areNotificationsEnabled(context),
-        batteryUnrestricted = isIgnoringBatteryOptimizations(context)
+        batteryUnrestricted = isIgnoringBatteryOptimizations(context),
+        overlayGranted = EnforcementController.canDrawOverlays(context),
+        mode = EnforcementController.currentMode(context),
+        activeEnforcer = EnforcementController.activeEnforcer(context),
+        accessibilityBlockedByDevice = EnforcementController.isAccessibilityBlockedByDevice(context)
     )
 
     /** Same settings-string walk MainActivity uses for its service gate. */

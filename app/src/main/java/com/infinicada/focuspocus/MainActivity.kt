@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
+import com.infinicada.focuspocus.enforcement.EnforcementController
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
 import com.infinicada.focuspocus.handler.TriggerResult
@@ -218,6 +219,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             null
         )
         isServiceEnabled = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+        // The user is here and the app is visible, which makes this both a good
+        // moment to notice an accessibility service that has gone quiet and one of
+        // the few moments a foreground service may legally be started.
+        EnforcementController.reconcile(this)
         sharedPreferences.registerOnSharedPreferenceChangeListener(sessionStateChangeListener)
         // The listener above was unregistered while paused, so any session state the
         // accessibility service changed in the meantime (ritual started/ended, timed

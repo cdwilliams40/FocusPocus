@@ -60,6 +60,8 @@ import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.enforcement.ActiveEnforcer
+import com.infinicada.focuspocus.enforcement.EnforcementMode
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.formatDuration
@@ -74,6 +76,9 @@ fun SettingsScreen(
     onFixUsageAccess: () -> Unit,
     onFixNotifications: () -> Unit,
     onFixBattery: () -> Unit,
+    onFixOverlay: () -> Unit,
+    enforcementMode: EnforcementMode,
+    onEnforcementModeChanged: (EnforcementMode) -> Unit,
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
     breakDurationMinutes: Int,
@@ -159,12 +164,41 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
+                    // Keyed on "is anything enforcing", not "is accessibility on":
+                    // a user running the polling fallback is protected, and a
+                    // permanently red row would teach them to ignore this card.
                     ProtectionHealthRow(
-                        healthy = protectionStatus.accessibilityEnabled,
-                        title = stringResource(R.string.settings_protection_accessibility),
-                        problem = stringResource(R.string.settings_protection_accessibility_off),
-                        onFix = onFixAccessibility
+                        healthy = protectionStatus.enforcing,
+                        title = stringResource(R.string.settings_protection_enforcing),
+                        detail = stringResource(
+                            R.string.settings_enforcement_active,
+                            stringResource(
+                                when (protectionStatus.activeEnforcer) {
+                                    ActiveEnforcer.ACCESSIBILITY ->
+                                        R.string.settings_enforcement_accessibility
+                                    ActiveEnforcer.FALLBACK ->
+                                        R.string.settings_enforcement_fallback
+                                    ActiveEnforcer.NONE ->
+                                        R.string.settings_enforcement_active_none
+                                }
+                            )
+                        ),
+                        problem = stringResource(R.string.settings_protection_enforcing_off),
+                        // In fallback mode the accessibility screen is the wrong
+                        // destination — send the user to whichever grant is
+                        // actually missing.
+                        onFix = if (protectionStatus.mode == EnforcementMode.FALLBACK &&
+                            !protectionStatus.overlayGranted
+                        ) onFixOverlay else onFixAccessibility
                     )
+                    if (protectionStatus.overlayRelevant) {
+                        ProtectionHealthRow(
+                            healthy = protectionStatus.overlayGranted,
+                            title = stringResource(R.string.settings_protection_overlay),
+                            problem = stringResource(R.string.settings_protection_overlay_off),
+                            onFix = onFixOverlay
+                        )
+                    }
                     ProtectionHealthRow(
                         healthy = protectionStatus.usageAccessGranted,
                         title = stringResource(R.string.settings_protection_usage),
@@ -183,6 +217,92 @@ fun SettingsScreen(
                         problem = stringResource(R.string.settings_protection_battery_off),
                         onFix = onFixBattery
                     )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Enforcement Mode Card — which detector drives blocking. Sits
+            // directly under protection health because it's the setting that
+            // answers a red "blocking service" row.
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_enforcement_mode),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.settings_enforcement_mode_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (protectionStatus.accessibilityBlockedByDevice) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_enforcement_blocked_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    EnforcementMode.entries.forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onEnforcementModeChanged(mode) }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            RadioButton(
+                                selected = enforcementMode == mode,
+                                onClick = { onEnforcementModeChanged(mode) }
+                            )
+                            Column(modifier = Modifier.padding(start = 8.dp)) {
+                                Text(
+                                    stringResource(
+                                        when (mode) {
+                                            EnforcementMode.AUTO ->
+                                                R.string.settings_enforcement_auto
+                                            EnforcementMode.ACCESSIBILITY ->
+                                                R.string.settings_enforcement_accessibility
+                                            EnforcementMode.FALLBACK ->
+                                                R.string.settings_enforcement_fallback
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    stringResource(
+                                        when (mode) {
+                                            EnforcementMode.AUTO ->
+                                                R.string.settings_enforcement_auto_desc
+                                            EnforcementMode.ACCESSIBILITY ->
+                                                R.string.settings_enforcement_accessibility_desc
+                                            EnforcementMode.FALLBACK ->
+                                                R.string.settings_enforcement_fallback_desc
+                                        }
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // The one grant the fallback can't work without, called out
+                    // here rather than only in the health card above — this is
+                    // where the user has just chosen to need it.
+                    if (protectionStatus.overlayRelevant && !protectionStatus.overlayGranted) {
+                        Text(
+                            stringResource(R.string.settings_enforcement_needs_overlay),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        TextButton(onClick = onFixOverlay) {
+                            Text(stringResource(R.string.settings_enforcement_grant_overlay))
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -784,13 +904,19 @@ fun SettingsScreen(
     }
 }
 
-/** One protection check: a status icon and, when unhealthy, the why + a fix link. */
+/**
+ * One protection check: a status icon and, when unhealthy, the why + a fix link.
+ *
+ * [detail] is the healthy-state subtitle, for a row whose green tick alone
+ * doesn't say enough — "blocking is on" begs the question "by which detector?".
+ */
 @Composable
 private fun ProtectionHealthRow(
     healthy: Boolean,
     title: String,
     problem: String,
-    onFix: () -> Unit
+    onFix: () -> Unit,
+    detail: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -818,6 +944,12 @@ private fun ProtectionHealthRow(
                     problem,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
+                )
+            } else if (detail != null) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
