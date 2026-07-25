@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import com.infinicada.focuspocus.Constants
@@ -16,7 +17,8 @@ import com.infinicada.focuspocus.UsageStatsHelper
  *
  * Call [reconcile] from anywhere the answer could have changed — process start,
  * boot, the accessibility service connecting or dying, the user switching modes
- * or granting a permission. It is idempotent and cheap.
+ * or granting a permission. It is idempotent, and costs three binder calls, so
+ * it belongs on lifecycle events rather than on a hot path.
  */
 object EnforcementController {
 
@@ -80,18 +82,21 @@ object EnforcementController {
      * gone quiet for [HEARTBEAT_STALE_MS] while the user is actively using the
      * device means the service is not delivering events.
      *
-     * A never-written stamp is trusted, not doubted: on a fresh install the
-     * service may not have seen its first event yet, and starting the fallback for
-     * that would flash a notification at every new user.
+     * Two situations say nothing about whether the service works, and both are
+     * given the same grace as a live-but-quiet one: a stamp written before this
+     * boot (the service reconnects seconds into a boot, and doubting it would
+     * flash the fallback's notification on every restart), and no stamp at all on
+     * a fresh install. Counting the grace from boot rather than trusting them
+     * outright still catches a service that never connects.
      */
     fun isAccessibilityAlive(context: Context): Boolean {
         if (!ProtectionHealth.isAccessibilityServiceEnabled(context)) return false
         val lastSeen = prefs(context).getLong(Constants.PrefsKeys.ACCESSIBILITY_HEARTBEAT_MILLIS, 0L)
-        if (lastSeen <= 0L) return true
-        val age = System.currentTimeMillis() - lastSeen
-        // A clock moved backwards reads as a negative age; treat that as alive
-        // rather than declaring a working service dead.
-        return age < HEARTBEAT_STALE_MS
+        val bootMillis = System.currentTimeMillis() - SystemClock.elapsedRealtime()
+        val since = maxOf(lastSeen, bootMillis)
+        // A clock moved backwards reads as a negative age, which is < the
+        // threshold — alive, rather than declaring a working service dead.
+        return System.currentTimeMillis() - since < HEARTBEAT_STALE_MS
     }
 
     /**
@@ -101,9 +106,11 @@ object EnforcementController {
      * minutes of silence cannot happen on a device in use. It can happen across a
      * long screen-off (the minute tick doesn't fire in doze) — hence the
      * accessibility service re-stamping and re-reconciling as soon as it sees an
-     * event again, which stands the fallback back down.
+     * event again, which stands the fallback back down. Double duty: it is also
+     * the grace period a freshly booted or freshly installed service gets before
+     * silence counts against it.
      */
-    private const val HEARTBEAT_STALE_MS = 5 * 60 * 1000L
+    const val HEARTBEAT_STALE_MS = 5 * 60 * 1000L
 
     /**
      * Starts or stops [FallbackEnforcementService] to match [activeEnforcer].
@@ -166,10 +173,12 @@ object EnforcementController {
     }
 
     /**
-     * Reads Advanced Protection's state reflectively: `AdvancedProtectionManager`
-     * ships in a newer SDK than we compile against, and the app must keep
-     * building on the current compileSdk. A missing class or method just means
-     * "not on".
+     * Reads Advanced Protection's state reflectively rather than through
+     * `AdvancedProtectionManager`, so the app carries no compile-time dependency on
+     * an API that only exists on the newest platforms and can keep building as
+     * compileSdk moves. A missing service, class or method just means "not on",
+     * which is also the right answer when `QUERY_ADVANCED_PROTECTION_MODE` isn't
+     * held.
      */
     private fun isAdvancedProtectionEnabled(context: Context): Boolean = try {
         val manager = context.getSystemService("advanced_protection") ?: return false
@@ -179,7 +188,13 @@ object EnforcementController {
         false
     }
 
-    /** Android 17 (Baklava's successor); named rather than inlined for the reader. */
+    /**
+     * API 37 (Android 17) — the release that started revoking accessibility from
+     * non-tool apps under Advanced Protection. Earlier releases expose the mode but
+     * don't act on it this way, so claiming the device is blocking us there would
+     * be wrong. A literal because [Build.VERSION_CODES] has no stable name for it
+     * on every compileSdk this builds against.
+     */
     private const val ADVANCED_PROTECTION_SDK = 37
 
     private fun prefs(context: Context) =

@@ -120,18 +120,28 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Records that events are still being delivered, and — because that may be
-     * news — re-runs reconcile so a fallback that stepped in for a stale stamp
-     * stands back down. Rate-limited to [HEARTBEAT_INTERVAL_MS].
+     * Records that events are still being delivered. Rate-limited to
+     * [HEARTBEAT_INTERVAL_MS], since the signal only needs to be minutes-fresh.
+     *
+     * A gap long enough to have looked dead is also the one case where the
+     * fallback may have stepped in for us, so that — and only that — re-runs
+     * reconcile to stand it back down. Reconcile costs three binder calls, which
+     * is not something to spend on the event path every 30 seconds for a state
+     * that almost never changes.
      */
     private fun recordHeartbeat(force: Boolean = false) {
         if (!this::sharedPreferences.isInitialized) return
         val now = System.currentTimeMillis()
-        if (!force && now - lastHeartbeatMillis < HEARTBEAT_INTERVAL_MS) return
+        val gap = now - lastHeartbeatMillis
+        if (!force && gap < HEARTBEAT_INTERVAL_MS) return
+        val wasStale = lastHeartbeatMillis > 0L && gap >= EnforcementController.HEARTBEAT_STALE_MS
         lastHeartbeatMillis = now
         sharedPreferences.edit()
             .putLong(Constants.PrefsKeys.ACCESSIBILITY_HEARTBEAT_MILLIS, now)
             .apply()
-        if (!force) EnforcementController.reconcile(this, accessibilityEnabled = true)
+        if (wasStale) {
+            Log.d(TAG, "Heartbeat recovered after ${gap}ms — reclaiming enforcement")
+            EnforcementController.reconcile(this, accessibilityEnabled = true)
+        }
     }
 }
