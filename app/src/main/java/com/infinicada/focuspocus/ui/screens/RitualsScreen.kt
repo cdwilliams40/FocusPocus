@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
@@ -400,7 +401,7 @@ fun ScheduleEditorScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(stringResource(R.string.rituals_break_duration, breakDurationMinutes), style = MaterialTheme.typography.bodyMedium)
+                    Text(pluralStringResource(R.plurals.rituals_break_duration, breakDurationMinutes, breakDurationMinutes), style = MaterialTheme.typography.bodyMedium)
                     Slider(
                         value = breakDurationMinutes.toFloat(),
                         onValueChange = { breakDurationMinutes = it.roundToInt() },

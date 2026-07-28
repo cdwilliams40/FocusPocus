@@ -2,6 +2,7 @@ package com.infinicada.focuspocus.limit
 
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
@@ -125,7 +126,7 @@ class PactManager(
 
     private fun saveGroups(groups: List<PactGroup>) {
         val json = gson.toJson(groups)
-        prefs.edit().putString(Constants.PrefsKeys.PACT_GROUPS, json).apply()
+        prefs.edit { putString(Constants.PrefsKeys.PACT_GROUPS, json) }
         cachedGroupsJson = json
         cachedGroups = groups
     }
@@ -144,7 +145,7 @@ class PactManager(
 
     private fun saveAllowances(allowances: Map<String, Long>) {
         val json = gson.toJson(allowances)
-        prefs.edit().putString(Constants.PrefsKeys.PACT_ALLOWANCES, json).apply()
+        prefs.edit { putString(Constants.PrefsKeys.PACT_ALLOWANCES, json) }
         cachedAllowancesJson = json
         cachedAllowances = allowances
     }

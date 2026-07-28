@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -248,9 +249,10 @@ fun FocusPocusApp(
         val preset = pendingDeepLinkPreset
         if (preset != null) {
             val isActive = manualFocusMode || focusTagId != null
+            val tempMinutes = preset.tempDurationMinutes ?: 30
             val actionDescription = when (preset.action ?: PresetAction.TOGGLE) {
-                PresetAction.TEMP_ENABLE -> stringResource(R.string.main_deep_link_action_temp_enable, preset.name, preset.tempDurationMinutes ?: 30)
-                PresetAction.TEMP_DISABLE -> if (isActive) stringResource(R.string.main_deep_link_action_temp_disable, preset.tempDurationMinutes ?: 30) else stringResource(R.string.main_deep_link_action_temp_disable_inactive)
+                PresetAction.TEMP_ENABLE -> pluralStringResource(R.plurals.main_deep_link_action_temp_enable, tempMinutes, preset.name, tempMinutes)
+                PresetAction.TEMP_DISABLE -> if (isActive) pluralStringResource(R.plurals.main_deep_link_action_temp_disable, tempMinutes, tempMinutes) else stringResource(R.string.main_deep_link_action_temp_disable_inactive)
                 PresetAction.TOGGLE -> if (isActive) stringResource(R.string.main_deep_link_action_dispel, preset.name) else stringResource(R.string.main_deep_link_action_cast, preset.name)
             }
             AlertDialog(
@@ -1099,7 +1101,7 @@ fun FocusPocusApp(
                                 )
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(
-                                    stringResource(R.string.session_complete_duration, sessionSummaryDuration),
+                                    pluralStringResource(R.plurals.session_complete_duration, sessionSummaryDuration, sessionSummaryDuration),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -1155,7 +1157,7 @@ fun FocusPocusApp(
                                 if (sessionSummaryStreak > 0) {
                                     Spacer(modifier = Modifier.size(8.dp))
                                     Text(
-                                        stringResource(R.string.home_day_streak, sessionSummaryStreak),
+                                        pluralStringResource(R.plurals.home_day_streak, sessionSummaryStreak, sessionSummaryStreak),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

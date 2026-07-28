@@ -100,6 +100,7 @@ fun Greeting(
     focusTimeRemaining: Int,
     isOnBreak: Boolean,
     breakTimeRemaining: Int,
+    modifier: Modifier = Modifier,
     breakTotalSeconds: Int = 0,
     sessionElapsedSeconds: Long = 0L,
     breaksUsedThisSession: Int,
@@ -126,8 +127,7 @@ fun Greeting(
     onBuyExtraBreak: () -> Unit = {},
     onCreateEnchantment: () -> Unit = {},
     onActivateTalismanPreset: (FocusPreset) -> Unit = {},
-    onActivateFocusTag: (NamedTag) -> Unit = {},
-    modifier: Modifier = Modifier
+    onActivateFocusTag: (NamedTag) -> Unit = {}
 ) {
     val activeTagName = namedTags.find { it.id == activeTagId }?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {

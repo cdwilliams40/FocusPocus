@@ -2,6 +2,7 @@ package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import com.google.gson.Gson
 import java.lang.reflect.Type
 
@@ -41,10 +42,10 @@ object PrefsHelper {
                 // removing the key here silently discards everything the user had
                 // stored under it. Preserve the raw payload so the data is at least
                 // recoverable (and inspectable when diagnosing the corruption).
-                prefs.edit()
-                    .putString(key + CORRUPT_BACKUP_SUFFIX, json)
-                    .remove(key)
-                    .apply()
+                prefs.edit {
+                    putString(key + CORRUPT_BACKUP_SUFFIX, json)
+                    remove(key)
+                }
                 onCorruption?.invoke()
                 return null
             }
@@ -67,6 +68,6 @@ object PrefsHelper {
         value: T
     ) {
         val json = gson.toJson(value)
-        prefs.edit().putString(key, json).apply()
+        prefs.edit { putString(key, json) }
     }
 }

@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 
 object DndController {
     private const val TAG = "DndController"
@@ -54,10 +55,10 @@ object DndController {
                     // but only persist the "enabled by app" flag AFTER the call succeeds.
                     val previousFilter = notificationManager.currentInterruptionFilter
                     notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
-                    sharedPreferences.edit()
-                        .putInt(PREFS_DND_PREVIOUS_FILTER, previousFilter)
-                        .putBoolean(PREFS_DND_ENABLED_BY_APP, true)
-                        .apply()
+                    sharedPreferences.edit {
+                        putInt(PREFS_DND_PREVIOUS_FILTER, previousFilter)
+                        putBoolean(PREFS_DND_ENABLED_BY_APP, true)
+                    }
                 } else {
                     notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                 }
@@ -69,10 +70,10 @@ object DndController {
                     NotificationManager.INTERRUPTION_FILTER_ALL
                 )
                 notificationManager.setInterruptionFilter(previousFilter)
-                sharedPreferences.edit()
-                    .remove(PREFS_DND_PREVIOUS_FILTER)
-                    .putBoolean(PREFS_DND_ENABLED_BY_APP, false)
-                    .apply()
+                sharedPreferences.edit {
+                    remove(PREFS_DND_PREVIOUS_FILTER)
+                    putBoolean(PREFS_DND_ENABLED_BY_APP, false)
+                }
                 Log.d(TAG, "DND restored to previous filter: $previousFilter")
             }
         } catch (e: SecurityException) {

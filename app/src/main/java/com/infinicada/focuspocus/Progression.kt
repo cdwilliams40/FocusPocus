@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.OpenReflexTracker
@@ -52,9 +53,7 @@ object Progression {
     ): AwardResult {
         // Cheap activity marker for the evening wrap-up guard — written even
         // when progression is off so re-enabling doesn't miss today.
-        prefs.edit()
-            .putString(Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE, SessionCooldownManager.todayString())
-            .apply()
+        prefs.edit { putString(Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE, SessionCooldownManager.todayString()) }
 
         rolloverIfNeeded(prefs, gson)
         if (!isEnabled(prefs)) return AwardResult.EMPTY
@@ -90,7 +89,7 @@ object Progression {
                     dateKey = SessionCooldownManager.todayString()
                 )
             )
-            prefs.edit().putInt(Constants.PrefsKeys.HIGHEST_STREAK_MILESTONE_PAID, newPaid).apply()
+            prefs.edit { putInt(Constants.PrefsKeys.HIGHEST_STREAK_MILESTONE_PAID, newPaid) }
         }
 
         val unlocked = unlockSigils(prefs, gson, sessionSigilIds(prefs, gson, session, newStreak, hideStop, fromRitual))
@@ -200,12 +199,12 @@ object Progression {
                 if (!sessionActive) return false
                 if (!breaksAllowedNow(prefs, gson)) return false
                 if (!debit(prefs, gson, perk.costMana, perkEntry(perk, ""))) return false
-                prefs.edit()
-                    .putInt(
+                prefs.edit {
+                    putInt(
                         Constants.PrefsKeys.EXTRA_BREAK_TOKENS,
                         prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0) + 1
                     )
-                    .apply()
+                }
             }
             Perk.SEALED_MINUTES -> {
                 if (packageName.isNullOrEmpty()) return false
@@ -304,16 +303,16 @@ object Progression {
 
     private fun credit(prefs: SharedPreferences, gson: Gson, amount: Long, entry: ManaLedgerEntry) {
         if (amount <= 0L) return
-        prefs.edit()
-            .putLong(
+        prefs.edit {
+            putLong(
                 Constants.PrefsKeys.MANA_BALANCE,
                 prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L) + amount
             )
-            .putLong(
+            putLong(
                 Constants.PrefsKeys.MANA_LIFETIME_EARNED,
                 prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L) + amount
             )
-            .apply()
+        }
         appendLedger(prefs, gson, entry)
     }
 
@@ -321,7 +320,7 @@ object Progression {
     private fun debit(prefs: SharedPreferences, gson: Gson, amount: Long, entry: ManaLedgerEntry): Boolean {
         val balance = prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L)
         if (amount <= 0L || balance < amount) return false
-        prefs.edit().putLong(Constants.PrefsKeys.MANA_BALANCE, balance - amount).apply()
+        prefs.edit { putLong(Constants.PrefsKeys.MANA_BALANCE, balance - amount) }
         appendLedger(prefs, gson, entry)
         return true
     }

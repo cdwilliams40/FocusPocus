@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 
@@ -138,26 +139,26 @@ object BackupCodec {
         if (file.format != FORMAT || file.prefs == null) return ImportResult.InvalidFormat
         if (file.formatVersion > FORMAT_VERSION) return ImportResult.UnsupportedVersion
 
-        val editor = prefs.edit()
-        EXPORT_KEYS.forEach { editor.remove(it) }
         var restored = 0
-        for ((key, entry) in file.prefs) {
-            if (key !in EXPORT_KEYS) continue
-            val value = entry?.value ?: continue
-            val applied = when (entry.type) {
-                "string" -> { editor.putString(key, value); true }
-                "boolean" -> value.toBooleanStrictOrNull()
-                    ?.let { editor.putBoolean(key, it); true } ?: false
-                "int" -> value.toIntOrNull()?.let { editor.putInt(key, it); true } ?: false
-                "long" -> value.toLongOrNull()?.let { editor.putLong(key, it); true } ?: false
-                "float" -> value.toFloatOrNull()?.let { editor.putFloat(key, it); true } ?: false
-                else -> false
+        // commit = true, not apply(): the caller restarts the process
+        // immediately, and the data must be on disk before that happens.
+        prefs.edit(commit = true) {
+            EXPORT_KEYS.forEach { remove(it) }
+            for ((key, entry) in file.prefs) {
+                if (key !in EXPORT_KEYS) continue
+                val value = entry?.value ?: continue
+                val applied = when (entry.type) {
+                    "string" -> { putString(key, value); true }
+                    "boolean" -> value.toBooleanStrictOrNull()
+                        ?.let { putBoolean(key, it); true } ?: false
+                    "int" -> value.toIntOrNull()?.let { putInt(key, it); true } ?: false
+                    "long" -> value.toLongOrNull()?.let { putLong(key, it); true } ?: false
+                    "float" -> value.toFloatOrNull()?.let { putFloat(key, it); true } ?: false
+                    else -> false
+                }
+                if (applied) restored++
             }
-            if (applied) restored++
         }
-        // commit(), not apply(): the caller restarts the process immediately,
-        // and the data must be on disk before that happens.
-        editor.commit()
         return ImportResult.Success(restored)
     }
 }

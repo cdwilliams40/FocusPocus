@@ -432,7 +432,7 @@ private fun StreakBadge(streak: Int) {
         onClick = {},
         label = {
             Text(
-                stringResource(R.string.home_day_streak, streak),
+                pluralStringResource(R.plurals.home_day_streak, streak, streak),
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1
             )

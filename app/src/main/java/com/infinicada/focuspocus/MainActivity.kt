@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
 
     private var lastScannedTagId by mutableStateOf<String?>(null)
     private var isServiceEnabled by mutableStateOf(false)
-    private var nfcTriggerCount by mutableStateOf(0)
+    private var nfcTriggerCount by mutableIntStateOf(0)
 
     // Deep link confirmation state
     private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)

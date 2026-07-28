@@ -3,8 +3,6 @@
     <string name="app_name">Focus Pocus</string>
     <string name="accessibility_service_label">Focus Pocus</string>
     <string name="accessibility_service_description">Ce service vous aide à rester concentré en surveillant les applications que vous utilisez.</string>
-    <string name="foreground_service_title">Focus Pocus actif</string>
-    <string name="foreground_service_text">Veille sur votre concentration</string>
 
     <!-- Navigation -->
     <string name="nav_pacts">Pactes</string>
@@ -58,6 +56,7 @@
     <string name="format_duration_hours_minutes">%1$dh %2$dm</string>
     <plurals name="format_duration_hours">
         <item quantity="one">%d heure</item>
+        <item quantity="many">%d heures</item>
         <item quantity="other">%d heures</item>
     </plurals>
 
@@ -68,27 +67,29 @@
     <string name="home_session_setup">Configuration de session</string>
     <string name="home_unlimited_session">Illimité</string>
     <string name="home_elapsed">écoulé</string>
-    <string name="home_session_progress">%1$d sur %2$d min</string>
     <string name="session_complete_icon_desc">Session terminée</string>
     <string name="home_quick_spells">Sorts rapides</string>
     <string name="home_select_enchantment">Choisir un enchantement</string>
     <string name="home_allow_breaks">Autoriser les pauses</string>
     <string name="home_remaining">restant</string>
     <string name="home_break_remaining">pause restante</string>
-    <string name="home_enchantment_name">Enchantement : %s</string>
     <string name="home_ritual_name">Rituel : %s</string>
     <string name="home_unbind_with">Délier avec : %s</string>
     <string name="home_breaks_used">Pauses : %1$d / %2$d utilisées</string>
-    <string name="home_take_break">Prendre une pause</string>
     <string name="home_end_break_early">Terminer la pause</string>
     <string name="home_emergency_stop">Arrêt d\'urgence</string>
     <string name="home_emergency_stop_confirm_text">Ceci utilise votre arrêt d\'urgence pour mettre fin à la session immédiatement. Vous n\'en aurez pas d\'autre pendant plusieurs semaines. Êtes-vous sûr ?</string>
     <string name="home_use_emergency_stop">Utiliser l\'arrêt d\'urgence</string>
     <plurals name="home_emergency_stop_days_remaining">
         <item quantity="one">Arrêt d\'urgence disponible dans %d jour</item>
+        <item quantity="many">Arrêt d\'urgence disponible dans %d jours</item>
         <item quantity="other">Arrêt d\'urgence disponible dans %d jours</item>
     </plurals>
-    <string name="home_day_streak">Série de %d jours</string>
+    <plurals name="home_day_streak">
+        <item quantity="one">Série de %d jour</item>
+        <item quantity="many">Série de %d jours</item>
+        <item quantity="other">Série de %d jours</item>
+    </plurals>
     <string name="home_dispel_content_desc">Dissiper le sort</string>
     <string name="home_cast_content_desc">Lancer le sort</string>
     <string name="home_button_bound">Lié</string>
@@ -178,7 +179,6 @@
     <string name="pacts_home_intro_ok">Compris</string>
 
     <!-- SpellbookScreen -->
-    <string name="spellbook_title">Grimoire</string>
     <string name="spellbook_enchantments">Enchantements</string>
     <string name="spellbook_quick_spells">Sorts rapides</string>
     <string name="spellbook_rituals">Rituels</string>
@@ -195,6 +195,7 @@
     <!-- Plurals for spellbook counts -->
     <plurals name="spellbook_app_count">
         <item quantity="one">%d application</item>
+        <item quantity="many">%d applications</item>
         <item quantity="other">%d applications</item>
     </plurals>
 
@@ -209,7 +210,6 @@
     <string name="spells_enchantment_name_label">Nom de l\'enchantement</string>
     <string name="spells_select_target_apps">Sélectionner les applications cibles</string>
     <string name="spells_save_enchantment">Enregistrer l\'enchantement</string>
-    <string name="spells_char_count">%1$d/%2$d</string>
     <string name="spells_auto_add_new_apps">Bannir les nouvelles applications</string>
     <string name="spells_auto_add_new_apps_desc">Ajoute automatiquement les applications nouvellement installées à cet enchantement</string>
     <string name="spells_select_apps_title">Sélectionner les applications</string>
@@ -224,9 +224,17 @@
     <string name="settings_theme_system">Suivre le système</string>
     <string name="settings_focus_behavior">Comportement de concentration</string>
     <string name="settings_cannot_change_active">Modification impossible pendant un sort actif</string>
-    <string name="settings_break_duration">Durée de pause par défaut : %d minutes</string>
+    <plurals name="settings_break_duration">
+        <item quantity="one">Durée de pause par défaut : %d minute</item>
+        <item quantity="many">Durée de pause par défaut : %d minutes</item>
+        <item quantity="other">Durée de pause par défaut : %d minutes</item>
+    </plurals>
     <string name="settings_breaks_per_session">Pauses par session par défaut : %d</string>
-    <string name="settings_emergency_cooldown">Délai d\'arrêt d\'urgence : %d semaines</string>
+    <plurals name="settings_emergency_cooldown">
+        <item quantity="one">Délai d\'arrêt d\'urgence : %d semaine</item>
+        <item quantity="many">Délai d\'arrêt d\'urgence : %d semaines</item>
+        <item quantity="other">Délai d\'arrêt d\'urgence : %d semaines</item>
+    </plurals>
     <string name="settings_emergency_cooldown_desc">Un arrêt d\'urgence par période de délai lorsque vous devez terminer une session plus tôt</string>
     <string name="settings_auto_break">Pause automatique (Pomodoro)</string>
     <string name="settings_auto_break_desc">Démarre automatiquement une pause après chaque période de concentration</string>
@@ -281,7 +289,6 @@
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
 
     <!-- InsightsScreen -->
-    <string name="insights_title">Statistiques d\'utilisation</string>
     <string name="insights_today">Aujourd\'hui</string>
     <string name="insights_this_week">Cette semaine</string>
     <string name="insights_this_month">Ce mois-ci</string>
@@ -295,7 +302,11 @@
     <string name="insights_avg_session">Session moyenne</string>
     <string name="insights_sessions">Sessions</string>
     <string name="insights_blocking_stats">Statistiques de blocage</string>
-    <string name="insights_total_blocks">%d blocages au total</string>
+    <plurals name="insights_total_blocks">
+        <item quantity="one">%d blocage au total</item>
+        <item quantity="many">%d blocages au total</item>
+        <item quantity="other">%d blocages au total</item>
+    </plurals>
     <string name="insights_most_blocked">Les plus bloqués</string>
     <string name="insights_time_limit_status">État des limites de temps</string>
     <string name="insights_time_used">%1$d / %2$d min</string>
@@ -303,6 +314,7 @@
     <string name="insights_session_duration">%d min</string>
     <plurals name="insights_session_breaks">
         <item quantity="one">%d pause</item>
+        <item quantity="many">%d pauses</item>
         <item quantity="other">%d pauses</item>
     </plurals>
     <string name="insights_usage_access_required">Accès à l\'utilisation requis</string>
@@ -360,7 +372,11 @@
     <string name="rituals_select_unbinding_talisman">Sélectionner le talisman de déliaison</string>
     <string name="rituals_none_unbind">Aucun (Délier librement)</string>
     <string name="rituals_allow_breaks">Autoriser les pauses</string>
-    <string name="rituals_break_duration">Durée de pause : %d minutes</string>
+    <plurals name="rituals_break_duration">
+        <item quantity="one">Durée de pause : %d minute</item>
+        <item quantity="many">Durée de pause : %d minutes</item>
+        <item quantity="other">Durée de pause : %d minutes</item>
+    </plurals>
     <string name="rituals_breaks_per_session">Pauses par session : %d</string>
     <string name="rituals_days_active">Jours actifs :</string>
     <string name="rituals_start_time">Début : %s</string>
@@ -477,8 +493,16 @@
     <string name="main_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour détecter quand vous ouvrez des applications distrayantes et vous guider vers votre concentration. Sans cet enchantement, vos sorts ne peuvent pas vous protéger de la tentation.</string>
     <string name="main_accessibility_go_to_settings">Aller aux paramètres</string>
     <string name="main_deep_link_confirm_title">Confirmer l\'action</string>
-    <string name="main_deep_link_action_temp_enable">activer « %1$s » pendant %2$d minutes</string>
-    <string name="main_deep_link_action_temp_disable">démarrer une pause de %d minutes</string>
+    <plurals name="main_deep_link_action_temp_enable">
+        <item quantity="one">activer « %1$s » pendant %2$d minute</item>
+        <item quantity="many">activer « %1$s » pendant %2$d minutes</item>
+        <item quantity="other">activer « %1$s » pendant %2$d minutes</item>
+    </plurals>
+    <plurals name="main_deep_link_action_temp_disable">
+        <item quantity="one">démarrer une pause de %d minute</item>
+        <item quantity="many">démarrer une pause de %d minutes</item>
+        <item quantity="other">démarrer une pause de %d minutes</item>
+    </plurals>
     <string name="main_deep_link_action_temp_disable_inactive">mettre en pause la concentration (aucune session active)</string>
     <string name="main_deep_link_action_dispel">dissiper « %s »</string>
     <string name="main_deep_link_action_cast">lancer « %s »</string>
@@ -487,14 +511,10 @@
     <string name="main_deep_link_deny">Refuser</string>
 
     <!-- Toast messages -->
-    <string name="toast_data_corrupted_rituals">Les données de rituels étaient corrompues et ont été réinitialisées</string>
     <string name="toast_max_rituals">Maximum de %d rituels atteint</string>
-    <string name="toast_data_corrupted_enchantments">Les données d\'enchantements étaient corrompues - valeurs par défaut restaurées</string>
     <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
-    <string name="toast_data_corrupted_quick_spells">Les données de sorts rapides étaient corrompues - valeurs par défaut restaurées</string>
     <string name="toast_max_quick_spells">Maximum de %d sorts rapides atteint</string>
     <string name="toast_max_time_limits">Maximum de %d limites de temps atteint</string>
-    <string name="toast_data_corrupted_talismans">Les données de talismans étaient corrompues et ont été réinitialisées</string>
     <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
     <string name="toast_preset_cast_timed">%1$s lancé pour %2$d min !</string>
     <string name="toast_enchantment_missing">Enchantement manquant pour %s</string>
@@ -509,7 +529,11 @@
 
     <!-- App Picker -->
     <string name="app_picker_selected_chip">Sélectionnées (%1$d)</string>
-    <string name="app_picker_selected_count">%1$d sélectionnées</string>
+    <plurals name="app_picker_selected_count">
+        <item quantity="one">%1$d sélectionnée</item>
+        <item quantity="many">%1$d sélectionnées</item>
+        <item quantity="other">%1$d sélectionnées</item>
+    </plurals>
     <string name="app_picker_open_search">Rechercher des applications</string>
     <string name="app_picker_close_search">Fermer la recherche</string>
     <string name="app_picker_clear_search">Effacer la recherche</string>
@@ -687,10 +711,8 @@
     <!-- Déblocages conditionnels -->
     <string name="conditional_unlocks_title">Déblocages conditionnels</string>
     <string name="conditional_unlocks_description">Débloquez des applications bloquées en récompense du temps passé dans une autre application.</string>
-    <string name="conditional_unlocks_empty">Aucun déblocage conditionnel pour le moment.</string>
     <string name="conditional_unlocks_add">Ajouter un déblocage conditionnel</string>
     <string name="conditional_unlocks_rule_summary">Déblocage après %1$d min dans %2$s</string>
-    <string name="conditional_unlocks_unlocked_apps">Applications débloquées : %d</string>
     <string name="conditional_unlocks_unlocked_enchantments">Débloque : %s</string>
     <string name="conditional_unlocks_editor_title_create">Nouveau déblocage conditionnel</string>
     <string name="conditional_unlocks_editor_title_edit">Modifier le déblocage conditionnel</string>
@@ -699,18 +721,23 @@
     <string name="conditional_unlocks_required_app_label">Application requise</string>
     <string name="conditional_unlocks_required_app_placeholder">Choisir l\'application à utiliser d\'abord</string>
     <string name="conditional_unlocks_required_minutes_label">Temps requis</string>
-    <string name="conditional_unlocks_unlocked_apps_label">Applications à débloquer</string>
-    <string name="conditional_unlocks_unlocked_apps_placeholder">Choisir les applications à débloquer</string>
-    <string name="conditional_unlocks_unlocked_apps_count">%d application(s) sélectionnée(s)</string>
     <string name="conditional_unlocks_enchantments_label">Enchantements à débloquer</string>
     <string name="conditional_unlocks_enchantments_placeholder">Choisir les enchantements</string>
-    <string name="conditional_unlocks_enchantments_count">%d enchantement(s) sélectionné(s)</string>
+    <plurals name="conditional_unlocks_enchantments_count">
+        <item quantity="one">%d enchantement sélectionné</item>
+        <item quantity="many">%d enchantements sélectionnés</item>
+        <item quantity="other">%d enchantements sélectionnés</item>
+    </plurals>
     <string name="conditional_unlocks_progress">%1$d / %2$d min aujourd\'hui</string>
     <string name="conditional_unlocks_grant_usage">Accorder l\'accès à l\'utilisation</string>
     <string name="conditional_unlocks_usage_required">L\'accès à l\'utilisation est nécessaire pour suivre le temps passé dans les applications</string>
     <string name="conditional_unlocks_time_limit_apps_label">Minuteurs d\'applications à contourner</string>
     <string name="conditional_unlocks_time_limit_apps_placeholder">Choisir les applications limitées</string>
-    <string name="conditional_unlocks_time_limit_apps_count">%d minuteur(s) sélectionné(s)</string>
+    <plurals name="conditional_unlocks_time_limit_apps_count">
+        <item quantity="one">%d minuteur sélectionné</item>
+        <item quantity="many">%d minuteurs sélectionnés</item>
+        <item quantity="other">%d minuteurs sélectionnés</item>
+    </plurals>
     <string name="conditional_unlocks_bypassed_timers">Minuteurs contournés : %s</string>
     <string name="conditional_unlocks_delete">Supprimer</string>
     <string name="toast_max_conditional_unlocks">Maximum de %d déblocages conditionnels atteint</string>
@@ -728,7 +755,11 @@
 
     <!-- Dialogue de fin de session -->
     <string name="session_complete_title">Session terminée !</string>
-    <string name="session_complete_duration">Temps de concentration : %1$d minutes</string>
+    <plurals name="session_complete_duration">
+        <item quantity="one">Temps de concentration : %1$d minute</item>
+        <item quantity="many">Temps de concentration : %1$d minutes</item>
+        <item quantity="other">Temps de concentration : %1$d minutes</item>
+    </plurals>
     <string name="session_complete_breaks">Pauses prises : %1$d</string>
     <string name="session_complete_enchantment">Enchantement : %1$s</string>
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>

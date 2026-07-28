@@ -45,6 +45,7 @@
         android:name=".FocusPocusApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/fplogo"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/fplogo_round"
@@ -63,7 +64,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.FocusPocus">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -74,8 +74,12 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="focuspocus" android:host="preset" />
-                <data android:scheme="focuspocus" android:host="talisman" />
+                <!-- Attributes across sibling data tags are merged into every
+                     combination, so this declares focuspocus://preset and
+                     focuspocus://talisman. -->
+                <data android:scheme="focuspocus" />
+                <data android:host="preset" />
+                <data android:host="talisman" />
             </intent-filter>
         </activity>
 
