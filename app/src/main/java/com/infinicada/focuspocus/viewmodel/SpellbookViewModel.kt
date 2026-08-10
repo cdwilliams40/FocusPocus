@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.infinicada.focuspocus.AppTimeLimitManager
+import com.infinicada.focuspocus.AppUtils
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
@@ -336,7 +337,11 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Loads every launchable app for the pickers.
+     * Loads every launchable app for the pickers, minus stock system apps
+     * (see [AppUtils.isStockSystemApp]) — OS plumbing the user never chose and
+     * shouldn't have to wade through or accidentally block. Whitelist
+     * enforcement skips the same set, keeping "what the picker offers" and
+     * "what a whitelist may block" in lockstep.
      *
      * Deliberate broad package visibility: an app blocker's whole purpose is
      * letting the user choose from everything launchable on the device, and the
@@ -352,7 +357,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                 pm.getInstalledApplications(PackageManager.GET_META_DATA)
                     .filter {
                         try {
-                            pm.getLaunchIntentForPackage(it.packageName) != null
+                            !AppUtils.isStockSystemApp(it) &&
+                                pm.getLaunchIntentForPackage(it.packageName) != null
                         } catch (_: Exception) {
                             // The framework can throw NPE ("class name is null") for packages in
                             // a transient state (mid-update/uninstall); skip them instead of crashing.

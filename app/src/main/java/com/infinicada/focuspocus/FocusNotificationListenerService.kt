@@ -43,7 +43,12 @@ class FocusNotificationListenerService : NotificationListenerService() {
         val category = sbn.notification?.category
         if (category == Notification.CATEGORY_CALL || category == Notification.CATEGORY_ALARM) return
 
-        val matched = activeBlockers.filter { it.shouldBlock(pkg) }
+        // A whitelist may only mute apps the picker offers — mirror the
+        // app-blocking path so unselectable system apps keep notifying.
+        val matched = activeBlockers.filter { blocker ->
+            blocker.shouldBlock(pkg) &&
+                (blocker.mode != BlockerMode.WHITELIST || AppUtils.isWhitelistBlockable(this, pkg))
+        }
         // Mirror the app-blocking path: a conditionally-unlocked blocker's
         // notifications flow again along with its apps. (Checked here, on the
         // rare match path, because the unlock test queries usage stats.)
