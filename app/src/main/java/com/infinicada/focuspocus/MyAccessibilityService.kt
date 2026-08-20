@@ -85,6 +85,7 @@ class MyAccessibilityService : AccessibilityService() {
         launcherCacheResolved = false
         cachedLauncherPackageName = null
         cachedInputMethodPackageNames = null
+        whitelistBlockableCache.clear()
         DeviceOwnerManager.invalidatePackageCaches()
     }
 
@@ -920,6 +921,10 @@ class MyAccessibilityService : AccessibilityService() {
             val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
             for (blocker in activeBlockers) {
+                // A whitelist may only block apps the picker offers — otherwise
+                // unselectable system surfaces (Android Auto's projection UI,
+                // permission dialogs…) get blocked with no way to exempt them.
+                if (blocker.mode == BlockerMode.WHITELIST && !isWhitelistBlockable(packageName)) continue
                 if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
@@ -1211,6 +1216,16 @@ class MyAccessibilityService : AccessibilityService() {
     private fun isSystemUI(packageName: String): Boolean {
         return packageName == "com.android.systemui" || packageName == "android"
     }
+
+    // Whitelist-blockable verdicts per package (two binder calls each), cached
+    // because window-state events repeat the same packages constantly. Cleared
+    // on package add/remove/replace alongside the other package caches.
+    private val whitelistBlockableCache = HashMap<String, Boolean>()
+
+    private fun isWhitelistBlockable(packageName: String): Boolean =
+        whitelistBlockableCache.getOrPut(packageName) {
+            AppUtils.isWhitelistBlockable(this, packageName)
+        }
 
     private fun closeApp() {
         val intent = Intent(Intent.ACTION_MAIN)

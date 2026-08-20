@@ -81,6 +81,33 @@ class DeviceOwnerManagerTest {
     }
 
     @Test
+    fun computeBlockedPackages_whitelist_skipsStockSystemApps() {
+        // A launchable stock system app (e.g. an OEM utility) is hidden from the
+        // picker, so a whitelist must not suspend it even though it's unlisted.
+        val blocker = Blocker("Work Only", BlockerMode.WHITELIST, setOf("com.example.notes"))
+        val result = DeviceOwnerManager.computeBlockedPackages(
+            activeBlockers = listOf(blocker),
+            launchablePackages = launchable + "com.oem.utility",
+            exemptPackages = emptySet(),
+            stockSystemPackages = setOf("com.oem.utility")
+        )
+        assertEquals(setOf("com.example.social", "com.example.games", "com.example.mail"), result)
+    }
+
+    @Test
+    fun computeBlockedPackages_blacklist_stillBlocksStockSystemApps() {
+        // An explicit blacklist pick blocks regardless of system status.
+        val blocker = Blocker("Distractions", BlockerMode.BLACKLIST, setOf("com.oem.utility"))
+        val result = DeviceOwnerManager.computeBlockedPackages(
+            activeBlockers = listOf(blocker),
+            launchablePackages = launchable + "com.oem.utility",
+            exemptPackages = emptySet(),
+            stockSystemPackages = setOf("com.oem.utility")
+        )
+        assertEquals(setOf("com.oem.utility"), result)
+    }
+
+    @Test
     fun computeBlockedPackages_blacklistPlusWhitelist_anyBlockerBlocking_suspends() {
         // Matches the accessibility service: an app is blocked if ANY active blocker blocks it.
         val blacklist = Blocker("Social", BlockerMode.BLACKLIST, setOf("com.example.notes"))

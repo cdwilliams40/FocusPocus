@@ -210,7 +210,7 @@ object DeviceOwnerManager {
     private fun computeDesiredSuspensions(context: Context, prefs: SharedPreferences): Set<String> {
         val launchable = getLaunchablePackages(context)
         val exempt = getExemptPackages(context)
-        return computeSessionSuspensions(context, prefs, launchable, exempt) +
+        return computeSessionSuspensions(context, prefs, launchable, exempt, getStockSystemPackages(context)) +
             computePactSuspensions(context, prefs, launchable, exempt)
     }
 
@@ -223,7 +223,8 @@ object DeviceOwnerManager {
         context: Context,
         prefs: SharedPreferences,
         launchablePackages: Set<String>,
-        exemptPackages: Set<String>
+        exemptPackages: Set<String>,
+        stockSystemPackages: Set<String>
     ): Set<String> {
         val focusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
             prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
@@ -239,7 +240,8 @@ object DeviceOwnerManager {
         return computeBlockedPackages(
             activeBlockers = activeBlockers,
             launchablePackages = launchablePackages,
-            exemptPackages = exemptPackages
+            exemptPackages = exemptPackages,
+            stockSystemPackages = stockSystemPackages
         )
     }
 
@@ -296,17 +298,24 @@ object DeviceOwnerManager {
 
     /**
      * Pure blocked-set computation, extracted for unit testing. Whitelist blockers
-     * block everything launchable outside the list; blacklist blockers block only
-     * their listed apps. A package is suspended if any active blocker blocks it.
+     * block everything launchable outside the list — except stock system apps,
+     * which the picker hides and the user therefore never had a chance to
+     * whitelist. Blacklist blockers block only their listed apps, stock or not:
+     * an explicit pick is an explicit pick. A package is suspended if any active
+     * blocker blocks it.
      */
     fun computeBlockedPackages(
         activeBlockers: List<Blocker>,
         launchablePackages: Set<String>,
-        exemptPackages: Set<String>
+        exemptPackages: Set<String>,
+        stockSystemPackages: Set<String> = emptySet()
     ): Set<String> {
         if (activeBlockers.isEmpty()) return emptySet()
         return launchablePackages.filterTo(mutableSetOf()) { pkg ->
-            pkg !in exemptPackages && activeBlockers.any { it.shouldBlock(pkg) }
+            pkg !in exemptPackages && activeBlockers.any { blocker ->
+                blocker.shouldBlock(pkg) &&
+                    (blocker.mode == BlockerMode.BLACKLIST || pkg !in stockSystemPackages)
+            }
         }
     }
 
@@ -323,11 +332,14 @@ object DeviceOwnerManager {
     @Volatile private var cachedLaunchableAtMillis = 0L
     @Volatile private var cachedExemptPackages: Set<String>? = null
     @Volatile private var cachedExemptAtMillis = 0L
+    @Volatile private var cachedStockSystemPackages: Set<String>? = null
+    @Volatile private var cachedStockSystemAtMillis = 0L
 
     /** Call when a package is added, removed, or replaced. */
     fun invalidatePackageCaches() {
         cachedLaunchablePackages = null
         cachedExemptPackages = null
+        cachedStockSystemPackages = null
     }
 
     private fun getLaunchablePackages(context: Context): Set<String> {
@@ -345,6 +357,34 @@ object DeviceOwnerManager {
         }
         cachedLaunchablePackages = fresh
         cachedLaunchableAtMillis = now
+        return fresh
+    }
+
+    /**
+     * Stock system apps ([AppUtils.isStockSystemApp]) — hidden from the pickers,
+     * so whitelist suspension must skip them too: the user never had a chance
+     * to whitelist them.
+     *
+     * Same deliberate broad package visibility as the picker's app list —
+     * see SpellbookViewModel.loadInstalledApps.
+     */
+    @Suppress("QueryPermissionsNeeded")
+    private fun getStockSystemPackages(context: Context): Set<String> {
+        val now = System.currentTimeMillis()
+        cachedStockSystemPackages?.let {
+            if (now - cachedStockSystemAtMillis < PACKAGE_CACHE_TTL_MS) return it
+        }
+        val fresh = try {
+            context.packageManager.getInstalledApplications(0)
+                .asSequence()
+                .filter { AppUtils.isStockSystemApp(it) }
+                .mapTo(mutableSetOf()) { it.packageName }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying stock system packages", e)
+            return cachedStockSystemPackages ?: emptySet()
+        }
+        cachedStockSystemPackages = fresh
+        cachedStockSystemAtMillis = now
         return fresh
     }
 
