@@ -97,6 +97,11 @@ object Constants {
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 
+        // Last package scan (name/package/category), kept so guarded apps can be
+        // labelled in the first frame instead of showing their package name
+        // while the fresh scan runs. Display cache only — never authoritative.
+        const val INSTALLED_APPS_CACHE = "installedAppsCache"
+
         // Block events for statistics
         const val BLOCK_EVENTS = "blockEvents"
 

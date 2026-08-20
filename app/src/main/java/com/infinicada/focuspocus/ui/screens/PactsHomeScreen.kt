@@ -49,11 +49,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.AppUtils
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
@@ -124,8 +126,20 @@ fun PactsHomeScreen(
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val names = remember(installedApps) {
-        installedApps.associate { it.packageName to it.name }
+    val context = LocalContext.current
+    // Guarded apps must show their real name from the first frame — falling back
+    // to the raw package name flashes "com.thing.stuff" on the cards. The scan
+    // covers this once it lands (and is seeded from the cached scan before
+    // that), so the direct lookup below only ever runs for the handful of
+    // guarded packages a cold cache hasn't seen yet.
+    val names = remember(installedApps, appTimeLimitConfigs, pactGroups, blockerLists) {
+        val scanned = installedApps.associate { it.packageName to it.name }
+        val unscanned = (
+            appTimeLimitConfigs.keys +
+                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
+            ).filterNot { it in scanned }
+        if (unscanned.isEmpty()) scanned
+        else scanned + unscanned.associateWith { AppUtils.getAppName(context, it) }
     }
     val rows = remember(
         appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
