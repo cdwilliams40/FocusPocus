@@ -26,6 +26,7 @@ import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.InsightsRepository
+import com.infinicada.focuspocus.data.InstalledAppsRepository
 import com.infinicada.focuspocus.data.PresetRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
@@ -281,6 +282,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val talismanRepo: TalismanRepository = container.talismans
     private val insightsRepo: InsightsRepository = container.insights
     private val conditionalUnlockRepo: ConditionalUnlockRepository = container.conditionalUnlocks
+    private val installedAppsRepo: InstalledAppsRepository = container.installedApps
 
     private val _blockerLists = MutableStateFlow(blockerRepo.getBlockers())
     val blockerLists: StateFlow<List<Blocker>> = _blockerLists.asStateFlow()
@@ -306,7 +308,9 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
     val conditionalUnlocks: StateFlow<List<ConditionalUnlock>> = _conditionalUnlocks.asStateFlow()
 
-    private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
+    // Seeded from the last scan so guarded apps have their real names in the
+    // first frame; [loadInstalledApps] replaces it with fresh data right after.
+    private val _installedApps = MutableStateFlow(installedAppsRepo.getCachedApps())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
 
     // Spellbook navigation
@@ -368,7 +372,10 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                     .map { AppInfo(name = it.loadLabel(pm).toString(), packageName = it.packageName, category = it.category) }
                     .sortedBy { it.name.lowercase() }
             }
-            _installedApps.value = apps
+            if (apps != _installedApps.value) {
+                _installedApps.value = apps
+                withContext(Dispatchers.IO) { installedAppsRepo.cacheApps(apps) }
+            }
         }
     }
 
