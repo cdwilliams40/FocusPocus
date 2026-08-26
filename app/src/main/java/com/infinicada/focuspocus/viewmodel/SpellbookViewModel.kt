@@ -343,6 +343,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * enforcement skips the same set, keeping "what the picker offers" and
      * "what a whitelist may block" in lockstep.
      *
+     * That lockstep is why FocusPocusApp re-runs this on every UI start rather
+     * than only at construction: a whitelist blocks whatever it doesn't list, so
+     * an app installed since the last load is already being blocked, and a stale
+     * picker would leave the user no way to allow it. Emitting an equal list is
+     * free — [AppInfo] is a data class, so StateFlow drops the duplicate.
+     *
      * Deliberate broad package visibility: an app blocker's whole purpose is
      * letting the user choose from everything launchable on the device, and the
      * manifest's `<queries>` ACTION_MAIN filter grants exactly that without
