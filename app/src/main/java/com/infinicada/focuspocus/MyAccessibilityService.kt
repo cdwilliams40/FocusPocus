@@ -66,6 +66,12 @@ class MyAccessibilityService : AccessibilityService() {
      */
     private fun autoAddNewAppToBlockers(newPackageName: String) {
         if (newPackageName == packageName) return
+        // Only banish apps the pickers offer. ACTION_PACKAGE_ADDED fires for far
+        // more than the distractions this feature is aimed at — Play-delivered
+        // system components, WebView providers, carrier plumbing — and adding one
+        // of those silently blocks a package the picker never lists, leaving the
+        // user no row to untick. See AppUtils.isPickable.
+        if (!AppUtils.isPickable(this, newPackageName)) return
         val blockers = BlockerRepository.getBlockers(sharedPreferences)
         val updated = blockers.map { blocker ->
             if (blocker.autoAddNewApps && blocker.mode == BlockerMode.BLACKLIST &&
@@ -85,7 +91,7 @@ class MyAccessibilityService : AccessibilityService() {
         launcherCacheResolved = false
         cachedLauncherPackageName = null
         cachedInputMethodPackageNames = null
-        whitelistBlockableCache.clear()
+        pickableCache.clear()
         DeviceOwnerManager.invalidatePackageCaches()
     }
 
@@ -915,16 +921,21 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        if (focusActive) {
+        // Enchantments may only block apps the picker offers, whichever mode they
+        // are in. A whitelist blocks what it doesn't name, so unselectable system
+        // surfaces (Android Auto's projection UI, permission dialogs…) would be
+        // caught with no way to exempt them; a blacklist can name one only through
+        // a stale entry, since the picker has no row to add — or remove — it with.
+        // Either way the user cannot lift the block, so it is not applied. The
+        // test is package-level, so it gates the whole loop rather than repeating
+        // per blocker, and it deliberately does not skip the time-limit check
+        // below: wards and pacts are a separate mechanism with their own gating.
+        if (focusActive && isPickable(packageName)) {
             val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
             val activeBlockerNames = getActiveBlockerNames()
             val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
 
             for (blocker in activeBlockers) {
-                // A whitelist may only block apps the picker offers — otherwise
-                // unselectable system surfaces (Android Auto's projection UI,
-                // permission dialogs…) get blocked with no way to exempt them.
-                if (blocker.mode == BlockerMode.WHITELIST && !isWhitelistBlockable(packageName)) continue
                 if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
@@ -1217,14 +1228,14 @@ class MyAccessibilityService : AccessibilityService() {
         return packageName == "com.android.systemui" || packageName == "android"
     }
 
-    // Whitelist-blockable verdicts per package (two binder calls each), cached
-    // because window-state events repeat the same packages constantly. Cleared
-    // on package add/remove/replace alongside the other package caches.
-    private val whitelistBlockableCache = HashMap<String, Boolean>()
+    // Pickability verdicts per package (two binder calls each), cached because
+    // window-state events repeat the same packages constantly. Cleared on
+    // package add/remove/replace alongside the other package caches.
+    private val pickableCache = HashMap<String, Boolean>()
 
-    private fun isWhitelistBlockable(packageName: String): Boolean =
-        whitelistBlockableCache.getOrPut(packageName) {
-            AppUtils.isWhitelistBlockable(this, packageName)
+    private fun isPickable(packageName: String): Boolean =
+        pickableCache.getOrPut(packageName) {
+            AppUtils.isPickable(this, packageName)
         }
 
     private fun closeApp() {
