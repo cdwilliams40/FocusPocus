@@ -281,6 +281,29 @@
     <string name="settings_privacy">Privacy</string>
     <string name="settings_analytics">Share Analytics</string>
     <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_privacy_policy_desc">What stays on your phone, and the one thing that doesn\'t</string>
+
+    <!-- PrivacyScreen -->
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_headline">Everything stays on your phone</string>
+    <string name="privacy_headline_body">Focus Pocus has no server and no account. Your blocklists, pacts, rituals, history and streaks live in this app\'s private storage and are never uploaded. Automatic cloud backup is switched off for this app, so they are not quietly copied to Google either.</string>
+    <string name="privacy_on_device">Held on this device</string>
+    <string name="privacy_on_device_body">The apps you guard and the rules you set. Focus session history, block events, and your streaks. Per-app open counts, including the reflex opens shown on the pact screen, kept for 30 days. Mana, boons, trials and sigils. Your settings.
+
+It leaves the phone only when you export it yourself, to a file you choose.</string>
+    <string name="privacy_leaves">The one thing that can leave</string>
+    <string name="privacy_leaves_body">Crash reports, if you allow them. A report carries the stack trace, your device model, and the Android and app versions — never your blocklists, the names of apps you guard, your usage, or anything from your screen.
+
+The Share Analytics switch on the previous screen turns this off, and it takes effect at once.</string>
+    <string name="privacy_never">Never collected</string>
+    <string name="privacy_never_body">No account, name, email or contacts. No location. No advertising ID — the permission is stripped out of the app at build time. No ads and no cross-app tracking, ever: ads in a focus app would refute the whole point.</string>
+    <string name="privacy_accessibility">What the accessibility service sees</string>
+    <string name="privacy_accessibility_body">One thing: the package name of the app that just came to the foreground. It subscribes to window-change events only and never asks Android for window content, so it cannot read your screen, your typing, or your passwords. Notification access, when you grant it, is used only to dismiss notifications from blocked apps — their contents are never read or stored.</string>
+    <string name="privacy_controls">Your controls</string>
+    <string name="privacy_controls_body">Take your data with you from Settings → Backup → Export. Turn off crash reports with Share Analytics. Delete everything by uninstalling, or from Android\'s Settings → Apps → Focus Pocus → Storage → Clear data.</string>
+    <string name="privacy_read_full">Read the full policy</string>
+    <string name="privacy_contact">Questions, or to have crash reports deleted: cdwilliams40@gmail.com</string>
 
     <!-- InsightsScreen -->
     <string name="insights_today">Today</string>

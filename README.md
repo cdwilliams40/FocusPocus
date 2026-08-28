@@ -154,6 +154,24 @@ Focus Pocus requires the following permissions:
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
 | **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |
 
+## Privacy
+
+Everything Focus Pocus knows about you stays in the app's private storage on your
+phone — there is no server and no account. Blocklists, pacts, rituals, history and
+streaks are never uploaded, and automatic Android cloud backup is disabled for the
+app so they aren't quietly copied off either. They leave the device only through
+the Grimoire export, to a file you choose.
+
+The one exception is crash reports (Firebase Crashlytics), which you can turn off
+under Settings → Privacy → Share Analytics. The app records no custom analytics
+events and requests no advertising ID.
+
+The full policy is [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md), summarized
+in-app under Settings → Privacy → Privacy policy. The Play Console paperwork it
+supports lives beside it:
+[data safety inventory](docs/PLAY_DATA_SAFETY.md) and
+[accessibility declaration & package-visibility audit](docs/PLAY_ACCESSIBILITY_DECLARATION.md).
+
 ## Installation
 
 ### From Source
@@ -209,7 +227,7 @@ Your grimoire of focus-session configuration:
 - **Focus Behavior**: break duration, breaks per session, auto-breaks (Pomodoro interval), emergency break cadence, hide stop button
 - **Notifications**: mute notifications from blocked apps during focus
 - **Security**: talisman lock (require an NFC tap to end sessions)
-- **Privacy**: opt in or out of analytics
+- **Privacy**: opt in or out of analytics, and read the privacy policy
 
 ## Tech Stack
 

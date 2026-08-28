@@ -287,6 +287,29 @@
     <string name="settings_privacy">Confidentialité</string>
     <string name="settings_analytics">Partager les analyses</string>
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
+    <string name="settings_privacy_policy">Politique de confidentialité</string>
+    <string name="settings_privacy_policy_desc">Ce qui reste sur votre téléphone, et la seule chose qui en sort</string>
+
+    <!-- PrivacyScreen -->
+    <string name="privacy_title">Confidentialité</string>
+    <string name="privacy_headline">Tout reste sur votre téléphone</string>
+    <string name="privacy_headline_body">Focus Pocus n\'a ni serveur ni compte. Vos listes de blocage, vos pactes, vos rituels, votre historique et vos séries résident dans le stockage privé de cette application et ne sont jamais envoyés ailleurs. La sauvegarde automatique dans le cloud est désactivée pour cette application : rien n\'est donc copié discrètement chez Google non plus.</string>
+    <string name="privacy_on_device">Conservé sur cet appareil</string>
+    <string name="privacy_on_device_body">Les applications que vous gardez et les règles que vous définissez. L\'historique de vos sessions de concentration, les blocages et vos séries. Le nombre d\'ouvertures par application, y compris les ouvertures réflexes affichées sur l\'écran de pacte, conservé 30 jours. Le mana, les faveurs, les épreuves et les sceaux. Vos réglages.
+
+Ces données ne quittent le téléphone que si vous les exportez vous-même, vers un fichier que vous choisissez.</string>
+    <string name="privacy_leaves">La seule chose qui peut sortir</string>
+    <string name="privacy_leaves_body">Les rapports de plantage, si vous les autorisez. Un rapport contient la trace d\'appels, le modèle de votre appareil et les versions d\'Android et de l\'application — jamais vos listes de blocage, le nom des applications que vous gardez, votre utilisation, ni quoi que ce soit de votre écran.
+
+L\'option « Partager les analyses » de l\'écran précédent le désactive, avec effet immédiat.</string>
+    <string name="privacy_never">Jamais collecté</string>
+    <string name="privacy_never_body">Aucun compte, nom, e-mail ni contact. Aucune localisation. Aucun identifiant publicitaire — l\'autorisation est retirée de l\'application à la compilation. Aucune publicité ni aucun pistage entre applications, jamais : de la publicité dans une application de concentration en nierait tout le propos.</string>
+    <string name="privacy_accessibility">Ce que voit le service d\'accessibilité</string>
+    <string name="privacy_accessibility_body">Une seule chose : le nom du paquet de l\'application qui vient de passer au premier plan. Il ne s\'abonne qu\'aux événements de changement de fenêtre et ne demande jamais à Android le contenu des fenêtres : il ne peut donc lire ni votre écran, ni votre saisie, ni vos mots de passe. L\'accès aux notifications, si vous l\'accordez, sert uniquement à masquer les notifications des applications bloquées — leur contenu n\'est jamais lu ni conservé.</string>
+    <string name="privacy_controls">Vos réglages</string>
+    <string name="privacy_controls_body">Emportez vos données depuis Réglages → Sauvegarde → Exporter. Désactivez les rapports de plantage avec « Partager les analyses ». Effacez tout en désinstallant l\'application, ou depuis Paramètres Android → Applications → Focus Pocus → Stockage → Effacer les données.</string>
+    <string name="privacy_read_full">Lire la politique complète</string>
+    <string name="privacy_contact">Questions, ou suppression des rapports de plantage : cdwilliams40@gmail.com</string>
 
     <!-- InsightsScreen -->
     <string name="insights_today">Aujourd\'hui</string>

@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -122,6 +123,21 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // The policy is a full screen rather than a dialog — it is long enough to
+    // need scrolling, and it is reached from here only, so the flag lives in
+    // this composable rather than widening FocusPocusApp's state.
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
+    if (showPrivacyPolicy) {
+        val policyContext = LocalContext.current
+        BackHandler { showPrivacyPolicy = false }
+        PrivacyScreen(
+            onOpenFullPolicy = { openUrl(policyContext, PRIVACY_POLICY_URL) },
+            onNavigateBack = { showPrivacyPolicy = false },
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
     ArcaneBackground(modifier = modifier) {
     Scaffold(
         containerColor = Color.Transparent,
@@ -720,6 +736,20 @@ fun SettingsScreen(
                         Switch(
                             checked = analyticsConsent,
                             onCheckedChange = onAnalyticsConsentChanged
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showPrivacyPolicy = true }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(stringResource(R.string.settings_privacy_policy))
+                        Text(
+                            stringResource(R.string.settings_privacy_policy_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
