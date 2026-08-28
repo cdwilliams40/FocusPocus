@@ -52,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
@@ -63,10 +65,12 @@ import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.PactGroup
+import com.infinicada.focuspocus.ui.ScheduleLabels
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
+import com.infinicada.focuspocus.ui.currentUiLocale
+import com.infinicada.focuspocus.ui.formatClockTime
 import com.infinicada.focuspocus.ui.formatDuration
 
 /**
@@ -180,6 +184,7 @@ fun GuardEditorScreen(
     }
     var selectedActiveDays by remember { mutableStateOf(initial?.activeDays ?: emptySet()) }
     var hoursEnabled by remember { mutableStateOf(initialStartMins != null && initialEndMins != null) }
+    val locale = currentUiLocale()
     val windowStartState = rememberTimePickerState(
         initialHour = (initialStartMins ?: 21 * 60) / 60,
         initialMinute = (initialStartMins ?: 0) % 60
@@ -252,10 +257,10 @@ fun GuardEditorScreen(
         val saveWindow = scheduleEnabled && hoursEnabled && windowStartMins != windowEndMins
         val activeDaysToSave = if (scheduleEnabled) selectedActiveDays.takeIf { it.isNotEmpty() } else null
         val startToSave = if (saveWindow) {
-            "%02d:%02d".format(windowStartState.hour, windowStartState.minute)
+            ScheduleLabels.storedTime(windowStartState.hour, windowStartState.minute)
         } else null
         val endToSave = if (saveWindow) {
-            "%02d:%02d".format(windowEndState.hour, windowEndState.minute)
+            ScheduleLabels.storedTime(windowEndState.hour, windowEndState.minute)
         } else null
 
         if (isCircle) {
@@ -669,7 +674,8 @@ fun GuardEditorScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    DayOfWeek.entries.forEach { day ->
+                    ScheduleLabels.daysInWeekOrder(locale).forEach { day ->
+                        val dayFullName = ScheduleLabels.full(day, locale)
                         FilterChip(
                             selected = selectedActiveDays.contains(day),
                             onClick = {
@@ -679,7 +685,10 @@ fun GuardEditorScreen(
                                     selectedActiveDays + day
                                 }
                             },
-                            label = { Text(day.name.take(1)) }
+                            label = { Text(ScheduleLabels.narrow(day, locale)) },
+                            // The narrow label is ambiguous by design (T/T, S/S
+                            // in English), so the chip announces the day in full.
+                            modifier = Modifier.semantics { contentDescription = dayFullName }
                         )
                     }
                 }
@@ -716,7 +725,7 @@ fun GuardEditorScreen(
                             Text(
                                 stringResource(
                                     R.string.rituals_start_time,
-                                    "%02d:%02d".format(windowStartState.hour, windowStartState.minute)
+                                    formatClockTime(windowStartState.hour, windowStartState.minute)
                                 )
                             )
                         }
@@ -729,7 +738,7 @@ fun GuardEditorScreen(
                                 stringResource(
                                     if (windowOvernight) R.string.rituals_end_time_next_day
                                     else R.string.rituals_end_time,
-                                    "%02d:%02d".format(windowEndState.hour, windowEndState.minute)
+                                    formatClockTime(windowEndState.hour, windowEndState.minute)
                                 )
                             )
                         }

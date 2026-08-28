@@ -50,13 +50,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.ui.ScheduleLabels
+import com.infinicada.focuspocus.ui.currentUiLocale
+import com.infinicada.focuspocus.ui.formatClockTime
 import java.util.UUID
 
 @Composable
@@ -126,11 +130,13 @@ fun ScheduleListScreen(
                                         endMins <= startMins
                                     } else false
                                 }
+                                val startText = formatClockTime(schedule.effectiveStartTime)
+                                val endText = formatClockTime(schedule.effectiveEndTime)
                                 Text(
-                                    if (isOvernight) "${schedule.effectiveStartTime} - ${schedule.effectiveEndTime} ${stringResource(R.string.rituals_overnight_suffix)}"
-                                    else "${schedule.effectiveStartTime} - ${schedule.effectiveEndTime}"
+                                    if (isOvernight) "$startText - $endText ${stringResource(R.string.rituals_overnight_suffix)}"
+                                    else "$startText - $endText"
                                 )
-                                Text(schedule.effectiveDays.joinToString { it.name.take(3) })
+                                Text(ScheduleLabels.shortSummary(schedule.effectiveDays, currentUiLocale()))
                                 if (schedule.unbindingTalismanId != null) {
                                     Text(stringResource(R.string.rituals_bound_to_talisman), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                                 }
@@ -427,8 +433,10 @@ fun ScheduleEditorScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(stringResource(R.string.rituals_days_active))
+        val locale = currentUiLocale()
         Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-            DayOfWeek.entries.forEach { day ->
+            ScheduleLabels.daysInWeekOrder(locale).forEach { day ->
+                val dayFullName = ScheduleLabels.full(day, locale)
                 FilterChip(
                     selected = selectedDays.contains(day),
                     onClick = {
@@ -438,7 +446,10 @@ fun ScheduleEditorScreen(
                             selectedDays + day
                         }
                     },
-                    label = { Text(day.name.take(1)) }
+                    label = { Text(ScheduleLabels.narrow(day, locale)) },
+                    // The narrow label is ambiguous by design (T/T, S/S in
+                    // English), so the chip announces the day in full.
+                    modifier = Modifier.semantics { contentDescription = dayFullName }
                 )
             }
         }
@@ -450,7 +461,7 @@ fun ScheduleEditorScreen(
                 onClick = { showStartTimePicker = true },
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = stringResource(R.string.rituals_start_time, "%02d:%02d".format(startTimeState.hour, startTimeState.minute)))
+                Text(text = stringResource(R.string.rituals_start_time, formatClockTime(startTimeState.hour, startTimeState.minute)))
             }
 
             Spacer(modifier = Modifier.size(8.dp))
@@ -461,9 +472,9 @@ fun ScheduleEditorScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 val endTimeText = if (isOvernightSchedule) {
-                    stringResource(R.string.rituals_end_time_next_day, "%02d:%02d".format(endTimeState.hour, endTimeState.minute))
+                    stringResource(R.string.rituals_end_time_next_day, formatClockTime(endTimeState.hour, endTimeState.minute))
                 } else {
-                    stringResource(R.string.rituals_end_time, "%02d:%02d".format(endTimeState.hour, endTimeState.minute))
+                    stringResource(R.string.rituals_end_time, formatClockTime(endTimeState.hour, endTimeState.minute))
                 }
                 Text(text = endTimeText)
             }
@@ -511,8 +522,8 @@ fun ScheduleEditorScreen(
                         name = name,
                         blockerNames = selectedBlockerNames.toList(),
                         days = selectedDays,
-                        startTime = "%02d:%02d".format(startTimeState.hour, startTimeState.minute),
-                        endTime = "%02d:%02d".format(endTimeState.hour, endTimeState.minute),
+                        startTime = ScheduleLabels.storedTime(startTimeState.hour, startTimeState.minute),
+                        endTime = ScheduleLabels.storedTime(endTimeState.hour, endTimeState.minute),
                         unbindingTalismanId = selectedTalisman?.id,
                         breaksEnabled = breaksEnabled,
                         breakDurationMinutes = breakDurationMinutes,

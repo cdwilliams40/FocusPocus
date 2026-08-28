@@ -72,11 +72,14 @@ import com.infinicada.focuspocus.limit.TodayRollup
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
+import com.infinicada.focuspocus.ui.ScheduleLabels
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
 import com.infinicada.focuspocus.ui.components.SectionHeader
 import com.infinicada.focuspocus.ui.components.formatClock
+import com.infinicada.focuspocus.ui.currentUiLocale
+import com.infinicada.focuspocus.ui.formatClockTime
 import com.infinicada.focuspocus.ui.formatDuration
 import kotlinx.coroutines.delay
 
@@ -814,11 +817,9 @@ private fun GuardScheduleSummary(
     val daysText = if (days.isNullOrEmpty()) {
         stringResource(R.string.guard_schedule_every_day)
     } else {
-        com.infinicada.focuspocus.model.DayOfWeek.entries
-            .filter { it in days }
-            .joinToString(" ") { it.name.take(1) }
+        ScheduleLabels.narrowSummary(days, currentUiLocale())
     }
-    val hoursText = if (hasWindow) "$startTime–$endTime"
+    val hoursText = if (hasWindow) "${formatClockTime(startTime)}\u2013${formatClockTime(endTime)}"
                     else stringResource(R.string.guard_schedule_all_day)
     Text(
         stringResource(R.string.guard_schedule_summary, daysText, hoursText),

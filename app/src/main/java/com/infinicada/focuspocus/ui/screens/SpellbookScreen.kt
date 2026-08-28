@@ -42,7 +42,10 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.ui.ScheduleLabels
 import com.infinicada.focuspocus.ui.components.GlassCard
+import com.infinicada.focuspocus.ui.currentUiLocale
+import com.infinicada.focuspocus.ui.formatClockTime
 
 /**
  * Spellbook overview: the grimoire of focus-session configuration —
@@ -119,10 +122,13 @@ fun SpellbookScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
+                val locale = currentUiLocale()
                 schedules.take(3).forEach { schedule ->
-                    val days = schedule.effectiveDays.joinToString(", ") { it.name.take(3).lowercase().replaceFirstChar { c -> c.uppercase() } }
+                    val days = ScheduleLabels.shortSummary(schedule.effectiveDays, locale)
+                    val start = formatClockTime(schedule.effectiveStartTime)
+                    val end = formatClockTime(schedule.effectiveEndTime)
                     Text(
-                        "${schedule.name} - ${schedule.effectiveStartTime}-${schedule.effectiveEndTime} - $days",
+                        "${schedule.name} - $start-$end - $days",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

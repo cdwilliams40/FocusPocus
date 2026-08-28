@@ -103,11 +103,12 @@ fun TrialRow(
     val title = trialTitle(trial)
     val judgedAtEnd = trial.type == TrialType.STAY_UNDER_LIMITS || trial.type == TrialType.NO_REFLEX_OPENS
     val progressText = stringResource(R.string.trial_progress, trial.progress, trial.target)
+    val claimedText = stringResource(R.string.trial_claimed)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                stateDescription = if (trial.claimed) "$title, claimed" else "$title, $progressText"
+                stateDescription = if (trial.claimed) "$title, $claimedText" else "$title, $progressText"
             }
     ) {
         Row(
