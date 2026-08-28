@@ -298,6 +298,29 @@
     <string name="settings_protection_enforcement_polling">Application de repli</string>
     <string name="settings_protection_enforcement_polling_off">Inactive — accordez l\'accès à l\'utilisation</string>
 
+    <!-- Quick Settings tile -->
+    <string name="tile_label">Focus Pocus</string>
+    <string name="tile_state_active">Concentration active</string>
+    <string name="tile_state_inactive">Pas de concentration</string>
+    <string name="tile_dispelled">Session dissipée</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_description">Ce qui tient en ce moment : une session en cours, ou les applications scellées par vos gardes.</string>
+    <string name="widget_focusing">Concentration active</string>
+    <string name="widget_on_break">En pause</string>
+    <plurals name="widget_sealed">
+        <item quantity="one">%1$d application scellée</item>
+        <item quantity="other">%1$d applications scellées</item>
+    </plurals>
+    <plurals name="widget_minutes_left">
+        <item quantity="one">%1$d minute restante</item>
+        <item quantity="other">%1$d minutes restantes</item>
+    </plurals>
+    <string name="widget_untimed">Sans limite de temps</string>
+    <string name="widget_sealed_detail">Touchez pour voir vos gardes</string>
+    <string name="widget_idle">Rien ne tient</string>
+    <string name="widget_idle_detail">Touchez pour lancer un sort</string>
+
     <!-- Foreground polling service -->
     <string name="enforcement_channel_name">Application de repli</string>
     <string name="enforcement_channel_description">La note permanente affichée pendant que Focus Pocus garde vos applications sans l\'autorisation d\'accessibilité</string>

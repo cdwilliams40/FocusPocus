@@ -2,4 +2,12 @@
 <resources>
     <!-- LightBackground from ui/theme/Color.kt -->
     <color name="window_background">#FFFDF8FF</color>
+
+    <!-- Widget palette. RemoteViews cannot read the Compose theme, so the
+         Arcane Dusk surface and text colours are mirrored here and in
+         values-night; keep the two files in step with ui/theme/Color.kt. -->
+    <color name="widget_surface">#FFF3EDFA</color>
+    <color name="widget_on_surface">#FF1D1A26</color>
+    <color name="widget_on_surface_variant">#FF4A4458</color>
+    <color name="widget_accent">#FF6B4FA8</color>
 </resources>

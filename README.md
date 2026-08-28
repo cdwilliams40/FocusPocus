@@ -72,8 +72,18 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - One tap on the Pacts dashboard seals every pact-bound app for its configured seal length and revokes running pact time
 - Sealing this way never counts as an offence — choosing protection doesn't make later real lapses harsher
 
+### Quick Settings Tile & Home-Screen Widget
+- A **Quick Settings tile** casts your first Quick Spell, or dispels a running session, from the notification shade
+- The tile is not a back door: talisman lock, hide-stop-button and a talisman-bound ritual hold there exactly as they do in the app, and it opens the app to explain rather than failing silently
+- A **home-screen widget** says what is holding right now — the session countdown, the break, or how many apps your guards have sealed — and taps through to the app
+
 ### Seal-Lifted Alerts
 - Optional quiet notification when a sealed app opens up again, so you don't "check" by opening the app (off by default)
+
+### Enforcement Modes
+- **Accessibility service** (default): Android reports a foreground change in ~50 ms, so a guarded app never really finishes opening
+- **Usage-access fallback**: the same blocking, driven by polling usage access about once a second, with no accessibility permission at all — slower (1–2 s) and it posts an ongoing notification, but it means a denied or revoked Play accessibility declaration can't take the app down with it
+- Both modes run the identical decision engine; only the foreground detector differs. Polling stops entirely while the screen is off
 
 ### Protection Health
 - A Settings card answers "am I actually protected right now?": accessibility service alive, usage access granted, notifications allowed, battery optimization exempted — each with a one-tap fix

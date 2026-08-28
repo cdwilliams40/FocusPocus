@@ -286,6 +286,11 @@ class EnforcementEngine(private val context: Context) {
         // Re-assert the session-countdown notification (or clear a stale one):
         // heals swipe-dismissals on Android 14+ and posts lost to rate limits.
         SessionNotifier.update(context)
+
+        // The launcher only polls a widget every half hour, which is useless for
+        // a countdown. This is the tick that keeps it honest; it returns
+        // immediately when no widget is placed.
+        FocusWidgetProvider.refresh(context)
     }
 
     /**

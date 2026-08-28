@@ -292,6 +292,29 @@
     <string name="settings_protection_enforcement_polling">Fallback enforcement</string>
     <string name="settings_protection_enforcement_polling_off">Not running — grant usage access</string>
 
+    <!-- Quick Settings tile -->
+    <string name="tile_label">Focus Pocus</string>
+    <string name="tile_state_active">Focus active</string>
+    <string name="tile_state_inactive">Not focusing</string>
+    <string name="tile_dispelled">Session dispelled</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_description">What is holding right now: a running session, or the apps your guards have sealed.</string>
+    <string name="widget_focusing">Focus active</string>
+    <string name="widget_on_break">On a break</string>
+    <plurals name="widget_sealed">
+        <item quantity="one">%1$d app sealed</item>
+        <item quantity="other">%1$d apps sealed</item>
+    </plurals>
+    <plurals name="widget_minutes_left">
+        <item quantity="one">%1$d minute left</item>
+        <item quantity="other">%1$d minutes left</item>
+    </plurals>
+    <string name="widget_untimed">No end time</string>
+    <string name="widget_sealed_detail">Tap to see your guards</string>
+    <string name="widget_idle">Nothing holding</string>
+    <string name="widget_idle_detail">Tap to cast a spell</string>
+
     <!-- Foreground polling service -->
     <string name="enforcement_channel_name">Fallback enforcement</string>
     <string name="enforcement_channel_description">The ongoing note shown while Focus Pocus guards your apps without the accessibility permission</string>

@@ -2,4 +2,10 @@
 <resources>
     <!-- DarkBackground from ui/theme/Color.kt -->
     <color name="window_background">#FF14111F</color>
+
+    <!-- Widget palette — see the note in values/colors.xml. -->
+    <color name="widget_surface">#FF1E1A2E</color>
+    <color name="widget_on_surface">#FFEDE6F7</color>
+    <color name="widget_on_surface_variant">#FFB9B0CC</color>
+    <color name="widget_accent">#FFCBB6FF</color>
 </resources>

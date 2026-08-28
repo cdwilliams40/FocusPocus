@@ -77,6 +77,7 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.DispelPolicy
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.PresetAction
@@ -695,11 +696,16 @@ private fun ActiveSessionContent(
         )
     }
 
-    // Dispel button
-    val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
-    val shouldHideButton = nfcLockMode ||
-        (hideStopButton && focusDurationMinutes > 0 &&
-            !(activeSchedule != null && activeSchedule.unbindingTalismanId != null))
+    // Dispel button. The policy is shared with the Quick Settings tile, so a
+    // one-tap shade control can't quietly undo hide-stop or the talisman lock.
+    val ritualRequiresTalisman = activeSchedule?.unbindingTalismanId != null
+    val isButtonEnabled = DispelPolicy.isStopEnabled(ritualRequiresTalisman)
+    val shouldHideButton = !DispelPolicy.isStopOffered(
+        nfcLockMode = nfcLockMode,
+        hideStopButton = hideStopButton,
+        focusDurationMinutes = focusDurationMinutes,
+        ritualRequiresTalisman = ritualRequiresTalisman
+    )
 
     if (!shouldHideButton && !isOnBreak) {
         Button(
