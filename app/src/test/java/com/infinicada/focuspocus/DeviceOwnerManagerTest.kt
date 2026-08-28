@@ -95,8 +95,11 @@ class DeviceOwnerManagerTest {
     }
 
     @Test
-    fun computeBlockedPackages_blacklist_stillBlocksStockSystemApps() {
-        // An explicit blacklist pick blocks regardless of system status.
+    fun computeBlockedPackages_blacklist_skipsStockSystemApps() {
+        // The picker hides stock system apps, so a blacklist can only name one
+        // through a stale entry — auto-banished by an older build, or picked
+        // before the pickers began hiding them. There is no row to untick it
+        // with, so enforcing it would be a block the user cannot lift.
         val blocker = Blocker("Distractions", BlockerMode.BLACKLIST, setOf("com.oem.utility"))
         val result = DeviceOwnerManager.computeBlockedPackages(
             activeBlockers = listOf(blocker),
@@ -104,7 +107,21 @@ class DeviceOwnerManagerTest {
             exemptPackages = emptySet(),
             stockSystemPackages = setOf("com.oem.utility")
         )
-        assertEquals(setOf("com.oem.utility"), result)
+        assertEquals(emptySet<String>(), result)
+    }
+
+    @Test
+    fun computeBlockedPackages_blacklist_stillBlocksItsOwnPicksThatArePickable() {
+        // The stale-entry rule must not weaken an ordinary pick: a launchable,
+        // non-stock app the user chose is blocked exactly as before.
+        val blocker = Blocker("Distractions", BlockerMode.BLACKLIST, setOf("com.example.social"))
+        val result = DeviceOwnerManager.computeBlockedPackages(
+            activeBlockers = listOf(blocker),
+            launchablePackages = launchable + "com.oem.utility",
+            exemptPackages = emptySet(),
+            stockSystemPackages = setOf("com.oem.utility")
+        )
+        assertEquals(setOf("com.example.social"), result)
     }
 
     @Test

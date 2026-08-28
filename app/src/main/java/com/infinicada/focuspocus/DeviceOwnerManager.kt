@@ -297,12 +297,16 @@ object DeviceOwnerManager {
     }
 
     /**
-     * Pure blocked-set computation, extracted for unit testing. Whitelist blockers
-     * block everything launchable outside the list — except stock system apps,
-     * which the picker hides and the user therefore never had a chance to
-     * whitelist. Blacklist blockers block only their listed apps, stock or not:
-     * an explicit pick is an explicit pick. A package is suspended if any active
-     * blocker blocks it.
+     * Pure blocked-set computation, extracted for unit testing. A package is
+     * suspended if any active blocker blocks it — whitelist blockers block
+     * everything launchable outside their list, blacklist blockers only what
+     * they name.
+     *
+     * Stock system apps are never suspended in either mode: the picker hides
+     * them, so the user has no row to whitelist one, and no row to drop one from
+     * a blacklist it reached through a stale entry. Mirrors AppUtils.isPickable
+     * on the accessibility path — [launchablePackages] supplies its launchable
+     * half here, [stockSystemPackages] the rest.
      */
     fun computeBlockedPackages(
         activeBlockers: List<Blocker>,
@@ -312,10 +316,8 @@ object DeviceOwnerManager {
     ): Set<String> {
         if (activeBlockers.isEmpty()) return emptySet()
         return launchablePackages.filterTo(mutableSetOf()) { pkg ->
-            pkg !in exemptPackages && activeBlockers.any { blocker ->
-                blocker.shouldBlock(pkg) &&
-                    (blocker.mode == BlockerMode.BLACKLIST || pkg !in stockSystemPackages)
-            }
+            pkg !in exemptPackages && pkg !in stockSystemPackages &&
+                activeBlockers.any { blocker -> blocker.shouldBlock(pkg) }
         }
     }
 
@@ -362,8 +364,9 @@ object DeviceOwnerManager {
 
     /**
      * Stock system apps ([AppUtils.isStockSystemApp]) — hidden from the pickers,
-     * so whitelist suspension must skip them too: the user never had a chance
-     * to whitelist them.
+     * so suspension must skip them in either mode: the user never had a chance
+     * to whitelist one, and no way to drop one from a blacklist that reached it
+     * through a stale entry.
      *
      * Same deliberate broad package visibility as the picker's app list —
      * see SpellbookViewModel.loadInstalledApps.

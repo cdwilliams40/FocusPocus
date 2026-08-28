@@ -135,6 +135,19 @@ Uninstall (or clear the storage of) each app that still owns an account, remove 
 
 </details>
 
+<details>
+<summary><strong>Troubleshooting: a new device won't copy accounts or data from your phone</strong></summary>
+
+`dpm set-device-owner` marks the phone **fully managed**, and Android's device-to-device setup flows — Quick Start / Tap & Go / "Copy apps & data", including the *set up with your phone* option offered by Android TV boxes (Nvidia Shield, Chromecast), Wear OS watches, and Android Auto — refuse to copy accounts and data *off* a fully managed device. The OS cannot distinguish a self-imposed Warden from a corporate MDM, so it assumes the accounts may be enterprise-controlled and declines to propagate them.
+
+FocusPocus is not restricting anything of its own accord: it sets no user restrictions and no account-management policy — `device_admin.xml` declares an empty `<uses-policies />`, and `DeviceOwnerManager` only suspends packages, blocks its own uninstall, and sets the admin support messages. The setup flow is reacting to the managed *state* itself, and there is no policy flag that opts out of it.
+
+**Sign in manually on the new device instead:** skip the "use your Android phone" option and enter your Google address and password with the remote or a paired keyboard. That path never consults the phone's managed state. A two-factor prompt arriving on your phone is fine — that's an ordinary notification, not the transfer flow.
+
+Clearing Warden Mode for the duration of the transfer also works, but costs a full re-provision afterwards (every account removed again, plus the 24 h removal request) — rarely worth it for a secondary device. Do plan for it when you **replace your phone**, though: either sign in manually on the new one, or start the Warden removal request a day before you migrate.
+
+</details>
+
 ## Requirements
 
 - Android 10.0 (API 29) or higher

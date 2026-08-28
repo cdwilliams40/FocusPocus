@@ -202,6 +202,14 @@ fun FocusPocusApp(
     // end timestamps regardless, so backgrounded ticking is pure waste.
     LifecycleStartEffect(Unit) {
         sessionVM.onUiStarted()
+        // Re-read the installed-app universe every time the UI comes forward.
+        // The list is what the pickers offer, and whitelist enforcement blocks
+        // exactly what the pickers *don't* offer — so a stale list is not just a
+        // cosmetic omission: an app installed since the last load is blocked by
+        // every active whitelist while being absent from the picker that would
+        // let the user allow it. Reloading here closes that window, since
+        // installing an app necessarily backgrounds FocusPocus first.
+        spellbookVM.loadInstalledApps()
         onStopOrDispose { sessionVM.onUiStopped() }
     }
 
