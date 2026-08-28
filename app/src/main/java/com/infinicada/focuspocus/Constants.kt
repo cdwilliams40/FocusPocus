@@ -171,6 +171,13 @@ object Constants {
     const val MAX_PRESETS = 100
     const val MAX_APPS_PER_BLOCKER = 500
     const val MAX_BLOCK_EVENTS = 1000
+    /**
+     * Retained completed sessions. Lives here with the other retention caps
+     * rather than inline at the write site: these numbers together are what
+     * bounds the preferences file, and a bound nobody can find is a bound
+     * nobody maintains (see docs/DATA_LAYER_DECISION.md).
+     */
+    const val MAX_FOCUS_SESSIONS = 500
     const val MAX_APP_TIME_LIMITS = 100
     const val MAX_CONDITIONAL_UNLOCKS = 50
     const val MAX_BOONS = 50

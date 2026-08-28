@@ -95,7 +95,9 @@ object SessionRecorder {
         } else mutableListOf()
 
         sessions.add(session)
-        val pruned = if (sessions.size > 500) sessions.takeLast(500) else sessions
+        val pruned = if (sessions.size > Constants.MAX_FOCUS_SESSIONS) {
+            sessions.takeLast(Constants.MAX_FOCUS_SESSIONS)
+        } else sessions
 
         val newStreak = calculateCurrentStreak(pruned)
         val currentLongest = prefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)

@@ -268,13 +268,47 @@ ads (ads in a focus app are self-refuting — never).
 | Feature breadth erodes design coherence | The §2 bar is a per-PR checklist: plain-subtitle naming, both locales, both themes, TalkBack — no exceptions |
 | Social/backend scope creep | Horizon 3 features gated on retention evidence; no backend before then |
 
-## 10. Suggested immediate next steps
+## 10. Horizon 1 status (updated August 2026)
 
-1. **Compliance groundwork PR**: prominent-disclosure screen, privacy policy, data
-   safety inventory, `<queries>` audit.
-2. **UsageStats fallback enforcement mode** (the de-risking keystone).
-3. **Backup/export/restore** (the trust keystone).
-4. **Widgets + panic button + per-guard schedules** (the visible-delta trio for the
-   store listing).
-5. Open the Play Console, start the internal testing track, and let real-device
+Everything in §4 that is code has shipped. What remains is the part that needs
+a Play Console login and a device, which no amount of engineering closes.
+
+| §4 item | State |
+|---|---|
+| Prominent disclosure before the permission prompt | Done (onboarding + a gate on every enable) |
+| Accessibility declaration narrative | Written — `PLAY_ACCESSIBILITY_DECLARATION.md` |
+| **Fallback enforcement mode** | **Done** — `EnforcementEngine` + `ForegroundPollingService`, user-selectable |
+| Package visibility audit | Done — no `QUERY_ALL_PACKAGES`; the scoped queries justified per entry |
+| Data safety form & privacy policy | Written — `PRIVACY_POLICY.md`, `PLAY_DATA_SAFETY.md`; policy linked in-app |
+| Backup / export / restore | Done (Grimoire export/import) |
+| Rituals off the minute tick | Done (`RitualAlarmScheduler`, exact alarms) |
+| Enforcement health surface | Done, and now mode-aware |
+| Data layer hardening (Room/DataStore) | **Deliberately deferred** — `DATA_LAYER_DECISION.md` |
+| Widgets + Quick Settings tile | Done |
+| Seal everything now | Done |
+| Per-guard schedules | Done |
+| Seal-lifted notifications | Done |
+| Predictive back, per-app language, themed icons, splash screen | Done |
+| `values-night` audit, TalkBack sweep, 48 dp touch targets | Partial — day/time labels and chips swept; the rest is a device pass |
+| Tablet/foldable two-pane | Not started |
+| Play App Signing, testing tracks, staged rollout, store listing | **Owner's — needs a Play Console** |
+
+**What actually blocks launch now:** hosting the privacy policy at a stable URL,
+filing the accessibility declaration with the narrative above, opening the Play
+Console, and a device pass over the new splash screen, the widget in both themes,
+and the fallback enforcement mode's real-world latency and battery cost.
+
+## 11. Suggested immediate next steps
+
+1. **Host the privacy policy** and put its URL in the store listing and the
+   in-app link.
+2. **File the accessibility declaration** using the narrative in
+   `PLAY_ACCESSIBILITY_DECLARATION.md`, with a recording of the disclosure and a
+   block actually happening.
+3. **Device pass** on the new surfaces: splash screen, widget in both themes,
+   the Quick Settings tile, and the fallback enforcement mode's real latency and
+   battery cost over a day.
+4. Open the Play Console, start the internal testing track, and let real-device
    pre-launch reports drive the launch-hardening list.
+5. **Tablet/foldable two-pane** — the last §4.4 item, and the only Horizon 1
+   engineering work still outstanding.
