@@ -163,6 +163,7 @@ fun FocusPocusApp(
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
     val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
+    val enforcementMode by settingsVM.enforcementMode.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
     val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
     val pendingPactRevisions by spellbookVM.pendingPactRevisions.collectAsStateWithLifecycle()
@@ -521,6 +522,11 @@ fun FocusPocusApp(
             onWrapupEnabledChanged = { settingsVM.setWrapupEnabled(it) },
             trialAlertsEnabled = trialAlertsEnabled,
             onTrialAlertsEnabledChanged = { settingsVM.setTrialAlertsEnabled(it) },
+            enforcementMode = enforcementMode,
+            onEnforcementModeChanged = {
+                settingsVM.setEnforcementMode(it)
+                protectionStatus = ProtectionHealth.check(context)
+            },
             onNavigateBack = { showSettings = false },
             modifier = modifier.fillMaxSize()
         )

@@ -281,6 +281,23 @@
     <string name="settings_privacy">Privacy</string>
     <string name="settings_analytics">Share Analytics</string>
     <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>
+    <!-- Enforcement mode -->
+    <string name="settings_enforcement">Enforcement</string>
+    <string name="settings_enforcement_desc">How Focus Pocus notices that you opened a guarded app. Both modes block the same things — they differ in how fast they notice, and what they cost.</string>
+    <string name="settings_enforcement_accessibility">Accessibility service</string>
+    <string name="settings_enforcement_accessibility_desc">Instant. Android tells the app the moment something opens, so a guarded app never really finishes opening. Needs the accessibility permission.</string>
+    <string name="settings_enforcement_polling">Usage-access fallback</string>
+    <string name="settings_enforcement_polling_desc">Works without the accessibility permission, by checking usage access about once a second. A guarded app shows for a second or two before the block lands, and an ongoing notification stays posted.</string>
+    <string name="settings_enforcement_polling_needs_usage">Fallback enforcement needs usage access. Grant it and this mode starts on its own.</string>
+    <string name="settings_protection_enforcement_polling">Fallback enforcement</string>
+    <string name="settings_protection_enforcement_polling_off">Not running — grant usage access</string>
+
+    <!-- Foreground polling service -->
+    <string name="enforcement_channel_name">Fallback enforcement</string>
+    <string name="enforcement_channel_description">The ongoing note shown while Focus Pocus guards your apps without the accessibility permission</string>
+    <string name="enforcement_notification_title">Guarding your apps</string>
+    <string name="enforcement_notification_text">Focus Pocus is watching for guarded apps without the accessibility permission.</string>
+
     <string name="settings_privacy_policy">Privacy policy</string>
     <string name="settings_privacy_policy_desc">What stays on your phone, and the one thing that doesn\'t</string>
 

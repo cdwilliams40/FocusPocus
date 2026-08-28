@@ -59,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.DeviceOwnerManager
+import com.infinicada.focuspocus.EnforcementMode
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
@@ -116,6 +117,8 @@ fun SettingsScreen(
     onRemoveDeviceOwner: () -> Unit,
     analyticsConsent: Boolean,
     onAnalyticsConsentChanged: (Boolean) -> Unit,
+    enforcementMode: EnforcementMode,
+    onEnforcementModeChanged: (EnforcementMode) -> Unit,
     onExportBackup: (android.net.Uri) -> Unit,
     onImportBackup: (android.net.Uri) -> Unit,
     namedTags: List<NamedTag>,
@@ -176,12 +179,24 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    ProtectionHealthRow(
-                        healthy = protectionStatus.accessibilityEnabled,
-                        title = stringResource(R.string.settings_protection_accessibility),
-                        problem = stringResource(R.string.settings_protection_accessibility_off),
-                        onFix = onFixAccessibility
-                    )
+                    if (protectionStatus.accessibilityRequired) {
+                        ProtectionHealthRow(
+                            healthy = protectionStatus.accessibilityEnabled,
+                            title = stringResource(R.string.settings_protection_accessibility),
+                            problem = stringResource(R.string.settings_protection_accessibility_off),
+                            onFix = onFixAccessibility
+                        )
+                    } else {
+                        // In fallback mode the accessibility permission is not
+                        // the thing to worry about — usage access is what the
+                        // poller cannot run without.
+                        ProtectionHealthRow(
+                            healthy = protectionStatus.usageAccessGranted,
+                            title = stringResource(R.string.settings_protection_enforcement_polling),
+                            problem = stringResource(R.string.settings_protection_enforcement_polling_off),
+                            onFix = onFixUsageAccess
+                        )
+                    }
                     ProtectionHealthRow(
                         healthy = protectionStatus.usageAccessGranted,
                         title = stringResource(R.string.settings_protection_usage),
@@ -200,6 +215,53 @@ fun SettingsScreen(
                         problem = stringResource(R.string.settings_protection_battery_off),
                         onFix = onFixBattery
                     )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Enforcement mode — which detector does the blocking
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_enforcement),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.settings_enforcement_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    EnforcementModeOption(
+                        selected = enforcementMode == EnforcementMode.ACCESSIBILITY,
+                        title = stringResource(R.string.settings_enforcement_accessibility),
+                        description = stringResource(R.string.settings_enforcement_accessibility_desc),
+                        onClick = { onEnforcementModeChanged(EnforcementMode.ACCESSIBILITY) }
+                    )
+                    EnforcementModeOption(
+                        selected = enforcementMode == EnforcementMode.POLLING,
+                        title = stringResource(R.string.settings_enforcement_polling),
+                        description = stringResource(R.string.settings_enforcement_polling_desc),
+                        onClick = { onEnforcementModeChanged(EnforcementMode.POLLING) }
+                    )
+                    if (enforcementMode == EnforcementMode.POLLING &&
+                        !protectionStatus.usageAccessGranted
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_enforcement_polling_needs_usage),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onFixUsageAccess,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.settings_protection_fix))
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -816,6 +878,37 @@ fun SettingsScreen(
 }
 
 /** One protection check: a status icon and, when unhealthy, the why + a fix link. */
+/**
+ * One enforcement-mode choice. Each carries its trade-off in the subtitle
+ * rather than in a help page — the whole point of the choice is that the modes
+ * cost different things, and picking blind is picking badly.
+ */
+@Composable
+private fun EnforcementModeOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(title)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 private fun ProtectionHealthRow(
     healthy: Boolean,

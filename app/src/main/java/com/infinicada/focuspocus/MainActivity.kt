@@ -223,6 +223,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         // accessibility service changed in the meantime (ritual started/ended, timed
         // session expired) went unseen — force one sync to pick it up.
         nfcTriggerCount++
+        // The reliable place to reconcile the poller: this is a foreground
+        // context, so a foreground-service start is always permitted here, and
+        // it heals any background attempt Android refused.
+        ForegroundPollingService.syncRunState(this)
     }
 
     override fun onPause() {

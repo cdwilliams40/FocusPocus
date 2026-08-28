@@ -32,19 +32,35 @@ object ProtectionHealth {
         /** Notifications — ritual alerts, countdowns, seal-lifted notes. */
         val notificationsEnabled: Boolean,
         /** Battery optimization exemption — OEM optimizers kill the service. */
-        val batteryUnrestricted: Boolean
+        val batteryUnrestricted: Boolean,
+        /** Which detector is meant to be enforcing; decides what "healthy" means. */
+        val enforcementMode: EnforcementMode = EnforcementMode.DEFAULT
     ) {
+        /**
+         * Whether the accessibility permission is part of the answer right now.
+         * Under [EnforcementMode.POLLING] it is not: reporting it as a fault
+         * would cry wolf about a permission the user deliberately stopped
+         * relying on, and a health surface that cries wolf gets ignored on the
+         * day it is right.
+         */
+        val accessibilityRequired: Boolean
+            get() = enforcementMode == EnforcementMode.ACCESSIBILITY
+
         val allHealthy: Boolean
-            get() = accessibilityEnabled && usageAccessGranted &&
+            get() = (!accessibilityRequired || accessibilityEnabled) && usageAccessGranted &&
                 notificationsEnabled && batteryUnrestricted
     }
 
-    fun check(context: Context): Status = Status(
-        accessibilityEnabled = isAccessibilityServiceEnabled(context),
-        usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context),
-        notificationsEnabled = areNotificationsEnabled(context),
-        batteryUnrestricted = isIgnoringBatteryOptimizations(context)
-    )
+    fun check(context: Context): Status {
+        val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        return Status(
+            accessibilityEnabled = isAccessibilityServiceEnabled(context),
+            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context),
+            notificationsEnabled = areNotificationsEnabled(context),
+            batteryUnrestricted = isIgnoringBatteryOptimizations(context),
+            enforcementMode = EnforcementMode.of(prefs)
+        )
+    }
 
     /** Same settings-string walk MainActivity uses for its service gate. */
     fun isAccessibilityServiceEnabled(context: Context): Boolean = try {

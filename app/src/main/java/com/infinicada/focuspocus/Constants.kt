@@ -141,6 +141,9 @@ object Constants {
 
         // Opt-in "seal lifted" notification when a guard's cooldown expires
         const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
+
+        // Which foreground detector enforces: see EnforcementMode.
+        const val ENFORCEMENT_MODE = "enforcementMode"
     }
 
     object Defaults {
@@ -178,6 +181,7 @@ object Constants {
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
     const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
     const val GUARDS_CHANNEL_ID = "focus_pocus_guards"
+    const val ENFORCEMENT_CHANNEL_ID = "focus_pocus_enforcement"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
@@ -186,4 +190,5 @@ object Constants {
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
     // Tag-keyed by package name, so one id serves every app's seal-lifted note
     const val SEAL_LIFTED_NOTIFICATION_ID = 9005
+    const val ENFORCEMENT_NOTIFICATION_ID = 9006
 }

@@ -9,6 +9,8 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.infinicada.focuspocus.BackupCodec
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
+import com.infinicada.focuspocus.EnforcementMode
+import com.infinicada.focuspocus.ForegroundPollingService
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.Progression
 import com.infinicada.focuspocus.data.SettingsRepository
@@ -56,6 +58,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _sealLiftedAlertsEnabled = MutableStateFlow(repo.getSealLiftedAlertsEnabled())
     val sealLiftedAlertsEnabled: StateFlow<Boolean> = _sealLiftedAlertsEnabled.asStateFlow()
+
+    private val _enforcementMode = MutableStateFlow(EnforcementMode.of(appPrefs))
+    val enforcementMode: StateFlow<EnforcementMode> = _enforcementMode.asStateFlow()
 
     private val _isDeviceOwner = MutableStateFlow(DeviceOwnerManager.isDeviceOwner(application))
     val isDeviceOwner: StateFlow<Boolean> = _isDeviceOwner.asStateFlow()
@@ -155,6 +160,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSealLiftedAlertsEnabled(enabled: Boolean) {
         _sealLiftedAlertsEnabled.value = enabled
         repo.setSealLiftedAlertsEnabled(enabled)
+    }
+
+    /**
+     * Switches which detector enforces. The accessibility service is watching
+     * this key and stands down or takes over on its own; the poller is started
+     * or stopped here, from a foreground context, which is the one place
+     * Android reliably permits a foreground-service start.
+     */
+    fun setEnforcementMode(mode: EnforcementMode) {
+        _enforcementMode.value = mode
+        EnforcementMode.store(appPrefs, mode)
+        ForegroundPollingService.syncRunState(getApplication())
     }
 
     fun refreshDeviceOwnerState() {

@@ -21,6 +21,14 @@
          policy-friendly default). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
         tools:ignore="BatteryLife" />
+    <!-- Fallback enforcement mode: the UsageStats poller has to keep running
+         while the user is in another app, which is a foreground service. The
+         "specialUse" type is the honest declaration — none of the predefined
+         types describes app blocking — and the subtype below is what Play
+         review reads. Only ever running under EnforcementMode.POLLING. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <!-- Remove the Advertising ID permission added automatically by Firebase Analytics.
          FocusPocus does not serve ads or do cross-app tracking, so AD_ID is unnecessary. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -102,6 +110,15 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".ForegroundPollingService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Enforces the user's own app-blocking rules by detecting the foreground app, for users who have not granted the accessibility permission" />
         </service>
 
         <service

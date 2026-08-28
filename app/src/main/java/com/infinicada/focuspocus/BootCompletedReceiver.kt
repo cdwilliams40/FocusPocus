@@ -17,6 +17,11 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 // Alarms don't survive reboots (and clock changes move the
                 // target) — re-arm the ritual backstop.
                 RitualAlarmScheduler.scheduleNext(context)
+                // Nor does the poller: BOOT_COMPLETED is one of the few places
+                // a foreground service may be started from the background, so
+                // fallback enforcement resumes here rather than waiting for the
+                // user to open the app.
+                ForegroundPollingService.syncRunState(context)
             }
         }
     }

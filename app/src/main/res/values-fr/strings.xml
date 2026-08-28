@@ -287,6 +287,23 @@
     <string name="settings_privacy">Confidentialité</string>
     <string name="settings_analytics">Partager les analyses</string>
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
+    <!-- Enforcement mode -->
+    <string name="settings_enforcement">Application des règles</string>
+    <string name="settings_enforcement_desc">Comment Focus Pocus s\'aperçoit que vous ouvrez une application gardée. Les deux modes bloquent la même chose : ils diffèrent par la rapidité de détection et par leur coût.</string>
+    <string name="settings_enforcement_accessibility">Service d\'accessibilité</string>
+    <string name="settings_enforcement_accessibility_desc">Instantané. Android prévient l\'application dès qu\'une autre s\'ouvre : une application gardée n\'a pas le temps de s\'afficher vraiment. Nécessite l\'autorisation d\'accessibilité.</string>
+    <string name="settings_enforcement_polling">Repli par accès à l\'utilisation</string>
+    <string name="settings_enforcement_polling_desc">Fonctionne sans l\'autorisation d\'accessibilité, en consultant l\'accès à l\'utilisation environ une fois par seconde. Une application gardée reste visible une seconde ou deux avant le blocage, et une notification permanente est affichée.</string>
+    <string name="settings_enforcement_polling_needs_usage">Le mode de repli nécessite l\'accès à l\'utilisation. Accordez-le et ce mode démarrera tout seul.</string>
+    <string name="settings_protection_enforcement_polling">Application de repli</string>
+    <string name="settings_protection_enforcement_polling_off">Inactive — accordez l\'accès à l\'utilisation</string>
+
+    <!-- Foreground polling service -->
+    <string name="enforcement_channel_name">Application de repli</string>
+    <string name="enforcement_channel_description">La note permanente affichée pendant que Focus Pocus garde vos applications sans l\'autorisation d\'accessibilité</string>
+    <string name="enforcement_notification_title">Vos applications sont gardées</string>
+    <string name="enforcement_notification_text">Focus Pocus surveille les applications gardées sans l\'autorisation d\'accessibilité.</string>
+
     <string name="settings_privacy_policy">Politique de confidentialité</string>
     <string name="settings_privacy_policy_desc">Ce qui reste sur votre téléphone, et la seule chose qui en sort</string>
 
