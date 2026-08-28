@@ -56,9 +56,11 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/fplogo"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/fplogo_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FocusPocus">
+        android:theme="@style/Theme.FocusPocus"
+        android:enableOnBackInvokedCallback="true">
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
             android:value="false" />
@@ -72,7 +74,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.FocusPocus">
+            android:theme="@style/Theme.FocusPocus.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

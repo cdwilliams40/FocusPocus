@@ -19,6 +19,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +78,11 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Before super.onCreate, per the library contract: this swaps the
+        // launch theme for Theme.FocusPocus and hands the platform splash the
+        // app icon instead of the bare window background it would otherwise
+        // draw on Android 12+.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()

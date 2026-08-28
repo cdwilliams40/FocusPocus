@@ -6,4 +6,22 @@
              window frame doesn't flash a mismatched color. -->
         <item name="android:windowBackground">@color/window_background</item>
     </style>
+
+    <!--
+        The launch theme. Android 12+ draws a splash from the launching
+        activity's theme whether or not an app asks for one, so the choice is
+        between controlling it and inheriting it; this controls it, and adds
+        the app icon the default never showed.
+
+        windowSplashScreenBackground follows the system's light/dark setting
+        (see values-night), which is what the platform already did with
+        windowBackground — the in-app theme override cannot be read before the
+        process starts, and MainActivity still repaints the window to match it
+        the moment it can.
+    -->
+    <style name="Theme.FocusPocus.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/fplogo</item>
+        <item name="postSplashScreenTheme">@style/Theme.FocusPocus</item>
+    </style>
 </resources>

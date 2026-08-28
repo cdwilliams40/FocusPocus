@@ -163,6 +163,7 @@ Focus Pocus requires the following permissions:
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
 | **Do Not Disturb Access** | Mute notifications during focus sessions |
 | **Device Owner** (optional) | Suspend blocked apps system-wide and block uninstall in Warden Mode |
+| **Foreground Service** | Only in the usage-access fallback enforcement mode, to keep watching for guarded apps while you are in another app |
 
 ## Privacy
 
@@ -237,6 +238,7 @@ Your grimoire of focus-session configuration:
 - **Focus Behavior**: break duration, breaks per session, auto-breaks (Pomodoro interval), emergency break cadence, hide stop button
 - **Notifications**: mute notifications from blocked apps during focus
 - **Security**: talisman lock (require an NFC tap to end sessions)
+- **Enforcement**: choose the accessibility service or the usage-access fallback
 - **Privacy**: opt in or out of analytics, and read the privacy policy
 
 ## Tech Stack

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Per-app language support: declaring the locales the app actually ships
+    puts "App language" in the system's app settings on Android 13+, so a
+    bilingual user can run Focus Pocus in French on an English phone without
+    changing the whole device.
+
+    Add a locale here in the same commit that adds its values-xx/strings.xml,
+    or the translation ships invisible.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="fr" />
+</locale-config>
