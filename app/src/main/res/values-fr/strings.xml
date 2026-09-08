@@ -136,6 +136,10 @@
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
     <string name="home_create_enchantment">Créer un enchantement</string>
     <string name="home_request_time_hint">Touchez une appli pour choisir vos minutes et l\'ouvrir.</string>
+    <string name="home_group_seal_hint">Le Sceau collectif est actif — ouvrir une application sous pacte les ouvre toutes ensemble.</string>
+    <string name="home_group_seal_cta">Ouvrir vos applications sous pacte</string>
+    <string name="home_group_seal_open_status">Ouvertes ensemble — %1$s restantes</string>
+    <string name="home_group_seal_sealed_status">Scellées ensemble — %1$s restantes</string>
     <string name="home_section_live">En ce moment</string>
     <string name="home_section_guards">Vos pactes et gardes</string>
     <string name="home_guard_edit_label">Modifier</string>
@@ -250,6 +254,11 @@
     <string name="settings_talisman_lock">Mode verrouillage par talisman</string>
     <string name="settings_talisman_lock_desc">Exiger un talisman NFC ou un code QR pour arrêter les sessions</string>
     <string name="settings_add_talisman_first">Ajoutez d\'abord un talisman pour activer le mode verrouillage</string>
+    <string name="settings_group_seal_title">Mode Sceau collectif</string>
+    <string name="settings_group_seal_toggle">Ouvrir et sceller ensemble les applications sous pacte</string>
+    <string name="settings_group_seal_desc">Ouvrir une application sous pacte les ouvre toutes pendant une fenêtre commune ; à la fin de celle-ci, elles se scellent toutes ensemble — impossible de passer à une autre application sous pacte pour continuer.</string>
+    <string name="settings_group_seal_open_window">Fenêtre d\'ouverture commune : %d min</string>
+    <string name="settings_group_seal_duration">Durée de scellement commune : %d min</string>
     <string name="settings_device_owner">Mode Gardien (propriétaire de l\'appareil)</string>
     <string name="settings_device_owner_suspend">Griser les applications bloquées</string>
     <string name="settings_device_owner_suspend_desc">Suspend les applications bloquées au niveau du système pendant les sessions de concentration — leurs icônes sont grisées et elles ne peuvent plus être ouvertes</string>
@@ -459,6 +468,9 @@
     <string name="overlay_pact_stats">Ouverture n°%d aujourd\'hui</string>
     <string name="overlay_pact_stats_reflex">Ouverture n°%1$d aujourd\'hui — %2$d réflexes de moins de 30 secondes</string>
     <string name="overlay_pact_alternative">Ouvrir %s à la place</string>
+    <string name="overlay_group_pact_prompt">%1$s est scellée. Ouvrir toutes vos applications sous pacte ensemble pendant %2$d minutes ?</string>
+    <string name="overlay_group_pact_seal_desc">À la fin de la fenêtre, toutes les applications sous pacte se scellent ensemble pendant %d minutes — impossible de passer à une autre.</string>
+    <string name="overlay_group_pact_choice">Tout ouvrir — %d minutes</string>
     <string name="pact_ending_toast">Votre pacte se termine — %s se scelle dans moins d\'une minute</string>
 
     <!-- MyAccessibilityService -->
@@ -773,6 +785,12 @@
         <item quantity="one">%d application scellée</item>
         <item quantity="many">%d applications scellées</item>
         <item quantity="other">%d applications scellées</item>
+    </plurals>
+
+    <plurals name="home_group_open_result">
+        <item quantity="one">%d application ouverte</item>
+        <item quantity="many">%d applications ouvertes</item>
+        <item quantity="other">%d applications ouvertes</item>
     </plurals>
 
     <!-- Heures de garde (horaires par garde) -->
