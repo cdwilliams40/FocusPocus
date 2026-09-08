@@ -171,6 +171,63 @@ object GuardStatus {
     }
 
     /**
+     * Pact-gated packages eligible to join a group-open right now: gated, and
+     * not currently sealed. Mirrors sealAllPacts' precedent of leaving an
+     * already-sealed app's own seal alone — group-open never early-unseals.
+     */
+    fun groupOpenEligiblePackages(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>,
+        liveStates: Map<String, GuardLiveState>,
+        now: Long
+    ): Set<String> =
+        pactGatedConfigs(configs, groups, blockers).keys.filterTo(mutableSetOf()) { pkg ->
+            (liveStates[pkg]?.cooldownExpiryMillis ?: 0L) <= now
+        }
+
+    /** Phase of a shared group-seal window/seal across every pact-gated app. */
+    enum class GroupSealPhase { QUIET, OPEN, SEALED }
+
+    /** Group-wide status for the dashboard's group-seal banner. */
+    data class GroupSealSummary(
+        val phase: GroupSealPhase,
+        val minutesLeft: Int,
+        val eligibleCount: Int
+    )
+
+    /**
+     * Rolls every pact-gated package's live state into one group-wide phase:
+     * SEALED (any target still sealed — reported minutes are until the last
+     * one lifts) beats OPEN (any target with a live allowance — reported
+     * minutes are until the first one lapses) beats QUIET.
+     */
+    fun groupSealSummary(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>,
+        liveStates: Map<String, GuardLiveState>,
+        now: Long
+    ): GroupSealSummary {
+        val targets = pactGatedConfigs(configs, groups, blockers).keys
+        if (targets.isEmpty()) return GroupSealSummary(GroupSealPhase.QUIET, 0, 0)
+
+        val sealedUntil = targets.mapNotNull { liveStates[it]?.cooldownExpiryMillis }
+            .filter { it > now }
+        if (sealedUntil.isNotEmpty()) {
+            return GroupSealSummary(GroupSealPhase.SEALED, minutesUntil(sealedUntil.max(), now), targets.size)
+        }
+
+        val openUntil = targets.mapNotNull { liveStates[it]?.allowanceExpiryMillis }
+            .filter { it > now }
+        if (openUntil.isNotEmpty()) {
+            return GroupSealSummary(GroupSealPhase.OPEN, minutesUntil(openUntil.min(), now), targets.size)
+        }
+
+        return GroupSealSummary(GroupSealPhase.QUIET, 0, targets.size)
+    }
+
+    /**
      * Builds the dashboard's card list: one row per explicit config plus one per
      * pact circle, ordered most-urgent first — sealed, then active pacts, then
      * spent limits, then quiet rows by today's opens descending, with the

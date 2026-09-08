@@ -49,13 +49,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.infinicada.focuspocus.AppUtils
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.AppOpenStats
@@ -124,22 +122,19 @@ fun PactsHomeScreen(
     onSealAll: () -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
+    groupSealEnabled: Boolean,
+    groupSealOpenWindowMinutes: Int,
+    groupSealDurationMinutes: Int,
+    onGroupOpen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    // Guarded apps must show their real name from the first frame — falling back
-    // to the raw package name flashes "com.thing.stuff" on the cards. The scan
-    // covers this once it lands (and is seeded from the cached scan before
-    // that), so the direct lookup below only ever runs for the handful of
-    // guarded packages a cold cache hasn't seen yet.
-    val names = remember(installedApps, appTimeLimitConfigs, pactGroups, blockerLists) {
-        val scanned = installedApps.associate { it.packageName to it.name }
-        val unscanned = (
-            appTimeLimitConfigs.keys +
-                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
-            ).filterNot { it in scanned }
-        if (unscanned.isEmpty()) scanned
-        else scanned + unscanned.associateWith { AppUtils.getAppName(context, it) }
+    // Names come only from the installed-apps scan (the same label the user
+    // sees in the launcher). A guarded package the scan hasn't reached yet
+    // (still running, or the app was uninstalled) simply falls back to its raw
+    // package name wherever it's displayed — no synchronous PackageManager
+    // lookup on the composition thread.
+    val names = remember(installedApps) {
+        installedApps.associate { it.packageName to it.name }
     }
     val rows = remember(
         appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
@@ -154,18 +149,40 @@ fun PactsHomeScreen(
             now = nowMillis
         )
     }
+    // No partial per-app requesting while Group Seal mode is on — that's the
+    // hopping path the mode exists to close — so the panel behind it is the
+    // group action instead, driven by groupSealSummary below.
     val requestTargets = remember(
-        appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
+        groupSealEnabled, appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
     ) {
-        GuardStatus.requestTargets(
-            configs = appTimeLimitConfigs,
-            groups = pactGroups,
-            blockers = blockerLists,
-            liveStates = guardLiveStates,
-            openStats = todayOpenStats,
-            names = names,
-            now = nowMillis
-        )
+        if (groupSealEnabled) {
+            emptyList()
+        } else {
+            GuardStatus.requestTargets(
+                configs = appTimeLimitConfigs,
+                groups = pactGroups,
+                blockers = blockerLists,
+                liveStates = guardLiveStates,
+                openStats = todayOpenStats,
+                names = names,
+                now = nowMillis
+            )
+        }
+    }
+    val groupSealSummary = remember(
+        groupSealEnabled, appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, nowMillis
+    ) {
+        if (groupSealEnabled) {
+            GuardStatus.groupSealSummary(
+                configs = appTimeLimitConfigs,
+                groups = pactGroups,
+                blockers = blockerLists,
+                liveStates = guardLiveStates,
+                now = nowMillis
+            )
+        } else {
+            null
+        }
     }
     val headline = remember(rows) { GuardStatus.headlineCounts(rows) }
     val rollup = remember(rows) { GuardStatus.todayRollup(rows) }
@@ -263,8 +280,20 @@ fun PactsHomeScreen(
                 GuardsEmptyState(onMakePact = onMakePact)
             }
         } else {
-            // ── Request time: the dashboard's primary action, one tap per app ──
-            if (requestTargets.isNotEmpty()) {
+            // ── Request time: the dashboard's primary action ──
+            if (groupSealEnabled && groupSealSummary != null) {
+                item(key = "group-seal-panel") {
+                    SectionHeader(stringResource(R.string.pacts_request_time))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GroupSealPanel(
+                        summary = groupSealSummary,
+                        openWindowMinutes = groupSealOpenWindowMinutes,
+                        sealDurationMinutes = groupSealDurationMinutes,
+                        onGroupOpen = onGroupOpen
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            } else if (requestTargets.isNotEmpty()) {
                 item(key = "request-panel") {
                     SectionHeader(stringResource(R.string.pacts_request_time))
                     Spacer(modifier = Modifier.height(8.dp))
@@ -528,6 +557,132 @@ private fun SessionBanner(
             }
         }
     }
+}
+
+// ────────────────────────────────────────────────────────────
+//  GROUP SEAL PANEL
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Group Seal mode's dashboard twin of the launcher-tap overlay: while QUIET,
+ * a single CTA opens every pact-gated app together (behind the same
+ * anti-reflex confirm); once OPEN or SEALED it's a status line only — there's
+ * no per-app fallback to request time from here while the mode is on.
+ */
+@Composable
+private fun GroupSealPanel(
+    summary: GuardStatus.GroupSealSummary,
+    openWindowMinutes: Int,
+    sealDurationMinutes: Int,
+    onGroupOpen: () -> Unit
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        when (summary.phase) {
+            GuardStatus.GroupSealPhase.QUIET -> {
+                Text(
+                    stringResource(R.string.home_group_seal_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                var showConfirm by remember { mutableStateOf(false) }
+                Button(
+                    onClick = { showConfirm = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.home_group_seal_cta))
+                }
+                if (showConfirm) {
+                    GroupOpenConfirmDialog(
+                        openWindowMinutes = openWindowMinutes,
+                        sealDurationMinutes = sealDurationMinutes,
+                        onConfirm = {
+                            showConfirm = false
+                            onGroupOpen()
+                        },
+                        onDismiss = { showConfirm = false }
+                    )
+                }
+            }
+            GuardStatus.GroupSealPhase.OPEN -> Text(
+                stringResource(R.string.home_group_seal_open_status, formatDuration(summary.minutesLeft)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+            GuardStatus.GroupSealPhase.SEALED -> Text(
+                stringResource(R.string.home_group_seal_sealed_status, formatDuration(summary.minutesLeft)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+/** Group-open's confirmation, same anti-reflex pause as [PactRequestDialog], one confirm action. */
+@Composable
+private fun GroupOpenConfirmDialog(
+    openWindowMinutes: Int,
+    sealDurationMinutes: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var remainingSeconds by remember { mutableIntStateOf(3) }
+    val countdownDone = remainingSeconds <= 0
+
+    LaunchedEffect(Unit) {
+        while (remainingSeconds > 0) {
+            delay(1000L)
+            remainingSeconds--
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.AutoFixHigh,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(stringResource(R.string.home_group_seal_cta))
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.overlay_group_pact_seal_desc, sealDurationMinutes),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (!countdownDone) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onConfirm,
+                    enabled = countdownDone,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.overlay_group_pact_choice, openWindowMinutes))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.overlay_pact_decline))
+            }
+        }
+    )
 }
 
 // ────────────────────────────────────────────────────────────

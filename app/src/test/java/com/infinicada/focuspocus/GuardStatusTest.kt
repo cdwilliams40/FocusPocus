@@ -485,4 +485,116 @@ class GuardStatusTest {
         assertEquals(5, gated.getValue("com.member").pactMaxMinutes)
         assertTrue(gated.getValue("com.member").pactModeEnabled)
     }
+
+    // ── groupOpenEligiblePackages ──
+
+    @Test
+    fun `groupOpenEligiblePackages excludes a currently sealed package`() {
+        val configs = mapOf("com.sealed" to pact("com.sealed"), "com.quiet" to pact("com.quiet"))
+        val liveStates = mapOf("com.sealed" to GuardLiveState(cooldownExpiryMillis = t0 + 60_000))
+
+        val eligible = GuardStatus.groupOpenEligiblePackages(
+            configs, emptyList(), emptyList(), liveStates, t0
+        )
+
+        assertEquals(setOf("com.quiet"), eligible)
+    }
+
+    @Test
+    fun `groupOpenEligiblePackages includes a package with an expired or absent cooldown`() {
+        val configs = mapOf("com.expired" to pact("com.expired"), "com.absent" to pact("com.absent"))
+        val liveStates = mapOf("com.expired" to GuardLiveState(cooldownExpiryMillis = t0 - 1))
+
+        val eligible = GuardStatus.groupOpenEligiblePackages(
+            configs, emptyList(), emptyList(), liveStates, t0
+        )
+
+        assertEquals(setOf("com.expired", "com.absent"), eligible)
+    }
+
+    @Test
+    fun `groupOpenEligiblePackages includes circle members`() {
+        val blockers = listOf(Blocker("Doom", BlockerMode.BLACKLIST, setOf("com.a", "com.b")))
+        val groups = listOf(PactGroup(blockerName = "Doom"))
+
+        val eligible = GuardStatus.groupOpenEligiblePackages(
+            emptyMap(), groups, blockers, emptyMap(), t0
+        )
+
+        assertEquals(setOf("com.a", "com.b"), eligible)
+    }
+
+    @Test
+    fun `groupOpenEligiblePackages never includes a package outside pact-gated configs`() {
+        // Present in liveStates (e.g. a ward with its own cooldown state) but
+        // not pact-gated — must never leak into the eligible set.
+        val configs = mapOf("com.ward" to ward("com.ward"))
+        val liveStates = mapOf("com.ward" to GuardLiveState(cooldownExpiryMillis = t0 - 1))
+
+        val eligible = GuardStatus.groupOpenEligiblePackages(
+            configs, emptyList(), emptyList(), liveStates, t0
+        )
+
+        assertEquals(emptySet<String>(), eligible)
+    }
+
+    // ── groupSealSummary ──
+
+    @Test
+    fun `groupSealSummary is QUIET with no eligible packages when nothing is pact-gated`() {
+        val summary = GuardStatus.groupSealSummary(
+            emptyMap(), emptyList(), emptyList(), emptyMap(), t0
+        )
+        assertEquals(GuardStatus.GroupSealPhase.QUIET, summary.phase)
+        assertEquals(0, summary.eligibleCount)
+    }
+
+    @Test
+    fun `groupSealSummary reports SEALED using the max remaining when any target is sealed`() {
+        val configs = mapOf("com.a" to pact("com.a"), "com.b" to pact("com.b"))
+        val liveStates = mapOf(
+            "com.a" to GuardLiveState(cooldownExpiryMillis = t0 + 5 * 60_000),
+            "com.b" to GuardLiveState(cooldownExpiryMillis = t0 + 20 * 60_000)
+        )
+
+        val summary = GuardStatus.groupSealSummary(configs, emptyList(), emptyList(), liveStates, t0)
+
+        assertEquals(GuardStatus.GroupSealPhase.SEALED, summary.phase)
+        assertEquals(20, summary.minutesLeft)
+        assertEquals(2, summary.eligibleCount)
+    }
+
+    @Test
+    fun `groupSealSummary stays SEALED when only some targets are sealed`() {
+        val configs = mapOf("com.sealed" to pact("com.sealed"), "com.quiet" to pact("com.quiet"))
+        val liveStates = mapOf("com.sealed" to GuardLiveState(cooldownExpiryMillis = t0 + 10 * 60_000))
+
+        val summary = GuardStatus.groupSealSummary(configs, emptyList(), emptyList(), liveStates, t0)
+
+        assertEquals(GuardStatus.GroupSealPhase.SEALED, summary.phase)
+    }
+
+    @Test
+    fun `groupSealSummary reports OPEN using the min remaining when targets have live allowances`() {
+        val configs = mapOf("com.a" to pact("com.a"), "com.b" to pact("com.b"))
+        val liveStates = mapOf(
+            "com.a" to GuardLiveState(allowanceExpiryMillis = t0 + 15 * 60_000),
+            "com.b" to GuardLiveState(allowanceExpiryMillis = t0 + 4 * 60_000)
+        )
+
+        val summary = GuardStatus.groupSealSummary(configs, emptyList(), emptyList(), liveStates, t0)
+
+        assertEquals(GuardStatus.GroupSealPhase.OPEN, summary.phase)
+        assertEquals(4, summary.minutesLeft)
+    }
+
+    @Test
+    fun `groupSealSummary is QUIET when nothing is sealed or open`() {
+        val configs = mapOf("com.a" to pact("com.a"))
+
+        val summary = GuardStatus.groupSealSummary(configs, emptyList(), emptyList(), emptyMap(), t0)
+
+        assertEquals(GuardStatus.GroupSealPhase.QUIET, summary.phase)
+        assertEquals(1, summary.eligibleCount)
+    }
 }

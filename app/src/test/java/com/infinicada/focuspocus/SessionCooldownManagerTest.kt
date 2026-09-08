@@ -195,4 +195,19 @@ class SessionCooldownManagerTest {
         manager.startPanicSeal(pkg, config, now = t0 + 5 * 60_000L)
         assertEquals(0, manager.getInSessionMinutes(pkg, now = t0 + 6 * 60_000L))
     }
+
+    @Test
+    fun `startPanicSeal with a copied config uses only the overridden duration`() {
+        // This is how Group Seal mode synthesizes a shared duration: a
+        // config.copy(cooldownMinutes = N) passed to startPanicSeal must seal
+        // for exactly N minutes regardless of the original config's own
+        // cooldownMinutes or escalation settings.
+        val sharedDurationConfig = escalatingConfig.copy(cooldownMinutes = 12)
+        manager.startPanicSeal(pkg, sharedDurationConfig, now = t0)
+
+        val state = manager.getCooldownState(pkg, now = t0)
+        assertNotNull(state)
+        assertEquals(t0 + 12 * 60_000L, state!!.cooldownExpiryMillis)
+        assertEquals(0, state.cooldownNumber)
+    }
 }

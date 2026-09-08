@@ -183,6 +183,9 @@ fun FocusPocusApp(
     val progressionEnabled by settingsVM.progressionEnabled.collectAsStateWithLifecycle()
     val wrapupEnabled by settingsVM.wrapupEnabled.collectAsStateWithLifecycle()
     val trialAlertsEnabled by settingsVM.trialAlertsEnabled.collectAsStateWithLifecycle()
+    val groupSealEnabled by settingsVM.groupSealEnabled.collectAsStateWithLifecycle()
+    val groupSealOpenWindowMinutes by settingsVM.groupSealOpenWindowMinutes.collectAsStateWithLifecycle()
+    val groupSealDurationMinutes by settingsVM.groupSealDurationMinutes.collectAsStateWithLifecycle()
     val showProgressionIntroDialog by settingsVM.showProgressionIntroDialog.collectAsStateWithLifecycle()
     val manaBalance by progressionVM.balance.collectAsStateWithLifecycle()
     val trials by progressionVM.trials.collectAsStateWithLifecycle()
@@ -521,6 +524,12 @@ fun FocusPocusApp(
             onWrapupEnabledChanged = { settingsVM.setWrapupEnabled(it) },
             trialAlertsEnabled = trialAlertsEnabled,
             onTrialAlertsEnabledChanged = { settingsVM.setTrialAlertsEnabled(it) },
+            groupSealEnabled = groupSealEnabled,
+            onGroupSealEnabledChanged = { settingsVM.setGroupSealEnabled(it) },
+            groupSealOpenWindowMinutes = groupSealOpenWindowMinutes,
+            onGroupSealOpenWindowChanged = { settingsVM.setGroupSealOpenWindowMinutes(it) },
+            groupSealDurationMinutes = groupSealDurationMinutes,
+            onGroupSealDurationChanged = { settingsVM.setGroupSealDurationMinutes(it) },
             onNavigateBack = { showSettings = false },
             modifier = modifier.fillMaxSize()
         )
@@ -710,6 +719,19 @@ fun FocusPocusApp(
                             },
                             onRequestTime = { pkg, minutes ->
                                 spellbookVM.requestPactTime(pkg, minutes)
+                            },
+                            groupSealEnabled = groupSealEnabled,
+                            groupSealOpenWindowMinutes = groupSealOpenWindowMinutes,
+                            groupSealDurationMinutes = groupSealDurationMinutes,
+                            onGroupOpen = {
+                                val openedCount = spellbookVM.groupOpenPacts()
+                                Toast.makeText(
+                                    context,
+                                    context.resources.getQuantityString(
+                                        R.plurals.home_group_open_result, openedCount, openedCount
+                                    ),
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
                             modifier = contentModifier
                         )

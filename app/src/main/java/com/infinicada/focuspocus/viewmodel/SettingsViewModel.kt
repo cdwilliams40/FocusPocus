@@ -91,6 +91,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _trialAlertsEnabled = MutableStateFlow(repo.getTrialAlertsEnabled())
     val trialAlertsEnabled: StateFlow<Boolean> = _trialAlertsEnabled.asStateFlow()
 
+    private val _groupSealEnabled = MutableStateFlow(repo.getGroupSealEnabled())
+    val groupSealEnabled: StateFlow<Boolean> = _groupSealEnabled.asStateFlow()
+
+    private val _groupSealOpenWindowMinutes = MutableStateFlow(repo.getGroupSealOpenWindowMinutes())
+    val groupSealOpenWindowMinutes: StateFlow<Int> = _groupSealOpenWindowMinutes.asStateFlow()
+
+    private val _groupSealDurationMinutes = MutableStateFlow(repo.getGroupSealDurationMinutes())
+    val groupSealDurationMinutes: StateFlow<Int> = _groupSealDurationMinutes.asStateFlow()
+
     // One-time "focusing now earns mana" intro for existing users (the
     // analytics-consent dialog pattern). New users learn about it organically;
     // the flag is set on onboarding completion too.
@@ -263,6 +272,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTrialAlertsEnabled(enabled: Boolean) {
         _trialAlertsEnabled.value = enabled
         repo.setTrialAlertsEnabled(enabled)
+    }
+
+    fun setGroupSealEnabled(enabled: Boolean) {
+        _groupSealEnabled.value = enabled
+        repo.setGroupSealEnabled(enabled)
+    }
+
+    fun setGroupSealOpenWindowMinutes(minutes: Int) {
+        _groupSealOpenWindowMinutes.value = minutes
+        repo.setGroupSealOpenWindowMinutes(minutes)
+    }
+
+    fun setGroupSealDurationMinutes(minutes: Int) {
+        _groupSealDurationMinutes.value = minutes
+        repo.setGroupSealDurationMinutes(minutes)
     }
 
     // ── Backup / restore ──

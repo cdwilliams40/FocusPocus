@@ -95,6 +95,12 @@ fun SettingsScreen(
     onWrapupEnabledChanged: (Boolean) -> Unit,
     trialAlertsEnabled: Boolean,
     onTrialAlertsEnabledChanged: (Boolean) -> Unit,
+    groupSealEnabled: Boolean,
+    onGroupSealEnabledChanged: (Boolean) -> Unit,
+    groupSealOpenWindowMinutes: Int,
+    onGroupSealOpenWindowChanged: (Int) -> Unit,
+    groupSealDurationMinutes: Int,
+    onGroupSealDurationChanged: (Int) -> Unit,
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
@@ -514,6 +520,60 @@ fun SettingsScreen(
                             stringResource(R.string.settings_add_talisman_first),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Group Seal Card — open every pact app together, seal them together
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.settings_group_seal_title), style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_group_seal_toggle))
+                            Text(
+                                stringResource(R.string.settings_group_seal_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = groupSealEnabled,
+                            onCheckedChange = onGroupSealEnabledChanged
+                        )
+                    }
+
+                    if (groupSealEnabled) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            stringResource(R.string.settings_group_seal_open_window, groupSealOpenWindowMinutes)
+                        )
+                        Slider(
+                            value = groupSealOpenWindowMinutes.coerceIn(5, 60).toFloat(),
+                            onValueChange = { onGroupSealOpenWindowChanged((it / 5).roundToInt() * 5) },
+                            valueRange = 5f..60f,
+                            steps = 10,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            stringResource(R.string.settings_group_seal_duration, groupSealDurationMinutes)
+                        )
+                        Slider(
+                            value = groupSealDurationMinutes.coerceIn(5, 120).toFloat(),
+                            onValueChange = { onGroupSealDurationChanged((it / 5).roundToInt() * 5) },
+                            valueRange = 5f..120f,
+                            steps = 22,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

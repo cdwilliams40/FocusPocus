@@ -97,11 +97,6 @@ object Constants {
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 
-        // Last package scan (name/package/category), kept so guarded apps can be
-        // labelled in the first frame instead of showing their package name
-        // while the fresh scan runs. Display cache only — never authoritative.
-        const val INSTALLED_APPS_CACHE = "installedAppsCache"
-
         // Block events for statistics
         const val BLOCK_EVENTS = "blockEvents"
 
@@ -141,6 +136,14 @@ object Constants {
 
         // Opt-in "seal lifted" notification when a guard's cooldown expires
         const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
+
+        // Group-seal mode: opening one pact app opens all of them for a shared
+        // window, and the window's lapse seals all of them together for a
+        // shared duration — closes the "hop to a different pact app" gap that
+        // per-app allowances/seals leave open.
+        const val GROUP_SEAL_ENABLED = "groupSealEnabled"
+        const val GROUP_SEAL_OPEN_WINDOW_MINUTES = "groupSealOpenWindowMinutes"
+        const val GROUP_SEAL_DURATION_MINUTES = "groupSealDurationMinutes"
     }
 
     object Defaults {

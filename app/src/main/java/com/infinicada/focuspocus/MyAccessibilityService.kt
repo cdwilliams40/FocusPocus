@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.limit.GuardWindow
 import com.infinicada.focuspocus.limit.OpenReflexTracker
@@ -122,6 +123,9 @@ class MyAccessibilityService : AccessibilityService() {
     // Pact revision manager — writes through queued pact modifications once
     // their 24 h cooling-off has elapsed
     private lateinit var pactRevisionManager: PactRevisionManager
+
+    // App-wide settings — read directly for Group Seal mode's config
+    private lateinit var settingsRepo: SettingsRepository
 
     // Pact expiry warnings already toasted, keyed by package -> allowance expiry.
     // In-memory only; a duplicate toast after a service restart is harmless.
@@ -322,6 +326,7 @@ class MyAccessibilityService : AccessibilityService() {
         sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
         pactManager = PactManager(sharedPreferences, gson)
         pactRevisionManager = PactRevisionManager(sharedPreferences, gson)
+        settingsRepo = SettingsRepository(sharedPreferences)
         openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
         // Read the last rollover date from prefs (not today): if the service was
         // down across midnight, the next tick must still see the day change and
@@ -988,7 +993,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (pactConfig != null) {
             val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
             if (lapsedExpiry != null) {
-                sessionCooldownManager.startCooldown(packageName, pactConfig, lapsedExpiry)
+                sealLapsedAllowanceFor(packageName, pactConfig, lapsedExpiry)
             }
         }
 
@@ -1026,7 +1031,15 @@ class MyAccessibilityService : AccessibilityService() {
             currentForegroundPackage = null
             recordBlockEvent(packageName, "Pact Gate")
             closeApp()
-            showPactOverlay(appName, packageName, pactConfig)
+            // Group Seal mode: this is the primary entry point (tapping a pact
+            // app from the launcher), so it must offer the shared group-open
+            // here too — the dashboard's own group-open action alone would
+            // leave this everyday path still granting single-app allowances.
+            if (settingsRepo.getGroupSealEnabled()) {
+                showGroupPactOverlay(appName, packageName, settingsRepo.getGroupSealOpenWindowMinutes())
+            } else {
+                showPactOverlay(appName, packageName, pactConfig)
+            }
             return
         }
 
@@ -1362,6 +1375,24 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
+    /**
+     * Group Seal mode's overlay: offers to open every pact-gated app for one
+     * shared window instead of just [packageName] — no per-app minute picker,
+     * since the duration is the same for all of them. Confirming (handled in
+     * OverlayActivity) grants the shared allowance to every eligible
+     * pact-gated app, not just the one that was tapped.
+     */
+    private fun showGroupPactOverlay(appName: String, packageName: String, openWindowMinutes: Int) {
+        val intent = Intent(this, OverlayActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.putExtra("appName", appName)
+        intent.putExtra("pactPackageName", packageName)
+        intent.putExtra("groupSealMode", true)
+        intent.putExtra("groupOpenMinutes", openWindowMinutes)
+        intent.putExtra("pactSealMinutes", settingsRepo.getGroupSealDurationMinutes())
+        startActivity(intent)
+    }
+
     private fun isPackageInstalled(packageName: String): Boolean = try {
         packageManager.getApplicationInfo(packageName, 0)
         true
@@ -1490,7 +1521,24 @@ class MyAccessibilityService : AccessibilityService() {
         pactManager.getLapsedAllowances(now).keys.forEach { pkg ->
             val lapsedExpiry = pactManager.takeLapsedAllowance(pkg, now) ?: return@forEach
             val config = resolvePactConfig(pkg) ?: return@forEach
-            sessionCooldownManager.startCooldown(pkg, config, lapsedExpiry)
+            sealLapsedAllowanceFor(pkg, config, lapsedExpiry)
+        }
+    }
+
+    /**
+     * Converts one package's lapsed allowance into its seal cooldown, anchored
+     * at [lapsedExpiry] (the moment it actually lapsed, not the moment it was
+     * discovered). Under Group Seal mode every pact-gated app seals for the
+     * same shared, non-escalating duration — startPanicSeal's semantics, with
+     * a synthetic config so the shared minutes override this app's own
+     * cooldownMinutes — instead of each app escalating independently.
+     */
+    private fun sealLapsedAllowanceFor(packageName: String, config: AppTimeLimit, lapsedExpiry: Long) {
+        if (settingsRepo.getGroupSealEnabled()) {
+            val sealConfig = config.copy(cooldownMinutes = settingsRepo.getGroupSealDurationMinutes())
+            sessionCooldownManager.startPanicSeal(packageName, sealConfig, lapsedExpiry)
+        } else {
+            sessionCooldownManager.startCooldown(packageName, config, lapsedExpiry)
         }
     }
 

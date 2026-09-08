@@ -27,7 +27,10 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import com.google.gson.Gson
+import com.infinicada.focuspocus.limit.GuardLiveState
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.SessionCooldownManager
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -113,6 +116,26 @@ class OverlayActivity : ComponentActivity() {
         val pactChoices = intent.getIntArrayExtra("pactChoices")
         val pactSealMinutes = intent.getIntExtra("pactSealMinutes", 30)
 
+        // Group Seal mode: opening this app opens every pact-gated app for one
+        // shared window instead of just this one.
+        val groupSealMode = intent.getBooleanExtra("groupSealMode", false)
+        val groupOpenMinutes = intent.getIntExtra("groupOpenMinutes", 0)
+
+        if (groupSealMode && pactPackageName != null && groupOpenMinutes > 0) {
+            setContent {
+                FocusPocusTheme(themeMode = themeMode) {
+                    GroupPactOfferScreen(
+                        appName = appName,
+                        openWindowMinutes = groupOpenMinutes,
+                        sealMinutes = pactSealMinutes,
+                        onGroupOpenChosen = { grantGroupAndLaunch(pactPackageName, groupOpenMinutes) },
+                        onDecline = { closeAndGoHome() }
+                    )
+                }
+            }
+            return
+        }
+
         if (pactPackageName != null && pactChoices != null && pactChoices.isNotEmpty()) {
             val todayOpens = intent.getIntExtra("pactTodayOpens", 0)
             val todayReflexOpens = intent.getIntExtra("pactTodayReflexOpens", 0)
@@ -158,6 +181,28 @@ class OverlayActivity : ComponentActivity() {
         PactManager(prefs, Gson()).grantAllowance(packageName, minutes)
         // Under Warden greying the app is OS-suspended; lift that before the
         // launch below, or the system will refuse to open it.
+        DeviceOwnerManager.syncSuspensions(this)
+        launchApp(packageName)
+    }
+
+    /**
+     * Group Seal mode's grant: opens every pact-gated app that isn't currently
+     * sealed for the same shared window, then launches only the app that was
+     * actually tapped — mirrors SpellbookViewModel.groupOpenPacts' dashboard
+     * twin of this action.
+     */
+    private fun grantGroupAndLaunch(packageName: String, minutes: Int) {
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        val gson = Gson()
+        val now = System.currentTimeMillis()
+        val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
+        val pactManager = PactManager(prefs, gson)
+        val groups = pactManager.getGroups()
+        val blockers = BlockerRepository.getBlockers(prefs)
+        val liveStates = SessionCooldownManager(prefs, gson).peekActiveCooldowns(now)
+            .mapValues { (_, state) -> GuardLiveState(cooldownExpiryMillis = state.cooldownExpiryMillis) }
+        val targets = GuardStatus.groupOpenEligiblePackages(configs, groups, blockers, liveStates, now)
+        targets.forEach { pactManager.grantAllowance(it, minutes, now) }
         DeviceOwnerManager.syncSuspensions(this)
         launchApp(packageName)
     }
@@ -500,6 +545,121 @@ fun PactOfferScreen(
                             Text(stringResource(R.string.overlay_pact_choice, minutes))
                         }
                         Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onDecline,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.overlay_pact_decline))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Group Seal mode's offer: opening [appName] opens every pact-gated app at
+ * once for a shared window, so there's no per-app minute picker — one
+ * confirm action, gated by the same anti-reflex pause as [PactOfferScreen].
+ */
+@Composable
+fun GroupPactOfferScreen(
+    appName: String,
+    openWindowMinutes: Int,
+    sealMinutes: Int,
+    onGroupOpenChosen: () -> Unit,
+    onDecline: () -> Unit
+) {
+    val delaySeconds = 3
+    var remainingSeconds by rememberSaveable { mutableIntStateOf(delaySeconds) }
+    var countdownDone by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        while (remainingSeconds > 0) {
+            delay(1000L)
+            remainingSeconds--
+        }
+        countdownDone = true
+    }
+
+    ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            GlassCard(
+                modifier = Modifier.padding(28.dp),
+                contentPadding = PaddingValues(28.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val sigilColor = MaterialTheme.colorScheme.primary
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    listOf(
+                                        sigilColor.copy(alpha = 0.28f),
+                                        sigilColor.copy(alpha = 0.06f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoFixHigh,
+                            contentDescription = null,
+                            tint = sigilColor,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = stringResource(R.string.overlay_group_pact_prompt, appName, openWindowMinutes),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.overlay_group_pact_seal_desc, sealMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (!countdownDone) {
+                        Text(
+                            text = stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    OutlinedButton(
+                        onClick = onGroupOpenChosen,
+                        enabled = countdownDone,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.overlay_group_pact_choice, openWindowMinutes))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

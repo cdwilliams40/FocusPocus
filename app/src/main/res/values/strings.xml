@@ -132,6 +132,10 @@
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
     <string name="home_create_enchantment">Create an enchantment</string>
     <string name="home_request_time_hint">Tap an app to choose your minutes and open it.</string>
+    <string name="home_group_seal_hint">Group Seal is on — opening one pact app opens all of them together.</string>
+    <string name="home_group_seal_cta">Open your pact apps</string>
+    <string name="home_group_seal_open_status">Open together — %1$s left</string>
+    <string name="home_group_seal_sealed_status">Sealed together — %1$s left</string>
     <string name="home_section_live">Happening now</string>
     <string name="home_section_guards">Your pacts &amp; wards</string>
     <string name="home_guard_edit_label">Edit</string>
@@ -243,6 +247,11 @@
     <string name="settings_talisman_lock">Talisman Lock Mode</string>
     <string name="settings_talisman_lock_desc">Require NFC talisman or QR code to stop focus sessions</string>
     <string name="settings_add_talisman_first">Add a talisman first to enable lock mode</string>
+    <string name="settings_group_seal_title">Group Seal Mode</string>
+    <string name="settings_group_seal_toggle">Open and seal pact apps together</string>
+    <string name="settings_group_seal_desc">Opening one pact app opens all of them for a shared window; when it lapses, all of them seal together — no hopping to another pact app to keep going.</string>
+    <string name="settings_group_seal_open_window">Shared open window: %d min</string>
+    <string name="settings_group_seal_duration">Shared seal duration: %d min</string>
     <string name="settings_device_owner">Warden Mode (Device Owner)</string>
     <string name="settings_device_owner_suspend">Grey Out Blocked Apps</string>
     <string name="settings_device_owner_suspend_desc">Suspend blocked apps at the system level during focus sessions — their icons grey out in the launcher and they can\'t be opened at all</string>
@@ -502,6 +511,9 @@
     <string name="overlay_pact_stats">This is open #%d today</string>
     <string name="overlay_pact_stats_reflex">Open #%1$d today — %2$d were under-30-second reflexes</string>
     <string name="overlay_pact_alternative">Open %s instead</string>
+    <string name="overlay_group_pact_prompt">%1$s is sealed. Open all your pact apps together for %2$d minutes?</string>
+    <string name="overlay_group_pact_seal_desc">When the window ends, every pact app seals together for %d minutes — no hopping to another one.</string>
+    <string name="overlay_group_pact_choice">Open all — %d minutes</string>
     <string name="pact_ending_toast">Your pact is ending — %s seals in under a minute</string>
 
     <!-- MyAccessibilityService -->
@@ -745,6 +757,11 @@
     <plurals name="home_seal_all_result">
         <item quantity="one">%d app sealed</item>
         <item quantity="other">%d apps sealed</item>
+    </plurals>
+
+    <plurals name="home_group_open_result">
+        <item quantity="one">%d app opened</item>
+        <item quantity="other">%d apps opened</item>
     </plurals>
 
     <!-- Guard hours (per-guard schedules) -->

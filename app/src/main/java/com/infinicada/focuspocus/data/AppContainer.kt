@@ -16,6 +16,5 @@ class AppContainer(context: Context) {
     val session = SessionRepository(context, prefs, gson)
     val insights = InsightsRepository(prefs, gson)
     val conditionalUnlocks = ConditionalUnlockRepository(prefs, gson)
-    val installedApps = InstalledAppsRepository(prefs, gson)
     val progression = ProgressionRepository(context, prefs, gson)
 }
