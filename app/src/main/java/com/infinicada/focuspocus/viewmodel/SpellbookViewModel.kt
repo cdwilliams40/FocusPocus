@@ -241,19 +241,19 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         val targets = GuardStatus.pactGatedConfigs(
             _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
         )
-        var sealed = 0
-        targets.forEach { (pkg, config) ->
-            pactManager.revokeAllowance(pkg)
-            if (sessionCooldownManager.getCooldownState(pkg, now) == null) {
-                sessionCooldownManager.startPanicSeal(pkg, config, now)
-                sealed++
+        if (targets.isEmpty()) return 0
+        // One write per store for the whole sweep, not one per app.
+        pactManager.revokeAllowances(targets.keys)
+        val alreadySealed = sessionCooldownManager.peekActiveCooldowns(now).keys
+        val requests = targets
+            .filterKeys { it !in alreadySealed }
+            .map { (pkg, config) ->
+                SessionCooldownManager.SealRequest(pkg, config, now, countsAsOffence = false)
             }
-        }
-        if (targets.isNotEmpty()) {
-            syncWardenGreying()
-            _dataVersion.value++
-        }
-        return sealed
+        sessionCooldownManager.startSeals(requests)
+        syncWardenGreying()
+        _dataVersion.value++
+        return requests.size
     }
 
     /**
@@ -263,19 +263,30 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * which the service's group-aware overlay handles directly). No partial
      * per-app requesting exists alongside this while the mode is on, or the
      * app-hopping gap it closes reopens. Returns how many apps were opened.
+     *
+     * Suspending because the eligibility snapshot reads the stores and (when
+     * any guard carries a daily limit) walks the day's usage-stats event
+     * stream — the same work the dashboard's own refresh deliberately takes
+     * off the main thread. The state reads below are re-done on the caller's
+     * thread only after the heavy part is finished.
      */
-    fun groupOpenPacts(): Int {
+    suspend fun groupOpenPacts(): Int {
         val now = System.currentTimeMillis()
         val minutes = settingsRepo.getGroupSealOpenWindowMinutes()
-        val liveStates = getGuardLiveState()
-        val targets = GuardStatus.groupOpenEligiblePackages(
-            _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value, liveStates, now
-        )
-        targets.forEach { pkg -> pactManager.grantAllowance(pkg, minutes, now) }
-        if (targets.isNotEmpty()) {
-            syncWardenGreying()
-            _dataVersion.value++
+        val targets = withContext(Dispatchers.Default) {
+            GuardStatus.groupOpenEligiblePackages(
+                _appTimeLimitConfigs.value,
+                _pactGroups.value,
+                _blockerLists.value,
+                getGuardLiveState(),
+                now
+            )
         }
+        if (targets.isEmpty()) return 0
+        // One store write for the shared window, not one per app.
+        pactManager.grantAllowances(targets, minutes, now)
+        syncWardenGreying()
+        _dataVersion.value++
         return targets.size
     }
 

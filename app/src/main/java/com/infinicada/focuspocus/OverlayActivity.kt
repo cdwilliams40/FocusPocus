@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -53,11 +54,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class OverlayActivity : ComponentActivity() {
 
@@ -104,6 +109,10 @@ class OverlayActivity : ComponentActivity() {
     }
 
     private fun renderOverlay(intent: Intent) {
+        // Each rendered overlay gets a fresh grant budget: the activity is
+        // singleTask, so onNewIntent re-renders this same instance for the next
+        // blocked app, and a leftover flag would leave its buttons dead.
+        granting = false
         val themeMode = (application as FocusPocusApplication).container.settings.getThemeMode()
 
         val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
@@ -176,14 +185,22 @@ class OverlayActivity : ComponentActivity() {
         }
     }
 
-    private fun grantPactAndLaunch(packageName: String, minutes: Int) {
-        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-        PactManager(prefs, Gson()).grantAllowance(packageName, minutes)
-        // Under Warden greying the app is OS-suspended; lift that before the
-        // launch below, or the system will refuse to open it.
-        DeviceOwnerManager.syncSuspensions(this)
-        launchApp(packageName)
-    }
+    /**
+     * One grant per overlay. The work below leaves the main thread, so without
+     * this a second tap during the hop could grant twice.
+     */
+    private var granting = false
+
+    /**
+     * Grants the chosen allowance and opens the app. The store writes and the
+     * Warden sync run off the main thread: on a provisioned device the sync
+     * enumerates launchable packages and queries usage stats, and this is the
+     * overlay the user meets on every pact app's open.
+     */
+    private fun grantPactAndLaunch(packageName: String, minutes: Int) =
+        grantAndLaunch(packageName) { prefs, gson, now ->
+            PactManager(prefs, gson).grantAllowance(packageName, minutes, now)
+        }
 
     /**
      * Group Seal mode's grant: opens every pact-gated app that isn't currently
@@ -191,20 +208,38 @@ class OverlayActivity : ComponentActivity() {
      * actually tapped — mirrors SpellbookViewModel.groupOpenPacts' dashboard
      * twin of this action.
      */
-    private fun grantGroupAndLaunch(packageName: String, minutes: Int) {
-        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-        val gson = Gson()
-        val now = System.currentTimeMillis()
-        val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
-        val pactManager = PactManager(prefs, gson)
-        val groups = pactManager.getGroups()
-        val blockers = BlockerRepository.getBlockers(prefs)
-        val liveStates = SessionCooldownManager(prefs, gson).peekActiveCooldowns(now)
-            .mapValues { (_, state) -> GuardLiveState(cooldownExpiryMillis = state.cooldownExpiryMillis) }
-        val targets = GuardStatus.groupOpenEligiblePackages(configs, groups, blockers, liveStates, now)
-        targets.forEach { pactManager.grantAllowance(it, minutes, now) }
-        DeviceOwnerManager.syncSuspensions(this)
-        launchApp(packageName)
+    private fun grantGroupAndLaunch(packageName: String, minutes: Int) =
+        grantAndLaunch(packageName) { prefs, gson, now ->
+            val pactManager = PactManager(prefs, gson)
+            val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
+            val liveStates = SessionCooldownManager(prefs, gson).peekActiveCooldowns(now)
+                .mapValues { (_, state) -> GuardLiveState(cooldownExpiryMillis = state.cooldownExpiryMillis) }
+            val targets = GuardStatus.groupOpenEligiblePackages(
+                configs, pactManager.getGroups(), BlockerRepository.getBlockers(prefs), liveStates, now
+            )
+            // One store write for the shared window, not one per app.
+            pactManager.grantAllowances(targets, minutes, now)
+        }
+
+    /**
+     * Runs [grant] off the main thread, lifts any Warden suspension it just
+     * made stale, then opens [packageName] — under Warden greying the app is
+     * OS-suspended, and the system refuses to open it until the sync lands.
+     */
+    private fun grantAndLaunch(
+        packageName: String,
+        grant: (SharedPreferences, Gson, Long) -> Unit
+    ) {
+        if (granting) return
+        granting = true
+        lifecycleScope.launch {
+            withContext(Dispatchers.Default) {
+                val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+                grant(prefs, Gson(), System.currentTimeMillis())
+                DeviceOwnerManager.syncSuspensions(this@OverlayActivity)
+            }
+            launchApp(packageName)
+        }
     }
 
     private fun launchApp(packageName: String) {

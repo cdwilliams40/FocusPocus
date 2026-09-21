@@ -993,7 +993,9 @@ class MyAccessibilityService : AccessibilityService() {
         if (pactConfig != null) {
             val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
             if (lapsedExpiry != null) {
-                sealLapsedAllowanceFor(packageName, pactConfig, lapsedExpiry)
+                sessionCooldownManager.startSeals(
+                    listOf(sealRequestFor(packageName, pactConfig, lapsedExpiry))
+                )
             }
         }
 
@@ -1514,33 +1516,51 @@ class MyAccessibilityService : AccessibilityService() {
      * Seals every app whose pact allowance has lapsed, anchored at the moment the
      * allowance expired (checkTimeLimitAndBlock's rule, applied proactively). An
      * app whose pact config has been removed just gets its stale allowance
-     * dropped. takeLapsedAllowance is take-once, so racing the open-attempt path
+     * dropped. takeLapsedAllowances is take-once, so racing the open-attempt path
      * can't double-start a cooldown.
+     *
+     * Both stores are written once for the whole sweep, not once per app: under
+     * Group Seal every app's shared window lapses on this same tick, and this
+     * runs on the service's main thread.
      */
     private fun sealLapsedPacts(now: Long = System.currentTimeMillis()) {
-        pactManager.getLapsedAllowances(now).keys.forEach { pkg ->
-            val lapsedExpiry = pactManager.takeLapsedAllowance(pkg, now) ?: return@forEach
-            val config = resolvePactConfig(pkg) ?: return@forEach
-            sealLapsedAllowanceFor(pkg, config, lapsedExpiry)
-        }
+        val lapsed = pactManager.takeLapsedAllowances(now)
+        if (lapsed.isEmpty()) return
+        sessionCooldownManager.startSeals(
+            lapsed.mapNotNull { (pkg, lapsedExpiry) ->
+                resolvePactConfig(pkg)?.let { sealRequestFor(pkg, it, lapsedExpiry) }
+            }
+        )
     }
 
     /**
-     * Converts one package's lapsed allowance into its seal cooldown, anchored
-     * at [lapsedExpiry] (the moment it actually lapsed, not the moment it was
+     * How one package's lapsed allowance becomes a seal, anchored at
+     * [lapsedExpiry] (the moment it actually lapsed, not the moment it was
      * discovered). Under Group Seal mode every pact-gated app seals for the
-     * same shared, non-escalating duration — startPanicSeal's semantics, with
+     * same shared, non-escalating duration — the panic seal's semantics, with
      * a synthetic config so the shared minutes override this app's own
      * cooldownMinutes — instead of each app escalating independently.
      */
-    private fun sealLapsedAllowanceFor(packageName: String, config: AppTimeLimit, lapsedExpiry: Long) {
+    private fun sealRequestFor(
+        packageName: String,
+        config: AppTimeLimit,
+        lapsedExpiry: Long
+    ): SessionCooldownManager.SealRequest =
         if (settingsRepo.getGroupSealEnabled()) {
-            val sealConfig = config.copy(cooldownMinutes = settingsRepo.getGroupSealDurationMinutes())
-            sessionCooldownManager.startPanicSeal(packageName, sealConfig, lapsedExpiry)
+            SessionCooldownManager.SealRequest(
+                packageName = packageName,
+                config = config.copy(cooldownMinutes = settingsRepo.getGroupSealDurationMinutes()),
+                anchorMillis = lapsedExpiry,
+                countsAsOffence = false
+            )
         } else {
-            sessionCooldownManager.startCooldown(packageName, config, lapsedExpiry)
+            SessionCooldownManager.SealRequest(
+                packageName = packageName,
+                config = config,
+                anchorMillis = lapsedExpiry,
+                countsAsOffence = true
+            )
         }
-    }
 
     override fun onInterrupt() {
         Log.d("MyAccessibilityService", "Service interrupted")

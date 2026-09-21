@@ -6,6 +6,7 @@ import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -59,16 +60,43 @@ class PactManagerTest {
     }
 
     @Test
-    fun `getLapsedAllowances splits lapsed from active without removing either`() {
+    fun `takeLapsedAllowances returns every lapsed expiry and leaves active ones alone`() {
         manager.grantAllowance(pkg, minutes = 5, now = t0)
         manager.grantAllowance("com.other.app", minutes = 30, now = t0)
         val now = t0 + 10 * 60 * 1000L
 
-        assertEquals(mapOf(pkg to t0 + 5 * 60 * 1000L), manager.getLapsedAllowances(now))
-        // Reading must not consume: the lapsed entry is still takeable, the
-        // active one still active.
-        assertEquals(t0 + 5 * 60 * 1000L, manager.takeLapsedAllowance(pkg, now))
+        assertEquals(mapOf(pkg to t0 + 5 * 60 * 1000L), manager.takeLapsedAllowances(now))
         assertEquals(t0 + 30 * 60 * 1000L, manager.getAllowanceExpiry("com.other.app", now))
+    }
+
+    @Test
+    fun `takeLapsedAllowances is take-once`() {
+        manager.grantAllowance(pkg, minutes = 5, now = t0)
+        val now = t0 + 10 * 60 * 1000L
+
+        assertEquals(1, manager.takeLapsedAllowances(now).size)
+        assertTrue(manager.takeLapsedAllowances(now).isEmpty())
+        assertNull(manager.takeLapsedAllowance(pkg, now))
+    }
+
+    @Test
+    fun `grantAllowances opens every named package on the same shared expiry`() {
+        manager.grantAllowances(setOf(pkg, "com.other.app"), minutes = 15, now = t0)
+
+        val expiry = t0 + 15 * 60 * 1000L
+        assertEquals(expiry, manager.getAllowanceExpiry(pkg, t0))
+        assertEquals(expiry, manager.getAllowanceExpiry("com.other.app", t0))
+    }
+
+    @Test
+    fun `revokeAllowances drops every named package and leaves the rest`() {
+        manager.grantAllowance(pkg, minutes = 10, now = t0)
+        manager.grantAllowance("com.other.app", minutes = 10, now = t0)
+
+        manager.revokeAllowances(setOf(pkg))
+
+        assertNull(manager.getAllowanceExpiry(pkg, t0))
+        assertEquals(t0 + 10 * 60 * 1000L, manager.getAllowanceExpiry("com.other.app", t0))
     }
 
     @Test
