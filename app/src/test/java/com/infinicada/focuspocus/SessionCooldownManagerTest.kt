@@ -210,4 +210,86 @@ class SessionCooldownManagerTest {
         assertEquals(t0 + 12 * 60_000L, state!!.cooldownExpiryMillis)
         assertEquals(0, state.cooldownNumber)
     }
+
+    @Test
+    fun `startSeals applies every request in one store write`() {
+        val other = "com.other.app"
+        manager.startSeals(
+            listOf(
+                SessionCooldownManager.SealRequest(pkg, config, t0, countsAsOffence = false),
+                SessionCooldownManager.SealRequest(other, config, t0, countsAsOffence = false)
+            )
+        )
+
+        // Both land: a per-app write would have been fine too, but the point is
+        // that Group Seal's whole sweep is a single serialize + commit.
+        assertEquals(setOf(pkg, other), manager.peekActiveCooldowns(now = t0).keys)
+        assertEquals(t0 + 30 * 60_000L, manager.getCooldownState(pkg, now = t0)!!.cooldownExpiryMillis)
+        assertEquals(t0 + 30 * 60_000L, manager.getCooldownState(other, now = t0)!!.cooldownExpiryMillis)
+    }
+
+    @Test
+    fun `startSeals anchors each seal at its own lapse moment`() {
+        // A lapsed pact seals from when it lapsed, not from when the sweep
+        // discovered it — two apps that lapsed an hour apart keep that gap.
+        val other = "com.other.app"
+        val lapsedEarly = t0
+        val lapsedLate = t0 + 60 * 60_000L
+        manager.startSeals(
+            listOf(
+                SessionCooldownManager.SealRequest(pkg, config, lapsedEarly, countsAsOffence = false),
+                SessionCooldownManager.SealRequest(other, config, lapsedLate, countsAsOffence = false)
+            )
+        )
+
+        assertEquals(lapsedEarly + 30 * 60_000L, manager.getCooldownState(pkg, now = t0)!!.cooldownExpiryMillis)
+        assertEquals(lapsedLate + 30 * 60_000L, manager.getCooldownState(other, now = t0)!!.cooldownExpiryMillis)
+    }
+
+    @Test
+    fun `startSeals escalates only the requests that count as an offence`() {
+        val other = "com.other.app"
+        manager.startCooldown(pkg, escalatingConfig, now = t0)          // offence #1 for pkg
+        manager.startCooldown(other, escalatingConfig, now = t0)        // offence #1 for other
+
+        val now = t0 + 120 * 60_000L
+        manager.startSeals(
+            listOf(
+                SessionCooldownManager.SealRequest(pkg, escalatingConfig, now, countsAsOffence = true),
+                SessionCooldownManager.SealRequest(other, escalatingConfig, now, countsAsOffence = false)
+            )
+        )
+
+        // pkg escalates as offence #2 (30 + 15); other keeps its counter and base length.
+        val escalated = manager.getCooldownState(pkg, now)!!
+        assertEquals(2, escalated.cooldownNumber)
+        assertEquals(now + 45 * 60_000L, escalated.cooldownExpiryMillis)
+
+        val chosen = manager.getCooldownState(other, now)!!
+        assertEquals(1, chosen.cooldownNumber)
+        assertEquals(now + 30 * 60_000L, chosen.cooldownExpiryMillis)
+    }
+
+    @Test
+    fun `startSeals with no requests leaves the store untouched`() {
+        manager.startSeals(emptyList())
+        assertNull(storedJson())
+    }
+
+    @Test
+    fun `startSeals drops every sealed package's in-session start time`() {
+        val other = "com.other.app"
+        manager.onAppForegrounded(pkg, now = t0)
+        manager.onAppForegrounded(other, now = t0)
+
+        manager.startSeals(
+            listOf(
+                SessionCooldownManager.SealRequest(pkg, config, t0 + 5 * 60_000L, countsAsOffence = false),
+                SessionCooldownManager.SealRequest(other, config, t0 + 5 * 60_000L, countsAsOffence = true)
+            )
+        )
+
+        assertEquals(0, manager.getInSessionMinutes(pkg, now = t0 + 6 * 60_000L))
+        assertEquals(0, manager.getInSessionMinutes(other, now = t0 + 6 * 60_000L))
+    }
 }

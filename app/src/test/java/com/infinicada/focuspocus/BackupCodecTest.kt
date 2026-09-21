@@ -125,4 +125,82 @@ class BackupCodecTest {
         assertFalse(prefs.contains(Constants.PrefsKeys.MANUAL_FOCUS_MODE))
         assertFalse(prefs.contains(Constants.PrefsKeys.BREAK_DURATION_MINUTES))
     }
+
+    /**
+     * Every key in [Constants.PrefsKeys] must be a deliberate decision: either it
+     * travels in a grimoire, or it is device-local enforcement/session state that
+     * a backup restored days later must not resurrect. This guard fails on any
+     * newly added key until someone classifies it — the omission that left Group
+     * Seal's settings out of a backup in 1.8 would have failed here.
+     */
+    @Test
+    fun `every prefs key is either exported or deliberately device-local`() {
+        val deviceLocalKeys = setOf(
+            // Live session / break state
+            Constants.PrefsKeys.MANUAL_FOCUS_MODE,
+            Constants.PrefsKeys.ACTIVE_BLOCKER,
+            Constants.PrefsKeys.ACTIVE_BLOCKERS,
+            Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
+            Constants.PrefsKeys.FOCUS_TAG_ID,
+            Constants.PrefsKeys.IS_ON_BREAK,
+            Constants.PrefsKeys.BREAKS_USED_THIS_SESSION,
+            Constants.PrefsKeys.BREAK_TIME_REMAINING,
+            Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
+            Constants.PrefsKeys.FOCUS_DURATION_MINUTES,
+            Constants.PrefsKeys.FOCUS_TIME_REMAINING,
+            Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
+            Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS,
+            Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS,
+            Constants.PrefsKeys.SESSION_BREAKS_ENABLED,
+            Constants.PrefsKeys.SESSION_START_TIME,
+            // Per-session perk tokens: cleared at every session start and stop
+            Constants.PrefsKeys.EXTRA_BREAK_TOKENS,
+            // Live enforcement state — a restore must not resurrect a stale
+            // seal, allowance, or queued pact revision
+            Constants.PrefsKeys.APP_COOLDOWN_STATES,
+            Constants.PrefsKeys.PACT_ALLOWANCES,
+            Constants.PrefsKeys.PACT_PENDING_REVISIONS,
+            Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE,
+            Constants.PrefsKeys.LAST_WRAPUP_DATE,
+            // This device's Warden bookkeeping and permission snapshot
+            Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES,
+            Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS,
+            Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT
+        )
+
+        val allKeys = Constants.PrefsKeys::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+            .map { it.get(null) as String }
+            .toSet()
+
+        assertEquals(
+            "unclassified prefs keys — add each to BackupCodec.EXPORT_KEYS or to deviceLocalKeys",
+            emptySet<String>(),
+            allKeys - BackupCodec.EXPORT_KEYS - deviceLocalKeys
+        )
+        assertEquals(
+            "deviceLocalKeys names a key that no longer exists",
+            emptySet<String>(),
+            deviceLocalKeys - allKeys
+        )
+        assertEquals(
+            "BackupCodec.EXPORT_KEYS names a key that no longer exists",
+            emptySet<String>(),
+            BackupCodec.EXPORT_KEYS - allKeys
+        )
+    }
+
+    @Test
+    fun `group seal settings travel in a backup`() {
+        prefs.putBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, true)
+        prefs.putInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, 20)
+        prefs.putInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, 45)
+
+        val fresh = FakeSharedPreferences()
+        BackupCodec.import(fresh, gson, BackupCodec.export(prefs, gson, appVersionCode = 37, now = t0))
+
+        assertTrue(fresh.getBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, false))
+        assertEquals(20, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, -1))
+        assertEquals(45, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, -1))
+    }
 }

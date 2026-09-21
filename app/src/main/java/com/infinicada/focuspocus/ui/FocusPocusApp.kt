@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -73,6 +74,7 @@ import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.trialTitle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
@@ -660,6 +662,7 @@ fun FocusPocusApp(
                             mutableStateOf(emptyMap<String, AppOpenStats>())
                         }
                         var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
+                        val groupOpenScope = rememberCoroutineScope()
                         LaunchedEffect(dataVersion, guardTick) {
                             val snapshot = withContext(Dispatchers.IO) {
                                 // A pact revision coming due while the dashboard
@@ -724,14 +727,18 @@ fun FocusPocusApp(
                             groupSealOpenWindowMinutes = groupSealOpenWindowMinutes,
                             groupSealDurationMinutes = groupSealDurationMinutes,
                             onGroupOpen = {
-                                val openedCount = spellbookVM.groupOpenPacts()
-                                Toast.makeText(
-                                    context,
-                                    context.resources.getQuantityString(
-                                        R.plurals.home_group_open_result, openedCount, openedCount
-                                    ),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                // groupOpenPacts suspends: its eligibility
+                                // snapshot reads the stores and usage stats.
+                                groupOpenScope.launch {
+                                    val openedCount = spellbookVM.groupOpenPacts()
+                                    Toast.makeText(
+                                        context,
+                                        context.resources.getQuantityString(
+                                            R.plurals.home_group_open_result, openedCount, openedCount
+                                        ),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             },
                             modifier = contentModifier
                         )

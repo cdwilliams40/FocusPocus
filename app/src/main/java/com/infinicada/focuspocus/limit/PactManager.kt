@@ -31,11 +31,26 @@ class PactManager(
     private val tag = "PactManager"
 
     /** Grants [minutes] of access to [packageName], starting now. */
-    fun grantAllowance(packageName: String, minutes: Int, now: Long = System.currentTimeMillis()) {
-        val allowances = loadAllowances().toMutableMap()
-        allowances[packageName] = now + minutes.toLong() * 60 * 1000
-        saveAllowances(allowances)
-        Log.d(tag, "Pact granted for $packageName: ${minutes}m")
+    fun grantAllowance(packageName: String, minutes: Int, now: Long = System.currentTimeMillis()) =
+        grantAllowances(setOf(packageName), minutes, now)
+
+    /**
+     * Grants the same [minutes] to every package in [packageNames] in a single
+     * store write. Group Seal's shared window opens every pact-gated app at
+     * once, so the per-app twin would re-serialize and re-write the whole
+     * allowance store once per app — on the accessibility service's main
+     * thread, where that is an ANR the user experiences as blocking silently
+     * switching off.
+     */
+    fun grantAllowances(
+        packageNames: Set<String>,
+        minutes: Int,
+        now: Long = System.currentTimeMillis()
+    ) {
+        if (packageNames.isEmpty()) return
+        val expiry = now + minutes.toLong() * 60 * 1000
+        saveAllowances(loadAllowances() + packageNames.associateWith { expiry })
+        Log.d(tag, "Pact granted for ${packageNames.size} app(s): ${minutes}m")
     }
 
     /** Epoch millis when [packageName]'s active allowance expires, or null if none is active. */
@@ -54,16 +69,6 @@ class PactManager(
         loadAllowances().filterValues { it > now }
 
     /**
-     * Read-only batch view of the lapsed side: every allowance that has already
-     * expired (package → expiry epoch millis). The enforcement layer walks this
-     * on its minute tick to seal apps proactively — under Warden greying the
-     * user can't reopen a suspended app, so the open-attempt path that used to
-     * trigger [takeLapsedAllowance] lazily never runs.
-     */
-    fun getLapsedAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> =
-        loadAllowances().filterValues { it <= now }
-
-    /**
      * If [packageName] has an allowance that has already lapsed, removes it and
      * returns its expiry time so the caller can start the seal cooldown anchored
      * there. Returns null if there is no allowance or it is still active.
@@ -78,16 +83,36 @@ class PactManager(
     }
 
     /**
+     * Take-once batch twin of [takeLapsedAllowance]: removes every allowance
+     * that has already lapsed and returns package → the expiry it lapsed at, so
+     * the caller can anchor each seal there. One store write for the whole
+     * sweep — under Group Seal every app's shared window lapses on the same
+     * minute tick, so the per-app twin would write once per app.
+     */
+    fun takeLapsedAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> {
+        val allowances = loadAllowances()
+        val lapsed = allowances.filterValues { it <= now }
+        if (lapsed.isEmpty()) return emptyMap()
+        saveAllowances(allowances - lapsed.keys)
+        Log.d(tag, "Pact lapsed for ${lapsed.size} app(s)")
+        return lapsed
+    }
+
+    /**
      * Drops any allowance for [packageName], active or lapsed, without starting
      * a seal — the panic "seal everything now" action revokes running pact time
      * and starts its own seal separately.
      */
-    fun revokeAllowance(packageName: String) {
+    fun revokeAllowance(packageName: String) = revokeAllowances(setOf(packageName))
+
+    /** Batch twin of [revokeAllowance]: drops every named allowance in one write. */
+    fun revokeAllowances(packageNames: Set<String>) {
+        if (packageNames.isEmpty()) return
         val allowances = loadAllowances()
-        if (packageName in allowances) {
-            saveAllowances(allowances - packageName)
-            Log.d(tag, "Pact allowance revoked for $packageName")
-        }
+        val remaining = allowances - packageNames
+        if (remaining.size == allowances.size) return
+        saveAllowances(remaining)
+        Log.d(tag, "Pact allowance revoked for ${allowances.size - remaining.size} app(s)")
     }
 
     // -------------------------------------------------------------------------

@@ -89,56 +89,88 @@ class SessionCooldownManager(
         loadCooldownStates().filterValues { it.cooldownExpiryMillis > now }
 
     /**
+     * One package's seal, as [startSeals] takes them.
+     *
+     * [anchorMillis] is when the seal starts counting — for a lapsed pact that
+     * is the moment the allowance expired, not the moment it was discovered, so
+     * a user who walks away mid-pact isn't met with a fresh full-length seal
+     * hours later.
+     */
+    data class SealRequest(
+        val packageName: String,
+        val config: AppTimeLimit,
+        val anchorMillis: Long,
+        /**
+         * True for a seal the user earned (a spent session limit, a lapsed
+         * pact): it consumes an escalation step and lengthens the next one.
+         * False for a seal the user *chose* — the panic "seal everything now"
+         * action and Group Seal's shared seal — which must neither escalate nor
+         * spend a step, leaving the day's counter for later real offences.
+         */
+        val countsAsOffence: Boolean
+    )
+
+    /**
      * Starts a new cooldown for [packageName] using [config] to determine duration/escalation.
      * Also resets the in-session start time so the next visit counts as a fresh session.
      */
-    fun startCooldown(packageName: String, config: AppTimeLimit, now: Long = System.currentTimeMillis()) {
-        val states = loadCooldownStates().toMutableMap()
-        val existing = states[packageName]
-        val cooldownNumber = (existing?.cooldownNumber ?: 0) + 1
-
-        val baseDuration = config.cooldownMinutes.toLong() * 60 * 1000
-        val escalationExtra = if (config.cooldownEscalationEnabled) {
-            (cooldownNumber - 1) * config.cooldownEscalationStepMinutes.toLong() * 60 * 1000
-        } else 0L
-        val totalDurationMs = baseDuration + escalationExtra
-
-        val newState = CooldownState(
-            packageName = packageName,
-            cooldownExpiryMillis = now + totalDurationMs,
-            attemptCount = 0,
-            cooldownNumber = cooldownNumber
-        )
-        states[packageName] = newState
-        saveCooldownStates(states)
-
-        // Clear in-session tracking so returning later starts a fresh session
-        sessionStartTimes.remove(packageName)
-
-        val cooldownMins = totalDurationMs / 1000 / 60
-        Log.d(tag, "Cooldown #$cooldownNumber started for $packageName: ${cooldownMins}m")
-    }
+    fun startCooldown(packageName: String, config: AppTimeLimit, now: Long = System.currentTimeMillis()) =
+        startSeals(listOf(SealRequest(packageName, config, now, countsAsOffence = true)))
 
     /**
      * Seals [packageName] for its base cooldown length without counting a daily
-     * offence: the "seal everything now" panic action is the user *choosing*
-     * protection, so it must neither escalate nor consume an escalation step.
-     * The existing [CooldownState.cooldownNumber] is preserved untouched for the
-     * day's later real offences. No-op semantics on duration: always the base
-     * [AppTimeLimit.cooldownMinutes], never the escalated length.
+     * offence — see [SealRequest.countsAsOffence]. No-op semantics on duration:
+     * always the base [AppTimeLimit.cooldownMinutes], never the escalated length.
      */
-    fun startPanicSeal(packageName: String, config: AppTimeLimit, now: Long = System.currentTimeMillis()) {
+    fun startPanicSeal(packageName: String, config: AppTimeLimit, now: Long = System.currentTimeMillis()) =
+        startSeals(listOf(SealRequest(packageName, config, now, countsAsOffence = false)))
+
+    /**
+     * Applies every seal in [requests] in a single store write. Both the panic
+     * action and Group Seal's lapse seal every pact-gated app at once, and the
+     * latter runs on the accessibility service's minute tick — one write per
+     * app there re-serializes the whole cooldown store per app on the service's
+     * main thread, which is an ANR the user experiences as blocking silently
+     * switching off.
+     */
+    fun startSeals(requests: List<SealRequest>) {
+        if (requests.isEmpty()) return
         val states = loadCooldownStates().toMutableMap()
-        val existingNumber = states[packageName]?.cooldownNumber ?: 0
-        states[packageName] = CooldownState(
-            packageName = packageName,
-            cooldownExpiryMillis = now + config.cooldownMinutes.toLong() * 60 * 1000,
-            attemptCount = 0,
-            cooldownNumber = existingNumber
-        )
+        for (request in requests) {
+            states[request.packageName] = sealStateFor(request, states[request.packageName])
+            // Clear in-session tracking so returning later starts a fresh session
+            sessionStartTimes.remove(request.packageName)
+        }
         saveCooldownStates(states)
-        sessionStartTimes.remove(packageName)
-        Log.d(tag, "Panic seal started for $packageName: ${config.cooldownMinutes}m")
+        Log.d(tag, "Sealed ${requests.size} app(s)")
+    }
+
+    /**
+     * The one definition of a seal's duration and escalation bookkeeping,
+     * shared by every entry point above.
+     */
+    private fun sealStateFor(request: SealRequest, existing: CooldownState?): CooldownState {
+        val previousNumber = existing?.cooldownNumber ?: 0
+        val config = request.config
+        val baseDuration = config.cooldownMinutes.toLong() * 60 * 1000
+        if (!request.countsAsOffence) {
+            return CooldownState(
+                packageName = request.packageName,
+                cooldownExpiryMillis = request.anchorMillis + baseDuration,
+                attemptCount = 0,
+                cooldownNumber = previousNumber
+            )
+        }
+        val cooldownNumber = previousNumber + 1
+        val escalationExtra = if (config.cooldownEscalationEnabled) {
+            (cooldownNumber - 1) * config.cooldownEscalationStepMinutes.toLong() * 60 * 1000
+        } else 0L
+        return CooldownState(
+            packageName = request.packageName,
+            cooldownExpiryMillis = request.anchorMillis + baseDuration + escalationExtra,
+            attemptCount = 0,
+            cooldownNumber = cooldownNumber
+        )
     }
 
     /**
