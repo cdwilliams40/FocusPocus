@@ -1,7 +1,9 @@
 package com.infinicada.focuspocus.limit
 
+import com.infinicada.focuspocus.calendarDayToDayOfWeek
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.DayOfWeek
+import com.infinicada.focuspocus.parseScheduleMinutes
 import java.util.Calendar
 
 /**
@@ -78,24 +80,8 @@ object GuardWindow {
             (parseMinutes(config.activeStartTime) != null && parseMinutes(config.activeEndTime) != null)
 
     /** "HH:mm" → minutes since midnight, or null when absent/malformed. */
-    fun parseMinutes(time: String?): Int? {
-        if (time.isNullOrBlank()) return null
-        val parts = time.split(":")
-        if (parts.size != 2) return null
-        val hour = parts[0].toIntOrNull() ?: return null
-        val minute = parts[1].toIntOrNull() ?: return null
-        if (hour !in 0..23 || minute !in 0..59) return null
-        return hour * 60 + minute
-    }
+    fun parseMinutes(time: String?): Int? = parseScheduleMinutes(time)
 
-    private fun dayOfWeekOf(cal: Calendar): DayOfWeek? = when (cal.get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> DayOfWeek.MONDAY
-        Calendar.TUESDAY -> DayOfWeek.TUESDAY
-        Calendar.WEDNESDAY -> DayOfWeek.WEDNESDAY
-        Calendar.THURSDAY -> DayOfWeek.THURSDAY
-        Calendar.FRIDAY -> DayOfWeek.FRIDAY
-        Calendar.SATURDAY -> DayOfWeek.SATURDAY
-        Calendar.SUNDAY -> DayOfWeek.SUNDAY
-        else -> null
-    }
+    private fun dayOfWeekOf(cal: Calendar): DayOfWeek? =
+        calendarDayToDayOfWeek(cal.get(Calendar.DAY_OF_WEEK))
 }

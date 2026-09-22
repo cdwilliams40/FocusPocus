@@ -820,4 +820,7 @@
     <string name="backup_import_confirm_title">Restore from backup?</string>
     <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
     <string name="backup_import_confirm_yes">Choose file</string>
+    <string name="tile_quick_spell_label">Quick Spell</string>
+    <string name="tile_quick_spell_active">Focusing</string>
+    <string name="tile_quick_spell_none">No Quick Spell yet</string>
 </resources>

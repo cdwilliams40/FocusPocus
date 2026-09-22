@@ -32,6 +32,7 @@ object SessionManager {
             remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
             // Extra-break perk tokens are session-scoped; never inherit one
             remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
+            BreakClock.reset(this)
 
             if (scheduleId != null) {
                 putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, scheduleId)
@@ -94,6 +95,7 @@ object SessionManager {
             remove(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS)
             remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
             remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
+            BreakClock.reset(this)
         }
 
         DndController.updateDndState(context)

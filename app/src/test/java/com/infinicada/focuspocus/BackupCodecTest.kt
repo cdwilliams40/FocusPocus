@@ -146,6 +146,8 @@ class BackupCodecTest {
             Constants.PrefsKeys.BREAKS_USED_THIS_SESSION,
             Constants.PrefsKeys.BREAK_TIME_REMAINING,
             Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
+            Constants.PrefsKeys.BREAK_START_TIME_MILLIS,
+            Constants.PrefsKeys.SESSION_BREAK_MILLIS,
             Constants.PrefsKeys.FOCUS_DURATION_MINUTES,
             Constants.PrefsKeys.FOCUS_TIME_REMAINING,
             Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
@@ -202,5 +204,74 @@ class BackupCodecTest {
         assertTrue(fresh.getBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, false))
         assertEquals(20, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, -1))
         assertEquals(45, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, -1))
+    }
+
+    @Test
+    fun `restore keeps enforced per-app pacts and queues the backup's terms`() {
+        // Backup made before the pact existed: no config for com.a at all.
+        prefs.putString(Constants.PrefsKeys.THEME_MODE, "DARK")
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+
+        val device = FakeSharedPreferences()
+        val pact = com.infinicada.focuspocus.model.AppTimeLimit(
+            packageName = "com.a", dailyLimitMinutes = 0, pactModeEnabled = true
+        )
+        AppTimeLimitManager.saveTimeLimitConfigs(device, gson, mapOf("com.a" to pact))
+
+        BackupCodec.import(device, gson, json, now = t0)
+
+        assertEquals(pact, AppTimeLimitManager.getTimeLimitConfigs(device, gson)["com.a"])
+        val revision = com.infinicada.focuspocus.limit.PactRevisionManager(device, gson)
+            .revisionForApp("com.a")
+        org.junit.Assert.assertNotNull(revision)
+        assertTrue(revision!!.isRemoval)
+        assertEquals(
+            t0 + com.infinicada.focuspocus.limit.PactRevisionManager.REVISION_DELAY_MS,
+            revision.appliesAtMillis
+        )
+        // Everything else still restores normally.
+        assertEquals("DARK", device.getString(Constants.PrefsKeys.THEME_MODE, null))
+    }
+
+    @Test
+    fun `restore keeps an enforced pact circle and its enchantment's apps`() {
+        prefs.putString(
+            Constants.PrefsKeys.BLOCKER_LISTS,
+            """[{"name":"Social","mode":"BLACKLIST","apps":[]}]"""
+        )
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+
+        val device = FakeSharedPreferences()
+        device.putString(
+            Constants.PrefsKeys.BLOCKER_LISTS,
+            """[{"name":"Social","mode":"BLACKLIST","apps":["com.b"]}]"""
+        )
+        val circle = com.infinicada.focuspocus.model.PactGroup(blockerName = "Social")
+        com.infinicada.focuspocus.limit.PactManager(device, gson).saveGroup(circle)
+
+        BackupCodec.import(device, gson, json, now = t0)
+
+        assertEquals(listOf(circle), com.infinicada.focuspocus.limit.PactManager(device, gson).getGroups())
+        assertEquals(
+            setOf("com.b"),
+            BlockerRepository.getBlocker(device, "Social")?.effectiveApps
+        )
+        val revision = com.infinicada.focuspocus.limit.PactRevisionManager(device, gson)
+            .revisionForCircle("Social")
+        assertTrue(revision!!.isRemoval)
+    }
+
+    @Test
+    fun `restore with identical pact terms queues nothing`() {
+        val pact = com.infinicada.focuspocus.model.AppTimeLimit(
+            packageName = "com.a", dailyLimitMinutes = 0, pactModeEnabled = true
+        )
+        AppTimeLimitManager.saveTimeLimitConfigs(prefs, gson, mapOf("com.a" to pact))
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+
+        BackupCodec.import(prefs, gson, json, now = t0)
+
+        assertTrue(com.infinicada.focuspocus.limit.PactRevisionManager(prefs, gson).getRevisions().isEmpty())
+        assertEquals(pact, AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)["com.a"])
     }
 }

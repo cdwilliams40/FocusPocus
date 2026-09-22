@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome sparkle for the Quick Spell Quick Settings tile; the system tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2L14.2,9.8L22,12L14.2,14.2L12,22L9.8,14.2L2,12L9.8,9.8Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M19,2L19.7,4.3L22,5L19.7,5.7L19,8L18.3,5.7L16,5L18.3,4.3Z" />
+</vector>

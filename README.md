@@ -18,6 +18,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - One-tap activation for common focus scenarios like "Deep Work", "Quick Focus", or "Sleep Mode"
 - Bind Quick Spells to NFC talismans for physical activation
 - Activate via deep links (`focuspocus://preset`)
+- **Quick Settings tile**: cast your first Quick Spell straight from the notification shade (while a session runs, the tile opens the app instead of ending it)
 
 ### Scheduled Rituals
 - Schedule automatic focus sessions for specific days and times
@@ -83,6 +84,7 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - Export enchantments, guards, rituals, presets, talismans, history, and settings to a JSON file; restore on a reinstall or a new phone
 - Live session state and running seals deliberately stay on the device, so a restore can't resurrect a stale seal
 - Restores are versioned, validated, and applied atomically before an automatic app restart
+- A restore can't be used to break a commitment: it's refused during a focus session, and pacts you currently have keep their terms — where the backup differs, the change is queued behind the usual 24-hour cooling-off
 
 ### Conditional Unlocks
 - Earn access to blocked apps by first spending time in a productive one

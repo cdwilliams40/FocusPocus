@@ -4,6 +4,13 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.PactRevisionManager
+import com.infinicada.focuspocus.limit.PendingPactRevision
+import com.infinicada.focuspocus.model.AppTimeLimit
+import com.infinicada.focuspocus.model.PactGroup
 
 /**
  * Grimoire export/import: serializes the app's configuration and history to a
@@ -138,8 +145,16 @@ object BackupCodec {
      * all in one synchronous commit so the process can safely restart right
      * after. Keys outside the export list — including live enforcement
      * state — are never touched.
+     *
+     * Pacts enforced on this device are the one exception to plain replace:
+     * see [holdEnforcedPacts].
      */
-    fun import(prefs: SharedPreferences, gson: Gson, json: String): ImportResult {
+    fun import(
+        prefs: SharedPreferences,
+        gson: Gson,
+        json: String,
+        now: Long = System.currentTimeMillis()
+    ): ImportResult {
         val file = try {
             gson.fromJson(json, BackupFile::class.java)
         } catch (e: JsonSyntaxException) {
@@ -147,6 +162,8 @@ object BackupCodec {
         } ?: return ImportResult.InvalidFormat
         if (file.format != FORMAT || file.prefs == null) return ImportResult.InvalidFormat
         if (file.formatVersion > FORMAT_VERSION) return ImportResult.UnsupportedVersion
+
+        val heldPacts = holdEnforcedPacts(prefs, gson, file.prefs, now)
 
         var restored = 0
         // commit = true, not apply(): the caller restarts the process
@@ -167,7 +184,106 @@ object BackupCodec {
                 }
                 if (applied) restored++
             }
+            heldPacts?.forEach { (key, value) -> putString(key, value) }
         }
         return ImportResult.Success(restored)
+    }
+
+    /**
+     * A restore must not be a way around the pact cooling-off: every pact the
+     * device currently enforces keeps its current terms, and wherever the
+     * backup's terms differ they are queued as a normal 24 h revision instead
+     * (a pact missing from the backup queues as a removal) — exactly what
+     * editing the pact in the app would do. Enchantments bound to an enforced
+     * circle keep their current app list too, since shrinking the list would
+     * loosen the circle immediately.
+     *
+     * Returns the store values to write over the restored ones, or null when
+     * no pact is enforced and the restore is a plain replace.
+     */
+    private fun holdEnforcedPacts(
+        prefs: SharedPreferences,
+        gson: Gson,
+        backup: Map<String, PrefEntry?>,
+        now: Long
+    ): Map<String, String>? {
+        val currentConfigs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
+        val currentGroups = PactManager(prefs, gson).getGroups()
+        val currentBlockers = BlockerRepository.getBlockers(prefs)
+        val gated = GuardStatus.pactGatedPackages(currentConfigs, currentGroups, currentBlockers)
+        if (gated.isEmpty() && currentGroups.isEmpty()) return null
+
+        fun backupString(key: String): String? =
+            backup[key]?.takeIf { it.type == "string" }?.value
+        fun <T> parse(key: String, type: java.lang.reflect.Type): T? = try {
+            backupString(key)?.let { gson.fromJson<T>(it, type) }
+        } catch (e: Exception) {
+            null
+        }
+
+        // Same fallback as AppTimeLimitManager's migration: an old backup may
+        // carry only the legacy flat daily-limit map.
+        val incomingConfigs: MutableMap<String, AppTimeLimit> =
+            (parse<Map<String, AppTimeLimit>>(
+                Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS,
+                object : TypeToken<Map<String, AppTimeLimit>>() {}.type
+            ) ?: parse<Map<String, Int>>(
+                Constants.PrefsKeys.APP_TIME_LIMITS,
+                object : TypeToken<Map<String, Int>>() {}.type
+            )?.mapValues { (pkg, minutes) -> AppTimeLimit(packageName = pkg, dailyLimitMinutes = minutes) }
+                ?: emptyMap()).toMutableMap()
+        @Suppress("SENSELESS_COMPARISON")
+        val incomingGroups: MutableList<PactGroup> = (parse<List<PactGroup>>(
+            Constants.PrefsKeys.PACT_GROUPS, object : TypeToken<List<PactGroup>>() {}.type
+        ) ?: emptyList()).filterNotNull().filter { it.blockerName != null }.toMutableList()
+        val incomingBlockers: MutableList<Blocker> = Blocker.sanitize(
+            parse<List<Blocker>>(Constants.PrefsKeys.BLOCKER_LISTS, object : TypeToken<List<Blocker>>() {}.type)
+        ).toMutableList()
+
+        val revisions = PactRevisionManager(prefs, gson).getRevisions().toMutableList()
+        val appliesAt = now + PactRevisionManager.REVISION_DELAY_MS
+
+        for (group in currentGroups) {
+            val incoming = incomingGroups.find { it.blockerName == group.blockerName }
+            if (incoming != group) {
+                incomingGroups.removeAll { it.blockerName == group.blockerName }
+                incomingGroups += group
+                revisions.removeAll { it.packageName == null && it.blockerName == group.blockerName }
+                revisions += PendingPactRevision(
+                    blockerName = group.blockerName,
+                    newGroup = incoming,
+                    requestedAtMillis = now,
+                    appliesAtMillis = appliesAt
+                )
+            }
+            currentBlockers.find { it.name == group.blockerName }?.let { current ->
+                val index = incomingBlockers.indexOfFirst { it.name == current.name }
+                if (index >= 0) incomingBlockers[index] = current else incomingBlockers += current
+            }
+        }
+
+        for (pkg in gated) {
+            val current = currentConfigs[pkg]
+            val incoming = incomingConfigs[pkg]
+            if (incoming == current) continue
+            if (current != null) incomingConfigs[pkg] = current else incomingConfigs.remove(pkg)
+            revisions.removeAll { it.packageName == pkg }
+            revisions += PendingPactRevision(
+                packageName = pkg,
+                newConfig = incoming,
+                requestedAtMillis = now,
+                appliesAtMillis = appliesAt
+            )
+        }
+
+        return mapOf(
+            Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS to gson.toJson(incomingConfigs),
+            // Kept in lockstep with the config map, as saveTimeLimitConfigs does.
+            Constants.PrefsKeys.APP_TIME_LIMITS to
+                gson.toJson(incomingConfigs.mapValues { (_, v) -> v.dailyLimitMinutes }),
+            Constants.PrefsKeys.PACT_GROUPS to gson.toJson(incomingGroups),
+            Constants.PrefsKeys.BLOCKER_LISTS to gson.toJson(incomingBlockers),
+            Constants.PrefsKeys.PACT_PENDING_REVISIONS to gson.toJson(revisions)
+        )
     }
 }

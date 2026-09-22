@@ -86,6 +86,7 @@ class TriggerHandler(
                     // countdown when the break expires.
                     val focusEnd = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
                     prefs.edit {
+                        com.infinicada.focuspocus.BreakClock.markStarted(prefs, this, now)
                         putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
                         putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakSeconds)
                         putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakSeconds * 1000L)

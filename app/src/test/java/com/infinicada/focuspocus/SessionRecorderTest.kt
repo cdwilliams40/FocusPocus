@@ -238,4 +238,30 @@ class SessionRecorderTest {
         assertTrue(result.unlockedSigils.any { it.id == "first_spell" })
         assertTrue(fakePrefs.getString(Constants.PrefsKeys.UNLOCKED_SIGILS, "")!!.contains("first_spell"))
     }
+
+    @Test
+    fun testRecord_excludesBankedAndRunningBreakTime() {
+        val now = System.currentTimeMillis()
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 30 * 60_000L)
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, "TestBlocker")
+        // 5 minutes of earlier breaks, plus a break running for the last 10.
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, 5 * 60_000L)
+        fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+        fakePrefs.putLong(Constants.PrefsKeys.BREAK_START_TIME_MILLIS, now - 10 * 60_000L)
+
+        val result = SessionRecorder.record(fakePrefs, gson)
+
+        assertEquals(15, result.recorded?.durationMinutes)
+    }
+
+    @Test
+    fun testBreakClock_banksBreakOnEnd() {
+        val t0 = 1_000_000_000_000L
+        fakePrefs.edit().also { BreakClock.markStarted(fakePrefs, it, t0) }.commit()
+        fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+        fakePrefs.edit().also { BreakClock.markEnded(fakePrefs, it, t0 + 4 * 60_000L) }.commit()
+
+        assertEquals(4 * 60_000L, fakePrefs.getLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, 0L))
+        assertEquals(0L, fakePrefs.getLong(Constants.PrefsKeys.BREAK_START_TIME_MILLIS, 0L))
+    }
 }

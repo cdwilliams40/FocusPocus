@@ -490,10 +490,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         val notificationManager = getApplication<Application>()
             .getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
         if (notificationManager != null) {
-            val hash = schedule.id.fold(0) { acc, c -> acc * 31 + c.code }
-            val baseId = (hash and 0x7FFFFFFE)
-            notificationManager.cancel(baseId)
-            notificationManager.cancel(baseId + 1)
+            notificationManager.cancel(
+                com.infinicada.focuspocus.RitualNotifier.notificationId(schedule.id, isEndNotification = false)
+            )
+            notificationManager.cancel(
+                com.infinicada.focuspocus.RitualNotifier.notificationId(schedule.id, isEndNotification = true)
+            )
         }
         _dataVersion.value++
         com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())

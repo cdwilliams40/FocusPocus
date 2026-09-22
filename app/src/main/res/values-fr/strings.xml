@@ -849,4 +849,7 @@
     <string name="backup_import_confirm_title">Restaurer une sauvegarde ?</string>
     <string name="backup_import_confirm_message">La restauration remplace vos enchantements, pactes, rituels, historique et réglages actuels par ceux de la sauvegarde, puis redémarre l\'application. C\'est irréversible.</string>
     <string name="backup_import_confirm_yes">Choisir le fichier</string>
+    <string name="tile_quick_spell_label">Sort rapide</string>
+    <string name="tile_quick_spell_active">Concentration en cours</string>
+    <string name="tile_quick_spell_none">Aucun sort rapide</string>
 </resources>

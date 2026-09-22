@@ -60,7 +60,9 @@ object SessionRecorder {
         val focusEnd = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
         val scheduleEnd = prefs.getLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, 0L)
         val endTime = listOf(focusEnd, scheduleEnd).filter { it in 1 until now }.minOrNull() ?: now
-        val durationMin = ((endTime - startTime) / 60000).toInt()
+        // Break time isn't focus time: nothing was blocked while it ran.
+        val breakMillis = BreakClock.breakMillisUntil(prefs, endTime)
+        val durationMin = ((endTime - startTime - breakMillis) / 60000).toInt()
         if (durationMin < 1) return RecordResult(emptyList())
 
         val blockerName = run {

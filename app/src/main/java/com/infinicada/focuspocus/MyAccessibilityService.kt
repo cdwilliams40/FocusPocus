@@ -1,7 +1,6 @@
 package com.infinicada.focuspocus
 
 import android.accessibilityservice.AccessibilityService
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -29,7 +28,6 @@ import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
-import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.Schedule
 import java.util.Calendar
 
@@ -205,6 +203,12 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun onMinuteTick() {
+        // The default launcher and enabled keyboards can change without any
+        // package broadcast (the user just picks a different home app), so
+        // re-resolve them once a minute rather than only on installs.
+        launcherCacheResolved = false
+        cachedInputMethodPackageNames = null
+
         enforceTimedSessionExpiry()
         checkSchedules()
         maybeStartAutoBreak()
@@ -384,7 +388,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
         packageReceiverRegistered = true
 
-        createNotificationChannel()
+        RitualNotifier.createChannel(this)
     }
 
     override fun onDestroy() {
@@ -405,24 +409,10 @@ class MyAccessibilityService : AccessibilityService() {
                 Log.e("MyAccessibilityService", "Error unregistering package receiver", e)
             }
         }
-        // Flush pending block events (prefs are only wired once the service connected)
+        // Flush pending block events (prefs are only wired once the service
+        // connected); shutdown() still runs every queued write.
         if (::sharedPreferences.isInitialized) flushBlockEvents()
-    }
-
-    private fun createNotificationChannel() {
-        try {
-            val name = getString(R.string.rituals_channel_name)
-            val descriptionText = getString(R.string.rituals_channel_description)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(Constants.RITUALS_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.createNotificationChannel(channel)
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Failed to create notification channel", e)
-        }
+        blockEventWriter.shutdown()
     }
 
     /**
@@ -452,53 +442,14 @@ class MyAccessibilityService : AccessibilityService() {
 
         if (schedules.isEmpty()) return
 
-        val now = Calendar.getInstance()
-        val currentHour = now.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = now.get(Calendar.MINUTE)
-        val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK)) ?: return
-
-        // Also derive yesterday's DayOfWeek for overnight carry-over checks.
-        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-        val previousDay = mapCalendarDayToDayOfWeek(yesterdayCal.get(Calendar.DAY_OF_WEEK))
-
+        // isScheduleActiveAt carries the overnight rule: only the evening part
+        // counts on the scheduled day itself, while the early-morning hours
+        // belong to the previous day's session (a Friday-only 22:00–06:00
+        // ritual is active Saturday 03:00, not Friday 03:00).
+        val now = System.currentTimeMillis()
         for (schedule in schedules) {
             try {
-                val startParts = schedule.effectiveStartTime.split(":")
-                val endParts = schedule.effectiveEndTime.split(":")
-                if (startParts.size != 2 || endParts.size != 2) continue
-
-                val startHour = startParts[0].toIntOrNull() ?: continue
-                val startMinute = startParts[1].toIntOrNull() ?: continue
-                val endHour = endParts[0].toIntOrNull() ?: continue
-                val endMinute = endParts[1].toIntOrNull() ?: continue
-                if (startHour !in 0..23 || startMinute !in 0..59 || endHour !in 0..23 || endMinute !in 0..59) continue
-
-                val startMins = startHour * 60 + startMinute
-                val endMins = endHour * 60 + endMinute
-                val currentMins = currentHour * 60 + currentMinute
-                // Overnight = end is before start (wraps past midnight).
-                val overnight = endMins < startMins
-
-                // A window that opened today. For overnight schedules only the
-                // evening part counts on the scheduled day itself — the early
-                // morning hours belong to the *previous* day's session, so a
-                // Friday-only 22:00–06:00 schedule must not light up Friday at
-                // 03:00.
-                val activeFromToday = schedule.effectiveDays.contains(currentDay) &&
-                    if (overnight) {
-                        currentMins >= startMins
-                    } else {
-                        currentMins >= startMins && currentMins < endMins
-                    }
-
-                // An overnight window that opened yesterday and carries over
-                // into this morning.
-                val activeFromYesterday = overnight && previousDay != null &&
-                    schedule.effectiveDays.contains(previousDay) && currentMins < endMins
-
-                val inWindow = activeFromToday || activeFromYesterday
-
-                if (inWindow) {
+                if (isScheduleActiveAt(schedule, now)) {
                     Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
                     activateSchedule(schedule)
                     return
@@ -527,6 +478,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // clock from the frozen remaining value so expiry keeps being enforced.
                 val focusRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
                 sharedPreferences.edit {
+                    BreakClock.markEnded(sharedPreferences, this, now)
                     putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
                     putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
                     remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
@@ -599,6 +551,7 @@ class MyAccessibilityService : AccessibilityService() {
         // Freeze the focus countdown for the duration of the break.
         val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
         sharedPreferences.edit {
+            BreakClock.markStarted(sharedPreferences, this, now)
             putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
             putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakDuration * 60)
             putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
@@ -678,7 +631,7 @@ class MyAccessibilityService : AccessibilityService() {
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val currentMinute = now.get(Calendar.MINUTE)
-        val currentDay = mapCalendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
+        val currentDay = calendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
 
         // Check if an active schedule has ended (handles missed end times and overnight schedules)
         val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
@@ -701,11 +654,12 @@ class MyAccessibilityService : AccessibilityService() {
                     Log.e("MyAccessibilityService", "Error parsing schedule end time", e)
                 }
             } else {
-                // The active schedule was deleted while the session was running.
-                // Clear the dangling reference so focus mode can deactivate and new
-                // schedules can activate again.
-                Log.w("MyAccessibilityService", "Active schedule $activeScheduleId no longer exists, clearing dangling reference")
-                sharedPreferences.edit { remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID) }
+                // The active schedule was deleted while the session was running
+                // (e.g. orphan cleanup after its enchantment was deleted). End the
+                // session: only clearing the id left MANUAL_FOCUS_MODE on as an
+                // endless untimed session, stuck if the stop button is hidden.
+                Log.w("MyAccessibilityService", "Active schedule $activeScheduleId no longer exists, ending its session")
+                SessionManager.stopSession(this, sharedPreferences, gson)
             }
         }
 
@@ -716,15 +670,11 @@ class MyAccessibilityService : AccessibilityService() {
         schedules.forEach { schedule ->
             try {
                 if (schedule.effectiveDays.contains(currentDay)) {
-                    val parts = schedule.effectiveStartTime.split(":")
-                    if (parts.size == 2) {
-                        val startHour = parts[0].toIntOrNull() ?: -1
-                        val startMinute = parts[1].toIntOrNull() ?: -1
-                        if (startHour !in 0..23 || startMinute !in 0..59) {
-                            Log.e("MyAccessibilityService", "Invalid schedule start time: ${schedule.effectiveStartTime}")
-                        } else if (startHour == currentHour && startMinute == currentMinute) {
-                            activateSchedule(schedule)
-                        }
+                    val startMins = parseScheduleMinutes(schedule.effectiveStartTime)
+                    if (startMins == null) {
+                        Log.e("MyAccessibilityService", "Invalid schedule start time: ${schedule.effectiveStartTime}")
+                    } else if (startMins == currentHour * 60 + currentMinute) {
+                        activateSchedule(schedule)
                     }
                 }
             } catch (e: Exception) {
@@ -732,21 +682,6 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
     }
-
-    private fun mapCalendarDayToDayOfWeek(calendarDay: Int): DayOfWeek? {
-        return when (calendarDay) {
-            Calendar.MONDAY -> DayOfWeek.MONDAY
-            Calendar.TUESDAY -> DayOfWeek.TUESDAY
-            Calendar.WEDNESDAY -> DayOfWeek.WEDNESDAY
-            Calendar.THURSDAY -> DayOfWeek.THURSDAY
-            Calendar.FRIDAY -> DayOfWeek.FRIDAY
-            Calendar.SATURDAY -> DayOfWeek.SATURDAY
-            Calendar.SUNDAY -> DayOfWeek.SUNDAY
-            else -> null
-        }
-    }
-
-    // shouldDeactivateSchedule and isWithinScheduleWindow are top-level functions in ScheduleUtils.kt
 
     private fun activateSchedule(schedule: Schedule) {
         // Validate that at least one of the schedule's blockers still exists
@@ -774,12 +709,7 @@ class MyAccessibilityService : AccessibilityService() {
         DndController.updateDndState(this)
         DeviceOwnerManager.syncSuspensions(this)
 
-        sendRitualNotification(
-            title = getString(R.string.ritual_started_title),
-            message = getString(R.string.ritual_started_message, schedule.name),
-            scheduleId = schedule.id,
-            isEndNotification = false
-        )
+        RitualNotifier.postStarted(this, schedule)
     }
 
     // computeScheduleEndMillis is a shared top-level function in ScheduleUtils.kt,
@@ -788,50 +718,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun deactivateSchedule(schedule: Schedule) {
         SessionManager.stopSession(this, sharedPreferences, gson)
 
-        sendRitualNotification(
-            title = getString(R.string.ritual_ended_title),
-            message = getString(R.string.ritual_ended_message, schedule.name),
-            scheduleId = schedule.id,
-            isEndNotification = true
-        )
-    }
-
-    /**
-     * Generate a stable notification ID from a schedule ID.
-     * Uses a more distributed hash to reduce collision risk.
-     * Multiplies by a prime and XOR-folds to spread values across the int range.
-     * Separate ranges for start (even) and end (odd) notifications.
-     */
-    private fun getNotificationId(scheduleId: String, isEndNotification: Boolean): Int {
-        val hash = scheduleId.fold(0) { acc, c -> acc * 31 + c.code }
-        val baseId = (hash and 0x7FFFFFFE) // Ensure positive and even
-        return if (isEndNotification) baseId + 1 else baseId
-    }
-
-    private fun sendRitualNotification(title: String, message: String, scheduleId: String, isEndNotification: Boolean) {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, Constants.RITUALS_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo_round)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-
-        try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            if (notificationManager == null) {
-                Log.e("MyAccessibilityService", "NotificationManager unavailable")
-                return
-            }
-            notificationManager.notify(getNotificationId(scheduleId, isEndNotification), builder.build())
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Failed to send ritual notification", e)
-        }
+        RitualNotifier.postEnded(this, schedule)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -1184,6 +1071,21 @@ class MyAccessibilityService : AccessibilityService() {
             pendingBlockEvents.clear()
         }
         lastBlockEventWriteTime = System.currentTimeMillis()
+        // Parsing and re-serializing up to MAX_BLOCK_EVENTS entries is too
+        // heavy for the service's main thread (an ANR there silently disables
+        // all blocking). One single-thread executor keeps writes ordered and
+        // owns the block-event cache below.
+        try {
+            blockEventWriter.execute { writeBlockEvents(eventsToWrite) }
+        } catch (e: java.util.concurrent.RejectedExecutionException) {
+            // Executor already shut down (service destroyed): write inline.
+            writeBlockEvents(eventsToWrite)
+        }
+    }
+
+    private val blockEventWriter = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    private fun writeBlockEvents(eventsToWrite: List<BlockEvent>) {
         val json = sharedPreferences.getString(Constants.PrefsKeys.BLOCK_EVENTS, null)
         val existing: MutableList<BlockEvent> = when {
             json == null -> mutableListOf()

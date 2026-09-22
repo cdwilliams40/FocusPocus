@@ -172,6 +172,7 @@ class SessionRepository(
                 remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                 // Extra-break perk tokens are session-scoped; never inherit one
                 remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
+                com.infinicada.focuspocus.BreakClock.reset(this)
             }
         }
         // Talisman sessions engage DND and device-owner suspensions like any other session.
@@ -228,6 +229,7 @@ class SessionRepository(
                 remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                 remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
                 remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
+                com.infinicada.focuspocus.BreakClock.reset(this)
             }
         }
         DndController.updateDndState(context)
@@ -243,7 +245,13 @@ class SessionRepository(
         breaksUsed: Int,
         focusTimeRemaining: Int = 0
     ) {
+        val now = System.currentTimeMillis()
         prefs.edit {
+            if (isOnBreak && breakTimeRemaining > 0) {
+                com.infinicada.focuspocus.BreakClock.markStarted(prefs, this, now)
+            } else {
+                com.infinicada.focuspocus.BreakClock.markEnded(prefs, this, now)
+            }
             putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
             putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
             putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed)
@@ -281,10 +289,14 @@ class SessionRepository(
         }
     }
 
+    /**
+     * Ends a ritual session whose schedule no longer exists. Clearing only the
+     * id would leave manual focus mode on as an endless untimed session.
+     */
     fun clearDanglingActiveSchedule(scheduleIds: Set<String>): String? {
         val activeId = getActiveScheduleId() ?: return null
         if (activeId !in scheduleIds) {
-            prefs.edit { remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID) }
+            stopSession()
             return null
         }
         return activeId

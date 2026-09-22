@@ -28,6 +28,10 @@ object Constants {
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"
         const val BREAK_END_TIME_MILLIS = "breakEndTimeMillis"
+        // Wall-clock start of the running break, and break time already spent
+        // this session — subtracted from the recorded focus duration (BreakClock).
+        const val BREAK_START_TIME_MILLIS = "breakStartTimeMillis"
+        const val SESSION_BREAK_MILLIS = "sessionBreakMillis"
         const val MAX_BREAKS_PER_SESSION = "maxBreaksPerSession"
 
         // Auto-break (Pomodoro) keys

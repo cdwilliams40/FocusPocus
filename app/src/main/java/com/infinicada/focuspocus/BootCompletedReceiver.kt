@@ -14,9 +14,11 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 DndController.updateDndState(context)
                 DeviceOwnerManager.applySelfProtection(context)
                 DeviceOwnerManager.syncSuspensions(context)
-                // Alarms don't survive reboots (and clock changes move the
-                // target) — re-arm the ritual backstop.
-                RitualAlarmScheduler.scheduleNext(context)
+                // Bring ritual state in line with the schedule table now — a
+                // ritual whose window closed while the phone was off ends, and
+                // one whose window is open starts — then re-arm the backstop
+                // alarm, which neither reboots nor clock changes preserve.
+                RitualAlarmScheduler.onAlarmFired(context)
             }
         }
     }
