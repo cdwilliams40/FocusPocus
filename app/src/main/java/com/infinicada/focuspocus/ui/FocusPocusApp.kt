@@ -507,6 +507,12 @@ fun FocusPocusApp(
                             context.getString(R.string.backup_import_newer),
                             Toast.LENGTH_LONG
                         ).show()
+                    is com.infinicada.focuspocus.BackupCodec.ImportResult.SessionActive ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.backup_import_session_active),
+                            Toast.LENGTH_LONG
+                        ).show()
                     else ->
                         Toast.makeText(
                             context,

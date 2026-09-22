@@ -93,6 +93,12 @@ object BackupCodec {
         data class Success(val restoredKeys: Int) : ImportResult()
         object InvalidFormat : ImportResult()
         object UnsupportedVersion : ImportResult()
+        /**
+         * Refused because a focus session is running: a restore replaces
+         * enchantments and pacts wholesale, which would dissolve the running
+         * session's blocks and skip the pact cooling-off ledger.
+         */
+        object SessionActive : ImportResult()
     }
 
     fun export(

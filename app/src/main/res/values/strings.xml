@@ -816,6 +816,7 @@
     <string name="backup_import_done">Backup restored — restarting</string>
     <string name="backup_import_invalid">That file isn\'t a Focus Pocus backup</string>
     <string name="backup_import_newer">This backup comes from a newer version of Focus Pocus</string>
+    <string name="backup_import_session_active">Finish your focus session before restoring a backup</string>
     <string name="backup_import_confirm_title">Restore from backup?</string>
     <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
     <string name="backup_import_confirm_yes">Choose file</string>

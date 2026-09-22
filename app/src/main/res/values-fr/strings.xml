@@ -845,6 +845,7 @@
     <string name="backup_import_done">Sauvegarde restaurée — redémarrage</string>
     <string name="backup_import_invalid">Ce fichier n\'est pas une sauvegarde Focus Pocus</string>
     <string name="backup_import_newer">Cette sauvegarde provient d\'une version plus récente de Focus Pocus</string>
+    <string name="backup_import_session_active">Terminez votre session de concentration avant de restaurer une sauvegarde</string>
     <string name="backup_import_confirm_title">Restaurer une sauvegarde ?</string>
     <string name="backup_import_confirm_message">La restauration remplace vos enchantements, pactes, rituels, historique et réglages actuels par ceux de la sauvegarde, puis redémarre l\'application. C\'est irréversible.</string>
     <string name="backup_import_confirm_yes">Choisir le fichier</string>

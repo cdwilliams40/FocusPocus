@@ -310,14 +310,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         false
     }
 
-    /** Reads and replace-restores a backup from [uri]. Null = unreadable file. */
-    fun importBackup(uri: android.net.Uri): BackupCodec.ImportResult? = try {
-        getApplication<Application>().contentResolver.openInputStream(uri)
-            ?.use { it.readBytes().toString(Charsets.UTF_8) }
-            ?.let { BackupCodec.import(appPrefs, gson, it) }
-    } catch (e: Exception) {
-        Log.e("SettingsViewModel", "Backup import failed", e)
-        null
+    /**
+     * Reads and replace-restores a backup from [uri]. Null = unreadable file.
+     * Refused while a session runs: a restore swaps enchantments and pacts
+     * wholesale, which would be a one-tap escape from the session's blocks.
+     */
+    fun importBackup(uri: android.net.Uri): BackupCodec.ImportResult? {
+        if (appPrefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
+            appPrefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
+        ) {
+            return BackupCodec.ImportResult.SessionActive
+        }
+        return try {
+            getApplication<Application>().contentResolver.openInputStream(uri)
+                ?.use { it.readBytes().toString(Charsets.UTF_8) }
+                ?.let { BackupCodec.import(appPrefs, gson, it) }
+        } catch (e: Exception) {
+            Log.e("SettingsViewModel", "Backup import failed", e)
+            null
+        }
     }
 
     /**

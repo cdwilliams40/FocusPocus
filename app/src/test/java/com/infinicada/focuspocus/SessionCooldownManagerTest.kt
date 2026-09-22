@@ -1,6 +1,7 @@
 package com.infinicada.focuspocus
 
 import com.google.gson.Gson
+import com.infinicada.focuspocus.limit.CooldownState
 import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import org.junit.Assert.assertEquals
@@ -291,5 +292,15 @@ class SessionCooldownManagerTest {
 
         assertEquals(0, manager.getInSessionMinutes(pkg, now = t0 + 6 * 60_000L))
         assertEquals(0, manager.getInSessionMinutes(other, now = t0 + 6 * 60_000L))
+    }
+
+    @Test
+    fun `minutesRemaining rounds partial minutes up and exact minutes exactly`() {
+        val now = 1_000_000L
+        fun state(msLeft: Long) = CooldownState("pkg", cooldownExpiryMillis = now + msLeft)
+        assertEquals(1, SessionCooldownManager.minutesRemaining(state(60_000L), now))
+        assertEquals(2, SessionCooldownManager.minutesRemaining(state(60_001L), now))
+        assertEquals(1, SessionCooldownManager.minutesRemaining(state(1L), now))
+        assertEquals(0, SessionCooldownManager.minutesRemaining(state(0L), now))
     }
 }

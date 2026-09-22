@@ -189,6 +189,16 @@ class ScheduleUtilsTest {
     }
 
     @Test
+    fun `isScheduleActiveAt ends a ritual whose end was missed into an unscheduled day`() {
+        // A Tuesday-only 09:00-17:00 ritual still marked active on Wednesday at
+        // 10:00 (phone off across its end) must read inactive, even though
+        // 10:00 falls inside the time-of-day window.
+        val tuesdayOnly = setOf(com.infinicada.focuspocus.model.DayOfWeek.TUESDAY)
+        val s = schedule(tuesdayOnly, "09:00", "17:00")
+        assertFalse(isScheduleActiveAt(s, wednesdayAt(10, 0).timeInMillis))
+    }
+
+    @Test
     fun `computeScheduleEndMillis resolves to the next end occurrence`() {
         val s = schedule(weekdays, "09:00", "17:00")
         val beforeEnd = wednesdayAt(10, 0)

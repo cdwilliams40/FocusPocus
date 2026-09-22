@@ -253,10 +253,13 @@ class SessionCooldownManager(
         // parse. A racing writer just costs one redundant parse.
         @Volatile private var cachedStatesJson: String? = null
         @Volatile private var cachedStates: Map<String, CooldownState> = emptyMap()
-        /** Returns the cooldown minutes remaining from the given [cooldownState] relative to [now]. */
+        /**
+         * Whole cooldown minutes remaining on [cooldownState] relative to [now],
+         * rounded up (floor-plus-one over-reported exact minutes: 60 s left read "2").
+         */
         fun minutesRemaining(cooldownState: CooldownState, now: Long = System.currentTimeMillis()): Int {
             val remainingMs = cooldownState.cooldownExpiryMillis - now
-            return if (remainingMs <= 0) 0 else (remainingMs / 1000 / 60).toInt() + 1
+            return if (remainingMs <= 0) 0 else ((remainingMs + 59_999) / 60_000).toInt()
         }
 
         /** Detects a date change between [previousDateStr] and now. [previousDateStr] format: "yyyyMMdd". */

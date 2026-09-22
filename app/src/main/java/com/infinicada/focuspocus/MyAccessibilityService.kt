@@ -268,6 +268,11 @@ class MyAccessibilityService : AccessibilityService() {
         // Re-assert the session-countdown notification (or clear a stale one):
         // heals swipe-dismissals on Android 14+ and posts lost to rate limits.
         SessionNotifier.update(this)
+
+        // Block events recorded within a second of the previous write stay
+        // pending until the next block; flush them here so they reach Insights
+        // and trial judging (and survive a process kill) within a minute.
+        flushBlockEvents()
     }
 
     /**
@@ -400,8 +405,8 @@ class MyAccessibilityService : AccessibilityService() {
                 Log.e("MyAccessibilityService", "Error unregistering package receiver", e)
             }
         }
-        // Flush pending block events
-        flushBlockEvents()
+        // Flush pending block events (prefs are only wired once the service connected)
+        if (::sharedPreferences.isInitialized) flushBlockEvents()
     }
 
     private fun createNotificationChannel() {
@@ -681,18 +686,16 @@ class MyAccessibilityService : AccessibilityService() {
             val activeSchedule = schedules.find { it.id == activeScheduleId }
             if (activeSchedule != null) {
                 try {
-                    val endParts = activeSchedule.effectiveEndTime.split(":")
-                    val startParts = activeSchedule.effectiveStartTime.split(":")
-                    if (endParts.size == 2 && startParts.size == 2) {
-                        val endHour = endParts[0].toIntOrNull() ?: -1
-                        val endMinute = endParts[1].toIntOrNull() ?: -1
-                        val startHour = startParts[0].toIntOrNull() ?: -1
-                        val startMinute = startParts[1].toIntOrNull() ?: -1
-                        if (endHour !in 0..23 || endMinute !in 0..59 || startHour !in 0..23 || startMinute !in 0..59) {
-                            Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.effectiveStartTime}-${activeSchedule.effectiveEndTime}")
-                        } else if (shouldDeactivateSchedule(currentHour, currentMinute, startHour, startMinute, endHour, endMinute)) {
-                            deactivateSchedule(activeSchedule)
-                        }
+                    if (parseScheduleMinutes(activeSchedule.effectiveStartTime) == null ||
+                        parseScheduleMinutes(activeSchedule.effectiveEndTime) == null
+                    ) {
+                        Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.effectiveStartTime}-${activeSchedule.effectiveEndTime}")
+                    } else if (!isScheduleActiveAt(activeSchedule, now.timeInMillis)) {
+                        // Day-aware, like the alarm backstop's reconcile: a
+                        // time-of-day-only check kept a ritual running through
+                        // the *next* day's window when its end was missed (phone
+                        // off overnight), even on days the ritual isn't scheduled.
+                        deactivateSchedule(activeSchedule)
                     }
                 } catch (e: Exception) {
                     Log.e("MyAccessibilityService", "Error parsing schedule end time", e)
