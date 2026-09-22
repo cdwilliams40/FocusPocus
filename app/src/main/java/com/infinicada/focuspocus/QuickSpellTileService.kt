@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.SharedPreferences
@@ -81,9 +82,19 @@ class QuickSpellTileService : TileService() {
                 PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
             )
         } else {
-            @Suppress("DEPRECATION")
-            startActivityAndCollapse(intent)
+            startActivityAndCollapseLegacy(intent)
         }
+    }
+
+    /**
+     * Pre-Android 14 path only: the PendingIntent overload doesn't exist
+     * there, and the Intent overload only throws on API 34+, which
+     * [openApp] routes around.
+     */
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    @Suppress("DEPRECATION")
+    private fun startActivityAndCollapseLegacy(intent: Intent) {
+        startActivityAndCollapse(intent)
     }
 
     private fun toast(message: String) {
