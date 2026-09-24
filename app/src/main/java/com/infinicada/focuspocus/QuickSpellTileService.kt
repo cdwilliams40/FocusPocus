@@ -3,7 +3,6 @@ package com.infinicada.focuspocus
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -31,7 +30,7 @@ class QuickSpellTileService : TileService() {
         super.onClick()
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         val preset = tilePreset()
-        if (isFocusActive(prefs) || preset == null) {
+        if (SessionManager.isFocusActive(prefs) || preset == null) {
             openApp()
             return
         }
@@ -57,7 +56,7 @@ class QuickSpellTileService : TileService() {
 
     private fun refreshTile() {
         val tile = qsTile ?: return
-        val active = isFocusActive(getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE))
+        val active = SessionManager.isFocusActive(getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE))
         tile.state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.subtitle = when {
             active -> getString(R.string.tile_quick_spell_active)
@@ -70,10 +69,6 @@ class QuickSpellTileService : TileService() {
     private fun tilePreset(): FocusPreset? =
         (application as FocusPocusApplication).container.presets.getPresets()
             .firstOrNull { (it.action ?: PresetAction.TOGGLE) != PresetAction.TEMP_DISABLE }
-
-    private fun isFocusActive(prefs: SharedPreferences): Boolean =
-        SessionManager.isSessionActive(prefs) ||
-            prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
 
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

@@ -518,9 +518,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (!sharedPreferences.getBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, false)) return
         if (sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return
 
-        val focusActive = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
-            sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
-        if (!focusActive) return
+        if (!SessionManager.isFocusActive(sharedPreferences)) return
         if (!sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)) return
 
         // Respect schedule-level break overrides when a ritual is running.
@@ -785,10 +783,8 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
 
-        val focusTagId = sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
-        val manualFocusMode = sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-        val focusActive = focusTagId != null || manualFocusMode
+        val focusActive = SessionManager.isFocusActive(sharedPreferences)
         val nfcLockMode = sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 
         // NFC lock mode: block settings apps when focus is active (regardless of break)

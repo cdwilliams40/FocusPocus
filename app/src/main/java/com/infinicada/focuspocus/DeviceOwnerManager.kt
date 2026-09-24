@@ -226,9 +226,7 @@ object DeviceOwnerManager {
         exemptPackages: Set<String>,
         stockSystemPackages: Set<String>
     ): Set<String> {
-        val focusActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
-            prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
-        if (!focusActive) return emptySet()
+        if (!SessionManager.isFocusActive(prefs)) return emptySet()
         if (prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return emptySet()
 
         val activeNames = BlockerRepository.getActiveBlockerNames(prefs)

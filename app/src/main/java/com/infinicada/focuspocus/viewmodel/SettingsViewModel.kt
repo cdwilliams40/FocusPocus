@@ -11,6 +11,7 @@ import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.Progression
+import com.infinicada.focuspocus.SessionManager
 import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.ui.theme.ThemeMode
@@ -316,9 +317,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * wholesale, which would be a one-tap escape from the session's blocks.
      */
     fun importBackup(uri: android.net.Uri): BackupCodec.ImportResult? {
-        if (appPrefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
-            appPrefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
-        ) {
+        if (SessionManager.isFocusActive(appPrefs)) {
             return BackupCodec.ImportResult.SessionActive
         }
         return try {

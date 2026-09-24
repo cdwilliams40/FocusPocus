@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.BreakClock
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.DndController
@@ -86,7 +87,7 @@ class TriggerHandler(
                     // countdown when the break expires.
                     val focusEnd = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
                     prefs.edit {
-                        com.infinicada.focuspocus.BreakClock.markStarted(prefs, this, now)
+                        BreakClock.markStarted(prefs, this, now)
                         putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
                         putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakSeconds)
                         putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakSeconds * 1000L)

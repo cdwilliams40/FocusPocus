@@ -258,8 +258,7 @@ class SessionCooldownManager(
          * rounded up (floor-plus-one over-reported exact minutes: 60 s left read "2").
          */
         fun minutesRemaining(cooldownState: CooldownState, now: Long = System.currentTimeMillis()): Int {
-            val remainingMs = cooldownState.cooldownExpiryMillis - now
-            return if (remainingMs <= 0) 0 else ((remainingMs + 59_999) / 60_000).toInt()
+            return GuardStatus.minutesUntil(cooldownState.cooldownExpiryMillis, now)
         }
 
         /** Detects a date change between [previousDateStr] and now. [previousDateStr] format: "yyyyMMdd". */

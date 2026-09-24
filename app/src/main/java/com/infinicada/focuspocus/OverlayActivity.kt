@@ -259,8 +259,7 @@ class OverlayActivity : ComponentActivity() {
  */
 private fun cooldownMinutesRemaining(expiryMillis: Long): Int {
     if (expiryMillis <= 0L) return 0
-    val msLeft = expiryMillis - System.currentTimeMillis()
-    return if (msLeft <= 0L) 0 else ((msLeft + 59_999) / 60_000).toInt()
+    return GuardStatus.minutesUntil(expiryMillis, System.currentTimeMillis())
 }
 
 @Composable

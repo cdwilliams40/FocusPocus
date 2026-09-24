@@ -20,9 +20,7 @@ class FocusNotificationListenerService : NotificationListenerService() {
         val muteBlockedNotifications = prefs.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)
         if (!muteBlockedNotifications) return
 
-        val manualFocusMode = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-        val focusTagId = prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
-        val focusActive = manualFocusMode || focusTagId != null
+        val focusActive = SessionManager.isFocusActive(prefs)
         val isOnBreak = prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
 
         if (!focusActive || isOnBreak) return

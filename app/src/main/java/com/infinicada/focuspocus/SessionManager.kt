@@ -110,4 +110,9 @@ object SessionManager {
     fun isSessionActive(sharedPreferences: SharedPreferences): Boolean {
         return sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
     }
+
+    /** True while any focus session is running: a manual one or a talisman one. */
+    fun isFocusActive(sharedPreferences: SharedPreferences): Boolean =
+        isSessionActive(sharedPreferences) ||
+            sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
 }

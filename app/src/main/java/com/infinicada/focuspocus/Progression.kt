@@ -194,9 +194,7 @@ object Progression {
                 // manual mode alone isn't "session active". And a token is
                 // worthless when the running session disallows breaks — refuse
                 // up front instead of silently burning the mana.
-                val sessionActive = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) ||
-                    prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
-                if (!sessionActive) return false
+                if (!SessionManager.isFocusActive(prefs)) return false
                 if (!breaksAllowedNow(prefs, gson)) return false
                 if (!debit(prefs, gson, perk.costMana, perkEntry(perk, ""))) return false
                 prefs.edit {

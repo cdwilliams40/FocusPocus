@@ -6,6 +6,7 @@ import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.BlockEvent
+import com.infinicada.focuspocus.BreakClock
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.DndController
@@ -172,7 +173,7 @@ class SessionRepository(
                 remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                 // Extra-break perk tokens are session-scoped; never inherit one
                 remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
-                com.infinicada.focuspocus.BreakClock.reset(this)
+                BreakClock.reset(this)
             }
         }
         // Talisman sessions engage DND and device-owner suspensions like any other session.
@@ -229,7 +230,7 @@ class SessionRepository(
                 remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
                 remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
                 remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
-                com.infinicada.focuspocus.BreakClock.reset(this)
+                BreakClock.reset(this)
             }
         }
         DndController.updateDndState(context)
@@ -248,9 +249,9 @@ class SessionRepository(
         val now = System.currentTimeMillis()
         prefs.edit {
             if (isOnBreak && breakTimeRemaining > 0) {
-                com.infinicada.focuspocus.BreakClock.markStarted(prefs, this, now)
+                BreakClock.markStarted(prefs, this, now)
             } else {
-                com.infinicada.focuspocus.BreakClock.markEnded(prefs, this, now)
+                BreakClock.markEnded(prefs, this, now)
             }
             putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
             putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
