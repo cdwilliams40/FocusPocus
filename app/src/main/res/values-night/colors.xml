@@ -2,4 +2,11 @@
 <resources>
     <!-- DarkBackground from ui/theme/Color.kt -->
     <color name="window_background">#FF14111F</color>
+    <!-- Status widget: Arcane Dusk dark tokens from ui/theme/Color.kt -->
+    <color name="widget_surface">#FF201C2D</color>
+    <color name="widget_on_surface">#FFE7E1F0</color>
+    <color name="widget_on_surface_variant">#FFCBC4DB</color>
+    <color name="widget_accent">#FFCDBCF5</color>
+    <color name="widget_on_accent">#FF322062</color>
+    <color name="widget_gold">#FFE9C16C</color>
 </resources>

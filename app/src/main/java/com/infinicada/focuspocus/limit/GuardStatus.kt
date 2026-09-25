@@ -96,6 +96,35 @@ data class RequestTarget(
 object GuardStatus {
 
     /**
+     * Live enforcement snapshot for every guarded app (explicit configs plus
+     * circle members) from the seal and allowance stores. [usedToday] is a
+     * UsageStats query, so it only runs when some guard actually carries a
+     * daily limit. Shared by the Pacts dashboard and the home-screen widget.
+     */
+    fun liveStates(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>,
+        cooldownExpiries: Map<String, Long>,
+        allowances: Map<String, Long>,
+        usedToday: () -> Map<String, Int>
+    ): Map<String, GuardLiveState> {
+        val groupMembers = groups.flatMap { group ->
+            blockers.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
+        }
+        val anyDailyLimit = configs.values.any { it.dailyLimitMinutes > 0 } ||
+            groups.any { it.dailyLimitMinutes > 0 }
+        val used = if (anyDailyLimit) usedToday() else emptyMap()
+        return (configs.keys + groupMembers).associateWith { pkg ->
+            GuardLiveState(
+                allowanceExpiryMillis = allowances[pkg],
+                cooldownExpiryMillis = cooldownExpiries[pkg],
+                usedMinutesToday = used[pkg] ?: 0
+            )
+        }
+    }
+
+    /**
      * The display state for one config given its live enforcement snapshot.
      * [windowActive] is the guard-hours verdict (GuardWindow) — outside its
      * window a guard shows SCHEDULED_OFF, except that a running seal still

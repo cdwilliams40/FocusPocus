@@ -823,4 +823,9 @@
     <string name="tile_quick_spell_label">Quick Spell</string>
     <string name="tile_quick_spell_active">Focusing</string>
     <string name="tile_quick_spell_none">No Quick Spell yet</string>
+    <string name="widget_status_label">Focus status</string>
+    <string name="widget_status_description">Cast your Quick Spell, watch the session countdown, and see your guards at a glance.</string>
+    <string name="widget_focus_time_left">%1$s left</string>
+    <string name="widget_focus_elapsed">%1$s focused</string>
+    <string name="widget_break_time_left">Focus resumes in %1$s</string>
 </resources>

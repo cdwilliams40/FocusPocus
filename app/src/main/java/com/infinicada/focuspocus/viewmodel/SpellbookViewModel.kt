@@ -76,27 +76,15 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      */
     fun getGuardLiveState(): Map<String, GuardLiveState> {
         val now = System.currentTimeMillis()
-        val configs = _appTimeLimitConfigs.value
-        val groups = _pactGroups.value
-        val groupMembers = groups.flatMap { group ->
-            _blockerLists.value.find { it.name == group.blockerName }?.effectiveApps ?: emptySet()
-        }
-        val cooldowns = sessionCooldownManager.peekActiveCooldowns(now)
-        val allowances = pactManager.getActiveAllowances(now)
-        val anyDailyLimit = configs.values.any { it.dailyLimitMinutes > 0 } ||
-            groups.any { it.dailyLimitMinutes > 0 }
-        val usedToday = if (anyDailyLimit) {
-            AppTimeLimitManager.getAllUsedMinutesToday(getApplication())
-        } else {
-            emptyMap()
-        }
-        return (configs.keys + groupMembers).associateWith { pkg ->
-            GuardLiveState(
-                allowanceExpiryMillis = allowances[pkg],
-                cooldownExpiryMillis = cooldowns[pkg]?.cooldownExpiryMillis,
-                usedMinutesToday = usedToday[pkg] ?: 0
-            )
-        }
+        return GuardStatus.liveStates(
+            configs = _appTimeLimitConfigs.value,
+            groups = _pactGroups.value,
+            blockers = _blockerLists.value,
+            cooldownExpiries = sessionCooldownManager.peekActiveCooldowns(now)
+                .mapValues { it.value.cooldownExpiryMillis },
+            allowances = pactManager.getActiveAllowances(now),
+            usedToday = { AppTimeLimitManager.getAllUsedMinutesToday(getApplication()) }
+        )
     }
 
     private val _pactGroups = MutableStateFlow(pactManager.getGroups())
