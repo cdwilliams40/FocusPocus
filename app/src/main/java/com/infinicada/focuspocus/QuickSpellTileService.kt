@@ -7,11 +7,6 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.widget.Toast
-import com.google.gson.Gson
-import com.infinicada.focuspocus.handler.TriggerHandler
-import com.infinicada.focuspocus.handler.TriggerResult
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.PresetAction
 
 /**
  * Quick Settings tile that casts the user's first Quick Spell without opening
@@ -29,28 +24,12 @@ class QuickSpellTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-        val preset = tilePreset()
+        val preset = QuickSpellCaster.castablePreset(this)
         if (SessionManager.isFocusActive(prefs) || preset == null) {
             openApp()
             return
         }
-        val container = (application as FocusPocusApplication).container
-        // Same path as NFC taps and deep links, so every gate applies here too.
-        val result = TriggerHandler(this, prefs, Gson()).togglePreset(
-            preset,
-            container.blockers.getBlockers(),
-            container.schedules.getSchedules()
-        )
-        when (result) {
-            is TriggerResult.Success -> {
-                DndController.updateDndState(this)
-                SessionNotifier.update(this)
-                toast(getString(result.messageResId, *result.args.toTypedArray()))
-            }
-            is TriggerResult.Error ->
-                toast(getString(result.messageResId, *result.args.toTypedArray()))
-            else -> {}
-        }
+        QuickSpellCaster.cast(this, preset)?.let { toast(it) }
         refreshTile()
     }
 
@@ -60,15 +39,10 @@ class QuickSpellTileService : TileService() {
         tile.state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.subtitle = when {
             active -> getString(R.string.tile_quick_spell_active)
-            else -> tilePreset()?.name ?: getString(R.string.tile_quick_spell_none)
+            else -> QuickSpellCaster.castablePreset(this)?.name ?: getString(R.string.tile_quick_spell_none)
         }
         tile.updateTile()
     }
-
-    /** The first Quick Spell that starts focus (a break-only spell can't start a session). */
-    private fun tilePreset(): FocusPreset? =
-        (application as FocusPocusApplication).container.presets.getPresets()
-            .firstOrNull { (it.action ?: PresetAction.TOGGLE) != PresetAction.TEMP_DISABLE }
 
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

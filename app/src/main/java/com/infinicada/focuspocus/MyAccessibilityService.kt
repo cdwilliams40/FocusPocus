@@ -273,6 +273,11 @@ class MyAccessibilityService : AccessibilityService() {
         // heals swipe-dismissals on Android 14+ and posts lost to rate limits.
         SessionNotifier.update(this)
 
+        // Time alone changes the widget's guard headline (seals lifting,
+        // allowances running out, daily limits being reached) with no prefs
+        // write to trigger its observer.
+        StatusWidget.update(this)
+
         // Block events recorded within a second of the previous write stay
         // pending until the next block; flush them here so they reach Insights
         // and trial judging (and survive a process kill) within a minute.

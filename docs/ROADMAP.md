@@ -25,7 +25,7 @@ Focus Pocus already covers more of the category's surface than most shipping com
 
 **What we don't have yet** clusters into four themes, and those are the roadmap:
 
-1. **Distribution** — the app is not on the Play Store; policy compliance is unresolved.
+1. **Distribution** — *(resolved: live on the Play Store; see §4.1)*
 2. **Coverage** — websites, other devices, and contexts (place/time-of-day per guard) are unprotected.
 3. **Durability** — no backup/export; a single SharedPreferences file holds everything; rituals depend on the accessibility service being alive.
 4. **Reach** — no widgets, no Wear OS, two locales, phone-portrait-first layouts.
@@ -71,33 +71,16 @@ Theme: **Play Store launch, and the reliability/durability work a public audienc
 demands.** Nothing else matters if distribution is blocked or first-week users hit a
 dead service.
 
-### 4.1 Play Store compliance track (blocking; start immediately)
+### 4.1 Play Store launch
 
-- **Accessibility policy.** Play only approves AccessibilityService use via a
-  declaration form, and app blockers are not "accessibility tools" — approval hinges on
-  demonstrating core-functionality benefit and no less-invasive alternative. Our recent
-  trimming (typeWindowStateChanged only, no window-content retrieval) is exactly the
-  right posture. Actions:
-  - Write the declaration narrative now; include the in-app prominent disclosure
-    screen the policy requires (shown before the permission prompt, not only in
-    onboarding).
-  - Build the **fallback enforcement mode**: UsageStats-polling foreground detection +
-    overlay, selectable if approval is denied or revoked later. Slower (1–2 s
-    detection) but policy-safe; Warden suspension already covers the strict case
-    without accessibility. This de-risks the entire distribution strategy.
-- **Package visibility.** Audit for `QUERY_ALL_PACKAGES` vs. scoped `<queries>`; app
-  pickers legitimately need broad visibility (blocker category is a permitted use),
-  but the declaration must be filed with the same care.
-- **Data safety form & privacy policy.** Easy story — everything is on-device, Firebase
-  Crashlytics/Analytics are opt-in consented — but it must be written, hosted, and
-  linked in-app.
-- **Device-owner review risk.** Warden's adb provisioning is user-initiated and
-  documented; keep it strictly opt-in, keep the in-app copy explicit, and be ready to
-  ship a build variant without it if review demands.
-- **Launch mechanics**: Play App Signing, internal → closed → open testing tracks,
-  staged rollout, pre-launch report triage, store listing (screenshots, feature
-  graphic, short/full description tuned for "app blocker / screen time / focus"
-  search terms).
+**Done (September 2026):** the app is live on the Play Store with the
+AccessibilityService declaration approved, the prominent-disclosure screen in-app, and
+the privacy policy, data safety form, and package-visibility declaration filed. There
+is no non-accessibility enforcement mode and none is planned; Warden suspension
+remains the strict-mode path.
+
+Remaining launch work is **recruiting testers** through the testing tracks, then
+staged rollout and pre-launch report triage.
 
 ### 4.2 Reliability & durability
 
@@ -123,9 +106,10 @@ dead service.
 
 Carried from the pacts plan's §11 "later ideas," now due:
 
-- **Home-screen widgets + Quick Settings tile.** Seal states at a glance, one-tap
-  Quick Spell cast, streak/mana glance widget. (Glance API; also the category's most
-  visible checklist feature.)
+- **Home-screen widgets + Quick Settings tile.** *(Shipped.)* Quick Spell tile, plus a
+  resizable status widget (plain RemoteViews, so the session countdown ticks with no
+  polling): one-tap cast, live countdown, the guard headline, and streak/mana. The
+  category's most visible checklist feature.
 - **"Seal everything now" panic button.** Dashboard action that instantly starts a
   strictest-defaults session or seals all pacted apps.
 - **Per-guard schedules.** "This pact only applies 9 pm–7 am" / "Wards only on
@@ -261,7 +245,6 @@ ads (ads in a focus app are self-refuting — never).
 
 | Risk | Mitigation |
 |---|---|
-| Accessibility declaration denied | Fallback UsageStats enforcement mode (§4.1) built *before* submission; Warden covers strict users regardless |
 | VPN + accessibility + device-admin in one app looks alarming in review | Ship VPN in its own release with careful review notes; every mechanism strictly opt-in with prominent disclosure |
 | SharedPreferences scaling wall (one file, full rewrite per `apply()`) | Room/DataStore migration staged in Horizon 1 while data is still small |
 | Ritual/service death on aggressive OEMs | AlarmManager migration + health surface + dontkillmyapp guidance (§4.2) |
@@ -270,11 +253,9 @@ ads (ads in a focus app are self-refuting — never).
 
 ## 10. Suggested immediate next steps
 
-1. **Compliance groundwork PR**: prominent-disclosure screen, privacy policy, data
-   safety inventory, `<queries>` audit.
-2. **UsageStats fallback enforcement mode** (the de-risking keystone).
-3. **Backup/export/restore** (the trust keystone).
-4. **Widgets + panic button + per-guard schedules** (the visible-delta trio for the
-   store listing).
-5. Open the Play Console, start the internal testing track, and let real-device
-   pre-launch reports drive the launch-hardening list.
+1. **Recruit testers** for the Play testing tracks, and let real-device pre-launch
+   reports drive the launch-hardening list.
+2. **Backup/export/restore** (the trust keystone).
+3. **Data layer hardening**: start the SharedPreferences → Room/DataStore migration
+   while data is still small.
+4. **Craft pass for launch** (§4.4).

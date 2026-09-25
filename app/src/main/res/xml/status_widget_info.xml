@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resizable from one row (spell/session only) to two+ rows (adds the guard
+     headline and streak/mana). Refreshes are pushed by StatusWidget; the
+     30-minute period is only a backstop. previewLayout and targetCell* are
+     API 31+; older launchers ignore them and fall back to minWidth/minHeight. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:description="@string/widget_status_description"
+    android:initialLayout="@layout/widget_status"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="40dp"
+    android:previewLayout="@layout/widget_status"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    tools:ignore="UnusedAttribute" />

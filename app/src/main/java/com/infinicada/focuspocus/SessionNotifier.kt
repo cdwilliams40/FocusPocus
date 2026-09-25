@@ -43,8 +43,11 @@ object SessionNotifier {
     private const val TAG = "SessionNotifier"
     private const val UPDATE_DEBOUNCE_MS = 200L
 
-    /** Session-state keys whose changes can alter what the notification shows. */
-    private val WATCHED_KEYS = setOf(
+    /**
+     * Session-state keys whose changes can alter what the notification shows.
+     * The home-screen widget watches these too, for its countdown row.
+     */
+    val WATCHED_KEYS = setOf(
         Constants.PrefsKeys.MANUAL_FOCUS_MODE,
         Constants.PrefsKeys.FOCUS_TAG_ID,
         Constants.PrefsKeys.IS_ON_BREAK,

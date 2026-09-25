@@ -36,5 +36,8 @@ class FocusPocusApplication : Application() {
         // while the process was down.
         SessionNotifier.createChannel(this)
         SessionNotifier.attach(this)
+        // Home-screen widget: same observer model, and the initial render
+        // brings a placed widget up to date after reboots and app updates.
+        StatusWidget.attach(this)
     }
 }

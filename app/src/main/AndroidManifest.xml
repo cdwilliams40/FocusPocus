@@ -139,6 +139,23 @@
         </service>
 
         <receiver
+            android:name=".StatusWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_status_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/status_widget_info" />
+        </receiver>
+
+        <!-- Widget Cast button; not exported, so only our own PendingIntent reaches it. -->
+        <receiver
+            android:name=".StatusWidgetCastReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".RitualAlarmReceiver"
             android:exported="false" />
 
