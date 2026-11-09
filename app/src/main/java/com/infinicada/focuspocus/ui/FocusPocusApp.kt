@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.infinicada.focuspocus.DisplayTicks
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
@@ -643,18 +644,12 @@ fun FocusPocusApp(
                         mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
                     }
                     if (route is PactsRoute.Overview) {
-                        // Live guard state refreshes on a minute tick while the
-                        // dashboard is visible (the ticker dies with this branch's
+                        // Live guard state refreshes while the dashboard is
+                        // visible (the ticker below dies with this branch's
                         // composition), on every return to the foreground, and on
                         // any data mutation via dataVersion. The snapshot reads
                         // prefs and usage stats, so it's taken off the main thread.
                         var guardTick by remember { mutableIntStateOf(0) }
-                        LaunchedEffect(Unit) {
-                            while (true) {
-                                delay(60_000L)
-                                guardTick++
-                            }
-                        }
                         LifecycleResumeEffect(Unit) {
                             guardTick++
                             usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
@@ -681,6 +676,43 @@ fun FocusPocusApp(
                             guardLiveStates = snapshot.first
                             guardOpenStats = snapshot.second
                             guardNow = System.currentTimeMillis()
+                        }
+                        // Wake exactly when something on screen changes instead
+                        // of on a fixed minute from an arbitrary phase, which
+                        // left a lifted seal or closed pact showing for up to a
+                        // minute. Expiries and wall-clock minutes re-snapshot
+                        // (a lapsed pact only turns into its seal service-side,
+                        // and guard hours / daily usage move on the minute);
+                        // a countdown merely rolling to its next minute only
+                        // needs a new clock reading, no I/O. Restarts whenever
+                        // the snapshot brings new expiries.
+                        LaunchedEffect(guardLiveStates, pendingPactRevisions) {
+                            val expiries = guardLiveStates.values.flatMap {
+                                listOfNotNull(it.allowanceExpiryMillis, it.cooldownExpiryMillis)
+                            } + pendingPactRevisions.map { it.appliesAtMillis }
+                            while (true) {
+                                val now = System.currentTimeMillis()
+                                // Slack lets the service's own wakeup (expiry
+                                // + 250 ms) or minute tick write first.
+                                val nextRefresh = minOf(
+                                    DisplayTicks.untilNextWallClockMinute(now) + 2_000L,
+                                    expiries.filter { it > now }.minOrNull()
+                                        ?.let { it - now + 1_000L } ?: Long.MAX_VALUE
+                                )
+                                // A countdown's last change is its expiry, which
+                                // the refresh above covers.
+                                val nextLabel = expiries
+                                    .filter { it - now > 60_000L }
+                                    .mapNotNull { DisplayTicks.untilCountdownMinuteChanges(it, now) }
+                                    .minOrNull()
+                                if (nextLabel != null && nextLabel < nextRefresh) {
+                                    delay(nextLabel)
+                                    guardNow = System.currentTimeMillis()
+                                } else {
+                                    delay(nextRefresh)
+                                    guardTick++
+                                }
+                            }
                         }
 
                         PactsHomeScreen(

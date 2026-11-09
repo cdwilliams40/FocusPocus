@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.DisplayTicks
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.FocusSession
@@ -187,7 +188,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     if (repo.getFocusEndTimeMillis() > 0) handleTimerExpired()
                     break
                 }
-                delay(1000L)
+                delay(untilNextTick(repo.getFocusEndTimeMillis()))
             }
         }
     }
@@ -212,7 +213,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
                     startFocusTimer()
                     break
                 }
-                delay(1000L)
+                delay(untilNextTick(repo.getBreakEndTimeMillis()))
             }
         }
     }
@@ -229,12 +230,26 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         elapsedTimerJob = viewModelScope.launch {
             while (_manualFocusMode.value) {
                 val start = repo.getSessionStartTime()
+                val now = System.currentTimeMillis()
                 _sessionElapsedSeconds.value =
-                    if (start > 0) ((System.currentTimeMillis() - start) / 1000L).coerceAtLeast(0L) else 0L
-                delay(1000L)
+                    if (start > 0) ((now - start) / 1000L).coerceAtLeast(0L) else 0L
+                delay(if (start > 0) DisplayTicks.untilElapsedSecondChanges(now - start) else 1000L)
             }
         }
     }
+
+    /**
+     * Sleep until the countdown to [endMillis] next changes its whole-second
+     * value, so the display flips on the real boundary instead of up to a
+     * second late (and never skips a second). Falls back to a plain second
+     * when there's no end timestamp to align to.
+     */
+    private fun untilNextTick(endMillis: Long): Long =
+        if (endMillis > 0L) {
+            DisplayTicks.untilCountdownSecondChanges(endMillis - System.currentTimeMillis())
+        } else {
+            1000L
+        }
 
     private fun handleTimerExpired() {
         val result = repo.stopSession()

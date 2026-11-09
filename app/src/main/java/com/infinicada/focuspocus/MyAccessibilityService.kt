@@ -35,6 +35,11 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val APP_BLOCK_DEBOUNCE_MS = 2000L
+        private const val TRANSITION_SLACK_MS = 250L
+        private val TRANSITION_KEYS = SessionTransitions.WATCHED_KEYS + setOf(
+            Constants.PrefsKeys.PACT_ALLOWANCES,
+            Constants.PrefsKeys.APP_COOLDOWN_STATES
+        )
     }
 
     private lateinit var sharedPreferences: SharedPreferences
@@ -200,6 +205,49 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    // One-shot wakeup for the next time-driven state change — a break ending,
+    // a timed session ending, an auto-break starting, a pact window closing,
+    // a seal lifting — so each lands on time instead of on the following
+    // minute tick. The notification, the dashboard and Warden greying all
+    // follow the state written here. The minute tick remains the backstop.
+    private val transitionHandler = Handler(Looper.getMainLooper())
+    private val transitionRunnable = Runnable {
+        try {
+            enforceTimedSessionExpiry()
+            maybeStartAutoBreak()
+            // Same order as the minute tick: a lapsed pact becomes its seal
+            // before seal-lifted detection and the suspension sync read the stores.
+            sealLapsedPacts()
+            maybeNotifySealsLifted()
+            DeviceOwnerManager.syncSuspensions(this)
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error in transition check", e)
+            reportNonFatal(e)
+        }
+        scheduleNextTransitionCheck()
+    }
+
+    // Held in a field: SharedPreferences only keeps listeners weakly.
+    private val transitionPrefsListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == null || key in TRANSITION_KEYS) scheduleNextTransitionCheck()
+        }
+    private var transitionListenerRegistered = false
+
+    private fun scheduleNextTransitionCheck() {
+        transitionHandler.removeCallbacks(transitionRunnable)
+        if (!::sharedPreferences.isInitialized) return
+        val now = System.currentTimeMillis()
+        val due = listOfNotNull(
+            SessionTransitions.nextDueMillis(sharedPreferences, now),
+            pactManager.getActiveAllowances(now).values.minOrNull(),
+            sessionCooldownManager.peekActiveCooldowns(now).values
+                .minOfOrNull { it.cooldownExpiryMillis }
+        ).minOrNull() ?: return
+        // Small slack so the wakeup lands just after the due instant, never before it.
+        transitionHandler.postDelayed(transitionRunnable, due - now + TRANSITION_SLACK_MS)
     }
 
     private fun onMinuteTick() {
@@ -375,6 +423,10 @@ class MyAccessibilityService : AccessibilityService() {
         }
         receiverRegistered = true
 
+        sharedPreferences.registerOnSharedPreferenceChangeListener(transitionPrefsListener)
+        transitionListenerRegistered = true
+        scheduleNextTransitionCheck()
+
         val packageFilter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
@@ -393,6 +445,11 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        transitionHandler.removeCallbacks(transitionRunnable)
+        if (transitionListenerRegistered) {
+            sharedPreferences.unregisterOnSharedPreferenceChangeListener(transitionPrefsListener)
+            transitionListenerRegistered = false
+        }
         if (receiverRegistered) {
             try {
                 unregisterReceiver(timeTickReceiver)
@@ -523,7 +580,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Respect schedule-level break overrides when a ritual is running.
         val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
-        val activeSchedule = if (activeScheduleId != null) cachedSchedules.find { it.id == activeScheduleId } else null
+        val activeSchedule = if (activeScheduleId != null) loadSchedulesCached().find { it.id == activeScheduleId } else null
         if (activeSchedule?.breaksEnabled == false) return
 
         // Extra-break perk tokens raise the session's effective quota, exactly
@@ -589,41 +646,38 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun checkSchedules() {
+    /** Parsed schedules, re-parsed only when the stored JSON changes. */
+    private fun loadSchedulesCached(): List<Schedule> {
         val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null)
         if (json == null) {
             // Clear cache if schedules were deleted
-            if (cachedSchedulesJson != null) {
-                cachedSchedulesJson = null
-                cachedSchedules = emptyList()
-            }
-            return
+            cachedSchedulesJson = null
+            cachedSchedules = emptyList()
+            return emptyList()
         }
-
-        // Use cached schedules if JSON hasn't changed
-        val schedules: List<Schedule> = if (json == cachedSchedulesJson) {
-            cachedSchedules
-        } else {
-            try {
-                val type = object : TypeToken<List<Schedule>>() {}.type
-                val parsed: List<Schedule>? = gson.fromJson(json, type)
-                if (parsed == null) {
-                    cachedSchedulesJson = null
-                    cachedSchedules = emptyList()
-                    emptyList()
-                } else {
-                    cachedSchedulesJson = json
-                    cachedSchedules = parsed
-                    parsed
-                }
-            } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
+        if (json == cachedSchedulesJson) return cachedSchedules
+        return try {
+            val type = object : TypeToken<List<Schedule>>() {}.type
+            val parsed: List<Schedule>? = gson.fromJson(json, type)
+            if (parsed == null) {
                 cachedSchedulesJson = null
                 cachedSchedules = emptyList()
                 emptyList()
+            } else {
+                cachedSchedulesJson = json
+                cachedSchedules = parsed
+                parsed
             }
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
+            cachedSchedulesJson = null
+            cachedSchedules = emptyList()
+            emptyList()
         }
+    }
 
+    private fun checkSchedules() {
+        val schedules = loadSchedulesCached()
         if (schedules.isEmpty()) return
 
         val now = Calendar.getInstance()

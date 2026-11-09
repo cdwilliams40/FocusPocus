@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
+import com.infinicada.focuspocus.DisplayTicks
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
@@ -68,6 +70,7 @@ import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 import com.infinicada.focuspocus.ui.formatDuration
+import kotlinx.coroutines.delay
 
 /**
  * The unified guard editor: creates and edits pacts and wards over the single
@@ -970,8 +973,20 @@ private fun PendingRevisionCard(
     revision: PendingPactRevision,
     onCancel: () -> Unit
 ) {
+    // Ticks on the minute the countdown actually rolls over; a once-remembered
+    // timestamp froze "applies in N min" for as long as the editor stayed open.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(revision.appliesAtMillis) {
+        while (true) {
+            val wait = DisplayTicks.untilCountdownMinuteChanges(
+                revision.appliesAtMillis, System.currentTimeMillis()
+            ) ?: break
+            delay(wait)
+            now = System.currentTimeMillis()
+        }
+    }
     val minutesLeft = GuardStatus
-        .minutesUntil(revision.appliesAtMillis, remember { System.currentTimeMillis() })
+        .minutesUntil(revision.appliesAtMillis, now)
         .coerceAtLeast(1)
     Column(
         modifier = Modifier

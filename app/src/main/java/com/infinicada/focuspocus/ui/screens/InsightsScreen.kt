@@ -116,6 +116,10 @@ fun UsageStatsScreen(
     // Refreshed on every resume so the "Today"/"This Week" windows below can't go
     // stale when the screen sits in the background across midnight.
     var dateStamp by remember { mutableStateOf(currentDateStamp()) }
+    // Bumped on every return to the foreground (not the first resume, which
+    // is just this screen appearing) so usage figures re-query: they move
+    // whenever the user has been in another app, not only across midnight.
+    var usageRefreshKey by remember { mutableIntStateOf(0) }
     val sharedPreferences = remember { context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE) }
     var selectedTabIndex by remember { mutableIntStateOf(sharedPreferences.getInt(Constants.PrefsKeys.INSIGHTS_TIME_RANGE, 0)) }
     var selectedBlockerFilter by remember { mutableStateOf<Blocker?>(null) }
@@ -197,7 +201,7 @@ fun UsageStatsScreen(
 
     var usageStats by remember { mutableStateOf<List<com.infinicada.focuspocus.AppUsage>>(emptyList()) }
 
-    LaunchedEffect(hasPermission, selectedTabIndex) {
+    LaunchedEffect(hasPermission, selectedTabIndex, usageRefreshKey) {
         if (hasPermission) {
             val stats = withContext(Dispatchers.IO) {
                 when (selectedTabIndex) {
@@ -228,7 +232,7 @@ fun UsageStatsScreen(
 
     // Full-day queryEvents walk — must not run on the main thread in composition.
     val allUsedMinutes by produceState(
-        initialValue = emptyMap<String, Int>(), appTimeLimits, hasPermission, dateStamp
+        initialValue = emptyMap<String, Int>(), appTimeLimits, hasPermission, dateStamp, usageRefreshKey
     ) {
         value = if (hasPermission) {
             withContext(Dispatchers.IO) { AppTimeLimitManager.getAllUsedMinutesToday(context) }
@@ -239,10 +243,12 @@ fun UsageStatsScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        var firstResume = true
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasPermission = UsageStatsHelper.hasUsageStatsPermission(context)
                 dateStamp = currentDateStamp()
+                if (firstResume) firstResume = false else usageRefreshKey++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
