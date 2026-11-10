@@ -6,9 +6,12 @@ import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.PendingPactRevision
+import com.infinicada.focuspocus.limit.WellSettings
+import com.infinicada.focuspocus.limit.WellSettingsState
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
 
@@ -58,6 +61,11 @@ object BackupCodec {
         Constants.PrefsKeys.GROUP_SEAL_ENABLED,
         Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES,
         Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES,
+        // The Mana Well's terms travel; its level, today's draws and any
+        // queued loosening are live state and stay on the device.
+        Constants.PrefsKeys.WELL_ENABLED,
+        Constants.PrefsKeys.WELL_CAPACITY_MINUTES,
+        Constants.PrefsKeys.WELL_REFILL_INTERVAL_MINUTES,
         Constants.PrefsKeys.PROGRESSION_ENABLED,
         Constants.PrefsKeys.WRAPUP_ENABLED,
         Constants.PrefsKeys.TRIAL_ALERTS_ENABLED,
@@ -146,8 +154,8 @@ object BackupCodec {
      * after. Keys outside the export list — including live enforcement
      * state — are never touched.
      *
-     * Pacts enforced on this device are the one exception to plain replace:
-     * see [holdEnforcedPacts].
+     * Commitments enforced on this device are the exception to plain
+     * replace: see [holdEnforcedPacts] and [holdEnforcedWell].
      */
     fun import(
         prefs: SharedPreferences,
@@ -164,6 +172,7 @@ object BackupCodec {
         if (file.formatVersion > FORMAT_VERSION) return ImportResult.UnsupportedVersion
 
         val heldPacts = holdEnforcedPacts(prefs, gson, file.prefs, now)
+        val heldWell = holdEnforcedWell(prefs, file.prefs, now)
 
         var restored = 0
         // commit = true, not apply(): the caller restarts the process
@@ -185,8 +194,39 @@ object BackupCodec {
                 if (applied) restored++
             }
             heldPacts?.forEach { (key, value) -> putString(key, value) }
+            heldWell?.let { ManaWell.writeState(this, it) }
         }
         return ImportResult.Success(restored)
+    }
+
+    /**
+     * The Mana Well's twin of [holdEnforcedPacts]: while the Well is on, a
+     * restore gets exactly what changing its terms in Settings would — the
+     * backup's tighter terms apply at once, its looser ones (including "off",
+     * which is also what a backup from before the Well existed says) are
+     * queued behind the usual 24 h.
+     *
+     * Returns the terms to write over the restored ones, or null when the
+     * Well isn't on and the restore is a plain replace.
+     */
+    private fun holdEnforcedWell(
+        prefs: SharedPreferences,
+        backup: Map<String, PrefEntry?>,
+        now: Long
+    ): WellSettingsState? {
+        fun backupValue(key: String, type: String): String? =
+            backup[key]?.takeIf { it.type == type }?.value
+        val defaults = WellSettings()
+        val incoming = WellSettings(
+            enabled = backupValue(Constants.PrefsKeys.WELL_ENABLED, "boolean")
+                ?.toBooleanStrictOrNull() ?: defaults.enabled,
+            capacityMinutes = backupValue(Constants.PrefsKeys.WELL_CAPACITY_MINUTES, "int")
+                ?.toIntOrNull() ?: defaults.capacityMinutes,
+            refillIntervalMinutes =
+                backupValue(Constants.PrefsKeys.WELL_REFILL_INTERVAL_MINUTES, "int")
+                    ?.toIntOrNull() ?: defaults.refillIntervalMinutes
+        )
+        return ManaWell.holdForRestore(prefs, incoming, now)
     }
 
     /**

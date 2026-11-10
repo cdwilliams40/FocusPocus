@@ -1,5 +1,6 @@
 package com.infinicada.focuspocus
 
+import com.infinicada.focuspocus.model.Perk
 import kotlin.math.floor
 import kotlin.math.min
 
@@ -55,6 +56,17 @@ object ProgressionMath {
         }
         return total to paid
     }
+
+    /**
+     * Mana price of the next Well channel today, given how many were already
+     * bought today: the base price doubled once per earlier channel. The
+     * doubling is capped so the shift can never overflow — long before then
+     * the price is out of anyone's reach.
+     */
+    fun wellChannelCost(channelsToday: Int): Long =
+        Perk.WELL_CHANNEL.costMana shl channelsToday.coerceIn(0, WELL_CHANNEL_MAX_DOUBLINGS)
+
+    const val WELL_CHANNEL_MAX_DOUBLINGS = 20
 
     /**
      * Whether the evening wrap-up notification should fire. Pure so the

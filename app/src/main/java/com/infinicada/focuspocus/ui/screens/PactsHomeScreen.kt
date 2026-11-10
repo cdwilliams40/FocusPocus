@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -67,9 +68,12 @@ import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.limit.RequestTarget
 import com.infinicada.focuspocus.limit.TodayRollup
+import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellSnapshot
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
+import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
@@ -120,12 +124,16 @@ fun PactsHomeScreen(
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
     onSealAll: () -> Unit,
+    onSealNow: (GuardRow) -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
     groupSealEnabled: Boolean,
     groupSealOpenWindowMinutes: Int,
     groupSealDurationMinutes: Int,
     onGroupOpen: () -> Unit,
+    well: WellSnapshot,
+    wellChannelCost: Long,
+    onChannelMana: () -> Boolean,
     modifier: Modifier = Modifier
 ) {
     // Names come only from the installed-apps scan (the same label the user
@@ -149,28 +157,28 @@ fun PactsHomeScreen(
             now = nowMillis
         )
     }
-    // No partial per-app requesting while Group Seal mode is on — that's the
-    // hopping path the mode exists to close — so the panel behind it is the
-    // group action instead, driven by groupSealSummary below.
+    // No partial per-app requesting inside the group while Group Seal mode is
+    // on — that's the hopping path the mode exists to close — so the group's
+    // panel is the group action instead, driven by groupSealSummary below.
+    // Pacts outside the group (Well-exempt ones, while the Mana Well is on)
+    // keep their own request tiles.
     val requestTargets = remember(
-        groupSealEnabled, appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, todayOpenStats, names, nowMillis
+        groupSealEnabled, well.enabled, appTimeLimitConfigs, pactGroups, blockerLists,
+        guardLiveStates, todayOpenStats, names, nowMillis
     ) {
-        if (groupSealEnabled) {
-            emptyList()
-        } else {
-            GuardStatus.requestTargets(
-                configs = appTimeLimitConfigs,
-                groups = pactGroups,
-                blockers = blockerLists,
-                liveStates = guardLiveStates,
-                openStats = todayOpenStats,
-                names = names,
-                now = nowMillis
-            )
-        }
+        GuardStatus.requestTargets(
+            configs = appTimeLimitConfigs,
+            groups = pactGroups,
+            blockers = blockerLists,
+            liveStates = guardLiveStates,
+            openStats = todayOpenStats,
+            names = names,
+            now = nowMillis
+        ).filter { !groupSealEnabled || !GuardStatus.inGroupSeal(it.config, well.enabled) }
     }
     val groupSealSummary = remember(
-        groupSealEnabled, appTimeLimitConfigs, pactGroups, blockerLists, guardLiveStates, nowMillis
+        groupSealEnabled, well.enabled, appTimeLimitConfigs, pactGroups, blockerLists,
+        guardLiveStates, nowMillis
     ) {
         if (groupSealEnabled) {
             GuardStatus.groupSealSummary(
@@ -178,12 +186,17 @@ fun PactsHomeScreen(
                 groups = pactGroups,
                 blockers = blockerLists,
                 liveStates = guardLiveStates,
-                now = nowMillis
+                now = nowMillis,
+                wellEnabled = well.enabled
             )
         } else {
             null
         }
     }
+    // The dashboard's clock can trail the snapshot by a beat right after a
+    // draw; never read the Well at an instant before it was taken.
+    val wellNow = maxOf(nowMillis, well.takenAtMillis)
+    val wellMinutes = well.availableMinutesAt(wellNow)
     val headline = remember(rows) { GuardStatus.headlineCounts(rows) }
     val rollup = remember(rows) { GuardStatus.todayRollup(rows) }
     val liveRows = remember(rows) { rows.filter { GuardStatus.isLive(it) } }
@@ -192,6 +205,15 @@ fun PactsHomeScreen(
     // The tapped tile's request flow; holds a snapshot of the target so a
     // background refresh can't swap the app mid-choice.
     var requestTarget by remember { mutableStateOf<RequestTarget?>(null) }
+
+    // The running pact the user asked to end early, awaiting confirmation.
+    var sealNowTarget by remember { mutableStateOf<GuardRow?>(null) }
+    // A pact inside Group Seal's shared window has no early seal of its own:
+    // the window is one draw for every app in it, so ending it is the panic
+    // button's job ("seal everything"), which closes — and refunds — it whole.
+    val canSealNow: (AppTimeLimit) -> Boolean = { config ->
+        !groupSealEnabled || !GuardStatus.inGroupSeal(config, well.enabled)
+    }
 
     LazyColumn(
         modifier = modifier
@@ -280,23 +302,49 @@ fun PactsHomeScreen(
                 GuardsEmptyState(onMakePact = onMakePact)
             }
         } else {
-            // ── Request time: the dashboard's primary action ──
-            if (groupSealEnabled && groupSealSummary != null) {
-                item(key = "group-seal-panel") {
-                    SectionHeader(stringResource(R.string.pacts_request_time))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    GroupSealPanel(
-                        summary = groupSealSummary,
-                        openWindowMinutes = groupSealOpenWindowMinutes,
-                        sealDurationMinutes = groupSealDurationMinutes,
-                        onGroupOpen = onGroupOpen
+            // ── The Mana Well: the pool every Well-bound pact draws from ──
+            if (well.enabled && GuardStatus.hasPactRows(rows)) {
+                item(key = "well-panel") {
+                    WellPanel(
+                        well = well,
+                        nowMillis = wellNow,
+                        progressionEnabled = progressionEnabled,
+                        manaBalance = manaBalance,
+                        channelCost = wellChannelCost,
+                        onChannelMana = onChannelMana
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-            } else if (requestTargets.isNotEmpty()) {
-                item(key = "request-panel") {
+            }
+
+            // ── Request time: the dashboard's primary action ──
+            val showGroupPanel = groupSealEnabled && groupSealSummary != null &&
+                groupSealSummary.eligibleCount > 0
+            if (showGroupPanel || requestTargets.isNotEmpty()) {
+                item(key = "request-header") {
                     SectionHeader(stringResource(R.string.pacts_request_time))
                     Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            if (showGroupPanel && groupSealSummary != null) {
+                item(key = "group-seal-panel") {
+                    GroupSealPanel(
+                        summary = groupSealSummary,
+                        // With the Well on, the shared window is one draw of
+                        // at most what the Well holds.
+                        openWindowMinutes = if (well.enabled) {
+                            minOf(groupSealOpenWindowMinutes, wellMinutes)
+                        } else {
+                            groupSealOpenWindowMinutes
+                        },
+                        sealDurationMinutes = groupSealDurationMinutes,
+                        onGroupOpen = onGroupOpen
+                    )
+                    Spacer(modifier = Modifier.height(if (requestTargets.isEmpty()) 16.dp else 8.dp))
+                }
+            }
+            if (requestTargets.isNotEmpty()) {
+                item(key = "request-panel") {
                     RequestTimePanel(
                         targets = requestTargets,
                         names = names,
@@ -313,7 +361,10 @@ fun PactsHomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
-            guardCards(liveRows, names, pendingRevisions, nowMillis, onGuardClick)
+            guardCards(
+                liveRows, names, pendingRevisions, nowMillis, onGuardClick,
+                canSealNow = canSealNow, onSealNow = { sealNowTarget = it }
+            )
 
             // ── Standing guards, quiet or off their hours ──
             if (standingRows.isNotEmpty()) {
@@ -322,7 +373,10 @@ fun PactsHomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
-            guardCards(standingRows, names, pendingRevisions, nowMillis, onGuardClick)
+            guardCards(
+                standingRows, names, pendingRevisions, nowMillis, onGuardClick,
+                canSealNow = canSealNow, onSealNow = { sealNowTarget = it }
+            )
 
             item(key = "bottom-actions") {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -352,7 +406,19 @@ fun PactsHomeScreen(
                         AlertDialog(
                             onDismissRequest = { showSealAllDialog = false },
                             title = { Text(stringResource(R.string.home_seal_all_confirm_title)) },
-                            text = { Text(stringResource(R.string.home_seal_all_confirm_message)) },
+                            text = {
+                                Column {
+                                    Text(stringResource(R.string.home_seal_all_confirm_message))
+                                    if (well.enabled) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            stringResource(R.string.home_seal_now_refund_note),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                }
+                            },
                             confirmButton = {
                                 Button(onClick = {
                                     showSealAllDialog = false
@@ -381,12 +447,70 @@ fun PactsHomeScreen(
         }
     }
 
+    sealNowTarget?.let { target ->
+        val (targetName, sealMinutes, wellBound) = when (target) {
+            is GuardRow.App -> Triple(
+                names[target.packageName] ?: target.packageName,
+                target.config.cooldownMinutes,
+                well.enabled && !target.config.wellExempt
+            )
+            is GuardRow.Circle -> Triple(
+                target.group.blockerName,
+                target.group.cooldownMinutes,
+                well.enabled && !target.group.wellExempt
+            )
+        }
+        AlertDialog(
+            onDismissRequest = { sealNowTarget = null },
+            title = { Text(stringResource(R.string.home_seal_now_title, targetName)) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(
+                            if (target is GuardRow.Circle) R.string.home_seal_now_circle_message
+                            else R.string.home_seal_now_message,
+                            sealMinutes
+                        )
+                    )
+                    if (wellBound) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.home_seal_now_refund_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    sealNowTarget = null
+                    onSealNow(target)
+                }) {
+                    Text(stringResource(R.string.home_seal_now))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sealNowTarget = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
     requestTarget?.let { target ->
+        // A Well-bound pact can only offer what the Well holds — the same
+        // limit the launcher overlay applies (OverlayActivity).
+        val wellBound = well.enabled && !target.config.wellExempt
+        val ladder = PactManager.choicesFor(target.config)
         PactRequestDialog(
             packageName = target.packageName,
             appName = names[target.packageName] ?: target.packageName,
-            choicesMinutes = PactManager.choicesFor(target.config),
+            choicesMinutes = if (wellBound) WellMath.limitChoices(ladder, wellMinutes) else ladder,
             sealMinutes = target.config.cooldownMinutes,
+            well = if (wellBound) well else null,
+            wellNeededMinutes = ladder.min(),
+            nowMillis = wellNow,
             onRequest = { minutes ->
                 requestTarget = null
                 onRequestTime(target.packageName, minutes)
@@ -560,6 +684,179 @@ private fun SessionBanner(
 }
 
 // ────────────────────────────────────────────────────────────
+//  MANA WELL PANEL
+// ────────────────────────────────────────────────────────────
+
+/**
+ * The Mana Well at a glance: how much pact time is left in the shared pool,
+ * how fast it comes back, and how much was drawn today across every pact
+ * app — the one number per-app cards can't show. Channeling mana in is the
+ * card's only action; drawing happens where it always did, at the pact.
+ */
+@Composable
+private fun WellPanel(
+    well: WellSnapshot,
+    nowMillis: Long,
+    progressionEnabled: Boolean,
+    manaBalance: Long,
+    channelCost: Long,
+    onChannelMana: () -> Boolean
+) {
+    val levelMillis = well.levelMillisAt(nowMillis)
+    val minutes = (levelMillis / WellMath.MINUTE_MS).toInt()
+    val capacityMillis = well.capacityMinutes * WellMath.MINUTE_MS
+    val full = levelMillis >= capacityMillis
+    var showChannelDialog by remember { mutableStateOf(false) }
+
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.WaterDrop,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.well_title),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    stringResource(R.string.well_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.well_level_value, minutes, well.capacityMinutes),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+        }
+        LinearProgressIndicator(
+            progress = { (levelMillis.toFloat() / capacityMillis).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, bottom = 8.dp),
+            color = MaterialTheme.colorScheme.tertiary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            strokeCap = StrokeCap.Round
+        )
+        Text(
+            text = when {
+                full -> stringResource(R.string.well_full)
+                well.refillIntervalMinutes <= 0 -> stringResource(R.string.well_refill_off)
+                else -> stringResource(
+                    R.string.well_refill_line,
+                    well.refillIntervalMinutes,
+                    formatDuration(
+                        WellMath.wholeMinutesCeil(
+                            well.millisUntilMinutes(well.capacityMinutes, nowMillis) ?: 0L
+                        )
+                    )
+                )
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            stringResource(R.string.well_drawn_today, well.drawnTodayMinutes),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (progressionEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showChannelDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.well_channel_cta, Perk.WELL_CHANNEL_GRANT, channelCost))
+            }
+        }
+    }
+
+    if (showChannelDialog) {
+        // All or nothing, like the store itself: channeling is refused
+        // unless the whole grant fits under the capacity.
+        val hasRoom = levelMillis + Perk.WELL_CHANNEL_GRANT * WellMath.MINUTE_MS <= capacityMillis
+        WellChannelDialog(
+            cost = channelCost,
+            manaBalance = manaBalance,
+            hasRoom = hasRoom,
+            onConfirm = {
+                showChannelDialog = false
+                onChannelMana()
+            },
+            onDismiss = { showChannelDialog = false }
+        )
+    }
+}
+
+/**
+ * Confirms pouring mana into the Well. The price is shown before the tap
+ * because it moves: every channel in a day doubles the next one.
+ */
+@Composable
+private fun WellChannelDialog(
+    cost: Long,
+    manaBalance: Long,
+    hasRoom: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val affordable = manaBalance >= cost
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.well_channel_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.well_channel_message, cost, Perk.WELL_CHANNEL_GRANT),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.well_channel_doubling_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val blocker = when {
+                    !hasRoom -> stringResource(R.string.well_channel_no_room, Perk.WELL_CHANNEL_GRANT)
+                    !affordable -> stringResource(R.string.well_channel_balance, manaBalance)
+                    else -> null
+                }
+                if (blocker != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        blocker,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm, enabled = hasRoom && affordable) {
+                Text(stringResource(R.string.well_channel_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+// ────────────────────────────────────────────────────────────
 //  GROUP SEAL PANEL
 // ────────────────────────────────────────────────────────────
 
@@ -589,11 +886,17 @@ private fun GroupSealPanel(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 var showConfirm by remember { mutableStateOf(false) }
+                // A window of zero minutes only happens with the Mana Well
+                // on and dry: the Well card above says when it refills.
                 Button(
                     onClick = { showConfirm = true },
+                    enabled = openWindowMinutes > 0,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.home_group_seal_cta))
+                    Text(
+                        if (openWindowMinutes > 0) stringResource(R.string.home_group_seal_cta)
+                        else stringResource(R.string.well_dry_short)
+                    )
                 }
                 if (showConfirm) {
                     GroupOpenConfirmDialog(
@@ -778,7 +1081,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
     names: Map<String, String>,
     pendingRevisions: List<PendingPactRevision>,
     nowMillis: Long,
-    onGuardClick: (GuardRow) -> Unit
+    onGuardClick: (GuardRow) -> Unit,
+    canSealNow: (AppTimeLimit) -> Boolean,
+    onSealNow: (GuardRow) -> Unit
 ) {
     items(
         rows,
@@ -800,6 +1105,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
                 names = names,
                 pendingRevision = pendingRevisions.find { it.packageName == row.packageName },
                 nowMillis = nowMillis,
+                // Only a running pact can be ended early.
+                onSealNow = if (row.state == GuardState.PACT_ACTIVE && canSealNow(row.config)) {
+                    { onSealNow(row) }
+                } else null,
                 onClick = { onGuardClick(row) }
             )
             is GuardRow.Circle -> GuardCircleCard(
@@ -808,6 +1117,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
                     it.packageName == null && it.blockerName == row.group.blockerName
                 },
                 nowMillis = nowMillis,
+                onSealNow = if (row.pactActiveCount > 0 &&
+                    canSealNow(row.group.toAppTimeLimit(""))
+                ) {
+                    { onSealNow(row) }
+                } else null,
                 onClick = { onGuardClick(row) }
             )
         }
@@ -826,6 +1140,7 @@ private fun GuardAppCard(
     names: Map<String, String>,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
+    onSealNow: (() -> Unit)?,
     onClick: () -> Unit
 ) {
     val appName = names[row.packageName] ?: row.packageName
@@ -855,6 +1170,7 @@ private fun GuardAppCard(
                     WardCardBody(row)
                 }
                 PendingRevisionLine(pendingRevision, nowMillis)
+                SealNowButton(onSealNow)
             }
             GuardStateChip(state = row.state)
             Icon(
@@ -987,6 +1303,7 @@ private fun GuardCircleCard(
     row: GuardRow.Circle,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
+    onSealNow: (() -> Unit)?,
     onClick: () -> Unit
 ) {
     val circleState = GuardStatus.displayState(row)
@@ -1061,6 +1378,7 @@ private fun GuardCircleCard(
                     color = MaterialTheme.colorScheme.tertiary
                 )
                 PendingRevisionLine(pendingRevision, nowMillis)
+                SealNowButton(onSealNow)
             }
             GuardStateChip(state = circleState)
             Icon(
@@ -1072,6 +1390,29 @@ private fun GuardCircleCard(
                     .size(20.dp)
             )
         }
+    }
+}
+
+/**
+ * "Seal now" on a card with a running pact — the way to be done before the
+ * clock is. Null hides it (no pact running, or the pact is part of a Group
+ * Seal window). Sits flush with the card's text rather than indented like a
+ * dialog button.
+ */
+@Composable
+private fun SealNowButton(onSealNow: (() -> Unit)?) {
+    if (onSealNow == null) return
+    TextButton(
+        onClick = onSealNow,
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            Icons.Filled.Shield,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(stringResource(R.string.home_seal_now))
     }
 }
 
@@ -1153,11 +1494,18 @@ private fun PactRequestDialog(
     appName: String,
     choicesMinutes: List<Int>,
     sealMinutes: Int,
+    /** The Mana Well when this pact draws from it; null when it doesn't. */
+    well: WellSnapshot?,
+    /** The pact's smallest regular choice — what a dry Well has to regain. */
+    wellNeededMinutes: Int,
+    nowMillis: Long,
     onRequest: (minutes: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var remainingSeconds by remember { mutableIntStateOf(3) }
     val countdownDone = remainingSeconds <= 0
+    // Too little in the Well for even the smallest choice: nothing to grant.
+    val wellDry = well != null && choicesMinutes.isEmpty()
 
     LaunchedEffect(Unit) {
         while (remainingSeconds > 0) {
@@ -1182,40 +1530,73 @@ private fun PactRequestDialog(
         text = {
             Column {
                 Text(
-                    stringResource(R.string.overlay_pact_prompt, appName),
+                    if (wellDry) stringResource(R.string.overlay_well_dry_body, appName)
+                    else stringResource(R.string.overlay_pact_prompt, appName),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (!countdownDone) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                if (well != null) {
                     Text(
-                        stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                        stringResource(
+                            R.string.well_level_line,
+                            well.availableMinutesAt(nowMillis), well.capacityMinutes
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                if (wellDry && well != null) {
+                    val waitMillis = well.millisUntilMinutes(wellNeededMinutes, nowMillis)
+                    Text(
+                        if (waitMillis != null) {
+                            stringResource(
+                                R.string.overlay_well_dry_eta,
+                                wellNeededMinutes,
+                                formatDuration(WellMath.wholeMinutesCeil(waitMillis))
+                            )
+                        } else {
+                            stringResource(R.string.overlay_well_dry_no_refill)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                choicesMinutes.forEach { minutes ->
-                    OutlinedButton(
-                        onClick = { onRequest(minutes) },
-                        enabled = countdownDone,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.overlay_pact_choice, minutes))
+                } else {
+                    Text(
+                        stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!countdownDone) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.overlay_pact_wait, remainingSeconds),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    choicesMinutes.forEach { minutes ->
+                        OutlinedButton(
+                            onClick = { onRequest(minutes) },
+                            enabled = countdownDone,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.overlay_pact_choice, minutes))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.overlay_pact_decline))
+                // With a dry Well there was never an offer to turn down.
+                Text(
+                    if (wellDry) stringResource(R.string.overlay_close)
+                    else stringResource(R.string.overlay_pact_decline)
+                )
             }
         }
     )

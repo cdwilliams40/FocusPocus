@@ -54,10 +54,13 @@ fun ledgerReason(entry: ManaLedgerEntry): String = when (entry.kind) {
     LedgerKind.SESSION -> stringResource(R.string.ledger_session_reason, entry.minutes)
     LedgerKind.TRIAL -> stringResource(R.string.ledger_trial_reason)
     LedgerKind.BOON -> stringResource(R.string.ledger_boon_reason, entry.title)
-    LedgerKind.PERK ->
-        if (entry.refId == com.infinicada.focuspocus.model.Perk.SEALED_MINUTES.name)
+    LedgerKind.PERK -> when (entry.refId) {
+        com.infinicada.focuspocus.model.Perk.SEALED_MINUTES.name ->
             stringResource(R.string.ledger_perk_sealed_minutes)
-        else stringResource(R.string.ledger_perk_extra_break)
+        com.infinicada.focuspocus.model.Perk.WELL_CHANNEL.name ->
+            stringResource(R.string.ledger_perk_well_channel)
+        else -> stringResource(R.string.ledger_perk_extra_break)
+    }
     LedgerKind.MILESTONE -> stringResource(R.string.ledger_milestone_reason)
     LedgerKind.SIGIL -> stringResource(R.string.ledger_sigil_reason)
 }

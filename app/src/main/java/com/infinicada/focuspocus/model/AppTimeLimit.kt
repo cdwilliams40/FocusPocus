@@ -34,5 +34,12 @@ data class AppTimeLimit(
     /** "HH:mm" start of the daily enforcement window. Null/blank = all day. */
     val activeStartTime: String? = null,
     /** "HH:mm" end of the window; before [activeStartTime] means overnight. */
-    val activeEndTime: String? = null
+    val activeEndTime: String? = null,
+    /**
+     * Pact Mode: true keeps this pact out of the Mana Well — it grants its
+     * own allowance instead of drawing from the shared pool. Named so that
+     * false, which is what Gson fills in for configs stored before the field
+     * existed, means "draws from the Well".
+     */
+    val wellExempt: Boolean = false
 )

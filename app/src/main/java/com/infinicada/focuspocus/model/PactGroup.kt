@@ -27,7 +27,9 @@ data class PactGroup(
     /** "HH:mm" start of the daily enforcement window. Null/blank = all day. */
     val activeStartTime: String? = null,
     /** "HH:mm" end of the window; before [activeStartTime] means overnight. */
-    val activeEndTime: String? = null
+    val activeEndTime: String? = null,
+    /** Mirrors [AppTimeLimit.wellExempt]: true keeps the whole circle out of the Mana Well. */
+    val wellExempt: Boolean = false
 ) {
     /** The per-app view of this group used by the enforcement layer. */
     fun toAppTimeLimit(packageName: String): AppTimeLimit = AppTimeLimit(
@@ -42,6 +44,7 @@ data class PactGroup(
         pactAlternativePackage = pactAlternativePackage,
         activeDays = activeDays,
         activeStartTime = activeStartTime,
-        activeEndTime = activeEndTime
+        activeEndTime = activeEndTime,
+        wellExempt = wellExempt
     )
 }

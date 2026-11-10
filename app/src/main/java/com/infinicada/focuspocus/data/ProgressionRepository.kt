@@ -76,6 +76,9 @@ class ProgressionRepository(
 
     fun claimTrial(trialId: String): Long = Progression.claimTrial(prefs, gson, trialId)
 
+    /** Mana price of the next Well channel today (doubles per channel per day). */
+    fun getWellChannelCost(): Long = Progression.wellChannelCost(prefs, gson)
+
     /** Extra-break tokens bought during the current session. */
     fun getExtraBreakTokens(): Int = prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0)
 

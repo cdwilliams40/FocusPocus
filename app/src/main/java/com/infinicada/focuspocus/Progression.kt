@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
@@ -183,7 +184,9 @@ object Progression {
      * token is session-scoped); SEALED_MINUTES requires the target package and
      * is capped at one redemption per app per day. The daily-limit precedence
      * check (a spent daily limit can't be bought back) is enforced by the UI,
-     * which has the Context this method deliberately doesn't.
+     * which has the Context this method deliberately doesn't. WELL_CHANNEL
+     * pours minutes into the Mana Well at a price that doubles per channel
+     * per day; while the Well is on it replaces SEALED_MINUTES outright.
      */
     @Synchronized
     fun redeemPerk(prefs: SharedPreferences, gson: Gson, perk: Perk, packageName: String? = null): Boolean {
@@ -206,6 +209,9 @@ object Progression {
             }
             Perk.SEALED_MINUTES -> {
                 if (packageName.isNullOrEmpty()) return false
+                // A per-app allowance bought outside the pool — and one that
+                // lifts a seal — is exactly the side door the Well closes.
+                if (ManaWell.isEnabled(prefs)) return false
                 val today = SessionCooldownManager.todayString()
                 val alreadyToday = loadLedger(prefs, gson).any {
                     it.kind == LedgerKind.PERK && it.refId == perk.name &&
@@ -216,8 +222,35 @@ object Progression {
                 PactManager(prefs, gson).grantAllowance(packageName, Perk.SEALED_MINUTES_GRANT)
                 SessionCooldownManager(prefs, gson).clearCooldown(packageName)
             }
+            Perk.WELL_CHANNEL -> {
+                if (!ManaWell.isEnabled(prefs)) return false
+                val cost = wellChannelCost(prefs, gson)
+                // Balance first, then the pour, then the debit: the pour is
+                // the step that can still refuse (no room for the whole
+                // amount), and once it lands the debit can't fail — every
+                // mana mutation runs under this monitor.
+                if (prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L) < cost) return false
+                if (!ManaWell.channel(prefs, Perk.WELL_CHANNEL_GRANT)) return false
+                debit(prefs, gson, cost, perkEntry(perk, "", cost))
+            }
         }
         return true
+    }
+
+    /**
+     * What the next Well channel costs right now: the base price, doubled for
+     * every channel already bought today (counted from the structured ledger,
+     * like the sealed-minutes once-a-day check).
+     */
+    fun wellChannelCost(
+        prefs: SharedPreferences,
+        gson: Gson,
+        todayKey: String = SessionCooldownManager.todayString()
+    ): Long {
+        val channelsToday = loadLedger(prefs, gson).count {
+            it.kind == LedgerKind.PERK && it.refId == Perk.WELL_CHANNEL.name && it.dateKey == todayKey
+        }
+        return ProgressionMath.wellChannelCost(channelsToday)
     }
 
     /**
@@ -329,9 +362,13 @@ object Progression {
         PrefsHelper.save(prefs, gson, Constants.PrefsKeys.MANA_LEDGER, pruned)
     }
 
-    private fun perkEntry(perk: Perk, packageName: String) = ManaLedgerEntry(
+    private fun perkEntry(
+        perk: Perk,
+        packageName: String,
+        cost: Long = perk.costMana
+    ) = ManaLedgerEntry(
         timestampMillis = System.currentTimeMillis(),
-        amount = -perk.costMana,
+        amount = -cost,
         kind = LedgerKind.PERK,
         refId = perk.name,
         packageName = packageName,

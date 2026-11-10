@@ -52,6 +52,7 @@ import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
+import com.infinicada.focuspocus.limit.WellUnlocks
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.ui.components.SingleAppPickerDialog
 import kotlinx.coroutines.Dispatchers
@@ -69,7 +70,9 @@ fun ConditionalUnlocksScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     /** Packages whose "limit" is a pact gate rather than daily minutes (label only). */
-    pactPackages: Set<String> = emptySet()
+    pactPackages: Set<String> = emptySet(),
+    /** True while the Mana Well is on: rules pay into it instead of freeing Well-bound pacts. */
+    wellEnabled: Boolean = false
 ) {
     val context = LocalContext.current
     val hasUsagePermission = remember { UsageStatsHelper.hasUsageStatsPermission(context) }
@@ -138,6 +141,16 @@ fun ConditionalUnlocksScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (wellEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(
+                            R.string.conditional_unlocks_well_note, WellUnlocks.GRANT_MINUTES
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 

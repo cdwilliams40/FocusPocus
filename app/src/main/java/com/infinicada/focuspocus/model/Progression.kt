@@ -40,10 +40,22 @@ enum class Perk(val costMana: Long) {
     /** One extra break in the current manual session, beyond the per-session max. */
     EXTRA_BREAK(50),
 
-    /** A 10-minute allowance in one pacted/sealed app (once per app per day). */
-    SEALED_MINUTES(150);
+    /**
+     * A 10-minute allowance in one pacted/sealed app (once per app per day).
+     * Refused while the Mana Well is on: there, mana buys Well minutes
+     * instead of a per-app allowance that sidesteps the shared pool.
+     */
+    SEALED_MINUTES(150),
+
+    /**
+     * Minutes poured into the Mana Well. [costMana] is the day's first price;
+     * every further channel the same day doubles it
+     * (ProgressionMath.wellChannelCost), so banked mana can't buy a binge.
+     */
+    WELL_CHANNEL(75);
 
     companion object {
         const val SEALED_MINUTES_GRANT = 10
+        const val WELL_CHANNEL_GRANT = 5
     }
 }

@@ -85,6 +85,7 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuardEditorScreen(
+    wellEnabled: Boolean,
     installedApps: List<AppInfo>,
     blockerLists: List<Blocker>,
     pactGroups: List<PactGroup>,
@@ -155,6 +156,9 @@ fun GuardEditorScreen(
     // silently wipe the stored substitute on the next save.
     var alternativePackage by remember { mutableStateOf(initial?.pactAlternativePackage) }
     var showAlternativePicker by remember { mutableStateOf(false) }
+    // Whether this pact stands outside the Mana Well. Kept (and saved back
+    // unchanged) even while the Well is off and the switch isn't on screen.
+    var wellExempt by remember { mutableStateOf(initial?.wellExempt ?: false) }
 
     // ── Ward fields ──
     var dailyLimitMinutes by remember {
@@ -274,7 +278,8 @@ fun GuardEditorScreen(
                     dailyLimitMinutes = backstopMinutes,
                     activeDays = activeDaysToSave,
                     activeStartTime = startToSave,
-                    activeEndTime = endToSave
+                    activeEndTime = endToSave,
+                    wellExempt = wellExempt
                 )
             )
         } else {
@@ -293,7 +298,8 @@ fun GuardEditorScreen(
                         pactAlternativePackage = alternativePackage,
                         activeDays = activeDaysToSave,
                         activeStartTime = startToSave,
-                        activeEndTime = endToSave
+                        activeEndTime = endToSave,
+                        wellExempt = wellExempt
                     )
                 } else {
                     AppTimeLimit(
@@ -553,6 +559,34 @@ fun GuardEditorScreen(
                         },
                         onDismiss = { showAlternativePicker = false }
                     )
+                }
+
+                // ── Mana Well: in the shared pool, or apart from it ──
+                if (wellEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.guard_well_toggle),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                stringResource(
+                                    if (wellExempt) R.string.guard_well_desc_exempt
+                                    else R.string.guard_well_desc_bound
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = !wellExempt,
+                            onCheckedChange = { wellExempt = !it }
+                        )
+                    }
                 }
             } else {
                 GuardDropdown(
