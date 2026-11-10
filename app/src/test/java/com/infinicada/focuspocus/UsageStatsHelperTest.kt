@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.app.usage.UsageEvents
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -203,5 +204,34 @@ class UsageStatsHelperTest {
     fun formatDuration_hoursAndSeconds_ignoresSeconds() {
         // 1h 0m 30s = 3600000 + 30000 = 3630000ms. Should format to "1h 0m"
         assertEquals("1h 0m", UsageStatsHelper.formatDuration(3630000))
+    }
+
+    // --- lastResumedPackage ---
+
+    @Test
+    fun lastResumed_returnsThePackageOfTheLatestResume() {
+        // Blocked app closed, launcher and block screen come up, user goes back in.
+        val events = listOf(
+            resumed("com.example.launcher", 1_000),
+            resumed("com.infinicada.focuspocus", 1_100),
+            resumed("com.example.feed", 2_050)
+        )
+        assertEquals("com.example.feed", UsageStatsHelper.lastResumedPackage(events))
+    }
+
+    @Test
+    fun lastResumed_ignoresPausesAndStops() {
+        val events = listOf(
+            resumed("com.example.launcher", 1_000),
+            paused("com.example.feed", 1_010),
+            stopped("com.example.feed", 1_500)
+        )
+        assertEquals("com.example.launcher", UsageStatsHelper.lastResumedPackage(events))
+    }
+
+    @Test
+    fun lastResumed_isNullWithoutAResume() {
+        assertNull(UsageStatsHelper.lastResumedPackage(emptyList()))
+        assertNull(UsageStatsHelper.lastResumedPackage(listOf(paused("com.example.feed", 1_000))))
     }
 }
