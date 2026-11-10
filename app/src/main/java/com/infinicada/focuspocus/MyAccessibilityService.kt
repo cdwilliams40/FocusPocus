@@ -933,11 +933,13 @@ class MyAccessibilityService : AccessibilityService() {
         // 2. Pact Mode: a lapsed allowance seals the app — start the cooldown anchored
         // at the moment the allowance expired, so returning long after the pact ended
         // doesn't restart a full-length seal (it may even have fully elapsed already).
+        // A pact paid from the Mana Well starts no seal (sealRequestFor is null):
+        // its lapsed allowance is just dropped, and step 4 offers the next pact.
         if (pactConfig != null) {
             val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
             if (lapsedExpiry != null) {
                 sessionCooldownManager.startSeals(
-                    listOf(sealRequestFor(packageName, pactConfig, lapsedExpiry))
+                    listOfNotNull(sealRequestFor(packageName, pactConfig, lapsedExpiry))
                 )
             }
         }
@@ -1491,16 +1493,25 @@ class MyAccessibilityService : AccessibilityService() {
 
     /**
      * Fires a one-time toast when the foreground app's pact allowance is about to
-     * lapse, so the seal doesn't land mid-scroll without warning.
+     * lapse, so the end doesn't land mid-scroll without warning. It only speaks
+     * of a seal when one is coming — a pact paid from the Mana Well just closes.
      */
     private fun maybeWarnPactEnding(packageName: String) {
-        resolvePactConfig(packageName) ?: return
+        val config = resolvePactConfig(packageName) ?: return
         val expiry = pactManager.getAllowanceExpiry(packageName) ?: return
         val remainingMs = expiry - System.currentTimeMillis()
         if (remainingMs in 1..90_000 && pactWarnedExpiries[packageName] != expiry) {
             pactWarnedExpiries[packageName] = expiry
             val appName = AppUtils.getAppName(this, packageName)
-            val message = getString(R.string.pact_ending_toast, appName)
+            val seals = GuardStatus.sealsWhenPactEnds(
+                config,
+                wellEnabled = ManaWell.isEnabled(sharedPreferences),
+                groupSealEnabled = settingsRepo.getGroupSealEnabled()
+            )
+            val message = getString(
+                if (seals) R.string.pact_ending_toast else R.string.pact_ending_no_seal_toast,
+                appName
+            )
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
             }
@@ -1532,9 +1543,9 @@ class MyAccessibilityService : AccessibilityService() {
     /**
      * Seals every app whose pact allowance has lapsed, anchored at the moment the
      * allowance expired (checkTimeLimitAndBlock's rule, applied proactively). An
-     * app whose pact config has been removed just gets its stale allowance
-     * dropped. takeLapsedAllowances is take-once, so racing the open-attempt path
-     * can't double-start a cooldown.
+     * app whose pact config has been removed, or whose pact is paid from the Mana
+     * Well, just gets its lapsed allowance dropped. takeLapsedAllowances is
+     * take-once, so racing the open-attempt path can't double-start a cooldown.
      *
      * Both stores are written once for the whole sweep, not once per app: under
      * Group Seal every app's shared window lapses on this same tick, and this
@@ -1559,29 +1570,24 @@ class MyAccessibilityService : AccessibilityService() {
      * cooldownMinutes — instead of each app escalating independently. A
      * Well-exempt pact is outside the group while the Mana Well is on
      * (GuardStatus.inGroupSeal), so it seals on its own terms.
+     *
+     * Null for a pact paid from the Mana Well outside Group Seal: it starts
+     * no seal of its own, and the app just goes back behind its pact gate.
+     * The rule itself is GuardStatus.lapseSeal.
      */
     private fun sealRequestFor(
         packageName: String,
         config: AppTimeLimit,
         lapsedExpiry: Long
-    ): SessionCooldownManager.SealRequest =
-        if (settingsRepo.getGroupSealEnabled() &&
-            GuardStatus.inGroupSeal(config, ManaWell.isEnabled(sharedPreferences))
-        ) {
-            SessionCooldownManager.SealRequest(
-                packageName = packageName,
-                config = config.copy(cooldownMinutes = settingsRepo.getGroupSealDurationMinutes()),
-                anchorMillis = lapsedExpiry,
-                countsAsOffence = false
-            )
-        } else {
-            SessionCooldownManager.SealRequest(
-                packageName = packageName,
-                config = config,
-                anchorMillis = lapsedExpiry,
-                countsAsOffence = true
-            )
-        }
+    ): SessionCooldownManager.SealRequest? =
+        GuardStatus.lapseSealRequest(
+            packageName = packageName,
+            config = config,
+            lapsedExpiry = lapsedExpiry,
+            wellEnabled = ManaWell.isEnabled(sharedPreferences),
+            groupSealEnabled = settingsRepo.getGroupSealEnabled(),
+            groupSealMinutes = settingsRepo.getGroupSealDurationMinutes()
+        )
 
     override fun onInterrupt() {
         Log.d("MyAccessibilityService", "Service interrupted")

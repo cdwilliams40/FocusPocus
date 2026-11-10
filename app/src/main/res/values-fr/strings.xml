@@ -166,11 +166,11 @@
     <string name="overlay_well_dry_eta">De quoi faire un pacte de %1$d minutes dans %2$s.</string>
     <string name="overlay_well_dry_no_refill">Le Puits ne se remplit que lorsque vous y canalisez du mana.</string>
     <string name="guard_well_toggle">Puise dans le Puits de mana</string>
-    <string name="guard_well_desc_bound">Le temps de ce pacte est pris sur la réserve commune.</string>
-    <string name="guard_well_desc_exempt">Exempté — ce pacte garde son propre temps, hors de la réserve commune.</string>
+    <string name="guard_well_desc_bound">Le temps de ce pacte est pris sur la réserve commune, et sa fin ne déclenche aucun sceau propre. La durée du sceau ci-dessus s\'applique toujours quand vous scellez tout d\'un coup.</string>
+    <string name="guard_well_desc_exempt">Exempté — ce pacte garde son propre temps et son propre sceau, hors de la réserve commune.</string>
     <string name="settings_well_title">Puits de mana</string>
     <string name="settings_well_toggle">Partager une seule réserve de temps entre les applis sous pacte</string>
-    <string name="settings_well_desc">Chaque pacte puise ses minutes dans un même puits qui se remplit lentement : passer à l\'appli suivante dépense le même temps. Un pacte peut être exempté dans ses propres réglages.</string>
+    <string name="settings_well_desc">Chaque pacte puise ses minutes dans un même puits qui se remplit lentement : passer à l\'appli suivante dépense le même temps. Un pacte payé par le Puits ne déclenche aucun sceau propre quand il prend fin — la limite, c\'est le Puits. Un pacte peut être exempté dans ses propres réglages.</string>
     <string name="settings_well_capacity">Le Puits contient : %d min</string>
     <string name="settings_well_refill_toggle">Se remplir avec le temps</string>
     <string name="settings_well_refill_toggle_desc">Désactivé : le Puits ne se remplit que lorsque vous y canalisez du mana.</string>
@@ -185,6 +185,12 @@
     <string name="perk_well_channel_desc">%1$d minutes de plus de temps de pacte partagé. Le prix double à chaque canalisation d\'une même journée.</string>
     <string name="ledger_perk_well_channel">Avantage : mana canalisé dans le Puits</string>
     <string name="home_seal_now">Sceller maintenant</string>
+    <string name="home_end_pact">Terminer le pacte</string>
+    <plurals name="home_end_pact_result">
+        <item quantity="one">%d pacte terminé</item>
+        <item quantity="many">%d pactes terminés</item>
+        <item quantity="other">%d pactes terminés</item>
+    </plurals>
     <string name="home_seal_now_title">Sceller %s maintenant ?</string>
     <string name="home_seal_now_message">Le pacte prend fin et l\'application est scellée pendant %d minutes. Les sceaux ne peuvent pas être levés en avance.</string>
     <string name="home_seal_now_circle_message">Tous les pactes en cours de ce cercle prennent fin, et ces applications sont scellées pendant %d minutes. Les sceaux ne peuvent pas être levés en avance.</string>
@@ -496,6 +502,7 @@
 
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
     <string name="pacts_config_summary">Jusqu\'\u00e0 %1$d min par pacte \u2192 scell\u00e9e %2$d min ensuite</string>
+    <string name="pacts_config_summary_well">Jusqu\'à %1$d min par pacte · puisées dans le Puits de mana</string>
     <string name="pacts_backstop_label">Garde-fou quotidien (facultatif)</string>
     <string name="pacts_backstop_none">Aucun</string>
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
@@ -514,6 +521,7 @@
     <string name="overlay_wait">Attendez %ds\u2026</string>
     <string name="overlay_pact_prompt">%s est scellée. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
     <string name="overlay_pact_seal_desc">Quand votre temps est écoulé, %1$s se scelle à nouveau pendant %2$d minutes.</string>
+    <string name="overlay_pact_well_desc">Ces minutes sont puisées dans le Puits de mana. Une fois écoulées, %s se referme.</string>
     <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
     <string name="overlay_pact_decline">Finalement, non — je n\'en ai pas besoin</string>
@@ -524,6 +532,7 @@
     <string name="overlay_group_pact_seal_desc">À la fin de la fenêtre, toutes les applis sous pacte se scellent ensemble pendant %d minutes — impossible de sauter à une autre.</string>
     <string name="overlay_group_pact_choice">Tout ouvrir — %d minutes</string>
     <string name="pact_ending_toast">Votre pacte se termine — %s se scelle dans moins d\'une minute</string>
+    <string name="pact_ending_no_seal_toast">Votre pacte se termine — %s se ferme dans moins d\'une minute</string>
 
     <!-- MyAccessibilityService -->
     <string name="rituals_channel_name">Rituels</string>

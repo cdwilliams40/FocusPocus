@@ -68,12 +68,13 @@ A mystical focus and productivity app for Android that helps you stay on task by
 - The Well holds a small amount (30 minutes by default) and refills on the clock (one minute every 20 by default), so there is no midnight reset to binge against: draw 15 minutes and those 15 take five hours to come back
 - The pact screen only offers what the Well holds; when it is dry, it says when the time will be back and offers the pact's healthier substitute
 - **Channel mana** earned from focus sessions into the Well for extra minutes — never past its capacity, and each channel in a day costs double the one before. While the Well is on this replaces the sealed-minutes perk
+- **No seal after a Well-paid pact**: when the time runs out the app simply closes, and the next pact draws from the Well again. The Well is the limit — a per-app seal on top of it would punish a two-minute check as hard as a full pact and push you towards the next app
 - **Exempt** individual pacts or pact circles that are only mildly distracting; they keep their own allowance and seal
-- **Seal now** ends a running pact early and returns the unused minutes to the Well, so there is no reason to scroll out a pact you are done with; "Seal everything now" refunds the same way
+- **End pact** closes a running pact early and returns the unused minutes to the Well, so there is no reason to scroll out a pact you are done with; "Seal everything now" refunds the same way, and is still there when you want the lock itself
 - **Conditional unlocks pay into the Well**: a met rule adds 10 minutes once a day instead of freeing a pact that draws from it (wards, exempt pacts and enchantments are unlocked as before)
 - The Pacts dashboard shows the Well's level, its refill rate, and **minutes drawn today across every pact app**
 - Loosening the Well — a larger capacity, a faster refill, or turning it off — takes effect 24 hours after you ask; tightening is instant
-- Works alongside Group Seal: with both on, one draw opens every Well-bound pact app for the shared window
+- Works alongside Group Seal: with both on, one draw opens every Well-bound pact app for the shared window, and they still seal together when it ends
 
 ### Guard Hours (Per-Guard Schedules)
 - Give any pact, ward, or pact circle a schedule: active days and an optional daily time window ("this pact only applies 21:00–07:00 on weekdays")

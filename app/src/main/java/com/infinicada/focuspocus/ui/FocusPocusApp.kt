@@ -781,13 +781,13 @@ fun FocusPocusApp(
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
                             onSealAll = { sealResultToast(context, spellbookVM.sealAllPacts()) },
-                            onSealNow = { row ->
+                            onEndPact = { row ->
                                 sealResultToast(
                                     context,
                                     when (row) {
-                                        is GuardRow.App -> spellbookVM.sealPactNow(row.packageName)
+                                        is GuardRow.App -> spellbookVM.endPactNow(row.packageName)
                                         is GuardRow.Circle ->
-                                            spellbookVM.sealCircleNow(row.group.blockerName)
+                                            spellbookVM.endCirclePactsNow(row.group.blockerName)
                                     }
                                 )
                             },
@@ -1341,17 +1341,25 @@ fun FocusPocusApp(
 }
 
 /**
- * Says what a chosen seal did: how many apps it sealed and, when the pacts it
- * ended were paid from the Mana Well, how many unused minutes went back.
+ * Says what ending pacts early did: how many apps were sealed — or, for pacts
+ * paid from the Mana Well, which end without a seal, how many pacts ended —
+ * and how many unused minutes went back into the Well.
  */
 private fun sealResultToast(context: Context, result: SpellbookViewModel.SealResult) {
-    val sealed = context.resources.getQuantityString(
-        R.plurals.home_seal_all_result, result.sealedCount, result.sealedCount
-    )
-    val text = if (result.refundedMinutes > 0) {
-        sealed + " · " + context.getString(R.string.well_refund_toast, result.refundedMinutes)
+    // "0 apps sealed" would read as a failure when nothing was meant to seal.
+    val outcome = if (result.sealedCount == 0 && result.endedUnsealedCount > 0) {
+        context.resources.getQuantityString(
+            R.plurals.home_end_pact_result, result.endedUnsealedCount, result.endedUnsealedCount
+        )
     } else {
-        sealed
+        context.resources.getQuantityString(
+            R.plurals.home_seal_all_result, result.sealedCount, result.sealedCount
+        )
+    }
+    val text = if (result.refundedMinutes > 0) {
+        outcome + " · " + context.getString(R.string.well_refund_toast, result.refundedMinutes)
+    } else {
+        outcome
     }
     Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 }

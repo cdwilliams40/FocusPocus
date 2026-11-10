@@ -617,7 +617,13 @@ fun PactOfferScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
+                        // A pact paid from the Mana Well ends without a seal
+                        // (GuardStatus.lapseSeal), so it mustn't promise one.
+                        text = if (wellMinutes != null) {
+                            stringResource(R.string.overlay_pact_well_desc, appName)
+                        } else {
+                            stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

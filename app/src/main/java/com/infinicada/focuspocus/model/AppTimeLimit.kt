@@ -37,9 +37,11 @@ data class AppTimeLimit(
     val activeEndTime: String? = null,
     /**
      * Pact Mode: true keeps this pact out of the Mana Well — it grants its
-     * own allowance instead of drawing from the shared pool. Named so that
-     * false, which is what Gson fills in for configs stored before the field
-     * existed, means "draws from the Well".
+     * own allowance, and seals on its own terms when that runs out, instead
+     * of drawing from the shared pool (a pact paid from the Well starts no
+     * seal of its own: GuardStatus.lapseSeal). Named so that false, which is
+     * what Gson fills in for configs stored before the field existed, means
+     * "draws from the Well".
      */
     val wellExempt: Boolean = false
 )

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -124,7 +125,8 @@ fun PactsHomeScreen(
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
     onSealAll: () -> Unit,
-    onSealNow: (GuardRow) -> Unit,
+    /** Ends the row's running pact(s) early — sealing them or not is the view model's rule. */
+    onEndPact: (GuardRow) -> Unit,
     onGuardClick: (GuardRow) -> Unit,
     onRequestTime: (packageName: String, minutes: Int) -> Unit,
     groupSealEnabled: Boolean,
@@ -206,13 +208,29 @@ fun PactsHomeScreen(
     // background refresh can't swap the app mid-choice.
     var requestTarget by remember { mutableStateOf<RequestTarget?>(null) }
 
-    // The running pact the user asked to end early, awaiting confirmation.
+    // The running pact the user asked to seal early, awaiting confirmation.
     var sealNowTarget by remember { mutableStateOf<GuardRow?>(null) }
-    // A pact inside Group Seal's shared window has no early seal of its own:
+    // A pact inside Group Seal's shared window can't be ended on its own:
     // the window is one draw for every app in it, so ending it is the panic
     // button's job ("seal everything"), which closes — and refunds — it whole.
-    val canSealNow: (AppTimeLimit) -> Boolean = { config ->
+    val canEndEarly: (AppTimeLimit) -> Boolean = { config ->
         !groupSealEnabled || !GuardStatus.inGroupSeal(config, well.enabled)
+    }
+    // A pact paid from the Mana Well ends without a seal — when it runs out,
+    // and when it is ended early — so its card says so and offers "End pact"
+    // where the others offer "Seal now".
+    val sealsWhenPactEnds: (AppTimeLimit) -> Boolean = { config ->
+        GuardStatus.sealsWhenPactEnds(config, well.enabled, groupSealEnabled)
+    }
+    // Ending a pact that seals asks first — a seal can't be lifted early.
+    // Ending one that doesn't just hands the unused minutes back, and a slip
+    // costs nothing but asking again, so it goes straight through.
+    val onEndEarly: (GuardRow) -> Unit = { row ->
+        val config = when (row) {
+            is GuardRow.App -> row.config
+            is GuardRow.Circle -> row.group.toAppTimeLimit("")
+        }
+        if (sealsWhenPactEnds(config)) sealNowTarget = row else onEndPact(row)
     }
 
     LazyColumn(
@@ -363,7 +381,8 @@ fun PactsHomeScreen(
             }
             guardCards(
                 liveRows, names, pendingRevisions, nowMillis, onGuardClick,
-                canSealNow = canSealNow, onSealNow = { sealNowTarget = it }
+                canEndEarly = canEndEarly, sealsWhenPactEnds = sealsWhenPactEnds,
+                onEndEarly = onEndEarly
             )
 
             // ── Standing guards, quiet or off their hours ──
@@ -375,7 +394,8 @@ fun PactsHomeScreen(
             }
             guardCards(
                 standingRows, names, pendingRevisions, nowMillis, onGuardClick,
-                canSealNow = canSealNow, onSealNow = { sealNowTarget = it }
+                canEndEarly = canEndEarly, sealsWhenPactEnds = sealsWhenPactEnds,
+                onEndEarly = onEndEarly
             )
 
             item(key = "bottom-actions") {
@@ -447,45 +467,30 @@ fun PactsHomeScreen(
         }
     }
 
+    // Only pacts that seal get here (onEndEarly), and those are never paid
+    // from the Well — so there is no refund to mention.
     sealNowTarget?.let { target ->
-        val (targetName, sealMinutes, wellBound) = when (target) {
-            is GuardRow.App -> Triple(
-                names[target.packageName] ?: target.packageName,
-                target.config.cooldownMinutes,
-                well.enabled && !target.config.wellExempt
-            )
-            is GuardRow.Circle -> Triple(
-                target.group.blockerName,
-                target.group.cooldownMinutes,
-                well.enabled && !target.group.wellExempt
-            )
+        val (targetName, sealMinutes) = when (target) {
+            is GuardRow.App ->
+                (names[target.packageName] ?: target.packageName) to target.config.cooldownMinutes
+            is GuardRow.Circle -> target.group.blockerName to target.group.cooldownMinutes
         }
         AlertDialog(
             onDismissRequest = { sealNowTarget = null },
             title = { Text(stringResource(R.string.home_seal_now_title, targetName)) },
             text = {
-                Column {
-                    Text(
-                        stringResource(
-                            if (target is GuardRow.Circle) R.string.home_seal_now_circle_message
-                            else R.string.home_seal_now_message,
-                            sealMinutes
-                        )
+                Text(
+                    stringResource(
+                        if (target is GuardRow.Circle) R.string.home_seal_now_circle_message
+                        else R.string.home_seal_now_message,
+                        sealMinutes
                     )
-                    if (wellBound) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.home_seal_now_refund_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
+                )
             },
             confirmButton = {
                 Button(onClick = {
                     sealNowTarget = null
-                    onSealNow(target)
+                    onEndPact(target)
                 }) {
                     Text(stringResource(R.string.home_seal_now))
                 }
@@ -507,7 +512,8 @@ fun PactsHomeScreen(
             packageName = target.packageName,
             appName = names[target.packageName] ?: target.packageName,
             choicesMinutes = if (wellBound) WellMath.limitChoices(ladder, wellMinutes) else ladder,
-            sealMinutes = target.config.cooldownMinutes,
+            // Null: a pact paid from the Well ends without a seal.
+            sealMinutes = target.config.cooldownMinutes.takeIf { sealsWhenPactEnds(target.config) },
             well = if (wellBound) well else null,
             wellNeededMinutes = ladder.min(),
             nowMillis = wellNow,
@@ -1082,8 +1088,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
     pendingRevisions: List<PendingPactRevision>,
     nowMillis: Long,
     onGuardClick: (GuardRow) -> Unit,
-    canSealNow: (AppTimeLimit) -> Boolean,
-    onSealNow: (GuardRow) -> Unit
+    canEndEarly: (AppTimeLimit) -> Boolean,
+    sealsWhenPactEnds: (AppTimeLimit) -> Boolean,
+    onEndEarly: (GuardRow) -> Unit
 ) {
     items(
         rows,
@@ -1105,9 +1112,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
                 names = names,
                 pendingRevision = pendingRevisions.find { it.packageName == row.packageName },
                 nowMillis = nowMillis,
+                sealsWhenPactEnds = sealsWhenPactEnds(row.config),
                 // Only a running pact can be ended early.
-                onSealNow = if (row.state == GuardState.PACT_ACTIVE && canSealNow(row.config)) {
-                    { onSealNow(row) }
+                onEndEarly = if (row.state == GuardState.PACT_ACTIVE && canEndEarly(row.config)) {
+                    { onEndEarly(row) }
                 } else null,
                 onClick = { onGuardClick(row) }
             )
@@ -1117,10 +1125,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guardCards(
                     it.packageName == null && it.blockerName == row.group.blockerName
                 },
                 nowMillis = nowMillis,
-                onSealNow = if (row.pactActiveCount > 0 &&
-                    canSealNow(row.group.toAppTimeLimit(""))
+                sealsWhenPactEnds = sealsWhenPactEnds(row.group.toAppTimeLimit("")),
+                onEndEarly = if (row.pactActiveCount > 0 &&
+                    canEndEarly(row.group.toAppTimeLimit(""))
                 ) {
-                    { onSealNow(row) }
+                    { onEndEarly(row) }
                 } else null,
                 onClick = { onGuardClick(row) }
             )
@@ -1140,7 +1149,8 @@ private fun GuardAppCard(
     names: Map<String, String>,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
-    onSealNow: (() -> Unit)?,
+    sealsWhenPactEnds: Boolean,
+    onEndEarly: (() -> Unit)?,
     onClick: () -> Unit
 ) {
     val appName = names[row.packageName] ?: row.packageName
@@ -1165,12 +1175,12 @@ private fun GuardAppCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(appName, style = MaterialTheme.typography.titleSmall)
                 if (row.config.pactModeEnabled) {
-                    PactCardBody(row)
+                    PactCardBody(row, sealsWhenPactEnds)
                 } else {
                     WardCardBody(row)
                 }
                 PendingRevisionLine(pendingRevision, nowMillis)
-                SealNowButton(onSealNow)
+                EndEarlyButton(sealsWhenPactEnds, onEndEarly)
             }
             GuardStateChip(state = row.state)
             Icon(
@@ -1187,14 +1197,8 @@ private fun GuardAppCard(
 
 /** Config summary, live state, and today's counters for a pact-style row. */
 @Composable
-private fun PactCardBody(row: GuardRow.App) {
-    val effectiveMax = if (row.config.pactMaxMinutes > 0) row.config.pactMaxMinutes
-                       else PactManager.DEFAULT_MAX_MINUTES
-    Text(
-        stringResource(R.string.pacts_config_summary, effectiveMax, row.config.cooldownMinutes),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+private fun PactCardBody(row: GuardRow.App, sealsWhenPactEnds: Boolean) {
+    PactConfigSummary(row.config.pactMaxMinutes, row.config.cooldownMinutes, sealsWhenPactEnds)
     GuardScheduleSummary(row.config.activeDays, row.config.activeStartTime, row.config.activeEndTime)
     GuardStateLine(row)
     Text(
@@ -1303,7 +1307,8 @@ private fun GuardCircleCard(
     row: GuardRow.Circle,
     pendingRevision: PendingPactRevision?,
     nowMillis: Long,
-    onSealNow: (() -> Unit)?,
+    sealsWhenPactEnds: Boolean,
+    onEndEarly: (() -> Unit)?,
     onClick: () -> Unit
 ) {
     val circleState = GuardStatus.displayState(row)
@@ -1346,12 +1351,8 @@ private fun GuardCircleCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                val effectiveMax = if (row.group.pactMaxMinutes > 0) row.group.pactMaxMinutes
-                                   else PactManager.DEFAULT_MAX_MINUTES
-                Text(
-                    stringResource(R.string.pacts_config_summary, effectiveMax, row.group.cooldownMinutes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                PactConfigSummary(
+                    row.group.pactMaxMinutes, row.group.cooldownMinutes, sealsWhenPactEnds
                 )
                 GuardScheduleSummary(
                     row.group.activeDays, row.group.activeStartTime, row.group.activeEndTime
@@ -1378,7 +1379,7 @@ private fun GuardCircleCard(
                     color = MaterialTheme.colorScheme.tertiary
                 )
                 PendingRevisionLine(pendingRevision, nowMillis)
-                SealNowButton(onSealNow)
+                EndEarlyButton(sealsWhenPactEnds, onEndEarly)
             }
             GuardStateChip(state = circleState)
             Icon(
@@ -1394,25 +1395,47 @@ private fun GuardCircleCard(
 }
 
 /**
- * "Seal now" on a card with a running pact — the way to be done before the
- * clock is. Null hides it (no pact running, or the pact is part of a Group
- * Seal window). Sits flush with the card's text rather than indented like a
- * dialog button.
+ * "Up to 15 min per pact → sealed 30 min after" — or, for a pact paid from
+ * the Mana Well, which ends without a seal, where its minutes come from.
  */
 @Composable
-private fun SealNowButton(onSealNow: (() -> Unit)?) {
-    if (onSealNow == null) return
+private fun PactConfigSummary(pactMaxMinutes: Int, sealMinutes: Int, sealsWhenPactEnds: Boolean) {
+    val effectiveMax = if (pactMaxMinutes > 0) pactMaxMinutes else PactManager.DEFAULT_MAX_MINUTES
+    Text(
+        if (sealsWhenPactEnds) {
+            stringResource(R.string.pacts_config_summary, effectiveMax, sealMinutes)
+        } else {
+            stringResource(R.string.pacts_config_summary_well, effectiveMax)
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+/**
+ * The way to be done before the clock is, on a card with a running pact:
+ * "Seal now", or "End pact" for a pact that ends without a seal. Null hides
+ * it (no pact running, or the pact is part of a Group Seal window). Sits
+ * flush with the card's text rather than indented like a dialog button.
+ */
+@Composable
+private fun EndEarlyButton(sealsWhenPactEnds: Boolean, onEndEarly: (() -> Unit)?) {
+    if (onEndEarly == null) return
     TextButton(
-        onClick = onSealNow,
+        onClick = onEndEarly,
         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
     ) {
         Icon(
-            Icons.Filled.Shield,
+            if (sealsWhenPactEnds) Icons.Filled.Shield else Icons.Filled.Check,
             contentDescription = null,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(stringResource(R.string.home_seal_now))
+        Text(
+            stringResource(
+                if (sealsWhenPactEnds) R.string.home_seal_now else R.string.home_end_pact
+            )
+        )
     }
 }
 
@@ -1493,7 +1516,8 @@ private fun PactRequestDialog(
     packageName: String,
     appName: String,
     choicesMinutes: List<Int>,
-    sealMinutes: Int,
+    /** The seal that follows the pact, in minutes; null when none does. */
+    sealMinutes: Int?,
     /** The Mana Well when this pact draws from it; null when it doesn't. */
     well: WellSnapshot?,
     /** The pact's smallest regular choice — what a dry Well has to regain. */
@@ -1563,7 +1587,11 @@ private fun PactRequestDialog(
                     )
                 } else {
                     Text(
-                        stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes),
+                        if (sealMinutes != null) {
+                            stringResource(R.string.overlay_pact_seal_desc, appName, sealMinutes)
+                        } else {
+                            stringResource(R.string.overlay_pact_well_desc, appName)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
