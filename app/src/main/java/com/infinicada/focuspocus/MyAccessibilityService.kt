@@ -214,7 +214,8 @@ class MyAccessibilityService : AccessibilityService() {
     // a timed session ending, an auto-break starting, a pact window closing,
     // a seal lifting — so each lands on time instead of on the following
     // minute tick. The notification, the dashboard and Warden greying all
-    // follow the state written here. The minute tick remains the backstop.
+    // follow the state written here, and the app in front is closed here if
+    // the change took its access away. The minute tick remains the backstop.
     private val transitionHandler = Handler(Looper.getMainLooper())
     private val transitionRunnable = Runnable {
         try {
@@ -224,6 +225,11 @@ class MyAccessibilityService : AccessibilityService() {
             // before seal-lifted detection and the suspension sync read the stores.
             sealLapsedPacts()
             maybeNotifySealsLifted()
+            // A pact that has just run out must also close the app the user is
+            // still inside: no window event fires while they stay in it, and
+            // leaving this to the minute tick let every pact run up to a minute
+            // over.
+            currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
             DeviceOwnerManager.syncSuspensions(this)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error in transition check", e)
