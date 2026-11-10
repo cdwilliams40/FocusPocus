@@ -538,6 +538,69 @@ class GuardStatusTest {
         assertEquals(emptySet<String>(), eligible)
     }
 
+    // ── Group Seal with the Mana Well ──
+
+    @Test
+    fun `every pact is in the group while the Well is off`() {
+        val exempt = pact("com.exempt").copy(wellExempt = true)
+        assertTrue(GuardStatus.inGroupSeal(pact("com.a"), wellEnabled = false))
+        assertTrue(GuardStatus.inGroupSeal(exempt, wellEnabled = false))
+    }
+
+    @Test
+    fun `a Well-exempt pact stands outside the group while the Well is on`() {
+        val exempt = pact("com.exempt").copy(wellExempt = true)
+        assertTrue(GuardStatus.inGroupSeal(pact("com.a"), wellEnabled = true))
+        assertFalse(GuardStatus.inGroupSeal(exempt, wellEnabled = true))
+    }
+
+    @Test
+    fun `a group-open paid from the Well never opens exempt apps`() {
+        val configs = mapOf(
+            "com.bound" to pact("com.bound"),
+            "com.exempt" to pact("com.exempt").copy(wellExempt = true)
+        )
+        val blockers = listOf(Blocker("Mild", BlockerMode.BLACKLIST, setOf("com.c1", "com.c2")))
+        val groups = listOf(PactGroup(blockerName = "Mild", wellExempt = true))
+
+        assertEquals(
+            setOf("com.bound"),
+            GuardStatus.groupOpenEligiblePackages(
+                configs, groups, blockers, emptyMap(), t0, wellEnabled = true
+            )
+        )
+        // With the Well off the exemption means nothing and everyone joins.
+        assertEquals(
+            setOf("com.bound", "com.exempt", "com.c1", "com.c2"),
+            GuardStatus.groupOpenEligiblePackages(
+                configs, groups, blockers, emptyMap(), t0, wellEnabled = false
+            )
+        )
+    }
+
+    @Test
+    fun `an exempt app's seal does not hold the group's summary sealed`() {
+        val configs = mapOf(
+            "com.bound" to pact("com.bound"),
+            "com.exempt" to pact("com.exempt").copy(wellExempt = true)
+        )
+        val liveStates = mapOf("com.exempt" to GuardLiveState(cooldownExpiryMillis = t0 + 10 * 60_000))
+
+        val summary = GuardStatus.groupSealSummary(
+            configs, emptyList(), emptyList(), liveStates, t0, wellEnabled = true
+        )
+
+        assertEquals(GuardStatus.GroupSealPhase.QUIET, summary.phase)
+        assertEquals(1, summary.eligibleCount)
+    }
+
+    @Test
+    fun `a circle passes its exemption on to its members`() {
+        val group = PactGroup(blockerName = "Mild", wellExempt = true)
+        assertTrue(group.toAppTimeLimit("com.c1").wellExempt)
+        assertFalse(PactGroup(blockerName = "Doom").toAppTimeLimit("com.d1").wellExempt)
+    }
+
     // ── groupSealSummary ──
 
     @Test

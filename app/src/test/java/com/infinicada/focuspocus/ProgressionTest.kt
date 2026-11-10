@@ -218,6 +218,90 @@ class ProgressionTest {
         assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, ""))
     }
 
+    // ── Mana Well channeling ──
+
+    private val wellOn = com.infinicada.focuspocus.limit.WellSettings(
+        enabled = true, capacityMinutes = 30, refillIntervalMinutes = 20
+    )
+
+    /** Turns the Well on and drains [drawn] minutes so there is room to pour into. */
+    private fun wellWithRoom(drawn: Int = 30) {
+        com.infinicada.focuspocus.limit.ManaWell.requestSettings(prefs, wellOn)
+        com.infinicada.focuspocus.limit.ManaWell.tryDraw(prefs, drawn)
+    }
+
+    private fun wellMinutes(): Int {
+        val now = System.currentTimeMillis()
+        return com.infinicada.focuspocus.limit.ManaWell.snapshot(prefs, now).availableMinutesAt(now)
+    }
+
+    @Test
+    fun `channeling pours minutes into the Well for mana`() {
+        setBalance(500L)
+        wellWithRoom()
+
+        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(425L, balance())
+        assertEquals(Perk.WELL_CHANNEL_GRANT, wellMinutes())
+        val entry = ledger().last()
+        assertEquals(LedgerKind.PERK, entry.kind)
+        assertEquals(Perk.WELL_CHANNEL.name, entry.refId)
+        assertEquals(-75L, entry.amount)
+    }
+
+    @Test
+    fun `each channel in a day costs double the one before`() {
+        setBalance(1000L)
+        wellWithRoom()
+
+        assertEquals(75L, Progression.wellChannelCost(prefs, gson))
+        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(150L, Progression.wellChannelCost(prefs, gson))
+        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(300L, Progression.wellChannelCost(prefs, gson))
+        assertEquals(1000L - 75L - 150L, balance())
+        // Yesterday's channels don't count against today's price.
+        assertEquals(75L, Progression.wellChannelCost(prefs, gson, todayKey = "19990101"))
+    }
+
+    @Test
+    fun `channeling is refused without the mana and spends nothing`() {
+        setBalance(74L)
+        wellWithRoom()
+
+        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(74L, balance())
+        assertEquals(0, wellMinutes())
+    }
+
+    @Test
+    fun `channeling is refused when the Well has no room and spends nothing`() {
+        setBalance(500L)
+        wellWithRoom(drawn = 4)
+
+        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(500L, balance())
+        assertEquals(26, wellMinutes())
+    }
+
+    @Test
+    fun `channeling needs the Well to be on`() {
+        setBalance(500L)
+        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertEquals(500L, balance())
+    }
+
+    @Test
+    fun `sealed minutes perk is refused while the Well is on`() {
+        setBalance(500L)
+        wellWithRoom()
+
+        assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.feed"))
+        assertEquals(500L, balance())
+        val pacts = com.infinicada.focuspocus.limit.PactManager(prefs, gson)
+        assertTrue(pacts.getAllowanceExpiry("com.example.feed") == null)
+    }
+
     // ── sigils ──
 
     @Test

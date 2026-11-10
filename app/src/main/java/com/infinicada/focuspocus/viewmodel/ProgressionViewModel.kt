@@ -42,7 +42,13 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
     private val _manaEarnedThisWeek = MutableStateFlow(computeWeekEarned())
     val manaEarnedThisWeek: StateFlow<Long> = _manaEarnedThisWeek.asStateFlow()
 
+    // What channeling mana into the Well costs right now; it doubles with
+    // every channel bought the same day and falls back at midnight.
+    private val _wellChannelCost = MutableStateFlow(repo.getWellChannelCost())
+    val wellChannelCost: StateFlow<Long> = _wellChannelCost.asStateFlow()
+
     fun refresh() {
+        _wellChannelCost.value = repo.getWellChannelCost()
         _balance.value = repo.getBalance()
         _trials.value = repo.getTrials()
         _boons.value = repo.getBoons()

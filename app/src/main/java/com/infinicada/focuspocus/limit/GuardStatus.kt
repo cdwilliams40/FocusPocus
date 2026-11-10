@@ -171,18 +171,39 @@ object GuardStatus {
     }
 
     /**
-     * Pact-gated packages eligible to join a group-open right now: gated, and
-     * not currently sealed. Mirrors sealAllPacts' precedent of leaving an
-     * already-sealed app's own seal alone — group-open never early-unseals.
+     * Whether Group Seal's shared window and shared seal govern [config].
+     * With the Mana Well on, a Well-exempt pact stands apart from the group:
+     * the shared window is paid from the Well, so an exempt app can neither
+     * open the group for free nor be sealed along with it — it keeps its own
+     * allowance and seal. With the Well off, every pact is in the group.
+     */
+    fun inGroupSeal(config: AppTimeLimit, wellEnabled: Boolean): Boolean =
+        !wellEnabled || !config.wellExempt
+
+    /** The pact-gated configs Group Seal governs — see [inGroupSeal]. */
+    fun groupSealConfigs(
+        configs: Map<String, AppTimeLimit>,
+        groups: List<PactGroup>,
+        blockers: List<Blocker>,
+        wellEnabled: Boolean
+    ): Map<String, AppTimeLimit> =
+        pactGatedConfigs(configs, groups, blockers).filterValues { inGroupSeal(it, wellEnabled) }
+
+    /**
+     * Pact-gated packages eligible to join a group-open right now: in the
+     * group ([inGroupSeal]), and not currently sealed. Mirrors sealAllPacts'
+     * precedent of leaving an already-sealed app's own seal alone —
+     * group-open never early-unseals.
      */
     fun groupOpenEligiblePackages(
         configs: Map<String, AppTimeLimit>,
         groups: List<PactGroup>,
         blockers: List<Blocker>,
         liveStates: Map<String, GuardLiveState>,
-        now: Long
+        now: Long,
+        wellEnabled: Boolean = false
     ): Set<String> =
-        pactGatedConfigs(configs, groups, blockers).keys.filterTo(mutableSetOf()) { pkg ->
+        groupSealConfigs(configs, groups, blockers, wellEnabled).keys.filterTo(mutableSetOf()) { pkg ->
             (liveStates[pkg]?.cooldownExpiryMillis ?: 0L) <= now
         }
 
@@ -207,9 +228,10 @@ object GuardStatus {
         groups: List<PactGroup>,
         blockers: List<Blocker>,
         liveStates: Map<String, GuardLiveState>,
-        now: Long
+        now: Long,
+        wellEnabled: Boolean = false
     ): GroupSealSummary {
-        val targets = pactGatedConfigs(configs, groups, blockers).keys
+        val targets = groupSealConfigs(configs, groups, blockers, wellEnabled).keys
         if (targets.isEmpty()) return GroupSealSummary(GroupSealPhase.QUIET, 0, 0)
 
         val sealedUntil = targets.mapNotNull { liveStates[it]?.cooldownExpiryMillis }

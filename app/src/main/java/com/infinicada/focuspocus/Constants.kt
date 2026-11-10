@@ -148,6 +148,29 @@ object Constants {
         const val GROUP_SEAL_ENABLED = "groupSealEnabled"
         const val GROUP_SEAL_OPEN_WINDOW_MINUTES = "groupSealOpenWindowMinutes"
         const val GROUP_SEAL_DURATION_MINUTES = "groupSealDurationMinutes"
+
+        // Mana Well: one slowly refilling pool of minutes shared by every
+        // pact app that isn't exempt — the answer to hopping between apps
+        // that per-app allowances can't give (limit/ManaWell.kt).
+        const val WELL_ENABLED = "wellEnabled"
+        const val WELL_CAPACITY_MINUTES = "wellCapacityMinutes"
+        // Real minutes per Well minute; 0 = no passive refill.
+        const val WELL_REFILL_INTERVAL_MINUTES = "wellRefillIntervalMinutes"
+        // The pool itself: its level, and the instant that level was written.
+        const val WELL_LEVEL_MILLIS = "wellLevelMillis"
+        const val WELL_UPDATED_AT_MILLIS = "wellUpdatedAtMillis"
+        // Net time drawn today ("yyyyMMdd" + millis), for the dashboard.
+        const val WELL_DRAWN_DATE = "wellDrawnDate"
+        const val WELL_DRAWN_MILLIS = "wellDrawnMillis"
+        // Conditional-unlock rules that already paid into the Well today
+        // ("yyyyMMdd" + comma-joined rule ids) — each pays once a day.
+        const val WELL_UNLOCK_CREDIT_DATE = "wellUnlockCreditDate"
+        const val WELL_UNLOCK_CREDITED_RULES = "wellUnlockCreditedRules"
+        // A queued loosening of the Well's terms; applies-at 0/absent = none.
+        const val WELL_PENDING_APPLIES_AT_MILLIS = "wellPendingAppliesAtMillis"
+        const val WELL_PENDING_ENABLED = "wellPendingEnabled"
+        const val WELL_PENDING_CAPACITY_MINUTES = "wellPendingCapacityMinutes"
+        const val WELL_PENDING_REFILL_INTERVAL_MINUTES = "wellPendingRefillIntervalMinutes"
     }
 
     object Defaults {

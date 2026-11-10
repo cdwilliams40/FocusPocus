@@ -45,6 +45,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,9 @@ import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellSettings
+import com.infinicada.focuspocus.limit.WellSettingsState
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.formatDuration
 import com.infinicada.focuspocus.ui.theme.ThemeMode
@@ -101,6 +105,9 @@ fun SettingsScreen(
     onGroupSealOpenWindowChanged: (Int) -> Unit,
     groupSealDurationMinutes: Int,
     onGroupSealDurationChanged: (Int) -> Unit,
+    wellSettingsState: WellSettingsState,
+    onWellSettingsRequested: (WellSettings) -> Unit,
+    onCancelWellRevision: () -> Unit,
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
@@ -524,6 +531,14 @@ fun SettingsScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Mana Well Card — one slowly refilling pool of time for pact apps
+            WellSettingsCard(
+                state = wellSettingsState,
+                onRequest = onWellSettingsRequested,
+                onCancelRevision = onCancelWellRevision
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             // Group Seal Card — open every pact app together, seal them together
@@ -980,6 +995,170 @@ private fun SetupStep(number: Int, text: String) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/**
+ * The Mana Well's terms. The controls show the terms being steered towards
+ * (a queued loosening, if there is one); the line under them says what is
+ * actually in force until it lands. Sliders commit on release, so dragging
+ * one doesn't queue — and re-date — a change for every step it passes.
+ */
+@Composable
+private fun WellSettingsCard(
+    state: WellSettingsState,
+    onRequest: (WellSettings) -> Unit,
+    onCancelRevision: () -> Unit
+) {
+    val target = state.target
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.settings_well_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_well_toggle))
+                    Text(
+                        stringResource(R.string.settings_well_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = target.enabled,
+                    onCheckedChange = { onRequest(target.copy(enabled = it)) }
+                )
+            }
+
+            // Still shown while a switch-off is cooling off: the Well is in
+            // force until then, and its terms can still be tightened.
+            if (state.enforced.enabled || target.enabled) {
+                Spacer(modifier = Modifier.height(16.dp))
+                var capacity by remember(target.capacityMinutes) {
+                    mutableFloatStateOf(target.capacityMinutes.toFloat())
+                }
+                Text(stringResource(R.string.settings_well_capacity, capacity.roundToInt()))
+                Slider(
+                    value = capacity,
+                    onValueChange = { capacity = (it / 5).roundToInt() * 5f },
+                    onValueChangeFinished = {
+                        onRequest(target.copy(capacityMinutes = capacity.roundToInt()))
+                    },
+                    valueRange = WellMath.MIN_CAPACITY_MINUTES.toFloat()..WellMath.MAX_CAPACITY_MINUTES.toFloat(),
+                    steps = (WellMath.MAX_CAPACITY_MINUTES - WellMath.MIN_CAPACITY_MINUTES) / 5 - 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_well_refill_toggle))
+                        Text(
+                            stringResource(R.string.settings_well_refill_toggle_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = target.refillIntervalMinutes > 0,
+                        onCheckedChange = { on ->
+                            onRequest(
+                                target.copy(
+                                    refillIntervalMinutes = when {
+                                        !on -> 0
+                                        // Back on: resume the rate in force, if there is one.
+                                        state.enforced.refillIntervalMinutes > 0 ->
+                                            state.enforced.refillIntervalMinutes
+                                        else -> WellMath.DEFAULT_REFILL_INTERVAL_MINUTES
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+
+                if (target.refillIntervalMinutes > 0) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    var interval by remember(target.refillIntervalMinutes) {
+                        mutableFloatStateOf(target.refillIntervalMinutes.toFloat())
+                    }
+                    Text(stringResource(R.string.settings_well_refill, interval.roundToInt()))
+                    Slider(
+                        value = interval,
+                        onValueChange = { interval = (it / 5).roundToInt() * 5f },
+                        onValueChangeFinished = {
+                            onRequest(target.copy(refillIntervalMinutes = interval.roundToInt()))
+                        },
+                        valueRange = WellMath.MIN_REFILL_INTERVAL_MINUTES.toFloat()..
+                            WellMath.MAX_REFILL_INTERVAL_MINUTES.toFloat(),
+                        steps = (WellMath.MAX_REFILL_INTERVAL_MINUTES -
+                            WellMath.MIN_REFILL_INTERVAL_MINUTES) / 5 - 1,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        stringResource(
+                            R.string.settings_well_refill_per_day,
+                            24 * 60 / interval.roundToInt().coerceAtLeast(1)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                val pending = state.pending
+                if (pending != null) {
+                    // Same 30-second tick as the Warden removal countdown.
+                    var wellNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    LaunchedEffect(pending.appliesAtMillis) {
+                        while (true) {
+                            wellNow = System.currentTimeMillis()
+                            delay(30_000L)
+                        }
+                    }
+                    val wait = formatDuration(
+                        GuardStatus.minutesUntil(pending.appliesAtMillis, wellNow).coerceAtLeast(1)
+                    )
+                    val enforced = state.enforced
+                    val enforcedTerms = if (enforced.refillIntervalMinutes > 0) {
+                        stringResource(
+                            R.string.settings_well_terms,
+                            enforced.capacityMinutes, enforced.refillIntervalMinutes
+                        )
+                    } else {
+                        stringResource(R.string.settings_well_terms_no_refill, enforced.capacityMinutes)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        if (pending.settings.enabled) {
+                            stringResource(R.string.settings_well_pending_change, wait, enforcedTerms)
+                        } else {
+                            stringResource(R.string.settings_well_pending_off, wait, enforcedTerms)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    TextButton(onClick = onCancelRevision) {
+                        Text(stringResource(R.string.pact_revision_keep))
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.settings_well_cooling_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 

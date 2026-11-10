@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.model.ConditionalUnlock
 
@@ -248,7 +249,9 @@ object DeviceOwnerManager {
      * suspensions these apply at all times — even outside sessions and during
      * breaks — mirroring the accessibility service's pact gate, which is why
      * breaks are deliberately not consulted here. An app escapes only while its
-     * pact allowance runs or a conditional unlock is satisfied.
+     * pact allowance runs or a conditional unlock is satisfied — and, with the
+     * Mana Well on, a conditional unlock only frees a pact that is exempt
+     * from the Well.
      */
     private fun computePactSuspensions(
         context: Context,
@@ -266,15 +269,24 @@ object DeviceOwnerManager {
         // Guard hours: an app whose pact is outside its window is free, so it
         // must not stay greyed out. The minute tick re-syncs suspensions, so
         // greying follows the window within a minute of it opening or closing.
-        val gated = GuardStatus.pactGatedConfigs(configs, groups, BlockerRepository.getBlockers(prefs))
+        val gatedConfigs = GuardStatus.pactGatedConfigs(configs, groups, BlockerRepository.getBlockers(prefs))
             .filterValues { GuardWindow.isActiveNow(it) }
-            .keys
+        val gated = gatedConfigs.keys
         if (gated.isEmpty()) return emptySet()
+
+        // With the Mana Well on, a satisfied rule pays into the Well instead
+        // of freeing a pact that draws from it (WellUnlocks) — so only exempt
+        // pacts can still be un-greyed by a rule, mirroring the service.
+        val unlockable = if (ManaWell.isEnabled(prefs)) {
+            gatedConfigs.filterValues { it.wellExempt }.keys
+        } else {
+            gated
+        }
 
         return computePactSuspendedPackages(
             pactGated = gated,
             allowedPackages = pactManager.getActiveAllowances().keys +
-                getConditionallyUnlockedTimeLimitApps(context, prefs, gated),
+                getConditionallyUnlockedTimeLimitApps(context, prefs, unlockable).intersect(unlockable),
             launchablePackages = launchablePackages,
             exemptPackages = exemptPackages
         )

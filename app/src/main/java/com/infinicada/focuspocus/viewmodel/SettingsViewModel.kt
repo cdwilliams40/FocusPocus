@@ -13,6 +13,9 @@ import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.Progression
 import com.infinicada.focuspocus.SessionManager
 import com.infinicada.focuspocus.data.SettingsRepository
+import com.infinicada.focuspocus.limit.ManaWell
+import com.infinicada.focuspocus.limit.WellSettings
+import com.infinicada.focuspocus.limit.WellSettingsState
 import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +103,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _groupSealDurationMinutes = MutableStateFlow(repo.getGroupSealDurationMinutes())
     val groupSealDurationMinutes: StateFlow<Int> = _groupSealDurationMinutes.asStateFlow()
+
+    // The Mana Well's enforced terms plus any loosening still cooling off.
+    private val _wellSettingsState = MutableStateFlow(ManaWell.settingsState(appPrefs))
+    val wellSettingsState: StateFlow<WellSettingsState> = _wellSettingsState.asStateFlow()
 
     // One-time "focusing now earns mana" intro for existing users (the
     // analytics-consent dialog pattern). New users learn about it organically;
@@ -288,6 +295,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setGroupSealDurationMinutes(minutes: Int) {
         _groupSealDurationMinutes.value = minutes
         repo.setGroupSealDurationMinutes(minutes)
+    }
+
+    // ── Mana Well ──
+
+    /**
+     * Asks for new Well terms. The store decides what that means: tightening
+     * lands now, loosening is queued for 24 hours — so the state that comes
+     * back can differ from what was asked for, and it is what gets shown.
+     */
+    fun requestWellSettings(requested: WellSettings) {
+        _wellSettingsState.value = ManaWell.requestSettings(appPrefs, requested)
+    }
+
+    /** "Keep current terms": withdraws the queued loosening. */
+    fun cancelWellRevision() {
+        ManaWell.cancelPendingRevision(appPrefs)
+        refreshWellSettings()
+    }
+
+    /** Re-reads the terms; a queued loosening that came due applies on this read. */
+    fun refreshWellSettings() {
+        _wellSettingsState.value = ManaWell.settingsState(appPrefs)
     }
 
     // ── Backup / restore ──

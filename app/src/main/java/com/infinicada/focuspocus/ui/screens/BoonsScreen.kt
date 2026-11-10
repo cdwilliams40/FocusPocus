@@ -65,6 +65,10 @@ fun BoonsScreen(
     boons: List<Boon>,
     sessionActive: Boolean,
     breaksAllowed: Boolean,
+    wellEnabled: Boolean,
+    wellChannelCost: Long,
+    wellHasRoom: Boolean,
+    onChannelWell: () -> Boolean,
     pactedApps: List<AppInfo>,
     isSealedAvailableToday: (String) -> Boolean,
     isSealedOverDailyLimit: (String) -> Boolean,
@@ -316,36 +320,85 @@ fun BoonsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.perk_sealed_minutes_title), style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                stringResource(R.string.perk_sealed_minutes_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (pactedApps.isEmpty()) {
+                // With the Mana Well on, mana buys minutes for the shared
+                // pool; the per-app sealed-minutes perk would sidestep it (and
+                // lift a seal), so it gives way.
+                if (wellEnabled) {
+                    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.perk_well_channel_title), style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    stringResource(R.string.perk_sealed_none),
+                                    stringResource(R.string.perk_well_channel_desc, Perk.WELL_CHANNEL_GRANT),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.tertiary
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (!wellHasRoom) {
+                                    Text(
+                                        stringResource(R.string.well_channel_no_room, Perk.WELL_CHANNEL_GRANT),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    Toast.makeText(
+                                        context,
+                                        if (onChannelWell()) {
+                                            context.getString(R.string.well_channel_done, Perk.WELL_CHANNEL_GRANT)
+                                        } else {
+                                            context.getString(R.string.well_channel_failed)
+                                        },
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                enabled = wellHasRoom && balance >= wellChannelCost
+                            ) {
+                                Text(
+                                    stringResource(R.string.perk_buy) + " · " +
+                                        stringResource(R.string.boon_cost_format, wellChannelCost)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = { showAppPicker = true },
-                            enabled = pactedApps.isNotEmpty() && balance >= Perk.SEALED_MINUTES.costMana
+                    }
+                } else {
+                    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                stringResource(R.string.perk_pick_app) + " · " +
-                                    stringResource(R.string.boon_cost_format, Perk.SEALED_MINUTES.costMana)
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.perk_sealed_minutes_title), style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    stringResource(R.string.perk_sealed_minutes_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (pactedApps.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.perk_sealed_none),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { showAppPicker = true },
+                                enabled = pactedApps.isNotEmpty() && balance >= Perk.SEALED_MINUTES.costMana
+                            ) {
+                                Text(
+                                    stringResource(R.string.perk_pick_app) + " · " +
+                                        stringResource(R.string.boon_cost_format, Perk.SEALED_MINUTES.costMana)
+                                )
+                            }
                         }
                     }
                 }

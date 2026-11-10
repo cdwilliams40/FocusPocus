@@ -65,6 +65,7 @@ import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
@@ -197,6 +198,8 @@ fun FocusPocusApp(
     val unlockedSigilIds by progressionVM.unlockedSigilIds.collectAsStateWithLifecycle()
     val extraBreakTokens by progressionVM.extraBreakTokens.collectAsStateWithLifecycle()
     val manaEarnedThisWeek by progressionVM.manaEarnedThisWeek.collectAsStateWithLifecycle()
+    val wellChannelCost by progressionVM.wellChannelCost.collectAsStateWithLifecycle()
+    val wellSettingsState by settingsVM.wellSettingsState.collectAsStateWithLifecycle()
     val sessionSummaryMana by sessionVM.sessionSummaryMana.collectAsStateWithLifecycle()
     val sessionSummaryMilestoneBonus by sessionVM.sessionSummaryMilestoneBonus.collectAsStateWithLifecycle()
     val sessionSummaryStreak by sessionVM.sessionSummaryStreak.collectAsStateWithLifecycle()
@@ -424,6 +427,8 @@ fun FocusPocusApp(
         LifecycleResumeEffect(Unit) {
             isNotificationListenerEnabled = notificationManager.isNotificationPolicyAccessGranted
             settingsVM.refreshDeviceOwnerState()
+            // A queued loosening of the Mana Well may have come due meanwhile.
+            settingsVM.refreshWellSettings()
             protectionStatus = ProtectionHealth.check(context)
             onPauseOrDispose { }
         }
@@ -539,6 +544,9 @@ fun FocusPocusApp(
             onGroupSealOpenWindowChanged = { settingsVM.setGroupSealOpenWindowMinutes(it) },
             groupSealDurationMinutes = groupSealDurationMinutes,
             onGroupSealDurationChanged = { settingsVM.setGroupSealDurationMinutes(it) },
+            wellSettingsState = wellSettingsState,
+            onWellSettingsRequested = { settingsVM.requestWellSettings(it) },
+            onCancelWellRevision = { settingsVM.cancelWellRevision() },
             onNavigateBack = { showSettings = false },
             modifier = modifier.fillMaxSize()
         )
@@ -557,11 +565,24 @@ fun FocusPocusApp(
         val pactedApps = remember(installedApps, pactedPackages) {
             installedApps.filter { it.packageName in pactedPackages }
         }
+        // While the Mana Well is on, mana buys Well minutes instead of
+        // per-app sealed minutes; re-read after each channel for the room check.
+        var boonsWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
         BoonsScreen(
             balance = manaBalance,
             boons = boons,
             sessionActive = focusMode,
             breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled,
+            wellEnabled = boonsWell.enabled,
+            wellChannelCost = wellChannelCost,
+            wellHasRoom = boonsWell.levelMillisAt(System.currentTimeMillis()) +
+                Perk.WELL_CHANNEL_GRANT * WellMath.MINUTE_MS <=
+                boonsWell.capacityMinutes * WellMath.MINUTE_MS,
+            onChannelWell = {
+                val channeled = progressionVM.redeemPerk(Perk.WELL_CHANNEL)
+                boonsWell = spellbookVM.getWellSnapshot()
+                channeled
+            },
             pactedApps = pactedApps,
             isSealedAvailableToday = { pkg -> progressionVM.isSealedMinutesAvailableToday(pkg) },
             isSealedOverDailyLimit = { pkg ->
@@ -663,6 +684,10 @@ fun FocusPocusApp(
                             mutableStateOf(emptyMap<String, AppOpenStats>())
                         }
                         var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
+                        // The Mana Well is a few primitive prefs, so it is
+                        // read up front: the card is there on the first frame
+                        // instead of popping in after the guard snapshot.
+                        var guardWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
                         val groupOpenScope = rememberCoroutineScope()
                         LaunchedEffect(dataVersion, guardTick) {
                             val snapshot = withContext(Dispatchers.IO) {
@@ -671,11 +696,26 @@ fun FocusPocusApp(
                                 // dataVersion, which re-runs this effect with
                                 // nothing further due).
                                 spellbookVM.applyDuePactRevisions()
-                                spellbookVM.getGuardLiveState() to spellbookVM.getTodayOpenStats()
+                                // Before the Well is read: a conditional
+                                // unlock met since the last look pays in now.
+                                val unlockMinutes = spellbookVM.creditWellUnlocks()
+                                Triple(
+                                    spellbookVM.getGuardLiveState(),
+                                    spellbookVM.getTodayOpenStats(),
+                                    spellbookVM.getWellSnapshot()
+                                ) to unlockMinutes
                             }
-                            guardLiveStates = snapshot.first
-                            guardOpenStats = snapshot.second
+                            guardLiveStates = snapshot.first.first
+                            guardOpenStats = snapshot.first.second
+                            guardWell = snapshot.first.third
                             guardNow = System.currentTimeMillis()
+                            if (snapshot.second > 0) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.well_unlock_credit_toast, snapshot.second),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                         // Wake exactly when something on screen changes instead
                         // of on a fixed minute from an arbitrary phase, which
@@ -740,15 +780,16 @@ fun FocusPocusApp(
                             onOpenBoons = { showBoons = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
-                            onSealAll = {
-                                val sealedCount = spellbookVM.sealAllPacts()
-                                Toast.makeText(
+                            onSealAll = { sealResultToast(context, spellbookVM.sealAllPacts()) },
+                            onSealNow = { row ->
+                                sealResultToast(
                                     context,
-                                    context.resources.getQuantityString(
-                                        R.plurals.home_seal_all_result, sealedCount, sealedCount
-                                    ),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                    when (row) {
+                                        is GuardRow.App -> spellbookVM.sealPactNow(row.packageName)
+                                        is GuardRow.Circle ->
+                                            spellbookVM.sealCircleNow(row.group.blockerName)
+                                    }
+                                )
                             },
                             onGuardClick = { row ->
                                 spellbookVM.navigateToPacts(
@@ -768,7 +809,9 @@ fun FocusPocusApp(
                                 // groupOpenPacts suspends: its eligibility
                                 // snapshot reads the stores and usage stats.
                                 groupOpenScope.launch {
-                                    val openedCount = spellbookVM.groupOpenPacts()
+                                    // Null: the Mana Well refused the window,
+                                    // and the view model already said so.
+                                    val openedCount = spellbookVM.groupOpenPacts() ?: return@launch
                                     Toast.makeText(
                                         context,
                                         context.resources.getQuantityString(
@@ -777,6 +820,25 @@ fun FocusPocusApp(
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
+                            },
+                            well = guardWell,
+                            wellChannelCost = wellChannelCost,
+                            onChannelMana = {
+                                val channeled = progressionVM.redeemPerk(Perk.WELL_CHANNEL)
+                                Toast.makeText(
+                                    context,
+                                    if (channeled) {
+                                        context.getString(
+                                            R.string.well_channel_done, Perk.WELL_CHANNEL_GRANT
+                                        )
+                                    } else {
+                                        context.getString(R.string.well_channel_failed)
+                                    },
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                // Re-snapshot: the level just moved.
+                                guardTick++
+                                channeled
                             },
                             modifier = contentModifier
                         )
@@ -787,7 +849,11 @@ fun FocusPocusApp(
                         }
                         val editPackageName = (route as? PactsRoute.EditGuard)?.packageName
                         val editCircleName = (route as? PactsRoute.EditCircle)?.blockerName
+                        // The Well-exemption switch only means something
+                        // while the Mana Well is on.
+                        val wellEnabled = remember { spellbookVM.getWellSnapshot().enabled }
                         GuardEditorScreen(
+                            wellEnabled = wellEnabled,
                             installedApps = installedApps,
                             blockerLists = blockerLists,
                             pactGroups = pactGroups,
@@ -1084,6 +1150,7 @@ fun FocusPocusApp(
                             pactPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
                                 GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
                             },
+                            wellEnabled = remember { spellbookVM.getWellSnapshot().enabled },
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
@@ -1271,4 +1338,20 @@ fun FocusPocusApp(
             }
         )
     }
+}
+
+/**
+ * Says what a chosen seal did: how many apps it sealed and, when the pacts it
+ * ended were paid from the Mana Well, how many unused minutes went back.
+ */
+private fun sealResultToast(context: Context, result: SpellbookViewModel.SealResult) {
+    val sealed = context.resources.getQuantityString(
+        R.plurals.home_seal_all_result, result.sealedCount, result.sealedCount
+    )
+    val text = if (result.refundedMinutes > 0) {
+        sealed + " · " + context.getString(R.string.well_refund_toast, result.refundedMinutes)
+    } else {
+        sealed
+    }
+    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
 }

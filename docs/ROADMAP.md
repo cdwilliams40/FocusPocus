@@ -203,6 +203,8 @@ screen-reading and no per-browser fragility:
   stays the brand default).
 - Group wards (shared daily budget across an enchantment) — resolve the per-member vs
   shared-budget ambiguity that kept it out of the pacts plan, or kill it explicitly.
+  *The Mana Well (`MANA_WELL_PLAN.md`) now covers the shared-budget case for pacts: one
+  refilling pool across every pact app. A shared budget for wards is still open.*
 
 ## 6. Horizon 3 — Beyond the device (v3+)
 

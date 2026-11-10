@@ -14,14 +14,19 @@ import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.NamedTag
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.PendingPactRevision
 import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellSnapshot
+import com.infinicada.focuspocus.limit.WellUnlocks
 import com.infinicada.focuspocus.model.PactGroup
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
@@ -97,6 +102,36 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                 usedMinutesToday = usedToday[pkg] ?: 0
             )
         }
+    }
+
+    /**
+     * The Mana Well as of now — terms, level and today's draws. A handful of
+     * primitive prefs; the dashboard takes it alongside the guard snapshot
+     * and lets the level keep refilling on its own clock in between.
+     */
+    fun getWellSnapshot(): WellSnapshot = ManaWell.snapshot(appPrefs)
+
+    /**
+     * Pays any conditional-unlock rule that is satisfied, covers a Well-bound
+     * pact app, and hasn't paid yet today (WellUnlocks) — the dashboard's
+     * twin of the service's check at the pact gate, so the Well card and the
+     * request dialog count minutes earned even when the launcher path never
+     * runs (Warden greying). Returns the minutes added. Walks the day's
+     * usage events when a rule is still pending, so call it off the main
+     * thread.
+     */
+    fun creditWellUnlocks(): Int {
+        val rules = _conditionalUnlocks.value
+        if (rules.isEmpty()) return 0
+        val wellBound = GuardStatus.pactGatedConfigs(
+            _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
+        ).filterValues { !it.wellExempt }.keys
+        return WellUnlocks.creditSatisfied(
+            prefs = appPrefs,
+            rules = rules,
+            isWellBound = { it in wellBound },
+            usedMillisToday = { UsageStatsHelper.getPackageUsageToday(getApplication(), it) }
+        )
     }
 
     private val _pactGroups = MutableStateFlow(pactManager.getGroups())
@@ -216,6 +251,18 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             _dataVersion.value++
             return false
         }
+        // Mana Well: a Well-bound pact is paid from the shared pool, and an
+        // allowance the pool can't cover is never granted. The dialog only
+        // offers what the Well held when it opened, so a refusal here means
+        // it was drained in between (the launcher overlay, a second request).
+        val wellBound = effectivePactConfig(packageName)?.let { ManaWell.isBound(appPrefs, it, now) } == true
+        if (wellBound && !ManaWell.tryDraw(appPrefs, minutes, now)) {
+            Toast.makeText(
+                getApplication(), R.string.well_draw_refused_toast, Toast.LENGTH_LONG
+            ).show()
+            _dataVersion.value++
+            return false
+        }
         pactManager.grantAllowance(packageName, minutes, now)
         _dataVersion.value++
         // Under Warden greying the OS refuses to open a still-suspended app,
@@ -230,19 +277,64 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         return true
     }
 
+    /** What a chosen seal did: apps newly sealed, and whole minutes returned to the Mana Well. */
+    data class SealResult(val sealedCount: Int, val refundedMinutes: Int)
+
     /**
      * Panic action: seals every pact-gated app (explicit pacts and live circle
      * members) right now, revoking any running allowances. Apps already sealed
      * keep their current seal. Uses the non-escalating panic seal — choosing
-     * protection is not an offence. Returns how many apps were newly sealed.
+     * protection is not an offence.
      */
-    fun sealAllPacts(): Int {
-        val now = System.currentTimeMillis()
-        val targets = GuardStatus.pactGatedConfigs(
+    fun sealAllPacts(): SealResult = sealNow(
+        GuardStatus.pactGatedConfigs(
             _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
         )
-        if (targets.isEmpty()) return 0
-        // One write per store for the whole sweep, not one per app.
+    )
+
+    /**
+     * "I'm done": ends [packageName]'s running pact and seals it now, on the
+     * same terms as the panic seal. Without this a pact could only run out
+     * its clock — and a pact paid from the Mana Well would be worth using to
+     * the last minute. Ending early gives the unused time back instead.
+     */
+    fun sealPactNow(packageName: String): SealResult =
+        sealNow(listOfNotNull(effectivePactConfig(packageName)?.let { packageName to it }).toMap())
+
+    /** [sealPactNow] for a circle: ends and seals every member with a running pact. */
+    fun sealCircleNow(blockerName: String): SealResult {
+        val group = _pactGroups.value.find { it.blockerName == blockerName }
+            ?: return SealResult(0, 0)
+        val running = pactManager.getActiveAllowances().keys
+        return sealNow(
+            GuardStatus.circleMemberPackages(group, _blockerLists.value, _appTimeLimitConfigs.value)
+                .filter { it in running }
+                .associateWith { group.toAppTimeLimit(it) }
+        )
+    }
+
+    /**
+     * Revokes the running allowances of [targets] (package → governing pact
+     * config) and seals them, in one write per store. Time left on allowances
+     * that were paid from the Mana Well goes back into it
+     * ([WellMath.refundableMillis]): which allowances those are is read off
+     * the governing config, so the rare allowance that predates the Well
+     * being switched on is refunded too — bounded by the capacity, like
+     * every refund.
+     */
+    private fun sealNow(targets: Map<String, AppTimeLimit>): SealResult {
+        if (targets.isEmpty()) return SealResult(0, 0)
+        val now = System.currentTimeMillis()
+        val active = pactManager.getActiveAllowances(now)
+        val refundMillis = if (ManaWell.isEnabled(appPrefs, now)) {
+            WellMath.refundableMillis(
+                revoked = targets.filterValues { !it.wellExempt }.keys.mapNotNull { active[it] },
+                stillRunning = (active - targets.keys).values,
+                now = now
+            )
+        } else {
+            0L
+        }
         pactManager.revokeAllowances(targets.keys)
         val alreadySealed = sessionCooldownManager.peekActiveCooldowns(now).keys
         val requests = targets
@@ -251,9 +343,10 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
                 SessionCooldownManager.SealRequest(pkg, config, now, countsAsOffence = false)
             }
         sessionCooldownManager.startSeals(requests)
+        ManaWell.refund(appPrefs, refundMillis, now)
         syncWardenGreying()
         _dataVersion.value++
-        return requests.size
+        return SealResult(requests.size, (refundMillis / WellMath.MINUTE_MS).toInt())
     }
 
     /**
@@ -262,7 +355,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * for the primary entry point — tapping a pact app from the launcher —
      * which the service's group-aware overlay handles directly). No partial
      * per-app requesting exists alongside this while the mode is on, or the
-     * app-hopping gap it closes reopens. Returns how many apps were opened.
+     * app-hopping gap it closes reopens. Returns how many apps were opened,
+     * or null when the Mana Well refused to pay for the window.
+     *
+     * With the Well on, the window is a single draw of at most what the Well
+     * holds, and the group is the Well-bound apps only (exempt pacts keep
+     * their own per-app requests).
      *
      * Suspending because the eligibility snapshot reads the stores and (when
      * any guard carries a daily limit) walks the day's usage-stats event
@@ -270,19 +368,30 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * off the main thread. The state reads below are re-done on the caller's
      * thread only after the heavy part is finished.
      */
-    suspend fun groupOpenPacts(): Int {
+    suspend fun groupOpenPacts(): Int? {
         val now = System.currentTimeMillis()
-        val minutes = settingsRepo.getGroupSealOpenWindowMinutes()
+        val well = ManaWell.snapshot(appPrefs, now)
+        val minutes = settingsRepo.getGroupSealOpenWindowMinutes().let { window ->
+            if (well.enabled) minOf(window, well.availableMinutesAt(now)) else window
+        }
         val targets = withContext(Dispatchers.Default) {
             GuardStatus.groupOpenEligiblePackages(
                 _appTimeLimitConfigs.value,
                 _pactGroups.value,
                 _blockerLists.value,
                 getGuardLiveState(),
-                now
+                now,
+                wellEnabled = well.enabled
             )
         }
         if (targets.isEmpty()) return 0
+        if (well.enabled && !ManaWell.tryDraw(appPrefs, minutes, now)) {
+            Toast.makeText(
+                getApplication(), R.string.well_draw_refused_toast, Toast.LENGTH_LONG
+            ).show()
+            _dataVersion.value++
+            return null
+        }
         // One store write for the shared window, not one per app.
         pactManager.grantAllowances(targets, minutes, now)
         syncWardenGreying()

@@ -3,6 +3,7 @@ package com.infinicada.focuspocus
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,8 +31,11 @@ import androidx.compose.material3.TextButton
 import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellSnapshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -58,6 +62,7 @@ import androidx.lifecycle.lifecycleScope
 import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.components.GlassCard
+import com.infinicada.focuspocus.ui.formatDuration
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -130,16 +135,42 @@ class OverlayActivity : ComponentActivity() {
         val groupSealMode = intent.getBooleanExtra("groupSealMode", false)
         val groupOpenMinutes = intent.getIntExtra("groupOpenMinutes", 0)
 
+        // Mana Well: a Well-bound pact is paid from the shared pool, so what
+        // it can offer is limited to what the pool holds right now. Read here
+        // rather than passed in, so the overlay and the draw it leads to see
+        // the same store. (A few primitive prefs — fine on the main thread.)
+        val wellBound = intent.getBooleanExtra("wellBound", false)
+        val now = System.currentTimeMillis()
+        val well = if (wellBound) {
+            ManaWell.snapshot(getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE), now)
+        } else null
+        val wellMinutes = well?.availableMinutesAt(now)
+
         if (groupSealMode && pactPackageName != null && groupOpenMinutes > 0) {
+            val windowMinutes = wellMinutes?.let { minOf(groupOpenMinutes, it) } ?: groupOpenMinutes
             setContent {
                 FocusPocusTheme(themeMode = themeMode) {
-                    GroupPactOfferScreen(
-                        appName = appName,
-                        openWindowMinutes = groupOpenMinutes,
-                        sealMinutes = pactSealMinutes,
-                        onGroupOpenChosen = { grantGroupAndLaunch(pactPackageName, groupOpenMinutes) },
-                        onDecline = { closeAndGoHome() }
-                    )
+                    if (well != null && windowMinutes <= 0) {
+                        WellDryScreen(
+                            appName = appName,
+                            well = well,
+                            neededMinutes = 1,
+                            nowMillis = now,
+                            onDecline = { closeAndGoHome() }
+                        )
+                    } else {
+                        GroupPactOfferScreen(
+                            appName = appName,
+                            openWindowMinutes = windowMinutes,
+                            sealMinutes = pactSealMinutes,
+                            wellMinutes = wellMinutes,
+                            wellCapacityMinutes = well?.capacityMinutes ?: 0,
+                            onGroupOpenChosen = {
+                                grantGroupAndLaunch(pactPackageName, windowMinutes, wellBound)
+                            },
+                            onDecline = { closeAndGoHome() }
+                        )
+                    }
                 }
             }
             return
@@ -150,19 +181,37 @@ class OverlayActivity : ComponentActivity() {
             val todayReflexOpens = intent.getIntExtra("pactTodayReflexOpens", 0)
             val alternativePackage = intent.getStringExtra("pactAlternativePackage")
             val alternativeName = intent.getStringExtra("pactAlternativeName")?.take(200)
+            val choices = wellMinutes?.let { WellMath.limitChoices(pactChoices.toList(), it) }
+                ?: pactChoices.toList()
             setContent {
                 FocusPocusTheme(themeMode = themeMode) {
-                    PactOfferScreen(
-                        appName = appName,
-                        choicesMinutes = pactChoices.toList(),
-                        sealMinutes = pactSealMinutes,
-                        todayOpens = todayOpens,
-                        todayReflexOpens = todayReflexOpens,
-                        alternativeName = if (alternativePackage != null) alternativeName else null,
-                        onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
-                        onPactChosen = { minutes -> grantPactAndLaunch(pactPackageName, minutes) },
-                        onDecline = { closeAndGoHome() }
-                    )
+                    if (well != null && choices.isEmpty()) {
+                        WellDryScreen(
+                            appName = appName,
+                            well = well,
+                            neededMinutes = pactChoices.min(),
+                            nowMillis = now,
+                            alternativeName = if (alternativePackage != null) alternativeName else null,
+                            onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
+                            onDecline = { closeAndGoHome() }
+                        )
+                    } else {
+                        PactOfferScreen(
+                            appName = appName,
+                            choicesMinutes = choices,
+                            sealMinutes = pactSealMinutes,
+                            todayOpens = todayOpens,
+                            todayReflexOpens = todayReflexOpens,
+                            alternativeName = if (alternativePackage != null) alternativeName else null,
+                            wellMinutes = wellMinutes,
+                            wellCapacityMinutes = well?.capacityMinutes ?: 0,
+                            onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
+                            onPactChosen = { minutes ->
+                                grantPactAndLaunch(pactPackageName, minutes, wellBound)
+                            },
+                            onDecline = { closeAndGoHome() }
+                        )
+                    }
                 }
             }
             return
@@ -197,48 +246,71 @@ class OverlayActivity : ComponentActivity() {
      * enumerates launchable packages and queries usage stats, and this is the
      * overlay the user meets on every pact app's open.
      */
-    private fun grantPactAndLaunch(packageName: String, minutes: Int) =
+    private fun grantPactAndLaunch(packageName: String, minutes: Int, wellBound: Boolean) =
         grantAndLaunch(packageName) { prefs, gson, now ->
+            // Draw first: an allowance the Well couldn't pay for is never granted.
+            if (wellBound && !ManaWell.tryDraw(prefs, minutes, now)) return@grantAndLaunch false
             PactManager(prefs, gson).grantAllowance(packageName, minutes, now)
+            true
         }
 
     /**
      * Group Seal mode's grant: opens every pact-gated app that isn't currently
      * sealed for the same shared window, then launches only the app that was
      * actually tapped — mirrors SpellbookViewModel.groupOpenPacts' dashboard
-     * twin of this action.
+     * twin of this action. With the Mana Well on, the shared window is one
+     * draw, and the group is the Well-bound apps only.
      */
-    private fun grantGroupAndLaunch(packageName: String, minutes: Int) =
+    private fun grantGroupAndLaunch(packageName: String, minutes: Int, wellBound: Boolean) =
         grantAndLaunch(packageName) { prefs, gson, now ->
             val pactManager = PactManager(prefs, gson)
             val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
             val liveStates = SessionCooldownManager(prefs, gson).peekActiveCooldowns(now)
                 .mapValues { (_, state) -> GuardLiveState(cooldownExpiryMillis = state.cooldownExpiryMillis) }
             val targets = GuardStatus.groupOpenEligiblePackages(
-                configs, pactManager.getGroups(), BlockerRepository.getBlockers(prefs), liveStates, now
+                configs, pactManager.getGroups(), BlockerRepository.getBlockers(prefs), liveStates, now,
+                wellEnabled = wellBound
             )
+            // Nothing left to open (the tapped app was sealed meanwhile): spend
+            // nothing and fall through to the launch, as before — the gate
+            // then answers with the overlay that is actually true.
+            if (targets.isEmpty()) return@grantAndLaunch true
+            if (wellBound && !ManaWell.tryDraw(prefs, minutes, now)) return@grantAndLaunch false
             // One store write for the shared window, not one per app.
             pactManager.grantAllowances(targets, minutes, now)
+            true
         }
 
     /**
      * Runs [grant] off the main thread, lifts any Warden suspension it just
      * made stale, then opens [packageName] — under Warden greying the app is
      * OS-suspended, and the system refuses to open it until the sync lands.
+     *
+     * [grant] returns false when it refused — the Mana Well was drained
+     * between this overlay appearing and the choice (a second overlay, the
+     * dashboard). Nothing was granted, so the app stays shut.
      */
     private fun grantAndLaunch(
         packageName: String,
-        grant: (SharedPreferences, Gson, Long) -> Unit
+        grant: (SharedPreferences, Gson, Long) -> Boolean
     ) {
         if (granting) return
         granting = true
         lifecycleScope.launch {
-            withContext(Dispatchers.Default) {
+            val granted = withContext(Dispatchers.Default) {
                 val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-                grant(prefs, Gson(), System.currentTimeMillis())
-                DeviceOwnerManager.syncSuspensions(this@OverlayActivity)
+                val granted = grant(prefs, Gson(), System.currentTimeMillis())
+                if (granted) DeviceOwnerManager.syncSuspensions(this@OverlayActivity)
+                granted
             }
-            launchApp(packageName)
+            if (granted) {
+                launchApp(packageName)
+            } else {
+                Toast.makeText(
+                    this@OverlayActivity, R.string.well_draw_refused_toast, Toast.LENGTH_LONG
+                ).show()
+                closeAndGoHome()
+            }
         }
     }
 
@@ -453,6 +525,9 @@ fun PactOfferScreen(
     todayOpens: Int = 0,
     todayReflexOpens: Int = 0,
     alternativeName: String? = null,
+    /** Minutes in the Mana Well when this pact draws from it; null when it doesn't. */
+    wellMinutes: Int? = null,
+    wellCapacityMinutes: Int = 0,
     onOpenAlternative: () -> Unit = {},
     onPactChosen: (Int) -> Unit,
     onDecline: () -> Unit
@@ -561,6 +636,13 @@ fun PactOfferScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    // The price, right where it is paid: these minutes come
+                    // out of the pool every pact app shares.
+                    if (wellMinutes != null) {
+                        WellStatusLine(wellMinutes, wellCapacityMinutes)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     if (!countdownDone) {
                         Text(
                             text = stringResource(R.string.overlay_pact_wait, remainingSeconds),
@@ -604,6 +686,9 @@ fun GroupPactOfferScreen(
     appName: String,
     openWindowMinutes: Int,
     sealMinutes: Int,
+    /** Minutes in the Mana Well when the window draws from it; null when it doesn't. */
+    wellMinutes: Int? = null,
+    wellCapacityMinutes: Int = 0,
     onGroupOpenChosen: () -> Unit,
     onDecline: () -> Unit
 ) {
@@ -679,6 +764,11 @@ fun GroupPactOfferScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    if (wellMinutes != null) {
+                        WellStatusLine(wellMinutes, wellCapacityMinutes)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     if (!countdownDone) {
                         Text(
                             text = stringResource(R.string.overlay_pact_wait, remainingSeconds),
@@ -702,6 +792,128 @@ fun GroupPactOfferScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.overlay_pact_decline))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Mana Well: 18 of 30 min" — what a Well-bound pact is about to draw from. */
+@Composable
+private fun WellStatusLine(wellMinutes: Int, wellCapacityMinutes: Int) {
+    Text(
+        text = stringResource(R.string.well_level_line, wellMinutes, wellCapacityMinutes),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.tertiary,
+        textAlign = TextAlign.Center
+    )
+}
+
+/**
+ * Shown instead of a pact offer when the Mana Well can't pay for even the
+ * smallest choice. There is nothing to grant, so there is no pause and no
+ * friction to sit through: it says when the time will be back, offers the
+ * pact's healthier substitute if it has one, and lets the user leave.
+ */
+@Composable
+fun WellDryScreen(
+    appName: String,
+    well: WellSnapshot,
+    /** The smallest allowance this pact would offer, in minutes. */
+    neededMinutes: Int,
+    nowMillis: Long,
+    alternativeName: String? = null,
+    onOpenAlternative: () -> Unit = {},
+    onDecline: () -> Unit
+) {
+    val waitMillis = well.millisUntilMinutes(neededMinutes, nowMillis)
+
+    ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            GlassCard(
+                modifier = Modifier.padding(28.dp),
+                contentPadding = PaddingValues(28.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val sigilColor = MaterialTheme.colorScheme.primary
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    listOf(
+                                        sigilColor.copy(alpha = 0.28f),
+                                        sigilColor.copy(alpha = 0.06f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.HourglassEmpty,
+                            contentDescription = null,
+                            tint = sigilColor,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = stringResource(R.string.overlay_well_dry_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = stringResource(R.string.overlay_well_dry_body, appName),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    WellStatusLine(well.availableMinutesAt(nowMillis), well.capacityMinutes)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (waitMillis != null) {
+                            stringResource(
+                                R.string.overlay_well_dry_eta,
+                                neededMinutes,
+                                formatDuration(WellMath.wholeMinutesCeil(waitMillis))
+                            )
+                        } else {
+                            stringResource(R.string.overlay_well_dry_no_refill)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (alternativeName != null) {
+                        Button(
+                            onClick = onOpenAlternative,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.overlay_pact_alternative, alternativeName))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    OutlinedButton(
+                        onClick = onDecline,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.overlay_close))
                     }
                 }
             }

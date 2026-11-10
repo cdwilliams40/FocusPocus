@@ -1,6 +1,9 @@
 package com.infinicada.focuspocus
 
 import com.google.gson.Gson
+import com.infinicada.focuspocus.limit.ManaWell
+import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -164,6 +167,18 @@ class BackupCodecTest {
             Constants.PrefsKeys.PACT_PENDING_REVISIONS,
             Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE,
             Constants.PrefsKeys.LAST_WRAPUP_DATE,
+            // The Mana Well's pool, today's draws and any queued loosening —
+            // a restore must neither refill the Well nor skip its cooling-off
+            Constants.PrefsKeys.WELL_LEVEL_MILLIS,
+            Constants.PrefsKeys.WELL_UPDATED_AT_MILLIS,
+            Constants.PrefsKeys.WELL_DRAWN_DATE,
+            Constants.PrefsKeys.WELL_DRAWN_MILLIS,
+            Constants.PrefsKeys.WELL_UNLOCK_CREDIT_DATE,
+            Constants.PrefsKeys.WELL_UNLOCK_CREDITED_RULES,
+            Constants.PrefsKeys.WELL_PENDING_APPLIES_AT_MILLIS,
+            Constants.PrefsKeys.WELL_PENDING_ENABLED,
+            Constants.PrefsKeys.WELL_PENDING_CAPACITY_MINUTES,
+            Constants.PrefsKeys.WELL_PENDING_REFILL_INTERVAL_MINUTES,
             // This device's Warden bookkeeping and permission snapshot
             Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES,
             Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS,
@@ -204,6 +219,60 @@ class BackupCodecTest {
         assertTrue(fresh.getBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, false))
         assertEquals(20, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, -1))
         assertEquals(45, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, -1))
+    }
+
+    // ── Mana Well ──
+
+    private val wellOn = WellSettings(enabled = true, capacityMinutes = 30, refillIntervalMinutes = 20)
+
+    @Test
+    fun `mana well terms travel in a backup but its pool does not`() {
+        ManaWell.requestSettings(prefs, wellOn.copy(capacityMinutes = 45), t0)
+        ManaWell.tryDraw(prefs, 20, t0, "20261109")
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 39, now = t0)
+
+        assertFalse(json.contains(Constants.PrefsKeys.WELL_LEVEL_MILLIS))
+        assertFalse(json.contains(Constants.PrefsKeys.WELL_DRAWN_MILLIS))
+
+        val fresh = FakeSharedPreferences()
+        BackupCodec.import(fresh, gson, json, t0)
+        assertEquals(wellOn.copy(capacityMinutes = 45), ManaWell.settings(fresh, t0))
+        // A device that never had the Well gets a full one, not the drained one.
+        assertEquals(45, ManaWell.snapshot(fresh, t0, "20261109").availableMinutesAt(t0))
+    }
+
+    @Test
+    fun `restore cannot loosen or switch off an enforced mana well`() {
+        // The backup predates the Well entirely, so it says nothing about it.
+        val json = BackupCodec.export(FakeSharedPreferences(), gson, appVersionCode = 38, now = t0)
+
+        ManaWell.requestSettings(prefs, wellOn, t0)
+        ManaWell.tryDraw(prefs, 30, t0, "20261109")
+        BackupCodec.import(prefs, gson, json, t0)
+
+        // Still on, still drained; switching off waits out the usual day.
+        assertEquals(wellOn, ManaWell.settings(prefs, t0))
+        assertEquals(0, ManaWell.snapshot(prefs, t0, "20261109").availableMinutesAt(t0))
+        val pending = ManaWell.settingsState(prefs, t0).pending
+        assertFalse(pending!!.settings.enabled)
+        assertEquals(t0 + WellMath.REVISION_DELAY_MS, pending.appliesAtMillis)
+        assertFalse(ManaWell.isEnabled(prefs, t0 + WellMath.REVISION_DELAY_MS))
+    }
+
+    @Test
+    fun `restore applies a stricter mana well at once`() {
+        val backup = FakeSharedPreferences()
+        ManaWell.requestSettings(backup, wellOn.copy(capacityMinutes = 15, refillIntervalMinutes = 40), t0)
+        val json = BackupCodec.export(backup, gson, appVersionCode = 39, now = t0)
+
+        ManaWell.requestSettings(prefs, wellOn, t0)
+        BackupCodec.import(prefs, gson, json, t0)
+
+        assertEquals(
+            wellOn.copy(capacityMinutes = 15, refillIntervalMinutes = 40),
+            ManaWell.settings(prefs, t0)
+        )
+        assertEquals(null, ManaWell.settingsState(prefs, t0).pending)
     }
 
     @Test

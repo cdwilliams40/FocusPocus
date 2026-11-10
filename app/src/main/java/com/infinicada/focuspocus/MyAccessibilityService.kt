@@ -21,11 +21,14 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.limit.FrictionLevel
+import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
+import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.PactRevisionManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.WellUnlocks
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.Schedule
@@ -977,10 +980,24 @@ class MyAccessibilityService : AccessibilityService() {
             // app from the launcher), so it must offer the shared group-open
             // here too — the dashboard's own group-open action alone would
             // leave this everyday path still granting single-app allowances.
-            if (settingsRepo.getGroupSealEnabled()) {
-                showGroupPactOverlay(appName, packageName, settingsRepo.getGroupSealOpenWindowMinutes())
+            //
+            // Mana Well: a Well-bound pact is paid from the shared pool. The
+            // overlay reads the Well itself when it draws, so all this side
+            // decides is whether the pact is bound — and, with both modes on,
+            // that an exempt pact stays out of the group (its tap must not
+            // open the Well-paid window for free).
+            val wellEnabled = ManaWell.isEnabled(sharedPreferences, now)
+            if (wellEnabled && !pactConfig.wellExempt) creditWellUnlocks()
+            if (settingsRepo.getGroupSealEnabled() && GuardStatus.inGroupSeal(pactConfig, wellEnabled)) {
+                showGroupPactOverlay(
+                    appName, packageName, settingsRepo.getGroupSealOpenWindowMinutes(),
+                    wellBound = wellEnabled
+                )
             } else {
-                showPactOverlay(appName, packageName, pactConfig)
+                showPactOverlay(
+                    appName, packageName, pactConfig,
+                    wellBound = wellEnabled && !pactConfig.wellExempt
+                )
             }
             return
         }
@@ -1021,6 +1038,11 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun isTimeLimitConditionallyUnlocked(packageName: String): Boolean {
+        // A pact that draws from the Mana Well is never freed by a rule: that
+        // would be a way around the shared pool. The rule pays minutes into
+        // the Well instead (creditWellUnlocks), and the pact gate, its seal
+        // and its daily backstop all keep holding.
+        if (isWellBoundPact(packageName)) return false
         val rules = getCachedConditionalUnlocks()
 
         return rules.any { rule ->
@@ -1032,6 +1054,34 @@ class MyAccessibilityService : AccessibilityService() {
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
                 "Conditional unlock check for time-limit app=$packageName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
             unlocked
+        }
+    }
+
+    /** True when [packageName] is pact-gated and its time is paid from the Mana Well. */
+    private fun isWellBoundPact(packageName: String): Boolean =
+        resolvePactConfig(packageName)?.let { ManaWell.isBound(sharedPreferences, it) } == true
+
+    /**
+     * Pays any conditional-unlock rule that is satisfied, covers a Well-bound
+     * pact app, and hasn't paid yet today — run right before a Well-bound
+     * pact is offered, so the offer already counts the minutes just earned.
+     * Costs nothing when there are no rules, and no usage query once every
+     * paying rule has paid for the day.
+     */
+    private fun creditWellUnlocks() {
+        val rules = getCachedConditionalUnlocks()
+        if (rules.isEmpty()) return
+        val added = WellUnlocks.creditSatisfied(
+            prefs = sharedPreferences,
+            rules = rules,
+            isWellBound = { resolvePactConfig(it)?.wellExempt == false },
+            usedMillisToday = { UsageStatsHelper.getPackageUsageToday(this, it) }
+        )
+        if (added > 0) {
+            val message = getString(R.string.well_unlock_credit_toast, added)
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -1310,13 +1360,19 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun showPactOverlay(appName: String, packageName: String, config: AppTimeLimit) {
+    private fun showPactOverlay(
+        appName: String,
+        packageName: String,
+        config: AppTimeLimit,
+        wellBound: Boolean
+    ) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("pactPackageName", packageName)
         intent.putExtra("pactChoices", PactManager.choicesFor(config).toIntArray())
         intent.putExtra("pactSealMinutes", config.cooldownMinutes)
+        intent.putExtra("wellBound", wellBound)
 
         // Awareness counter: this attempt is already counted, so opens is "open #N".
         val stats = openReflexTracker.getStats(packageName)
@@ -1339,13 +1395,19 @@ class MyAccessibilityService : AccessibilityService() {
      * OverlayActivity) grants the shared allowance to every eligible
      * pact-gated app, not just the one that was tapped.
      */
-    private fun showGroupPactOverlay(appName: String, packageName: String, openWindowMinutes: Int) {
+    private fun showGroupPactOverlay(
+        appName: String,
+        packageName: String,
+        openWindowMinutes: Int,
+        wellBound: Boolean
+    ) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("pactPackageName", packageName)
         intent.putExtra("groupSealMode", true)
         intent.putExtra("groupOpenMinutes", openWindowMinutes)
+        intent.putExtra("wellBound", wellBound)
         intent.putExtra("pactSealMinutes", settingsRepo.getGroupSealDurationMinutes())
         startActivity(intent)
     }
@@ -1494,14 +1556,18 @@ class MyAccessibilityService : AccessibilityService() {
      * discovered). Under Group Seal mode every pact-gated app seals for the
      * same shared, non-escalating duration — the panic seal's semantics, with
      * a synthetic config so the shared minutes override this app's own
-     * cooldownMinutes — instead of each app escalating independently.
+     * cooldownMinutes — instead of each app escalating independently. A
+     * Well-exempt pact is outside the group while the Mana Well is on
+     * (GuardStatus.inGroupSeal), so it seals on its own terms.
      */
     private fun sealRequestFor(
         packageName: String,
         config: AppTimeLimit,
         lapsedExpiry: Long
     ): SessionCooldownManager.SealRequest =
-        if (settingsRepo.getGroupSealEnabled()) {
+        if (settingsRepo.getGroupSealEnabled() &&
+            GuardStatus.inGroupSeal(config, ManaWell.isEnabled(sharedPreferences))
+        ) {
             SessionCooldownManager.SealRequest(
                 packageName = packageName,
                 config = config.copy(cooldownMinutes = settingsRepo.getGroupSealDurationMinutes()),

@@ -133,4 +133,22 @@ class ProgressionMathTest {
     fun `wrapup fires late in the evening if the service was down at 20`() {
         assertTrue(ProgressionMath.shouldSendWrapup(23, "20260713", "20260712", "20260713", true, true))
     }
+
+    // ── Well channel pricing ──
+
+    @Test
+    fun `well channel price doubles per channel bought that day`() {
+        assertEquals(75L, ProgressionMath.wellChannelCost(0))
+        assertEquals(150L, ProgressionMath.wellChannelCost(1))
+        assertEquals(300L, ProgressionMath.wellChannelCost(2))
+        assertEquals(600L, ProgressionMath.wellChannelCost(3))
+    }
+
+    @Test
+    fun `well channel price is capped instead of overflowing`() {
+        val capped = ProgressionMath.wellChannelCost(ProgressionMath.WELL_CHANNEL_MAX_DOUBLINGS)
+        assertTrue(capped > 0)
+        assertEquals(capped, ProgressionMath.wellChannelCost(10_000))
+        assertEquals(75L, ProgressionMath.wellChannelCost(-3))
+    }
 }
