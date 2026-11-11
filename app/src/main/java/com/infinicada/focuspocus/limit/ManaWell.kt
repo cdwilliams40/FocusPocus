@@ -127,10 +127,9 @@ object WellMath {
      * holds the expiries of the Well-paid allowances being ended;
      * [stillRunning] those of every allowance left running.
      *
-     * Each distinct expiry is one draw — a Group Seal window is a single
-     * draw that covers many apps — so it is refunded once, and only when
-     * nothing from that same draw stays open: sealing one app out of a
-     * shared window gives nothing back while the others can still be used.
+     * Each distinct expiry is one draw, refunded once, and only when nothing
+     * from that same draw stays open (pacts granted together share an
+     * expiry).
      */
     fun refundableMillis(
         revoked: Collection<Long>,
@@ -296,7 +295,7 @@ object ManaWell {
     }
 
     /**
-     * Gives [millis] of unused pact time back (a pact sealed early), up to
+     * Gives [millis] of unused pact time back (a pact ended early), up to
      * the capacity, and takes it off today's drawn total — the day's number
      * is what was actually spent, not what was first asked for.
      */
