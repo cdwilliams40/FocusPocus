@@ -6,7 +6,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
+import com.infinicada.focuspocus.limit.DailyHistory
 import com.infinicada.focuspocus.limit.DayKey
+import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
@@ -34,9 +36,9 @@ object Progression {
     }
 
     /**
-     * Awards everything a just-recorded session earns. Called from inside
-     * SessionRecorder.record() after the session list is updated but before session prefs are cleared, so ACTIVE_SCHEDULE_ID and
-     * HIDE_STOP_BUTTON still describe the session being awarded.
+     * Awards everything a just-recorded session earns, by [ManaRules]: timed
+     * sessions per minute up to the daily cap, open-ended ones a flat amount
+     * once a day. Called from inside SessionRecorder.record().
      */
     @Synchronized
     fun awardForSession(
@@ -47,25 +49,65 @@ object Progression {
         rolloverIfNeeded(prefs, gson)
         if (!isEnabled(prefs)) return AwardResult.EMPTY
 
-        val fromRitual = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null
-        val hideStop = prefs.getBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, false)
-
-        val mana = ProgressionMath.computeManaAward(session.durationMinutes, hideStop, fromRitual)
+        val today = DayKey.today()
+        val day = DailyHistory.manaDay(prefs, today)
+        val award = ManaRules.sessionAward(
+            session,
+            timedEarnedToday = day.timedSession,
+            openEndedPaidToday = day.openEndedSession > 0L
+        )
         credit(
-            prefs, gson, mana,
+            prefs, gson, award.mana,
             ManaLedgerEntry(
                 timestampMillis = session.endTimeMillis,
-                amount = mana,
-                kind = LedgerKind.SESSION,
+                amount = award.mana,
+                kind = if (award.timed) LedgerKind.SESSION else LedgerKind.OPEN_ENDED,
                 minutes = session.durationMinutes,
-                dateKey = DayKey.today()
+                dateKey = today
             )
         )
 
-        val (advanced, completed) = TrialEngine.advanceForSession(loadTrials(prefs, gson), session.durationMinutes, fromRitual)
+        val (advanced, completed) = TrialEngine.advanceForSession(
+            loadTrials(prefs, gson),
+            session.durationMinutes,
+            timed = award.timed,
+            startedByHand = session.source == FocusSession.SOURCE_MANUAL
+        )
         saveTrials(prefs, gson, advanced)
 
-        return AwardResult(mana, completed)
+        return AwardResult(award.mana, completed)
+    }
+
+    /**
+     * Pays for today's time in productive apps: [minutesToday] is the total
+     * so far, so this is safe to call as often as wanted — only the part not
+     * yet paid is credited. Returns the mana added and any trials it
+     * completed.
+     */
+    @Synchronized
+    fun creditProductive(prefs: SharedPreferences, gson: Gson, minutesToday: Int): AwardResult {
+        rolloverIfNeeded(prefs, gson)
+        val today = DayKey.today()
+        val day = DailyHistory.manaDay(prefs, today)
+        if (minutesToday <= day.productiveMinutes) return AwardResult.EMPTY
+        val added = minutesToday - day.productiveMinutes
+        DailyHistory.updateMana(prefs, today) { it.copy(productiveMinutes = minutesToday) }
+        if (!isEnabled(prefs)) return AwardResult.EMPTY
+
+        val owed = (ManaRules.productiveMana(minutesToday) - day.productive).coerceAtLeast(0L)
+        credit(
+            prefs, gson, owed,
+            ManaLedgerEntry(
+                timestampMillis = System.currentTimeMillis(),
+                amount = owed,
+                kind = LedgerKind.PRODUCTIVE,
+                minutes = added,
+                dateKey = today
+            )
+        )
+        val (advanced, completed) = TrialEngine.advanceForProductive(loadTrials(prefs, gson), minutesToday, added)
+        saveTrials(prefs, gson, advanced)
+        return AwardResult(owed, completed)
     }
 
     /**
@@ -83,14 +125,12 @@ object Progression {
         val (active, ended) = trials.partition { !TrialEngine.isEnded(it, dailyKey, weekKey) }
 
         if (ended.isNotEmpty()) {
-            val blockEvents = loadBlockEvents(prefs, gson)
             val reflexDays = OpenReflexTracker(prefs, gson).getDailyStats()
-            // Daily limits were removed in 2.0, so a stay-under-limits trial
-            // left over from before can't be judged a success.
-            val limitsConfigured = false
+            val wellMinutes = DailyHistory.wellDays(prefs)
+                .mapValues { (_, day) -> (day.drawnMillis / 60_000L).toInt() }
             val enabled = isEnabled(prefs)
             for (endedTrial in ended) {
-                val judged = TrialEngine.judgeEndedTrial(endedTrial, blockEvents, reflexDays, limitsConfigured)
+                val judged = TrialEngine.judgeEndedTrial(endedTrial, wellMinutes, reflexDays)
                 if (judged.completed && !judged.claimed && enabled) {
                     credit(
                         prefs, gson, judged.rewardMana,
@@ -182,7 +222,7 @@ object Progression {
         val channelsToday = loadLedger(prefs, gson).count {
             it.kind == LedgerKind.PERK && it.refId == Perk.WELL_CHANNEL.name && it.dateKey == todayKey
         }
-        return ProgressionMath.wellChannelCost(channelsToday)
+        return ManaRules.pourCost(channelsToday)
     }
 
     /**
@@ -209,17 +249,11 @@ object Progression {
     // -------------------------------------------------------------------------
 
     private fun eligibility(prefs: SharedPreferences, gson: Gson): TrialEngine.Eligibility {
-        val schedules: List<Schedule> = PrefsHelper.load(
-            prefs, gson, Constants.PrefsKeys.SCHEDULES,
-            object : TypeToken<List<Schedule>>() {}.type
-        ) ?: emptyList()
         val usagePermission = prefs.getBoolean(Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT, false)
-        val reflexHistory = OpenReflexTracker(prefs, gson).getDailyStats().isNotEmpty()
         return TrialEngine.Eligibility(
-            hasSchedules = schedules.isNotEmpty(),
-            // No daily limits exist any more (2.0), so this template is never drawn.
-            canJudgeLimits = false,
-            hasReflexHistory = reflexHistory
+            hasWellApps = WellApps.packages(prefs, gson).isNotEmpty(),
+            canMeasureProductive = usagePermission && ProductiveApps.load(prefs, gson).isNotEmpty(),
+            hasReflexHistory = OpenReflexTracker(prefs, gson).getDailyStats().isNotEmpty()
         )
     }
 
@@ -236,6 +270,15 @@ object Progression {
             )
         }
         appendLedger(prefs, gson, entry)
+        DailyHistory.updateMana(prefs, entry.dateKey.ifEmpty { DayKey.today() }) { day ->
+            when (entry.kind) {
+                LedgerKind.SESSION -> day.copy(timedSession = day.timedSession + amount)
+                LedgerKind.OPEN_ENDED -> day.copy(openEndedSession = day.openEndedSession + amount)
+                LedgerKind.PRODUCTIVE -> day.copy(productive = day.productive + amount)
+                LedgerKind.TRIAL -> day.copy(trials = day.trials + amount)
+                else -> day
+            }
+        }
     }
 
     /** Deducts [amount] if the balance covers it; false otherwise. */
@@ -244,6 +287,10 @@ object Progression {
         if (amount <= 0L || balance < amount) return false
         prefs.edit { putLong(Constants.PrefsKeys.MANA_BALANCE, balance - amount) }
         appendLedger(prefs, gson, entry)
+        DailyHistory.updateMana(prefs, entry.dateKey.ifEmpty { DayKey.today() }) { day ->
+            if (entry.refId == Perk.WELL_CHANNEL.name) day.copy(pours = day.pours + amount)
+            else day.copy(breaks = day.breaks + amount)
+        }
         return true
     }
 
@@ -295,8 +342,4 @@ object Progression {
     private fun isIntact(entry: ManaLedgerEntry): Boolean =
         entry.kind != null && entry.title != null && entry.refId != null &&
             entry.packageName != null && entry.dateKey != null
-
-    private fun loadBlockEvents(prefs: SharedPreferences, gson: Gson): List<BlockEvent> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.BLOCK_EVENTS, object : TypeToken<List<BlockEvent>>() {}.type)
-            ?: emptyList()
 }

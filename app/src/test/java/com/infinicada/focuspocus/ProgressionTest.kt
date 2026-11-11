@@ -287,4 +287,40 @@ class ProgressionTest {
         assertEquals(40L, prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L))
         assertEquals(50L, balance())
     }
+
+    // ── productive apps and daily history ──
+
+    @Test
+    fun `productive credit pays only what is newly owed`() {
+        Progression.creditProductive(prefs, gson, 20)
+        assertEquals(10L, balance())
+        Progression.creditProductive(prefs, gson, 20)
+        assertEquals(10L, balance())
+        Progression.creditProductive(prefs, gson, 31)
+        assertEquals(15L, balance())
+        val day = com.infinicada.focuspocus.limit.DailyHistory.manaDay(prefs, com.infinicada.focuspocus.limit.DayKey.today())
+        assertEquals(15L, day.productive)
+        assertEquals(31, day.productiveMinutes)
+    }
+
+    @Test
+    fun `productive credit stops at the daily cap`() {
+        Progression.creditProductive(prefs, gson, 1_000)
+        assertEquals(ManaRules.PRODUCTIVE_DAILY_CAP, balance())
+    }
+
+    @Test
+    fun `timed session mana is capped across the day and recorded by source`() {
+        fun record(minutes: Int, planned: Int?) = Progression.awardForSession(
+            prefs, gson,
+            FocusSession(0L, 1L, minutes, "Social", 0, FocusSession.SOURCE_MANUAL, planned)
+        )
+        assertEquals(200L, record(200, 200).manaEarned)
+        assertEquals(40L, record(100, 100).manaEarned)
+        assertEquals(ManaRules.OPEN_ENDED_MANA, record(90, null).manaEarned)
+        assertEquals(0L, record(90, null).manaEarned)
+        val day = com.infinicada.focuspocus.limit.DailyHistory.manaDay(prefs, com.infinicada.focuspocus.limit.DayKey.today())
+        assertEquals(240L, day.timedSession)
+        assertEquals(ManaRules.OPEN_ENDED_MANA, day.openEndedSession)
+    }
 }

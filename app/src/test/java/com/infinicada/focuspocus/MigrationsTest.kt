@@ -187,4 +187,32 @@ class MigrationsTest {
         assertEquals(gson.toJson(listOf("Social")), prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
         assertFalse(prefs.contains(Migrations.LegacyKeys.ACTIVE_BLOCKER))
     }
+
+    // ── Step 4: conditional unlocks become productive apps ──
+
+    @Test
+    fun `each rule's required app becomes a productive app`() {
+        prefs.putString(Migrations.LegacyKeys.CONDITIONAL_UNLOCKS, gson.toJson(listOf(
+            mapOf("name" to "Duo", "requiredAppPackage" to "com.duo", "requiredMinutes" to 10),
+            mapOf("name" to "Read", "requiredAppPackage" to "com.read", "requiredMinutes" to 20)
+        )))
+        prefs.putString(Migrations.LegacyKeys.WELL_UNLOCK_CREDIT_DATE, "20261110")
+        Migrations.run(prefs)
+        assertEquals(listOf("com.duo", "com.read"), ProductiveApps.load(prefs, gson))
+        assertFalse(prefs.contains(Migrations.LegacyKeys.CONDITIONAL_UNLOCKS))
+        assertFalse(prefs.contains(Migrations.LegacyKeys.WELL_UNLOCK_CREDIT_DATE))
+    }
+
+    @Test
+    fun `unfinished trials are dropped and finished unclaimed ones kept`() {
+        prefs.putString(Constants.PrefsKeys.TRIALS, gson.toJson(listOf(
+            mapOf("id" to "a", "type" to "COMPLETE_SESSIONS", "target" to 2, "progress" to 1, "period" to "DAILY",
+                "periodKey" to "20261111", "rewardMana" to 40, "claimed" to false),
+            mapOf("id" to "b", "type" to "FOCUS_MINUTES", "target" to 60, "progress" to 60, "period" to "DAILY",
+                "periodKey" to "20261111", "rewardMana" to 50, "claimed" to false)
+        )))
+        Migrations.run(prefs)
+        val ids = Progression.loadTrials(prefs, gson).map { it.id }
+        assertEquals(listOf("b"), ids)
+    }
 }

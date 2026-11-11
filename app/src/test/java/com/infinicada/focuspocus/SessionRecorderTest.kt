@@ -192,10 +192,11 @@ class SessionRecorderTest {
     @Test
     fun testRecord_awardsManaAtomically() {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 25 * 60000)
+        fakePrefs.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 25)
 
         val result = SessionRecorder.record(fakePrefs, gson)
 
-        // 1 mana per focused minute
+        // A timed session: 1 mana per focused minute
         assertEquals(25L, result.manaEarned)
         assertEquals(25L, fakePrefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L))
         assertTrue(fakePrefs.getString(Constants.PrefsKeys.MANA_LEDGER, "")!!.contains("SESSION"))

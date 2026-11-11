@@ -1,14 +1,26 @@
 package com.infinicada.focuspocus.model
 
 enum class TrialType {
-    /** Complete [Trial.target] focus sessions in the period. */
+    /** Legacy (before 2.0): complete [Trial.target] focus sessions. Never drawn now. */
     COMPLETE_SESSIONS,
 
-    /** Accumulate [Trial.target] focused minutes in the period. */
+    /** Accumulate [Trial.target] minutes of timed focus sessions in the period. */
     FOCUS_MINUTES,
 
+    /** Start [Trial.target] timed sessions by hand in the period. */
+    START_TIMED_SESSION,
+
     /**
-     * No daily-limit breaches during the period. Judged from BLOCK_EVENTS at
+     * Draw at most [Trial.param] minutes from the Mana Well across the period.
+     * Judged at rollover from the Well's day history (target 1 on success).
+     */
+    WELL_UNDER,
+
+    /** Spend [Trial.target] minutes in productive apps in the period. */
+    PRODUCTIVE_MINUTES,
+
+    /**
+     * Legacy (before 2.0, never drawn now): no daily-limit breaches. Judged from BLOCK_EVENTS at
      * rollover (target 1, progress set to 1 on success) — usage history can't
      * be reconstructed after the fact, block events can.
      */
@@ -20,7 +32,7 @@ enum class TrialType {
      */
     NO_REFLEX_OPENS,
 
-    /** Complete [Trial.target] scheduled rituals in the period. */
+    /** Legacy (before 2.0): complete scheduled rituals. Never drawn now. */
     COMPLETE_RITUAL
 }
 

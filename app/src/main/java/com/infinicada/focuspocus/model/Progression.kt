@@ -5,7 +5,16 @@ package com.infinicada.focuspocus.model
  * so history renders in the current locale and perks can query past redemptions.
  */
 enum class LedgerKind {
-    SESSION, TRIAL, PERK,
+    /** A timed session, paid per minute. */
+    SESSION,
+    TRIAL,
+    /** A pour into the Well or an extra break; refId names the [Perk]. */
+    PERK,
+    /** An open-ended session (ritual or untimed talisman), paid flat once a day. */
+    OPEN_ENDED,
+    /** Time in productive apps. */
+    PRODUCTIVE,
+
 
     /** Legacy kinds from before 2.0 (boons, streak milestones, sigils). Never
      *  written any more, but kept so old ledger entries still load. */
@@ -35,16 +44,16 @@ data class ManaLedgerEntry(
  */
 enum class Perk(val costMana: Long) {
     /** One extra break in the current manual session, beyond the per-session max. */
-    EXTRA_BREAK(50),
+    EXTRA_BREAK(com.infinicada.focuspocus.ManaRules.EXTRA_BREAK_COST),
 
     /**
      * Minutes poured into the Mana Well. [costMana] is the day's first price;
      * every further channel the same day doubles it
      * (ProgressionMath.wellChannelCost), so banked mana can't buy a binge.
      */
-    WELL_CHANNEL(75);
+    WELL_CHANNEL(com.infinicada.focuspocus.ManaRules.POUR_BASE_COST);
 
     companion object {
-        const val WELL_CHANNEL_GRANT = 5
+        const val WELL_CHANNEL_GRANT = com.infinicada.focuspocus.ManaRules.POUR_MINUTES
     }
 }

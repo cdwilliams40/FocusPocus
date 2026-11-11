@@ -8,7 +8,6 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.model.ConditionalUnlock
 
 class FocusNotificationListenerService : NotificationListenerService() {
 
@@ -47,28 +46,12 @@ class FocusNotificationListenerService : NotificationListenerService() {
             blocker.shouldBlock(pkg) &&
                 (blocker.mode != BlockerMode.WHITELIST || AppUtils.isWhitelistBlockable(this, pkg))
         }
-        // Mirror the app-blocking path: a conditionally-unlocked blocker's
-        // notifications flow again along with its apps. (Checked here, on the
-        // rare match path, because the unlock test queries usage stats.)
-        if (matched.isNotEmpty() && matched.any { !isConditionallyUnlocked(it.name, prefs) }) {
+        if (matched.isNotEmpty()) {
             try {
                 cancelNotification(sbn.key)
             } catch (e: Exception) {
                 Log.e("FocusNotifListener", "Error cancelling notification", e)
             }
-        }
-    }
-
-    private fun isConditionallyUnlocked(blockerName: String, prefs: SharedPreferences): Boolean {
-        val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-        val rules = PrefsHelper.load<List<ConditionalUnlock>>(
-            prefs, gson, Constants.PrefsKeys.CONDITIONAL_UNLOCKS, type
-        ) ?: return false
-        return rules.any { rule ->
-            blockerName in rule.effectiveUnlockedBlockerNames &&
-                rule.requiredMinutes > 0 &&
-                UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage) >=
-                rule.requiredMinutes.toLong() * 60 * 1000
         }
     }
 

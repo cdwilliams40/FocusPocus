@@ -148,6 +148,19 @@ class OverlayActivity : ComponentActivity() {
             val alternativePackage = intent.getStringExtra("pactAlternativePackage")
             val alternativeName = intent.getStringExtra("pactAlternativeName")?.take(200)
             val choices = WellMath.limitChoices(WellApps.PACT_CHOICES, wellMinutes)
+            val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+            // Too dry for a pact: note it, and offer a pour when mana can buy
+            // one and the Well has room for it.
+            val pourCost: Long? = if (choices.isEmpty()) {
+                ManaWell.recordDry(prefs)
+                val cost = Progression.wellChannelCost(prefs, Gson())
+                val hasRoom = well.levelMillisAt(now) + ManaRules.POUR_MINUTES * WellMath.MINUTE_MS <=
+                    well.capacityMinutes * WellMath.MINUTE_MS
+                cost.takeIf {
+                    Progression.isEnabled(prefs) && hasRoom &&
+                        prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L) >= it
+                }
+            } else null
             setContent {
                 FocusPocusTheme(themeMode = themeMode) {
                     if (choices.isEmpty()) {
@@ -158,6 +171,15 @@ class OverlayActivity : ComponentActivity() {
                             nowMillis = now,
                             alternativeName = if (alternativePackage != null) alternativeName else null,
                             onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
+                            pourCost = pourCost,
+                            onPour = {
+                                if (Progression.redeemPerk(prefs, Gson(), com.infinicada.focuspocus.model.Perk.WELL_CHANNEL)) {
+                                    // Show the pact offer with the minutes just poured.
+                                    renderOverlay(intent)
+                                } else {
+                                    Toast.makeText(this, R.string.well_channel_failed, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onDecline = { closeAndGoHome() }
                         )
                     } else {
@@ -205,7 +227,7 @@ class OverlayActivity : ComponentActivity() {
     private fun grantPactAndLaunch(packageName: String, minutes: Int) =
         grantAndLaunch(packageName) { prefs, gson, now ->
             // Draw first: a pact the Well couldn't pay for is never granted.
-            if (!ManaWell.tryDraw(prefs, minutes, now)) return@grantAndLaunch false
+            if (!ManaWell.tryDraw(prefs, minutes, now, packageName = packageName)) return@grantAndLaunch false
             PactManager(prefs, gson).grantAllowance(packageName, minutes, now)
             true
         }
@@ -546,6 +568,9 @@ fun WellDryScreen(
     nowMillis: Long,
     alternativeName: String? = null,
     onOpenAlternative: () -> Unit = {},
+    /** Today's pour price when a pour is possible and affordable; null otherwise. */
+    pourCost: Long? = null,
+    onPour: () -> Unit = {},
     onDecline: () -> Unit
 ) {
     val waitMillis = well.millisUntilMinutes(neededMinutes, nowMillis)
@@ -626,6 +651,16 @@ fun WellDryScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(stringResource(R.string.overlay_pact_alternative, alternativeName))
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    if (pourCost != null) {
+                        OutlinedButton(
+                            onClick = onPour,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.well_dry_pour, ManaRules.POUR_MINUTES, pourCost))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }

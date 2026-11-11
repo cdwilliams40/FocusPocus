@@ -61,6 +61,8 @@ import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.limit.WellSnapshot
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.Perk
+import com.infinicada.focuspocus.model.Trial
+import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.ManaChip
@@ -104,7 +106,9 @@ fun WellHomeScreen(
     well: WellSnapshot,
     wellChannelCost: Long,
     onChannelMana: () -> Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trials: List<Trial> = emptyList(),
+    onClaimTrial: (Trial) -> Unit = {}
 ) {
     // Names come only from the installed-apps scan; a package the scan hasn't
     // reached falls back to its raw name — no PackageManager call here.
@@ -191,6 +195,21 @@ fun WellHomeScreen(
                 onChannelMana = onChannelMana
             )
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Today's trials: the reasons to earn, next to the Well they pay into.
+        if (progressionEnabled && trials.isNotEmpty()) {
+            item(key = "trials") {
+                SectionHeader(stringResource(R.string.home_trials_header))
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                    trials.forEachIndexed { index, trial ->
+                        TrialRow(trial = trial, onClaim = onClaimTrial)
+                        if (index != trials.lastIndex) Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
 
         if (running.isNotEmpty()) {

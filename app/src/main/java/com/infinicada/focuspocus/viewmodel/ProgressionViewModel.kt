@@ -39,7 +39,12 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
     private val _wellChannelCost = MutableStateFlow(repo.getWellChannelCost())
     val wellChannelCost: StateFlow<Long> = _wellChannelCost.asStateFlow()
 
+    /** Today's mana by source and use. */
+    private val _manaToday = MutableStateFlow(repo.getManaToday())
+    val manaToday: StateFlow<com.infinicada.focuspocus.model.ManaDay> = _manaToday.asStateFlow()
+
     fun refresh() {
+        _manaToday.value = repo.getManaToday()
         _wellChannelCost.value = repo.getWellChannelCost()
         _balance.value = repo.getBalance()
         _trials.value = repo.getTrials()

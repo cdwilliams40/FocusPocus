@@ -83,8 +83,6 @@ object Constants {
         const val WELL_APPS = "wellApps"
         const val WELL_APP_REMOVALS = "wellAppRemovals"
 
-        // Conditional unlocks
-        const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
 
         // Block events for statistics
         const val BLOCK_EVENTS = "blockEvents"
@@ -115,6 +113,11 @@ object Constants {
         const val TRIALS = "trials"
         const val EXTRA_BREAK_TOKENS = "extraBreakTokens"
         const val TRIAL_ALERTS_ENABLED = "trialAlertsEnabled"
+        // Apps whose use earns mana (JSON list of package names)
+        const val PRODUCTIVE_APPS = "productiveApps"
+        // Per-day history ("yyyyMMdd" -> record) of mana and of the Well
+        const val MANA_HISTORY = "manaHistory"
+        const val WELL_HISTORY = "wellHistory"
         // Snapshot of the usage-stats permission, refreshed whenever a Context is
         // available, so Context-free code (SessionRecorder's award path) can gate
         // usage-dependent trial templates deterministically.
@@ -132,10 +135,6 @@ object Constants {
         // Net time drawn today ("yyyyMMdd" + millis), for the dashboard.
         const val WELL_DRAWN_DATE = "wellDrawnDate"
         const val WELL_DRAWN_MILLIS = "wellDrawnMillis"
-        // Conditional-unlock rules that already paid into the Well today
-        // ("yyyyMMdd" + comma-joined rule ids) — each pays once a day.
-        const val WELL_UNLOCK_CREDIT_DATE = "wellUnlockCreditDate"
-        const val WELL_UNLOCK_CREDITED_RULES = "wellUnlockCreditedRules"
         // A queued loosening of the Well's terms; applies-at 0/absent = none.
         const val WELL_PENDING_APPLIES_AT_MILLIS = "wellPendingAppliesAtMillis"
         const val WELL_PENDING_ENABLED = "wellPendingEnabled"
@@ -167,7 +166,6 @@ object Constants {
     const val MAX_SCHEDULES = 50
     const val MAX_APPS_PER_BLOCKER = 500
     const val MAX_BLOCK_EVENTS = 1000
-    const val MAX_CONDITIONAL_UNLOCKS = 50
     const val MAX_MANA_LEDGER = 300
 
     // Notification channels

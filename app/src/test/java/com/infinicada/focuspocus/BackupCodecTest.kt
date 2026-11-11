@@ -170,8 +170,6 @@ class BackupCodecTest {
             Constants.PrefsKeys.WELL_UPDATED_AT_MILLIS,
             Constants.PrefsKeys.WELL_DRAWN_DATE,
             Constants.PrefsKeys.WELL_DRAWN_MILLIS,
-            Constants.PrefsKeys.WELL_UNLOCK_CREDIT_DATE,
-            Constants.PrefsKeys.WELL_UNLOCK_CREDITED_RULES,
             Constants.PrefsKeys.WELL_PENDING_APPLIES_AT_MILLIS,
             Constants.PrefsKeys.WELL_PENDING_ENABLED,
             Constants.PrefsKeys.WELL_PENDING_CAPACITY_MINUTES,

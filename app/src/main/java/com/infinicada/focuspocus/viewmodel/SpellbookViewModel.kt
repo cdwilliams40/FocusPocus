@@ -22,13 +22,10 @@ import com.infinicada.focuspocus.limit.WellApp
 import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.limit.WellSnapshot
-import com.infinicada.focuspocus.limit.WellUnlocks
 import com.infinicada.focuspocus.data.BlockerListRepository
-import com.infinicada.focuspocus.data.ConditionalUnlockRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
 import com.infinicada.focuspocus.model.AppInfo
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -72,23 +69,20 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     fun getWellSnapshot(): WellSnapshot = ManaWell.snapshot(appPrefs)
 
     /**
-     * Pays any conditional-unlock rule that is satisfied, covers a Well app,
-     * and hasn't paid yet today (WellUnlocks) — the dashboard's twin of the
-     * service's check before a pact is offered, so the Well card counts
-     * minutes earned even when the launcher path never runs (Warden
-     * greying). Returns the minutes added. Walks the day's usage events when
-     * a rule is still pending, so call it off the main thread.
+     * Pays for today's time in productive apps (the dashboard's twin of the
+     * service's periodic credit). Returns the mana added. Walks the day's
+     * usage events, so call it off the main thread.
      */
-    fun creditWellUnlocks(): Int {
-        val rules = _conditionalUnlocks.value
-        if (rules.isEmpty()) return 0
-        val wellPackages = _wellApps.value.mapTo(mutableSetOf()) { it.packageName }
-        return WellUnlocks.creditSatisfied(
-            prefs = appPrefs,
-            rules = rules,
-            isWellBound = { it in wellPackages },
-            usedMillisToday = { UsageStatsHelper.getPackageUsageToday(getApplication(), it) }
-        )
+    fun creditProductive(): Long =
+        com.infinicada.focuspocus.ProductiveApps.creditToday(getApplication(), appPrefs, gson).manaEarned
+
+    private val _productiveApps = MutableStateFlow(com.infinicada.focuspocus.ProductiveApps.load(appPrefs, gson))
+    val productiveApps: StateFlow<List<String>> = _productiveApps.asStateFlow()
+
+    fun setProductiveApps(packages: List<String>) {
+        com.infinicada.focuspocus.ProductiveApps.save(appPrefs, gson, packages)
+        _productiveApps.value = com.infinicada.focuspocus.ProductiveApps.load(appPrefs, gson)
+        _dataVersion.value++
     }
 
     private val _wellApps = MutableStateFlow(WellApps.load(appPrefs, gson))
@@ -162,7 +156,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     fun requestPactTime(packageName: String, minutes: Int): Boolean {
         val now = System.currentTimeMillis()
         pactManager.takeLapsedAllowance(packageName, now)
-        if (!ManaWell.tryDraw(appPrefs, minutes, now)) {
+        if (!ManaWell.tryDraw(appPrefs, minutes, now, packageName = packageName)) {
             Toast.makeText(
                 getApplication(), R.string.well_draw_refused_toast, Toast.LENGTH_LONG
             ).show()
@@ -218,7 +212,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
     private val talismanRepo: TalismanRepository = container.talismans
-    private val conditionalUnlockRepo: ConditionalUnlockRepository = container.conditionalUnlocks
 
     private val _blockerLists = MutableStateFlow(blockerRepo.getBlockers())
     val blockerLists: StateFlow<List<Blocker>> = _blockerLists.asStateFlow()
@@ -228,9 +221,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _namedTags = MutableStateFlow(talismanRepo.getNamedTags())
     val namedTags: StateFlow<List<Talisman>> = _namedTags.asStateFlow()
-
-    private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
-    val conditionalUnlocks: StateFlow<List<ConditionalUnlock>> = _conditionalUnlocks.asStateFlow()
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -404,19 +394,4 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     /** Onboarding: puts [packages] behind the Well. */
     fun createDefaultPacts(packages: List<String>) = addWellApps(packages)
 
-    fun saveConditionalUnlock(rule: ConditionalUnlock) {
-        if (!conditionalUnlockRepo.saveConditionalUnlock(rule, _conditionalUnlocks.value)) {
-            Toast.makeText(getApplication(), getApplication<Application>().getString(
-                R.string.toast_max_conditional_unlocks, com.infinicada.focuspocus.Constants.MAX_CONDITIONAL_UNLOCKS
-            ), Toast.LENGTH_SHORT).show()
-            return
-        }
-        _conditionalUnlocks.value = conditionalUnlockRepo.getConditionalUnlocks()
-        _dataVersion.value++
-    }
-
-    fun deleteConditionalUnlock(rule: ConditionalUnlock) {
-        _conditionalUnlocks.value = conditionalUnlockRepo.deleteConditionalUnlock(rule, _conditionalUnlocks.value)
-        _dataVersion.value++
-    }
 }

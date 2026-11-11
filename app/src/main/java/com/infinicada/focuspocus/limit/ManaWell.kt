@@ -270,7 +270,9 @@ object ManaWell {
         prefs: SharedPreferences,
         minutes: Int,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = DayKey.today()
+        todayKey: String = DayKey.today(),
+        /** The app the pact is for, for the day's per-app record. */
+        packageName: String? = null
     ): Boolean {
         if (minutes <= 0) return false
         applyDueRevision(prefs, now)
@@ -283,6 +285,11 @@ object ManaWell {
             putLong(Constants.PrefsKeys.WELL_UPDATED_AT_MILLIS, now)
             putString(Constants.PrefsKeys.WELL_DRAWN_DATE, todayKey)
             putLong(Constants.PrefsKeys.WELL_DRAWN_MILLIS, drawn)
+        }
+        DailyHistory.updateWell(prefs, todayKey) { day ->
+            val perApp = day.perApp.orEmpty().toMutableMap()
+            if (packageName != null) perApp[packageName] = (perApp[packageName] ?: 0L) + cost
+            day.copy(drawnMillis = day.drawnMillis + cost, draws = day.draws + 1, perApp = perApp)
         }
         Log.d(TAG, "Drew ${minutes}m from the Well")
         return true
@@ -314,6 +321,12 @@ object ManaWell {
             putString(Constants.PrefsKeys.WELL_DRAWN_DATE, todayKey)
             putLong(Constants.PrefsKeys.WELL_DRAWN_MILLIS, drawn)
         }
+        DailyHistory.updateWell(prefs, todayKey) { day ->
+            day.copy(
+                drawnMillis = (day.drawnMillis - millis).coerceAtLeast(0L),
+                refundedMillis = day.refundedMillis + millis
+            )
+        }
         Log.d(TAG, "Refunded ${millis / 1000}s to the Well")
     }
 
@@ -338,57 +351,15 @@ object ManaWell {
             putLong(Constants.PrefsKeys.WELL_LEVEL_MILLIS, level + added)
             putLong(Constants.PrefsKeys.WELL_UPDATED_AT_MILLIS, now)
         }
+        DailyHistory.updateWell(prefs, DayKey.today()) { it.copy(pours = it.pours + 1) }
         Log.d(TAG, "Channeled ${minutes}m into the Well")
         return true
     }
 
-    /** Ids of the conditional-unlock rules that already paid into the Well today. */
-    fun creditedUnlocks(
-        prefs: SharedPreferences,
-        todayKey: String = DayKey.today()
-    ): Set<String> {
-        if (prefs.getString(Constants.PrefsKeys.WELL_UNLOCK_CREDIT_DATE, null) != todayKey) {
-            return emptySet()
-        }
-        return prefs.getString(Constants.PrefsKeys.WELL_UNLOCK_CREDITED_RULES, null)
-            ?.split(',')?.filterTo(mutableSetOf()) { it.isNotEmpty() }
-            ?: emptySet()
-    }
-
-    /**
-     * Pays a satisfied conditional-unlock rule into the Well: up to [minutes],
-     * as many whole minutes as fit under the capacity, once per rule per day.
-     * Returns the minutes added — 0 when the rule already paid today, or when
-     * the Well has no room, in which case the rule stays unpaid so the reward
-     * isn't lost to a full Well.
-     */
+    /** Notes a Well app opened while the Well held too little for a pact. */
     @Synchronized
-    fun creditUnlock(
-        prefs: SharedPreferences,
-        ruleId: String,
-        minutes: Int,
-        now: Long = System.currentTimeMillis(),
-        todayKey: String = DayKey.today()
-    ): Int {
-        if (minutes <= 0 || ruleId.isEmpty()) return 0
-        val paid = creditedUnlocks(prefs, todayKey)
-        if (ruleId in paid) return 0
-        applyDueRevision(prefs, now)
-        val settings = readSettings(prefs)
-        val level = currentLevel(prefs, settings, now)
-        val room = settings.capacityMinutes * WellMath.MINUTE_MS - level
-        val added = minOf(minutes.toLong(), room / WellMath.MINUTE_MS).toInt()
-        if (added <= 0) return 0
-        prefs.edit {
-            putLong(Constants.PrefsKeys.WELL_LEVEL_MILLIS, level + added * WellMath.MINUTE_MS)
-            putLong(Constants.PrefsKeys.WELL_UPDATED_AT_MILLIS, now)
-            putString(Constants.PrefsKeys.WELL_UNLOCK_CREDIT_DATE, todayKey)
-            putString(
-                Constants.PrefsKeys.WELL_UNLOCK_CREDITED_RULES, (paid + ruleId).joinToString(",")
-            )
-        }
-        Log.d(TAG, "Conditional unlock paid ${added}m into the Well")
-        return added
+    fun recordDry(prefs: SharedPreferences, todayKey: String = DayKey.today()) {
+        DailyHistory.updateWell(prefs, todayKey) { it.copy(dryBlocks = it.dryBlocks + 1) }
     }
 
     /**

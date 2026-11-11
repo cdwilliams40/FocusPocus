@@ -151,8 +151,6 @@
         <item quantity="other">%d pactes terminés</item>
     </plurals>
     <string name="well_refund_toast">%1$d min rendues au Puits</string>
-    <string name="well_unlock_credit_toast">Déblocage conditionnel atteint : +%1$d min dans le Puits de mana</string>
-    <string name="conditional_unlocks_well_note">Une règle remplie ajoute %1$d minutes au Puits de mana une fois par jour au lieu de débloquer une appli du Puits. Les enchantements sont débloqués comme avant.</string>
     <string name="home_section_live">En ce moment</string>
     <string name="home_guard_edit_label">Modifier</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
@@ -384,7 +382,6 @@
 
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
-    <string name="conditional_unlocks_pact_app_label">%s (Pacte)</string>
 
 
     <!-- OverlayActivity -->
@@ -490,10 +487,8 @@
         <item quantity="many">Lancez %1$d sortilèges aujourd\'hui</item>
         <item quantity="other">Lancez %1$d sortilèges aujourd\'hui</item>
     </plurals>
-    <string name="trial_minutes_daily">Concentrez-vous %1$d minutes aujourd\'hui</string>
     <string name="trial_ritual_daily">Terminez un rituel programmé aujourd\'hui</string>
     <string name="trial_under_limits_daily">Restez sous toutes vos limites d\'applications aujourd\'hui</string>
-    <string name="trial_minutes_weekly">Concentrez-vous %1$d minutes cette semaine</string>
     <string name="trial_reflex_weekly">Moins de %1$d ouvertures réflexes cette semaine</string>
     <string name="trial_progress">%1$d/%2$d</string>
     <string name="trial_claim">Réclamer</string>
@@ -560,38 +555,6 @@
     <string name="time_limits_no_apps_found">Aucune application trouvée</string>
 
     <!-- Déblocages conditionnels -->
-    <string name="conditional_unlocks_title">Déblocages conditionnels</string>
-    <string name="conditional_unlocks_description">Débloquez des applications bloquées en récompense du temps passé dans une autre application.</string>
-    <string name="conditional_unlocks_add">Ajouter un déblocage conditionnel</string>
-    <string name="conditional_unlocks_rule_summary">Déblocage après %1$d min dans %2$s</string>
-    <string name="conditional_unlocks_unlocked_enchantments">Débloque : %s</string>
-    <string name="conditional_unlocks_editor_title_create">Nouveau déblocage conditionnel</string>
-    <string name="conditional_unlocks_editor_title_edit">Modifier le déblocage conditionnel</string>
-    <string name="conditional_unlocks_name_label">Nom de la règle</string>
-    <string name="conditional_unlocks_name_placeholder">ex. Récompense de langue</string>
-    <string name="conditional_unlocks_required_app_label">Application requise</string>
-    <string name="conditional_unlocks_required_app_placeholder">Choisir l\'application à utiliser d\'abord</string>
-    <string name="conditional_unlocks_required_minutes_label">Temps requis</string>
-    <string name="conditional_unlocks_enchantments_label">Enchantements à débloquer</string>
-    <string name="conditional_unlocks_enchantments_placeholder">Choisir les enchantements</string>
-    <plurals name="conditional_unlocks_enchantments_count">
-        <item quantity="one">%d enchantement sélectionné</item>
-        <item quantity="many">%d enchantements sélectionnés</item>
-        <item quantity="other">%d enchantements sélectionnés</item>
-    </plurals>
-    <string name="conditional_unlocks_progress">%1$d / %2$d min aujourd\'hui</string>
-    <string name="conditional_unlocks_grant_usage">Accorder l\'accès à l\'utilisation</string>
-    <string name="conditional_unlocks_usage_required">L\'accès à l\'utilisation est nécessaire pour suivre le temps passé dans les applications</string>
-    <string name="conditional_unlocks_time_limit_apps_label">Minuteurs d\'applications à contourner</string>
-    <string name="conditional_unlocks_time_limit_apps_placeholder">Choisir les applications limitées</string>
-    <plurals name="conditional_unlocks_time_limit_apps_count">
-        <item quantity="one">%d minuteur sélectionné</item>
-        <item quantity="many">%d minuteurs sélectionnés</item>
-        <item quantity="other">%d minuteurs sélectionnés</item>
-    </plurals>
-    <string name="conditional_unlocks_bypassed_timers">Minuteurs contournés : %s</string>
-    <string name="conditional_unlocks_delete">Supprimer</string>
-    <string name="toast_max_conditional_unlocks">Maximum de %d déblocages conditionnels atteint</string>
 
     <!-- Superposition : temps de repos et friction de niveau 3 -->
 
@@ -688,4 +651,36 @@
     <string name="talisman_setup_locked_short">seul ce talisman y met fin</string>
     <string name="talisman_setup_none">Non configuré — touchez Configurer pour choisir ce qu\'il lance</string>
     <string name="talisman_setup_save">Enregistrer</string>
+
+    <!-- Mana rules and productive apps (2.0) -->
+    <string name="productive_title">Applis productives</string>
+    <string name="productive_intro">Le temps passé dans ces applis rapporte du mana : 1 toutes les %1$d minutes, jusqu\'à %2$d par jour. Il est compté toutes les quelques minutes.</string>
+    <string name="productive_needs_usage">Le temps productif est lu via l\'accès aux données d\'utilisation. Accordez-le pour commencer à gagner.</string>
+    <string name="productive_grant_usage">Accorder l\'accès aux données d\'utilisation</string>
+    <string name="productive_today">Aujourd\'hui : %1$d min · +%2$d mana</string>
+    <string name="productive_remove">Retirer</string>
+    <string name="productive_choose">Choisir les applis productives</string>
+    <string name="trial_timed_minutes_daily">Concentrez-vous %1$d minutes en sessions minutées aujourd\'hui</string>
+    <string name="trial_timed_minutes_weekly">Concentrez-vous %1$d minutes en sessions minutées cette semaine</string>
+    <string name="trial_start_timed">Lancez une session de concentration minutée aujourd\'hui</string>
+    <string name="trial_well_under_daily">Puisez au plus %1$d minutes dans le Puits aujourd\'hui</string>
+    <string name="trial_well_under_weekly">Puisez au plus %1$d minutes dans le Puits cette semaine</string>
+    <string name="trial_reflex_daily">Limitez les ouvertures réflexes à %1$d aujourd\'hui</string>
+    <string name="trial_productive_daily">Passez %1$d minutes dans des applis productives aujourd\'hui</string>
+    <string name="trial_productive_weekly">Passez %1$d minutes dans des applis productives cette semaine</string>
+    <string name="ledger_open_ended_reason">Session ouverte · %1$d min</string>
+    <string name="ledger_productive_reason">Applis productives · %1$d min</string>
+    <string name="mana_today_earned">Gagné %1$d · dépensé %2$d</string>
+    <string name="mana_how_header">Comment fonctionne le mana</string>
+    <string name="mana_how_earn">Gagner</string>
+    <string name="mana_how_spend">Dépenser</string>
+    <string name="mana_rule_timed">Session minutée : %1$d par minute, jusqu\'à %2$d par jour</string>
+    <string name="mana_rule_open_ended">Rituel ou session de talisman sans durée : %1$d une fois par jour, après %2$d minutes</string>
+    <string name="mana_rule_productive">Applis productives : 1 toutes les %1$d minutes, jusqu\'à %2$d par jour</string>
+    <string name="mana_rule_trials">Épreuves quotidiennes : %1$d–%2$d chacune · épreuve hebdomadaire : %3$d–%4$d</string>
+    <string name="mana_rule_pour">Verser %1$d minutes dans le Puits : %2$d, le prix double à chaque versement de la journée</string>
+    <string name="mana_rule_break">Pause supplémentaire : %1$d</string>
+    <string name="mana_open_productive">Applis productives</string>
+    <string name="well_dry_pour">Verser %1$d min pour %2$d mana</string>
+    <string name="home_trials_header">Épreuves du jour</string>
 </resources>

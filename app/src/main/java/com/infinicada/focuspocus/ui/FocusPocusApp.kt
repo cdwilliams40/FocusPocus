@@ -77,7 +77,7 @@ import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
 import com.infinicada.focuspocus.ui.screens.ManaScreen
-import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
+import com.infinicada.focuspocus.ui.screens.ProductiveAppsScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
@@ -135,9 +135,7 @@ fun FocusPocusApp(
     val blockerLists by spellbookVM.blockerLists.collectAsStateWithLifecycle()
     val schedules by spellbookVM.schedules.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
-    val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
-    val wellAppsForRules = spellbookVM.wellApps.collectAsStateWithLifecycle().value
-        .mapTo(mutableSetOf()) { it.packageName }
+    val productiveApps by spellbookVM.productiveApps.collectAsStateWithLifecycle()
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
     val pactsRoute by spellbookVM.pactsRoute.collectAsStateWithLifecycle()
@@ -511,6 +509,12 @@ fun FocusPocusApp(
                 channeled
             },
             onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
+            manaToday = progressionVM.manaToday.collectAsStateWithLifecycle().value,
+            onOpenProductiveApps = {
+                showMana = false
+                currentDestination = AppDestinations.SPELLBOOK
+                spellbookVM.navigateTo(SpellbookRoute.ProductiveApps)
+            },
             onNavigateBack = { showMana = false },
             modifier = modifier.fillMaxSize()
         )
@@ -601,26 +605,20 @@ fun FocusPocusApp(
                                 // A removal coming due while the dashboard is
                                 // open lands on this same tick.
                                 spellbookVM.applyDueWellRemovals()
-                                // Before the Well is read: a conditional
-                                // unlock met since the last look pays in now.
-                                val unlockMinutes = spellbookVM.creditWellUnlocks()
+                                // Time spent in productive apps since the
+                                // last look pays in now.
+                                val productiveMana = spellbookVM.creditProductive()
                                 Triple(
                                     spellbookVM.getActivePacts(),
                                     spellbookVM.getTodayOpenStats(),
                                     spellbookVM.getWellSnapshot()
-                                ) to unlockMinutes
+                                ) to productiveMana
                             }
                             activePacts = snapshot.first.first
                             openStats = snapshot.first.second
                             homeWell = snapshot.first.third
                             homeNow = System.currentTimeMillis()
-                            if (snapshot.second > 0) {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.well_unlock_credit_toast, snapshot.second),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                            if (snapshot.second > 0) progressionVM.refresh()
                         }
                         // Wake exactly when something on screen changes: a
                         // pact or removal coming due re-snapshots, a countdown
@@ -710,6 +708,8 @@ fun FocusPocusApp(
                                 homeTick++
                                 channeled
                             },
+                            trials = trials,
+                            onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
                             modifier = contentModifier
                         )
                     } else {
@@ -843,8 +843,8 @@ fun FocusPocusApp(
                             blockerLists = blockerLists,
                             schedules = schedules,
                             namedTags = namedTags,
-                            conditionalUnlocks = conditionalUnlocks,
-                            onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
+                            productiveAppCount = productiveApps.size,
+                            onNavigateToProductiveApps = { spellbookVM.navigateTo(SpellbookRoute.ProductiveApps) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
@@ -936,19 +936,38 @@ fun FocusPocusApp(
                             modifier = contentModifier
                         )
 
-                        is SpellbookRoute.ConditionalUnlocks -> ConditionalUnlocksScreen(
-                            conditionalUnlocks = conditionalUnlocks,
-                            installedApps = installedApps,
-                            blockerLists = blockerLists,
-                            // A rule pays into the Well for the Well apps it names.
-                            appTimeLimits = wellAppsForRules.associateWith { 0 },
-                            pactPackages = wellAppsForRules,
-                            wellEnabled = true,
-                            onSave = { spellbookVM.saveConditionalUnlock(it) },
-                            onDelete = { spellbookVM.deleteConditionalUnlock(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
+                        is SpellbookRoute.ProductiveApps -> {
+                            var usageGranted by remember {
+                                mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
+                            }
+                            var productiveMinutes by remember { mutableIntStateOf(0) }
+                            LifecycleResumeEffect(Unit) {
+                                usageGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                                onPauseOrDispose { }
+                            }
+                            LaunchedEffect(productiveApps, usageGranted) {
+                                productiveMinutes = withContext(Dispatchers.IO) {
+                                    spellbookVM.creditProductive()
+                                    com.infinicada.focuspocus.ProductiveApps.minutesToday(
+                                        context,
+                                        context.getSharedPreferences(com.infinicada.focuspocus.Constants.PREFS_NAME, Context.MODE_PRIVATE),
+                                        com.google.gson.Gson()
+                                    ) ?: 0
+                                }
+                                progressionVM.refresh()
+                            }
+                            ProductiveAppsScreen(
+                                installedApps = installedApps,
+                                productiveApps = productiveApps,
+                                minutesToday = productiveMinutes,
+                                manaToday = progressionVM.manaToday.collectAsStateWithLifecycle().value.productive,
+                                usageAccessGranted = usageGranted,
+                                onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
+                                onSetApps = { spellbookVM.setProductiveApps(it) },
+                                onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
+                                modifier = contentModifier
+                            )
+                        }
                     }
                 }
 
