@@ -9,10 +9,8 @@ import android.util.Log
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.limit.GuardStatus
-import com.infinicada.focuspocus.limit.GuardWindow
-import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.model.ConditionalUnlock
 
 /**
@@ -25,16 +23,14 @@ import com.infinicada.focuspocus.model.ConditionalUnlock
  * accessibility service winning a race against the opened app. Device-owner status
  * also makes FocusPocus impossible to uninstall while it holds the role.
  *
- * Pact-gated apps (per-app pact configs and pact-circle members) are suspended the
- * same way, but *at all times* rather than session-scoped — a pact'd app is blocked
- * by default, so it stays greyed out (and out of launcher suggestions) until the
- * user requests time from the Pacts dashboard, which grants an allowance and lifts
- * the suspension for its duration. Governed by
+ * Well apps are suspended the same way, but *at all times* rather than
+ * session-scoped — a Well app is blocked by default, so it stays greyed out (and
+ * out of launcher suggestions) until the user makes a pact, which lifts the
+ * suspension for its duration. Governed by
  * [Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS] (on by default).
  *
- * The accessibility service remains the fallback (and still handles time limits);
- * suspension is layered on top when [Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT]
- * is enabled.
+ * The accessibility service remains the fallback; suspension is layered on top
+ * when [Constants.PrefsKeys.DEVICE_OWNER_ENFORCEMENT] is enabled.
  */
 object DeviceOwnerManager {
     private const val TAG = "DeviceOwnerManager"
@@ -201,8 +197,8 @@ object DeviceOwnerManager {
 
     /**
      * Packages that should be suspended right now: session-blocked apps plus
-     * pact-gated apps with no active allowance, each minus its own escape
-     * hatches (breaks, conditional unlocks) and system-critical exemptions.
+     * Well apps with no running pact, each minus its own escape hatches
+     * (breaks, conditional unlocks) and system-critical exemptions.
      *
      * The launchable/exempt snapshots are queried once here and shared by both
      * computations — they are binder round-trips enumerating installed apps,
@@ -212,7 +208,7 @@ object DeviceOwnerManager {
         val launchable = getLaunchablePackages(context)
         val exempt = getExemptPackages(context)
         return computeSessionSuspensions(context, prefs, launchable, exempt, getStockSystemPackages(context)) +
-            computePactSuspensions(context, prefs, launchable, exempt)
+            computePactSuspensions(prefs, launchable, exempt)
     }
 
     /**
@@ -245,48 +241,22 @@ object DeviceOwnerManager {
     }
 
     /**
-     * Pact-gated apps that should be greyed out right now. Unlike session
+     * Well apps that should be greyed out right now. Unlike session
      * suspensions these apply at all times — even outside sessions and during
-     * breaks — mirroring the accessibility service's pact gate, which is why
-     * breaks are deliberately not consulted here. An app escapes only while its
-     * pact allowance runs or a conditional unlock is satisfied — and, with the
-     * Mana Well on, a conditional unlock only frees a pact that is exempt
-     * from the Well.
+     * breaks — mirroring the accessibility service. An app escapes only while
+     * a pact runs.
      */
     private fun computePactSuspensions(
-        context: Context,
         prefs: SharedPreferences,
         launchablePackages: Set<String>,
         exemptPackages: Set<String>
     ): Set<String> {
         if (!prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)) return emptySet()
-
-        val configs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
-        val pactManager = PactManager(prefs, gson)
-        val groups = pactManager.getGroups()
-        if (groups.isEmpty() && configs.values.none { it.pactModeEnabled }) return emptySet()
-
-        // Guard hours: an app whose pact is outside its window is free, so it
-        // must not stay greyed out. The minute tick re-syncs suspensions, so
-        // greying follows the window within a minute of it opening or closing.
-        val gatedConfigs = GuardStatus.pactGatedConfigs(configs, groups, BlockerRepository.getBlockers(prefs))
-            .filterValues { GuardWindow.isActiveNow(it) }
-        val gated = gatedConfigs.keys
+        val gated = WellApps.packages(prefs, gson)
         if (gated.isEmpty()) return emptySet()
-
-        // With the Mana Well on, a satisfied rule pays into the Well instead
-        // of freeing a pact that draws from it (WellUnlocks) — so only exempt
-        // pacts can still be un-greyed by a rule, mirroring the service.
-        val unlockable = if (ManaWell.isEnabled(prefs)) {
-            gatedConfigs.filterValues { it.wellExempt }.keys
-        } else {
-            gated
-        }
-
         return computePactSuspendedPackages(
             pactGated = gated,
-            allowedPackages = pactManager.getActiveAllowances().keys +
-                getConditionallyUnlockedTimeLimitApps(context, prefs, unlockable).intersect(unlockable),
+            allowedPackages = PactManager(prefs, gson).getActiveAllowances().keys,
             launchablePackages = launchablePackages,
             exemptPackages = exemptPackages
         )
@@ -295,7 +265,7 @@ object DeviceOwnerManager {
     /**
      * Pure pact-suspension computation, extracted for unit testing: gated
      * packages that are launchable, not exempt, and not currently allowed
-     * (by an active pact allowance or a satisfied conditional unlock).
+     * by a running pact.
      */
     fun computePactSuspendedPackages(
         pactGated: Set<String>,
@@ -436,21 +406,6 @@ object DeviceOwnerManager {
     ): Boolean = loadConditionalUnlocks(prefs).any { rule ->
         blockerName in rule.effectiveUnlockedBlockerNames && isRuleSatisfied(context, rule)
     }
-
-    /**
-     * Mirrors MyAccessibilityService's conditional-unlock check for time-limit
-     * apps: the subset of [candidates] freed by a satisfied rule. Iterates rules
-     * (one usage query each) rather than candidates, since rules are few.
-     */
-    private fun getConditionallyUnlockedTimeLimitApps(
-        context: Context,
-        prefs: SharedPreferences,
-        candidates: Set<String>
-    ): Set<String> = loadConditionalUnlocks(prefs)
-        .filter { rule ->
-            rule.effectiveUnlockedTimeLimitApps.any { it in candidates } && isRuleSatisfied(context, rule)
-        }
-        .flatMapTo(mutableSetOf()) { it.effectiveUnlockedTimeLimitApps }
 
     private fun isRuleSatisfied(context: Context, rule: ConditionalUnlock): Boolean =
         rule.requiredMinutes > 0 &&

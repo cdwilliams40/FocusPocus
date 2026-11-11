@@ -39,10 +39,8 @@
 -keep class com.infinicada.focuspocus.BlockEvent { *; }
 -keep class com.infinicada.focuspocus.FocusSession { *; }
 -keep class com.infinicada.focuspocus.NamedTag { *; }
--keep class com.infinicada.focuspocus.limit.CooldownState { *; }
 -keep class com.infinicada.focuspocus.limit.AppOpenStats { *; }
 -keep class com.infinicada.focuspocus.limit.OpenReflexTracker$Store { *; }
--keep class com.infinicada.focuspocus.limit.PendingPactRevision { *; }
 # The grimoire backup envelope. Its field names ARE the on-disk format, so
 # obfuscating them would make every exported file unreadable by the next build,
 # and BackupFile.prefs is a Map<String, PrefEntry> — the parameterized-field
@@ -50,3 +48,4 @@
 # isn't kept. Unit tests run unminified, so only a release build would catch it.
 -keep class com.infinicada.focuspocus.BackupCodec$BackupFile { *; }
 -keep class com.infinicada.focuspocus.BackupCodec$PrefEntry { *; }
+-keep class com.infinicada.focuspocus.limit.WellApp { *; }

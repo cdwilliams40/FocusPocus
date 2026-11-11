@@ -48,7 +48,7 @@ object WellUnlocks {
         isWellBound: (String) -> Boolean,
         usedMillisToday: (String) -> Long,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): Int {
         if (rules.isEmpty() || !ManaWell.isEnabled(prefs, now)) return 0
         val paid = ManaWell.creditedUnlocks(prefs, todayKey)

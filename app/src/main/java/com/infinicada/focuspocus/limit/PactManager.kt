@@ -7,23 +7,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.PrefsHelper
-import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.PactGroup
 
 /**
- * Manages Pact Mode allowances.
+ * Running pacts: a Well app opened for a few minutes paid from the Mana Well.
+ * A pact expires wall-clock — leaving the app early does not pause it — and
+ * when it runs out the app simply goes back behind the Well.
  *
- * A pact-gated app ([AppTimeLimit.pactModeEnabled]) is blocked by default at all
- * times. When the user opens it, the pact overlay offers a choice of allowance
- * durations; picking one grants an allowance that expires [grantAllowance]'s
- * minutes later, wall-clock — leaving the app early does not pause it. When the
- * allowance lapses, the caller seals the app by starting a cooldown *anchored at
- * the allowance's expiry time* (not at discovery time), so a user who walks away
- * mid-pact isn't punished with a fresh full-length seal when they come back hours
- * later. Whether a lapse seals at all is GuardStatus.lapseSeal's call: a pact
- * paid from the Mana Well does not.
- *
- * Allowances are persisted in SharedPreferences so they survive service restarts.
+ * Pacts are persisted in SharedPreferences so they survive service restarts.
  */
 class PactManager(
     private val prefs: SharedPreferences,
@@ -35,14 +25,7 @@ class PactManager(
     fun grantAllowance(packageName: String, minutes: Int, now: Long = System.currentTimeMillis()) =
         grantAllowances(setOf(packageName), minutes, now)
 
-    /**
-     * Grants the same [minutes] to every package in [packageNames] in a single
-     * store write. Group Seal's shared window opens every pact-gated app at
-     * once, so the per-app twin would re-serialize and re-write the whole
-     * allowance store once per app — on the accessibility service's main
-     * thread, where that is an ANR the user experiences as blocking silently
-     * switching off.
-     */
+    /** Grants the same [minutes] to every package in [packageNames] in one store write. */
     fun grantAllowances(
         packageNames: Set<String>,
         minutes: Int,
@@ -71,8 +54,8 @@ class PactManager(
 
     /**
      * If [packageName] has an allowance that has already lapsed, removes it and
-     * returns its expiry time so the caller can start the seal cooldown anchored
-     * there. Returns null if there is no allowance or it is still active.
+     * returns its expiry time. Returns null if there is no allowance or it is
+     * still active.
      */
     fun takeLapsedAllowance(packageName: String, now: Long = System.currentTimeMillis()): Long? {
         val allowances = loadAllowances()
@@ -85,10 +68,8 @@ class PactManager(
 
     /**
      * Take-once batch twin of [takeLapsedAllowance]: removes every allowance
-     * that has already lapsed and returns package → the expiry it lapsed at, so
-     * the caller can anchor each seal there. One store write for the whole
-     * sweep — under Group Seal every app's shared window lapses on the same
-     * minute tick, so the per-app twin would write once per app.
+     * that has already lapsed and returns package → the expiry it lapsed at.
+     * One store write for the whole sweep.
      */
     fun takeLapsedAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> {
         val allowances = loadAllowances()
@@ -100,9 +81,7 @@ class PactManager(
     }
 
     /**
-     * Drops any allowance for [packageName], active or lapsed, without starting
-     * a seal — the panic "seal everything now" action revokes running pact time
-     * and starts its own seal separately.
+     * Drops any allowance for [packageName], active or lapsed ("End pact").
      */
     fun revokeAllowance(packageName: String) = revokeAllowances(setOf(packageName))
 
@@ -114,47 +93,6 @@ class PactManager(
         if (remaining.size == allowances.size) return
         saveAllowances(remaining)
         Log.d(tag, "Pact allowance revoked for ${allowances.size - remaining.size} app(s)")
-    }
-
-    // -------------------------------------------------------------------------
-    // Pact groups (pact settings bound to a blacklist enchantment)
-    // -------------------------------------------------------------------------
-
-    fun getGroups(): List<PactGroup> {
-        val json = prefs.getString(Constants.PrefsKeys.PACT_GROUPS, null) ?: return emptyList()
-        cachedGroupsJson?.let { if (it == json) return cachedGroups }
-        val type = object : TypeToken<List<PactGroup>>() {}.type
-        val groups = PrefsHelper.load(prefs, gson, Constants.PrefsKeys.PACT_GROUPS, type)
-            ?: emptyList<PactGroup>()
-        // Gson fills fields via Unsafe, so groups stored by a build with broken
-        // R8 keep rules (v1.4) can come back with a null blockerName despite the
-        // non-null Kotlin type. Such groups can't be matched to an enchantment —
-        // drop them instead of letting the null leak into lookups and the UI.
-        @Suppress("SENSELESS_COMPARISON")
-        val sanitized = groups.filterNotNull().filter { it.blockerName != null }
-        cachedGroupsJson = json
-        cachedGroups = sanitized
-        return sanitized
-    }
-
-    /** Adds or replaces the group bound to the same enchantment. */
-    fun saveGroup(group: PactGroup) {
-        val updated = getGroups().filter { it.blockerName != group.blockerName } + group
-        saveGroups(updated)
-        Log.d(tag, "Pact group saved for enchantment ${group.blockerName}")
-    }
-
-    fun deleteGroup(blockerName: String) {
-        val updated = getGroups().filter { it.blockerName != blockerName }
-        saveGroups(updated)
-        Log.d(tag, "Pact group removed for enchantment $blockerName")
-    }
-
-    private fun saveGroups(groups: List<PactGroup>) {
-        val json = gson.toJson(groups)
-        prefs.edit { putString(Constants.PrefsKeys.PACT_GROUPS, json) }
-        cachedGroupsJson = json
-        cachedGroups = groups
     }
 
     private fun loadAllowances(): Map<String, Long> {
@@ -179,33 +117,10 @@ class PactManager(
     companion object {
         // Parsed-store caches, shared across instances (the service, ViewModels,
         // and the Warden sync each construct their own manager). Allowances are
-        // read on every open attempt of a pact-gated app and on every minute
-        // tick; groups on every Warden sync. Keyed on the raw stored JSON, like
+        // read on every open attempt of a Well app and on every minute
+        // tick. Keyed on the raw stored JSON, like
         // the service's other caches; a racing writer costs one redundant parse.
         @Volatile private var cachedAllowancesJson: String? = null
         @Volatile private var cachedAllowances: Map<String, Long> = emptyMap()
-        @Volatile private var cachedGroupsJson: String? = null
-        @Volatile private var cachedGroups: List<PactGroup> = emptyList()
-        /** Candidate allowance durations offered on the pact overlay, in minutes. */
-        val DEFAULT_CHOICES = listOf(2, 5, 10, 15, 30)
-
-        /**
-         * Fallback for configs whose pactMaxMinutes is non-positive (pre-field
-         * data Gson fills with 0). Public so UI summaries and prefills quote
-         * the same ladder cap the overlay actually offers.
-         */
-        const val DEFAULT_MAX_MINUTES = 15
-
-        /**
-         * The allowance choices to offer for [config]: the default ladder capped at
-         * [AppTimeLimit.pactMaxMinutes]. A non-positive max (e.g. configs persisted
-         * before this field existed, which Gson deserializes as 0) falls back to
-         * 15 minutes.
-         */
-        fun choicesFor(config: AppTimeLimit): List<Int> {
-            val max = if (config.pactMaxMinutes > 0) config.pactMaxMinutes else DEFAULT_MAX_MINUTES
-            val choices = DEFAULT_CHOICES.filter { it <= max }
-            return choices.ifEmpty { listOf(max) }
-        }
     }
 }

@@ -19,18 +19,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.limit.BlockDebounce
-import com.infinicada.focuspocus.limit.FrictionLevel
-import com.infinicada.focuspocus.limit.GuardStatus
-import com.infinicada.focuspocus.limit.GuardWindow
-import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
-import com.infinicada.focuspocus.limit.PactRevisionManager
-import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellUnlocks
-import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.Schedule
 import java.util.Calendar
@@ -41,8 +34,7 @@ class MyAccessibilityService : AccessibilityService() {
         private const val TRANSITION_SLACK_MS = 250L
         private const val DEBOUNCE_RECHECK_SLACK_MS = 50L
         private val TRANSITION_KEYS = SessionTransitions.WATCHED_KEYS + setOf(
-            Constants.PrefsKeys.PACT_ALLOWANCES,
-            Constants.PrefsKeys.APP_COOLDOWN_STATES
+            Constants.PrefsKeys.PACT_ALLOWANCES
         )
     }
 
@@ -143,30 +135,12 @@ class MyAccessibilityService : AccessibilityService() {
         transitionHandler.postDelayed(debounceRecheckRunnable, delayMillis + DEBOUNCE_RECHECK_SLACK_MS)
     }
 
-    // Cache for time limits
-    @Volatile private var cachedTimeLimitsJson: String? = null
-    @Volatile private var cachedTimeLimits: Map<String, Int> = emptyMap()
-
-    // Cache for time limit configs (includes per-session cooldown settings)
-    @Volatile private var cachedTimeLimitConfigsJson: String? = null
-    @Volatile private var cachedTimeLimitConfigs: Map<String, AppTimeLimit> = emptyMap()
-
     // Cache for conditional unlocks
     @Volatile private var cachedConditionalUnlocksJson: String? = null
     @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
 
-    // Session cooldown manager — tracks per-app usage sessions and cooldown state
-    private lateinit var sessionCooldownManager: SessionCooldownManager
-
-    // Pact manager — tracks Pact Mode allowances (blocked-by-default apps)
+    // Pact manager — tracks running pacts (Well apps opened for a while)
     private lateinit var pactManager: PactManager
-
-    // Pact revision manager — writes through queued pact modifications once
-    // their 24 h cooling-off has elapsed
-    private lateinit var pactRevisionManager: PactRevisionManager
-
-    // App-wide settings — read directly for Group Seal mode's config
-    private lateinit var settingsRepo: SettingsRepository
 
     // Pact expiry warnings already toasted, keyed by package -> allowance expiry.
     // In-memory only; a duplicate toast after a service restart is harmless.
@@ -176,28 +150,13 @@ class MyAccessibilityService : AccessibilityService() {
     private lateinit var openReflexTracker: OpenReflexTracker
 
     // Which tracked-or-untracked app the open/reflex bookkeeping considers foreground,
-    // and since when. Separate from currentForegroundPackage because going home ends
-    // an "open" here but deliberately does NOT end a session-limit usage session
-    // (bouncing to the launcher must not reset session limits).
+    // and since when. Separate from currentForegroundPackage, which the launcher,
+    // keyboard and system UI deliberately leave alone.
     @Volatile private var openTrackingPackage: String? = null
     @Volatile private var openTrackingSince: Long = 0L
 
-    // Per-package pact configs synthesized from pact groups, recomputed only when
-    // the groups or the enchantments they point at change.
-    @Volatile private var pactGroupCacheKey: Pair<String?, String?>? = null
-    @Volatile private var cachedPactGroupConfigs: Map<String, AppTimeLimit> = emptyMap()
-
-    // Date string used to detect when a new day begins (format: "yyyyMMdd")
-    @Volatile private var lastCooldownResetDate: String? = null
-
-    // Pacing notifications: tracks which usage thresholds have already been toasted today.
-    // Key = packageName, value = set of thresholds already shown (e.g. 50, 75, 90).
-    // In-memory only — resets on service restart and at midnight.
-    private val pacingNotifiedToday = mutableMapOf<String, MutableSet<Int>>()
-
-    // Last time each package's pacing usage was actually queried, so rapid app
-    // switches don't each pay for a full-day UsageStats scan on the main thread.
-    private val lastPacingCheckTimes = HashMap<String, Long>()
+    // "yyyyMMdd" of the last minute tick, to clear the day's pact warnings at midnight
+    @Volatile private var lastTickDay: String? = null
 
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
@@ -207,8 +166,6 @@ class MyAccessibilityService : AccessibilityService() {
     // potentially 1000-entry JSON array on the service's main thread.
     @Volatile private var cachedBlockEventsJson: String? = null
     @Volatile private var cachedBlockEvents: List<BlockEvent> = emptyList()
-
-    private val timeLimitChecker by lazy { TimeLimitChecker(this) }
 
     // Settings packages to block in NFC lock mode
     private val SETTINGS_PACKAGES = setOf(
@@ -231,11 +188,6 @@ class MyAccessibilityService : AccessibilityService() {
                     reportNonFatal(e)
                 }
                 Intent.ACTION_SCREEN_OFF -> try {
-                    // Screen off ends the foreground app's continuous-use
-                    // session — otherwise idle screen-off time keeps counting
-                    // toward the session limit and triggers a cooldown for
-                    // use that never happened.
-                    currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
                     currentForegroundPackage = null
                 } catch (e: Exception) {
                     Log.e("MyAccessibilityService", "Error handling screen off", e)
@@ -246,8 +198,8 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     // One-shot wakeup for the next time-driven state change — a break ending,
-    // a timed session ending, an auto-break starting, a pact window closing,
-    // a seal lifting — so each lands on time instead of on the following
+    // a timed session ending, an auto-break starting, a pact closing — so
+    // each lands on time instead of on the following
     // minute tick. The notification, the dashboard and Warden greying all
     // follow the state written here, and the app in front is closed here if
     // the change took its access away. The minute tick remains the backstop.
@@ -256,15 +208,12 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             enforceTimedSessionExpiry()
             maybeStartAutoBreak()
-            // Same order as the minute tick: a lapsed pact becomes its seal
-            // before seal-lifted detection and the suspension sync read the stores.
-            sealLapsedPacts()
-            maybeNotifySealsLifted()
+            dropLapsedPacts()
             // A pact that has just run out must also close the app the user is
             // still inside: no window event fires while they stay in it, and
             // leaving this to the minute tick let every pact run up to a minute
             // over.
-            currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
+            currentForegroundPackage?.let { checkWellAndBlock(it) }
             DeviceOwnerManager.syncSuspensions(this)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error in transition check", e)
@@ -286,9 +235,7 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         val due = listOfNotNull(
             SessionTransitions.nextDueMillis(sharedPreferences, now),
-            pactManager.getActiveAllowances(now).values.minOrNull(),
-            sessionCooldownManager.peekActiveCooldowns(now).values
-                .minOfOrNull { it.cooldownExpiryMillis }
+            pactManager.getActiveAllowances(now).values.minOrNull()
         ).minOrNull() ?: return
         // Small slack so the wakeup lands just after the due instant, never before it.
         transitionHandler.postDelayed(transitionRunnable, due - now + TRANSITION_SLACK_MS)
@@ -305,52 +252,26 @@ class MyAccessibilityService : AccessibilityService() {
         checkSchedules()
         maybeStartAutoBreak()
 
-        // Write through pact modifications whose 24 h cooling-off has elapsed.
-        // Runs before the pact/seal work below so revised terms govern this
-        // very tick, and before the suspension sync so Warden greying follows.
-        // The config caches key on the stored JSON, so they refresh themselves.
-        pactRevisionManager.applyDueRevisions()
+        // Take apps off the Well whose 24 h removal delay has passed. Before
+        // the suspension sync, so Warden greying follows.
+        WellApps.applyDueRemovals(sharedPreferences, gson)
 
-        // Reset daily counters when the calendar date rolls over. Expired cooldown
-        // entries are pruned here too (not on every tick): they must survive until
-        // the rollover so startCooldown can escalate repeat offences within a day.
-        if (SessionCooldownManager.isNewDay(lastCooldownResetDate)) {
-            sessionCooldownManager.resetDailyCooldowns()
-            pacingNotifiedToday.clear()
+        val today = TrialEngine.dateKeyOf(System.currentTimeMillis())
+        if (today != lastTickDay) {
             pactWarnedExpiries.clear()
-            // A day's usage resets at midnight, so a cached "over limit" verdict
-            // from yesterday would otherwise keep an app blocked into the new day
-            // until the entry's TTL lapses.
-            timeLimitChecker.clearCache()
-            lastCooldownResetDate = SessionCooldownManager.todayString()
-            // Persist so a restart across midnight doesn't re-skip this reset.
-            sharedPreferences.edit { putString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, lastCooldownResetDate) }
+            lastTickDay = today
         }
 
-        // Pacing notification for the app currently in the foreground.
-        currentForegroundPackage?.let { pkg ->
-            val limit = getCachedTimeLimits()[pkg]
-            if (limit != null) checkPacingNotification(pkg, limit)
-        }
-
-        // Warn shortly before the foreground app's pact allowance lapses.
+        // Warn shortly before the foreground app's pact runs out.
         currentForegroundPackage?.let { maybeWarnPactEnding(it) }
 
-        // Convert lapsed pact allowances into their seal cooldowns proactively.
-        // This used to happen lazily on the next open attempt, but under Warden
-        // greying the OS refuses that reopen outright — and the dashboard and
-        // suspension sync below both need the seal on record to stay truthful.
-        sealLapsedPacts()
+        // Drop pacts that have run out, so the dashboard and the suspension
+        // sync below see them gone.
+        dropLapsedPacts()
 
-        // Opt-in "seal lifted" notes: fire for any seal that expired since the
-        // previous tick. Runs after sealLapsedPacts so a seal starting and the
-        // same app's older state can't race within one tick.
-        maybeNotifySealsLifted()
-
-        // Also enforce time limits on whichever app is currently in the foreground.
-        // TYPE_WINDOW_STATE_CHANGED only fires on app switches, so without this a user
-        // could stay inside an app past its daily limit indefinitely.
-        currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
+        // Re-judge the app in front: no window event fires while the user
+        // stays inside it.
+        currentForegroundPackage?.let { checkWellAndBlock(it) }
 
         // Device owner: catch-all reconciliation for anything the event-driven sync
         // points missed (conditional unlocks flipping, apps installed mid-session).
@@ -381,17 +302,8 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        sessionCooldownManager = SessionCooldownManager(sharedPreferences, gson)
         pactManager = PactManager(sharedPreferences, gson)
-        pactRevisionManager = PactRevisionManager(sharedPreferences, gson)
-        settingsRepo = SettingsRepository(sharedPreferences)
         openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
-        // Read the last rollover date from prefs (not today): if the service was
-        // down across midnight, the next tick must still see the day change and
-        // run resetDailyCooldowns. Seeding it to today would skip that day's
-        // reset, carrying yesterday's escalation counters into the new day.
-        lastCooldownResetDate =
-            sharedPreferences.getString(Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE, null)
         Log.d("MyAccessibilityService", "Service connected")
 
         // Clean up any break or timed session that expired while the service was down
@@ -401,9 +313,9 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             enforceTimedSessionExpiry()
             checkMissedScheduleActivation()
-            // Pact revisions that came due while the service was down apply
-            // before the suspension sync reads the stores.
-            pactRevisionManager.applyDueRevisions()
+            // Well-app removals that came due while the service was down
+            // apply before the suspension sync reads the stores.
+            WellApps.applyDueRemovals(sharedPreferences, gson)
             DeviceOwnerManager.syncSuspensions(this)
             // Re-assert uninstall protection on every service start: provisioning
             // can happen while the app is already running (adb), in which case
@@ -810,13 +722,10 @@ class MyAccessibilityService : AccessibilityService() {
         trackOpenTransition(packageName)
 
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) {
-            // Going home (or into FocusPocus itself) ends the previous app's
-            // continuous-use session — otherwise launcher time keeps counting
-            // toward the session limit. SystemUI and the IME stay neutral: a
-            // notification-shade pull or the keyboard opening doesn't mean
-            // the user left the app beneath.
+            // Going home (or into FocusPocus itself) leaves the previous app.
+            // SystemUI and the IME stay neutral: a notification-shade pull or
+            // the keyboard opening doesn't mean the user left the app beneath.
             if (packageName == this.packageName || isLauncher(packageName)) {
-                currentForegroundPackage?.let { sessionCooldownManager.onAppLeft(it) }
                 currentForegroundPackage = null
             }
             return
@@ -828,23 +737,8 @@ class MyAccessibilityService : AccessibilityService() {
         enforceTimedSessionExpiry()
 
         // Track which real app is currently in the foreground so the minute-tick receiver can
-        // enforce time limits while the user stays inside an app (no window-state events fire then).
-        val previousForegroundPackage = currentForegroundPackage
+        // close it when its pact runs out while the user stays inside (no window-state events fire then).
         currentForegroundPackage = packageName
-
-        // Session lifecycle tracking (not debounced — we want accurate start/end times).
-        if (previousForegroundPackage != null && previousForegroundPackage != packageName) {
-            sessionCooldownManager.onAppLeft(previousForegroundPackage)
-        }
-        val timeLimitConfigs = getCachedTimeLimitConfigs()
-        if (timeLimitConfigs.containsKey(packageName)) {
-            sessionCooldownManager.onAppForegrounded(packageName)
-        }
-
-        // Pacing notification on app open (not debounced — fires before blocking logic so the
-        // user sees the warning even on the first open of the day at a high-usage threshold).
-        val pacingLimit = getCachedTimeLimits()[packageName]
-        if (pacingLimit != null) checkPacingNotification(packageName, pacingLimit)
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events.
         // The app is judged when the window has passed instead, in case this
@@ -861,7 +755,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     /**
      * Judges an app that is in front and blocks it if anything says so: the
-     * talisman lock, a focus session's enchantments, then the app's own guards.
+     * talisman lock, a focus session's enchantments, then the Mana Well.
      */
     private fun blockIfDue(packageName: String, now: Long) {
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
@@ -873,7 +767,6 @@ class MyAccessibilityService : AccessibilityService() {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             lastAppBlockTimes[packageName] = now
-            sessionCooldownManager.onAppLeft(packageName)
             currentForegroundPackage = null
             closeApp()
             showOverlay(appName, getString(R.string.service_talisman_lock))
@@ -882,8 +775,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Don't block apps during a break (for normal blocking)
         if (isOnBreak) {
-            // Still check time limits during breaks
-            checkTimeLimitAndBlock(packageName)
+            // The Well still holds during breaks
+            checkWellAndBlock(packageName)
             return
         }
 
@@ -901,11 +794,6 @@ class MyAccessibilityService : AccessibilityService() {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTimes[packageName] = now
-                    // Blocking kicks the user out of the app, so its continuous-use
-                    // session ends here. Without this the in-session start time
-                    // leaks and the next open counts phantom minutes toward the
-                    // session limit, tripping an instant false cooldown.
-                    sessionCooldownManager.onAppLeft(packageName)
                     currentForegroundPackage = null
                     recordBlockEvent(packageName, blocker.name)
                     closeApp()
@@ -915,137 +803,32 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Per-app time limits (always active, even outside focus mode)
-        checkTimeLimitAndBlock(packageName)
+        // The Mana Well (always active, even outside focus mode)
+        checkWellAndBlock(packageName)
     }
 
-    private fun checkTimeLimitAndBlock(packageName: String) {
+    /**
+     * A Well app is blocked by default: without a running pact, opening it
+     * offers one, paid from the Mana Well.
+     */
+    private fun checkWellAndBlock(packageName: String) {
         // Debounce — prevent rapid re-triggering from the window-state and timed paths
         val now = System.currentTimeMillis()
         if (BlockDebounce.isRecent(lastAppBlockTimes[packageName], now)) return
 
-        // Per-app entries live in the flat map; apps covered only by a pact group
-        // have no entry there, so their pact config supplies the daily cap.
-        val limit = getCachedTimeLimits()[packageName]
-        val pactConfig = resolvePactConfig(packageName)
-        if (limit == null && pactConfig == null) return
+        val wellApp = WellApps.find(sharedPreferences, gson, packageName) ?: return
+        if (pactManager.getAllowanceExpiry(packageName, now) != null) return
+        // A pact that has run out is just dropped: the app goes back behind the Well.
+        pactManager.takeLapsedAllowance(packageName, now)
 
-        // Guard hours: outside its window a guard stands down — no daily limit,
-        // no pact gate, no session limit. Two deliberate exceptions: an active
-        // seal keeps blocking (step 3 — a seal is a seal), and lapse→seal
-        // conversion (step 2) still runs, since it's bookkeeping anchored at
-        // the lapse moment, not new enforcement.
-        val governingConfig = getCachedTimeLimitConfigs()[packageName] ?: pactConfig
-        val windowActive = governingConfig == null || GuardWindow.isActiveNow(governingConfig)
-
-        // 1. Daily limit — always takes precedence; no cooldown interaction.
-        // A limit of 0 means "no daily cap" (pacts without a daily backstop).
-        val dailyLimit = limit ?: pactConfig?.dailyLimitMinutes ?: 0
-        if (windowActive && dailyLimit > 0 && timeLimitChecker.shouldBlock(packageName, dailyLimit)) {
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
-            val appName = AppUtils.getAppName(this, packageName)
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Time limit exceeded: $appName")
-            lastAppBlockTimes[packageName] = now
-            sessionCooldownManager.onAppLeft(packageName)
-            currentForegroundPackage = null
-            recordBlockEvent(packageName, "Time Limit")
-            closeApp()
-            showOverlay(appName, getString(R.string.service_daily_time_limit))
-            return
-        }
-
-        // 2. Pact Mode: a lapsed allowance seals the app — start the cooldown anchored
-        // at the moment the allowance expired, so returning long after the pact ended
-        // doesn't restart a full-length seal (it may even have fully elapsed already).
-        // A pact paid from the Mana Well starts no seal (sealRequestFor is null):
-        // its lapsed allowance is just dropped, and step 4 offers the next pact.
-        if (pactConfig != null) {
-            val lapsedExpiry = pactManager.takeLapsedAllowance(packageName, now)
-            if (lapsedExpiry != null) {
-                sessionCooldownManager.startSeals(
-                    listOfNotNull(sealRequestFor(packageName, pactConfig, lapsedExpiry))
-                )
-            }
-        }
-
-        // 3. Per-session cooldown — active cooldown blocks the app with escalating friction.
-        // Covers both passive session limits and the seal after a lapsed pact.
-        if (sessionCooldownManager.isInCooldown(packageName, now)) {
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
-            val cooldownState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
-            val newAttemptCount = sessionCooldownManager.recordAttempt(packageName, now)
-            val frictionLevel = FrictionLevel.fromAttemptCount(newAttemptCount)
-            val appName = AppUtils.getAppName(this, packageName)
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Cooldown active for $appName (attempt #$newAttemptCount, friction=$frictionLevel)")
-            lastAppBlockTimes[packageName] = now
-            sessionCooldownManager.onAppLeft(packageName)
-            currentForegroundPackage = null
-            recordBlockEvent(packageName, "Session Cooldown")
-            closeApp()
-            showCooldownOverlay(appName, frictionLevel, cooldownState.cooldownExpiryMillis)
-            return
-        }
-
-        // 4. Pact gate: a pact-gated app (per-app config or pact group) with no active
-        // allowance is blocked by default — offer to make a pact. With an active
-        // allowance the app is simply allowed (the passive session limit below
-        // doesn't apply; the pact IS the session limit). Off guard hours the
-        // gate stands down entirely.
-        if (pactConfig != null && windowActive) {
-            if (pactManager.getAllowanceExpiry(packageName, now) != null) return
-            if (isTimeLimitConditionallyUnlocked(packageName)) return
-            val appName = AppUtils.getAppName(this, packageName)
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Pact gate: $appName blocked by default")
-            lastAppBlockTimes[packageName] = now
-            sessionCooldownManager.onAppLeft(packageName)
-            currentForegroundPackage = null
-            recordBlockEvent(packageName, "Pact Gate")
-            closeApp()
-            // Group Seal mode: this is the primary entry point (tapping a pact
-            // app from the launcher), so it must offer the shared group-open
-            // here too — the dashboard's own group-open action alone would
-            // leave this everyday path still granting single-app allowances.
-            //
-            // Mana Well: a Well-bound pact is paid from the shared pool. The
-            // overlay reads the Well itself when it draws, so all this side
-            // decides is whether the pact is bound — and, with both modes on,
-            // that an exempt pact stays out of the group (its tap must not
-            // open the Well-paid window for free).
-            val wellEnabled = ManaWell.isEnabled(sharedPreferences, now)
-            if (wellEnabled && !pactConfig.wellExempt) creditWellUnlocks()
-            if (settingsRepo.getGroupSealEnabled() && GuardStatus.inGroupSeal(pactConfig, wellEnabled)) {
-                showGroupPactOverlay(
-                    appName, packageName, settingsRepo.getGroupSealOpenWindowMinutes(),
-                    wellBound = wellEnabled
-                )
-            } else {
-                showPactOverlay(
-                    appName, packageName, pactConfig,
-                    wellBound = wellEnabled && !pactConfig.wellExempt
-                )
-            }
-            return
-        }
-
-        // 5. Session limit — if the user has been in this app too long, start a cooldown.
-        val config = getCachedTimeLimitConfigs()[packageName]
-        if (windowActive && config != null && config.sessionLimitMinutes > 0) {
-            val sessionMinutes = sessionCooldownManager.getInSessionMinutes(packageName, now)
-            if (sessionMinutes >= config.sessionLimitMinutes) {
-                if (isTimeLimitConditionallyUnlocked(packageName)) return
-                sessionCooldownManager.startCooldown(packageName, config, now)
-                val freshState = sessionCooldownManager.getCooldownState(packageName, now) ?: return
-                val appName = AppUtils.getAppName(this, packageName)
-                if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                    "Session limit reached for $appName after ${sessionMinutes}m — cooldown started")
-                lastAppBlockTimes[packageName] = now
-                currentForegroundPackage = null
-                recordBlockEvent(packageName, "Session Cooldown")
-                closeApp()
-                showCooldownOverlay(appName, FrictionLevel.LEVEL_1, freshState.cooldownExpiryMillis)
-            }
-        }
+        val appName = AppUtils.getAppName(this, packageName)
+        if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Well: $appName blocked until a pact")
+        lastAppBlockTimes[packageName] = now
+        currentForegroundPackage = null
+        recordBlockEvent(packageName, "Pact Gate")
+        closeApp()
+        creditWellUnlocks()
+        showPactOverlay(appName, packageName, wellApp.substitutePackage)
     }
 
     private fun isConditionallyUnlocked(blockerName: String): Boolean {
@@ -1063,34 +846,10 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun isTimeLimitConditionallyUnlocked(packageName: String): Boolean {
-        // A pact that draws from the Mana Well is never freed by a rule: that
-        // would be a way around the shared pool. The rule pays minutes into
-        // the Well instead (creditWellUnlocks), and the pact gate, its seal
-        // and its daily backstop all keep holding.
-        if (isWellBoundPact(packageName)) return false
-        val rules = getCachedConditionalUnlocks()
-
-        return rules.any { rule ->
-            if (packageName !in rule.effectiveUnlockedTimeLimitApps) return@any false
-            if (rule.requiredMinutes <= 0) return@any false
-            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
-            val unlocked = usedMs >= requiredMs
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Conditional unlock check for time-limit app=$packageName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
-            unlocked
-        }
-    }
-
-    /** True when [packageName] is pact-gated and its time is paid from the Mana Well. */
-    private fun isWellBoundPact(packageName: String): Boolean =
-        resolvePactConfig(packageName)?.let { ManaWell.isBound(sharedPreferences, it) } == true
-
     /**
-     * Pays any conditional-unlock rule that is satisfied, covers a Well-bound
-     * pact app, and hasn't paid yet today — run right before a Well-bound
-     * pact is offered, so the offer already counts the minutes just earned.
+     * Pays any conditional-unlock rule that is satisfied, covers a Well app,
+     * and hasn't paid yet today — run right before a pact is offered, so the
+     * offer already counts the minutes just earned.
      * Costs nothing when there are no rules, and no usage query once every
      * paying rule has paid for the day.
      */
@@ -1100,7 +859,7 @@ class MyAccessibilityService : AccessibilityService() {
         val added = WellUnlocks.creditSatisfied(
             prefs = sharedPreferences,
             rules = rules,
-            isWellBound = { resolvePactConfig(it)?.wellExempt == false },
+            isWellBound = { it in WellApps.packages(sharedPreferences, gson) },
             usedMillisToday = { UsageStatsHelper.getPackageUsageToday(this, it) }
         )
         if (added > 0) {
@@ -1141,39 +900,6 @@ class MyAccessibilityService : AccessibilityService() {
             cachedConditionalUnlocksJson = null
             cachedConditionalUnlocks = emptyList()
             emptyList()
-        }
-    }
-
-    private fun getCachedTimeLimits(): Map<String, Int> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.APP_TIME_LIMITS, null)
-        if (json == null) {
-            if (cachedTimeLimitsJson != null) {
-                cachedTimeLimitsJson = null
-                cachedTimeLimits = emptyMap()
-            }
-            return emptyMap()
-        }
-        if (json == cachedTimeLimitsJson) {
-            return cachedTimeLimits
-        }
-        return try {
-            val type = object : TypeToken<Map<String, Int>>() {}.type
-            val parsed: Map<String, Int>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedTimeLimitsJson = null
-                cachedTimeLimits = emptyMap()
-                emptyMap()
-            } else {
-                cachedTimeLimitsJson = json
-                cachedTimeLimits = parsed
-                timeLimitChecker.clearCache()
-                parsed
-            }
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing time limits JSON", e)
-            cachedTimeLimitsJson = null
-            cachedTimeLimits = emptyMap()
-            emptyMap()
         }
     }
 
@@ -1280,36 +1006,6 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun getCachedTimeLimitConfigs(): Map<String, AppTimeLimit> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS, null)
-        if (json == null) {
-            if (cachedTimeLimitConfigsJson != null) {
-                cachedTimeLimitConfigsJson = null
-                cachedTimeLimitConfigs = emptyMap()
-            }
-            return emptyMap()
-        }
-        if (json == cachedTimeLimitConfigsJson) return cachedTimeLimitConfigs
-        return try {
-            val type = object : TypeToken<Map<String, AppTimeLimit>>() {}.type
-            val parsed: Map<String, AppTimeLimit>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedTimeLimitConfigsJson = null
-                cachedTimeLimitConfigs = emptyMap()
-                emptyMap()
-            } else {
-                cachedTimeLimitConfigsJson = json
-                cachedTimeLimitConfigs = parsed
-                parsed
-            }
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing time limit configs JSON")
-            cachedTimeLimitConfigsJson = null
-            cachedTimeLimitConfigs = emptyMap()
-            emptyMap()
-        }
-    }
-
     private fun showOverlay(appName: String, spellName: String? = null) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1318,87 +1014,11 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    /**
-     * Fires a one-time toast when daily usage of [packageName] crosses 50%, 75%, or 90% of
-     * [limitMinutes]. Each threshold is shown at most once per day per app.
-     */
-    private fun checkPacingNotification(packageName: String, limitMinutes: Int) {
-        if (limitMinutes <= 0) return
-        // All thresholds announced — no reason to query usage again today.
-        if (pacingNotifiedToday[packageName]?.containsAll(listOf(50, 75, 90)) == true) return
-        // Throttle the underlying full-day UsageStats scan (a main-thread binder
-        // call) to once a minute per app; the minute tick re-checks the foreground
-        // app anyway, so a threshold crossing is announced within a minute.
-        val nowMs = System.currentTimeMillis()
-        if (nowMs - (lastPacingCheckTimes[packageName] ?: 0L) < 60_000L) return
-        lastPacingCheckTimes[packageName] = nowMs
-        val usedMinutes = AppTimeLimitManager.getUsedMinutesToday(this, packageName)
-        if (usedMinutes <= 0) return
-        val percentUsed = (usedMinutes * 100) / limitMinutes
-        val notified = pacingNotifiedToday.getOrPut(packageName) { mutableSetOf() }
-        for (threshold in intArrayOf(90, 75, 50)) {
-            if (percentUsed >= threshold && threshold !in notified) {
-                // Crossing a threshold retires the lower ones too — otherwise
-                // a jump straight past 90% replays the stale "75%" and
-                // "halfway" toasts on the following minutes.
-                notified.addAll(listOf(90, 75, 50).filter { it <= threshold })
-                val appName = AppUtils.getAppName(this, packageName)
-                val remaining = (limitMinutes - usedMinutes).coerceAtLeast(0)
-                showPacingToast(appName, usedMinutes, limitMinutes, remaining, threshold)
-                break // One toast at a time; higher thresholds take priority
-            }
-        }
-    }
-
-    private fun showPacingToast(
-        appName: String,
-        usedMinutes: Int,
-        limitMinutes: Int,
-        remainingMinutes: Int,
-        threshold: Int
-    ) {
-        val message = when {
-            threshold >= 90 -> getString(
-                R.string.pacing_toast_90, appName, usedMinutes, limitMinutes
-            )
-            threshold >= 75 -> getString(
-                R.string.pacing_toast_75, appName, usedMinutes, limitMinutes, remainingMinutes
-            )
-            else -> getString(
-                R.string.pacing_toast_50, appName, usedMinutes, limitMinutes
-            )
-        }
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun showCooldownOverlay(
-        appName: String,
-        frictionLevel: FrictionLevel,
-        cooldownExpiryMillis: Long
-    ) {
-        val intent = Intent(this, OverlayActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.putExtra("appName", appName)
-        intent.putExtra("frictionLevel", frictionLevel.ordinal)
-        intent.putExtra("cooldownExpiryMillis", cooldownExpiryMillis)
-        startActivity(intent)
-    }
-
-    private fun showPactOverlay(
-        appName: String,
-        packageName: String,
-        config: AppTimeLimit,
-        wellBound: Boolean
-    ) {
+    private fun showPactOverlay(appName: String, packageName: String, substitutePackage: String?) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("pactPackageName", packageName)
-        intent.putExtra("pactChoices", PactManager.choicesFor(config).toIntArray())
-        intent.putExtra("pactSealMinutes", config.cooldownMinutes)
-        intent.putExtra("wellBound", wellBound)
 
         // Awareness counter: this attempt is already counted, so opens is "open #N".
         val stats = openReflexTracker.getStats(packageName)
@@ -1406,35 +1026,10 @@ class MyAccessibilityService : AccessibilityService() {
         intent.putExtra("pactTodayReflexOpens", stats.reflexOpens)
 
         // Optional healthier substitute ("Open X instead")
-        val alternative = config.pactAlternativePackage
-        if (alternative != null && isPackageInstalled(alternative)) {
-            intent.putExtra("pactAlternativePackage", alternative)
-            intent.putExtra("pactAlternativeName", AppUtils.getAppName(this, alternative))
+        if (substitutePackage != null && isPackageInstalled(substitutePackage)) {
+            intent.putExtra("pactAlternativePackage", substitutePackage)
+            intent.putExtra("pactAlternativeName", AppUtils.getAppName(this, substitutePackage))
         }
-        startActivity(intent)
-    }
-
-    /**
-     * Group Seal mode's overlay: offers to open every pact-gated app for one
-     * shared window instead of just [packageName] — no per-app minute picker,
-     * since the duration is the same for all of them. Confirming (handled in
-     * OverlayActivity) grants the shared allowance to every eligible
-     * pact-gated app, not just the one that was tapped.
-     */
-    private fun showGroupPactOverlay(
-        appName: String,
-        packageName: String,
-        openWindowMinutes: Int,
-        wellBound: Boolean
-    ) {
-        val intent = Intent(this, OverlayActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.putExtra("appName", appName)
-        intent.putExtra("pactPackageName", packageName)
-        intent.putExtra("groupSealMode", true)
-        intent.putExtra("groupOpenMinutes", openWindowMinutes)
-        intent.putExtra("wellBound", wellBound)
-        intent.putExtra("pactSealMinutes", settingsRepo.getGroupSealDurationMinutes())
         startActivity(intent)
     }
 
@@ -1474,144 +1069,33 @@ class MyAccessibilityService : AccessibilityService() {
         openTrackingPackage = null
     }
 
-    /** Apps whose opens/reflexes we count: any with a config or in a pact group. */
+    /** Apps whose opens/reflexes we count: the Well apps. */
     private fun isOpenTracked(packageName: String): Boolean =
-        getCachedTimeLimitConfigs().containsKey(packageName) ||
-            getPactGroupConfigs().containsKey(packageName)
+        packageName in WellApps.packages(sharedPreferences, gson)
 
     /**
-     * The pact settings governing [packageName], if any. An explicit per-app config
-     * wins outright: a pact config applies as itself, and a plain limit config means
-     * the app is limit-managed and never group-gated. Otherwise membership in a
-     * pact group's enchantment applies.
-     */
-    private fun resolvePactConfig(packageName: String): AppTimeLimit? {
-        val config = getCachedTimeLimitConfigs()[packageName]
-        if (config != null) return if (config.pactModeEnabled) config else null
-        return getPactGroupConfigs()[packageName]
-    }
-
-    private fun getPactGroupConfigs(): Map<String, AppTimeLimit> {
-        val groupsJson = sharedPreferences.getString(Constants.PrefsKeys.PACT_GROUPS, null)
-        val blockersJson = sharedPreferences.getString(Constants.PrefsKeys.BLOCKER_LISTS, null)
-        val key = groupsJson to blockersJson
-        if (key == pactGroupCacheKey) return cachedPactGroupConfigs
-
-        val result = mutableMapOf<String, AppTimeLimit>()
-        if (groupsJson != null) {
-            val groups = pactManager.getGroups()
-            if (groups.isNotEmpty()) {
-                val blockers = BlockerRepository.getBlockers(sharedPreferences)
-                for (group in groups) {
-                    val blocker = blockers.find { it.name == group.blockerName } ?: continue
-                    for (pkg in blocker.effectiveApps) {
-                        if (pkg !in result) result[pkg] = group.toAppTimeLimit(pkg)
-                    }
-                }
-            }
-        }
-        pactGroupCacheKey = key
-        cachedPactGroupConfigs = result
-        return result
-    }
-
-    /**
-     * Fires a one-time toast when the foreground app's pact allowance is about to
-     * lapse, so the end doesn't land mid-scroll without warning. It only speaks
-     * of a seal when one is coming — a pact paid from the Mana Well just closes.
+     * Fires a one-time toast when the foreground app's pact is about to run
+     * out, so the end doesn't land mid-scroll without warning.
      */
     private fun maybeWarnPactEnding(packageName: String) {
-        val config = resolvePactConfig(packageName) ?: return
         val expiry = pactManager.getAllowanceExpiry(packageName) ?: return
         val remainingMs = expiry - System.currentTimeMillis()
         if (remainingMs in 1..90_000 && pactWarnedExpiries[packageName] != expiry) {
             pactWarnedExpiries[packageName] = expiry
-            val appName = AppUtils.getAppName(this, packageName)
-            val seals = GuardStatus.sealsWhenPactEnds(
-                config,
-                wellEnabled = ManaWell.isEnabled(sharedPreferences),
-                groupSealEnabled = settingsRepo.getGroupSealEnabled()
-            )
-            val message = getString(
-                if (seals) R.string.pact_ending_toast else R.string.pact_ending_no_seal_toast,
-                appName
-            )
+            val message = getString(R.string.pact_ending_no_seal_toast, AppUtils.getAppName(this, packageName))
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    // Packages whose seal was active on the previous minute tick. Null until
-    // the first tick seeds it; in-memory only — a service restart just skips
-    // one comparison (a lift while the service is down is missed, best-effort
-    // like the wrap-up).
-    @Volatile private var lastActiveSealPackages: Set<String>? = null
-
     /**
-     * Fires an opt-in notification for every seal that has lifted since the
-     * previous minute tick. Detection is a set difference over the read-only
-     * cooldown peek, so it also catches seals ended early (perk redemption) —
-     * a lift is a lift, however it happened.
+     * Drops every pact that has run out. Take-once, so racing the open-attempt
+     * path is harmless; one store write for the whole sweep.
      */
-    private fun maybeNotifySealsLifted() {
-        val active = sessionCooldownManager.peekActiveCooldowns().keys
-        val previous = lastActiveSealPackages
-        lastActiveSealPackages = active
-        if (previous == null) return
-        (previous - active).forEach { pkg ->
-            GuardNotifier.postSealLifted(this, sharedPreferences, pkg)
-        }
+    private fun dropLapsedPacts(now: Long = System.currentTimeMillis()) {
+        pactManager.takeLapsedAllowances(now)
     }
-
-    /**
-     * Seals every app whose pact allowance has lapsed, anchored at the moment the
-     * allowance expired (checkTimeLimitAndBlock's rule, applied proactively). An
-     * app whose pact config has been removed, or whose pact is paid from the Mana
-     * Well, just gets its lapsed allowance dropped. takeLapsedAllowances is
-     * take-once, so racing the open-attempt path can't double-start a cooldown.
-     *
-     * Both stores are written once for the whole sweep, not once per app: under
-     * Group Seal every app's shared window lapses on this same tick, and this
-     * runs on the service's main thread.
-     */
-    private fun sealLapsedPacts(now: Long = System.currentTimeMillis()) {
-        val lapsed = pactManager.takeLapsedAllowances(now)
-        if (lapsed.isEmpty()) return
-        sessionCooldownManager.startSeals(
-            lapsed.mapNotNull { (pkg, lapsedExpiry) ->
-                resolvePactConfig(pkg)?.let { sealRequestFor(pkg, it, lapsedExpiry) }
-            }
-        )
-    }
-
-    /**
-     * How one package's lapsed allowance becomes a seal, anchored at
-     * [lapsedExpiry] (the moment it actually lapsed, not the moment it was
-     * discovered). Under Group Seal mode every pact-gated app seals for the
-     * same shared, non-escalating duration — the panic seal's semantics, with
-     * a synthetic config so the shared minutes override this app's own
-     * cooldownMinutes — instead of each app escalating independently. A
-     * Well-exempt pact is outside the group while the Mana Well is on
-     * (GuardStatus.inGroupSeal), so it seals on its own terms.
-     *
-     * Null for a pact paid from the Mana Well outside Group Seal: it starts
-     * no seal of its own, and the app just goes back behind its pact gate.
-     * The rule itself is GuardStatus.lapseSeal.
-     */
-    private fun sealRequestFor(
-        packageName: String,
-        config: AppTimeLimit,
-        lapsedExpiry: Long
-    ): SessionCooldownManager.SealRequest? =
-        GuardStatus.lapseSealRequest(
-            packageName = packageName,
-            config = config,
-            lapsedExpiry = lapsedExpiry,
-            wellEnabled = ManaWell.isEnabled(sharedPreferences),
-            groupSealEnabled = settingsRepo.getGroupSealEnabled(),
-            groupSealMinutes = settingsRepo.getGroupSealDurationMinutes()
-        )
 
     override fun onInterrupt() {
         Log.d("MyAccessibilityService", "Service interrupted")

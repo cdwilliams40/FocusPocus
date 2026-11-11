@@ -24,8 +24,6 @@ class FocusPocusApplication : Application() {
         // Channel must exist before anything outside the accessibility service
         // posts a progression notification.
         ProgressionNotifier.createChannel(this)
-        // Guards channel (seal-lifted alerts) — created here for the same reason.
-        GuardNotifier.createChannel(this)
         // Rituals channel historically came from the accessibility service —
         // but the alarm backstop can fire ritual notifications when the
         // service has never run this boot, so the channel must exist here too.

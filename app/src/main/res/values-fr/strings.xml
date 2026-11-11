@@ -100,56 +100,31 @@
     <string name="home_cast_hint">Choisissez un enchantement ci-dessous pour commencer</string>
 
     <!-- PactsHomeScreen (tableau de bord des pactes) -->
-    <plurals name="home_guard_sealed_count">
-        <item quantity="one">%d application scellée</item>
-        <item quantity="many">%d applications scellées</item>
-        <item quantity="other">%d applications scellées</item>
-    </plurals>
     <plurals name="home_guard_active_count">
         <item quantity="one">%d pacte actif</item>
         <item quantity="many">%d pactes actifs</item>
         <item quantity="other">%d pactes actifs</item>
-    </plurals>
-    <plurals name="home_guard_over_count">
-        <item quantity="one">%d limite épuisée</item>
-        <item quantity="many">%d limites épuisées</item>
-        <item quantity="other">%d limites épuisées</item>
     </plurals>
     <string name="home_guard_all_quiet">Tout est calme</string>
     <string name="home_guard_rollup">Aujourd\'hui : %1$d ouvertures · %2$d réflexes attrapés</string>
     <string name="home_session_banner_detail">%1$s · %2$s restantes</string>
     <string name="home_session_banner_time_left">%1$s restantes</string>
     <string name="home_session_banner_hint">Touchez pour gérer dans l\'onglet Concentration</string>
-    <string name="home_guard_seal_lifts">Le sceau se lève dans %1$s</string>
     <string name="home_guard_pact_left">Pacte en cours — %1$s restantes</string>
-    <string name="home_guard_sealed_of">%1$d sur %2$d scellées</string>
-    <string name="home_guard_chip_sealed">Scellée</string>
-    <string name="home_guard_chip_active">Pacte en cours</string>
-    <string name="home_guard_chip_over">Limite épuisée</string>
-    <string name="home_guard_circle_icon_desc">Cercle de pacte</string>
-    <string name="home_guard_make_pact">Faire un pacte</string>
     <string name="pacts_request_time">Demander du temps</string>
-    <string name="pacts_request_sealed_toast">Toujours scellée — le sceau se lève dans %1$d min</string>
-    <string name="home_guard_empty_title">Aucun pacte pour l\'instant</string>
-    <string name="home_guard_empty_body">Scellez votre application la plus distrayante derrière un pacte conscient et minuté — et regardez le nombre de réflexes chuter.</string>
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
     <string name="home_create_enchantment">Créer un enchantement</string>
     <string name="home_request_time_hint">Touchez une appli pour choisir vos minutes et l\'ouvrir.</string>
-    <string name="home_group_seal_hint">Le sceau collectif est actif — ouvrir une appli sous pacte les ouvre toutes ensemble.</string>
-    <string name="home_group_seal_cta">Ouvrir vos applis sous pacte</string>
-    <string name="home_group_seal_open_status">Ouvertes ensemble — il reste %1$s</string>
-    <string name="home_group_seal_sealed_status">Scellées ensemble — il reste %1$s</string>
 
     <!-- Puits de mana : une réserve de temps commune aux applis sous pacte, qui se remplit lentement -->
     <string name="well_title">Puits de mana</string>
-    <string name="well_subtitle">temps partagé entre vos applis sous pacte</string>
+    <string name="well_subtitle">temps partagé par vos applis du Puits</string>
     <string name="well_level_value">%1$d / %2$d min</string>
     <string name="well_level_line">Puits de mana : %1$d min sur %2$d</string>
     <string name="well_full">Plein</string>
     <string name="well_refill_line">+1 min toutes les %1$d min · plein dans %2$s</string>
     <string name="well_refill_off">Ne se remplit que lorsque vous y canalisez du mana</string>
     <string name="well_drawn_today">Puisé aujourd\'hui : %1$d min</string>
-    <string name="well_dry_short">Le Puits est à sec</string>
     <string name="well_draw_refused_toast">Le Puits de mana ne contient plus autant</string>
     <string name="well_channel_cta">Canaliser du mana : +%1$d min pour %2$d mana</string>
     <string name="well_channel_title">Canaliser du mana dans le Puits</string>
@@ -164,12 +139,8 @@
     <string name="overlay_well_dry_body">%s puise dans le temps que partagent vos applis sous pacte, et il n\'en reste pas assez.</string>
     <string name="overlay_well_dry_eta">De quoi faire un pacte de %1$d minutes dans %2$s.</string>
     <string name="overlay_well_dry_no_refill">Le Puits ne se remplit que lorsque vous y canalisez du mana.</string>
-    <string name="guard_well_toggle">Puise dans le Puits de mana</string>
-    <string name="guard_well_desc_bound">Le temps de ce pacte est pris sur la réserve commune, et sa fin ne déclenche aucun sceau propre. La durée du sceau ci-dessus s\'applique toujours quand vous scellez tout d\'un coup.</string>
-    <string name="guard_well_desc_exempt">Exempté — ce pacte garde son propre temps et son propre sceau, hors de la réserve commune.</string>
     <string name="settings_well_title">Puits de mana</string>
-    <string name="settings_well_toggle">Partager une seule réserve de temps entre les applis sous pacte</string>
-    <string name="settings_well_desc">Chaque pacte puise ses minutes dans un même puits qui se remplit lentement : passer à l\'appli suivante dépense le même temps. Un pacte payé par le Puits ne déclenche aucun sceau propre quand il prend fin — la limite, c\'est le Puits. Un pacte peut être exempté dans ses propres réglages.</string>
+    <string name="settings_well_desc">Chaque pacte puise ses minutes dans un même puits qui se remplit lentement : passer à l\'appli suivante dépense le même temps. Quand le Puits est vide, les applis du Puits restent fermées jusqu\'à ce qu\'il se remplisse ou que vous y versiez du mana.</string>
     <string name="settings_well_capacity">Le Puits contient : %d min</string>
     <string name="settings_well_refill_toggle">Se remplir avec le temps</string>
     <string name="settings_well_refill_toggle_desc">Désactivé : le Puits ne se remplit que lorsque vous y canalisez du mana.</string>
@@ -178,27 +149,20 @@
     <string name="settings_well_terms">contient %1$d min, +1 min toutes les %2$d min</string>
     <string name="settings_well_terms_no_refill">contient %1$d min, sans remplissage avec le temps</string>
     <string name="settings_well_pending_change">Les termes assouplis prendront effet dans %1$s. D\'ici là, le Puits %2$s.</string>
-    <string name="settings_well_pending_off">Le Puits se désactivera dans %1$s. D\'ici là, il %2$s.</string>
     <string name="settings_well_cooling_note">Un resserrement s\'applique aussitôt. Un assouplissement — ou la désactivation du Puits — prend 24 heures.</string>
     <string name="perk_well_channel_title">Canaliser dans le Puits de mana</string>
     <string name="perk_well_channel_desc">%1$d minutes de plus de temps de pacte partagé. Le prix double à chaque canalisation d\'une même journée.</string>
     <string name="ledger_perk_well_channel">Avantage : mana canalisé dans le Puits</string>
-    <string name="home_seal_now">Sceller maintenant</string>
     <string name="home_end_pact">Terminer le pacte</string>
     <plurals name="home_end_pact_result">
         <item quantity="one">%d pacte terminé</item>
         <item quantity="many">%d pactes terminés</item>
         <item quantity="other">%d pactes terminés</item>
     </plurals>
-    <string name="home_seal_now_title">Sceller %s maintenant ?</string>
-    <string name="home_seal_now_message">Le pacte prend fin et l\'application est scellée pendant %d minutes. Les sceaux ne peuvent pas être levés en avance.</string>
-    <string name="home_seal_now_circle_message">Tous les pactes en cours de ce cercle prennent fin, et ces applications sont scellées pendant %d minutes. Les sceaux ne peuvent pas être levés en avance.</string>
-    <string name="home_seal_now_refund_note">Le temps de pacte inutilisé retourne dans le Puits de mana.</string>
     <string name="well_refund_toast">%1$d min rendues au Puits</string>
     <string name="well_unlock_credit_toast">Déblocage conditionnel atteint : +%1$d min dans le Puits de mana</string>
-    <string name="conditional_unlocks_well_note">Tant que le Puits de mana est actif, une règle remplie ajoute %1$d minutes au Puits une fois par jour au lieu de débloquer les pactes qui y puisent. Les gardes, les pactes exemptés et les enchantements sont débloqués comme avant.</string>
+    <string name="conditional_unlocks_well_note">Une règle remplie ajoute %1$d minutes au Puits de mana une fois par jour au lieu de débloquer une appli du Puits. Les enchantements sont débloqués comme avant.</string>
     <string name="home_section_live">En ce moment</string>
-    <string name="home_section_guards">Vos pactes et gardes</string>
     <string name="home_guard_edit_label">Modifier</string>
     <string name="home_talisman_activate">Activer</string>
     <string name="home_talisman_activate_desc">Activer %s</string>
@@ -207,32 +171,10 @@
     <string name="home_talisman_action_temp_disable">Fait une pause de %d min — nécessite une session active</string>
     <string name="home_talisman_toggle_desc">Démarre une session de concentration avec vos enchantements sélectionnés</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
-    <string name="guard_editor_edit_pact">Modifier le pacte</string>
-    <string name="guard_editor_edit_ward">Modifier la garde</string>
-    <string name="guard_editor_edit_circle">Modifier le cercle de pacte</string>
-    <string name="guard_editor_style_header">Style de protection</string>
-    <string name="guard_style_pact">Pacte</string>
-    <string name="guard_style_pact_desc">Scellée par défaut — l\'ouvrir demande de combien de temps vous avez vraiment besoin</string>
-    <string name="guard_style_ward">Garde</string>
-    <string name="guard_style_ward_desc">Ouverte par défaut — une limite de temps quotidienne, avec un temps de repos par session en option</string>
-    <string name="guard_escalation_pact">Sceaux croissants</string>
-    <string name="guard_escalation_ward">Temps de repos croissants</string>
-    <string name="guard_escalation_desc">Chaque récidive le même jour dure plus longtemps</string>
-    <string name="guard_escalation_step">Ajout par récidive</string>
-    <string name="guard_circle_members_link">Modifier les applications de l\'enchantement</string>
-    <string name="guard_delete_confirm_title">Retirer %1$s ?</string>
-    <string name="guard_delete_app_message">L\'application s\'ouvrira à nouveau librement, tout de suite.</string>
-    <string name="guard_delete_pact_message">Un pacte engage pour un jour : il reste en vigueur pendant 24 heures après confirmation, puis se lève.</string>
-    <string name="guard_delete_circle_pact_message">Un pacte engage pour un jour : le cercle reste en vigueur pendant 24 heures après confirmation, puis se lève. L\'enchantement lui-même est conservé.</string>
 
     <!-- Révision de pacte : les modifications d'un pacte existant patientent 24 h -->
-    <string name="pact_revision_notice">Un pacte engage pour un jour : toute modification ou suppression prend effet 24 heures après confirmation. D\'ici là, les termes actuels restent en vigueur.</string>
-    <string name="pact_revision_pending_change">Les nouveaux termes prendront effet dans %1$s</string>
-    <string name="pact_revision_pending_removal">Le pacte se lèvera dans %1$s</string>
-    <string name="pact_revision_pending_header">Modification en attente</string>
     <string name="pact_revision_keep">Garder les termes actuels</string>
-    <string name="pact_revision_queued_change_toast">Le pacte tient — les nouveaux termes prendront effet dans 24 heures</string>
-    <string name="pact_revision_queued_removal_toast">Le pacte tient — il se lèvera dans 24 heures</string>
+    <string name="pact_revision_queued_removal_toast">Elle quittera le Puits dans 24 heures</string>
 
     <string name="pacts_home_intro_title">Les pactes sont désormais votre accueil</string>
     <string name="pacts_home_intro_message">Votre protection permanente — pactes et limites de temps — vous accueille désormais en premier. Le lancement des sessions de concentration vit dans l\'onglet Concentration, à un geste de là. Tout le reste fonctionne exactement comme avant.</string>
@@ -272,7 +214,6 @@
     <string name="spells_auto_add_new_apps_desc">Ajoute automatiquement les applications nouvellement installées à cet enchantement</string>
     <string name="spells_select_apps_title">Sélectionner les applications</string>
     <string name="spells_select_enchantment_title">Sélectionner un enchantement</string>
-    <string name="spells_pact_circle_note">Cet enchantement porte un cercle de pacte — chacune de ses applications est scellée par défaut. Supprimer l\'enchantement retire aussi le cercle.</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">Paramètres</string>
@@ -308,11 +249,6 @@
     <string name="settings_talisman_lock">Mode verrouillage par talisman</string>
     <string name="settings_talisman_lock_desc">Exiger un talisman NFC ou un code QR pour arrêter les sessions</string>
     <string name="settings_add_talisman_first">Ajoutez d\'abord un talisman pour activer le mode verrouillage</string>
-    <string name="settings_group_seal_title">Mode sceau collectif</string>
-    <string name="settings_group_seal_toggle">Ouvrir et sceller les applis sous pacte ensemble</string>
-    <string name="settings_group_seal_desc">Ouvrir une appli sous pacte les ouvre toutes pendant une fenêtre commune ; à son expiration, elles se scellent toutes ensemble — impossible de sauter d\'une appli à l\'autre pour continuer.</string>
-    <string name="settings_group_seal_open_window">Fenêtre d\'ouverture commune : %d min</string>
-    <string name="settings_group_seal_duration">Durée de scellement commune : %d min</string>
     <string name="settings_device_owner">Mode Gardien (propriétaire de l\'appareil)</string>
     <string name="settings_device_owner_suspend">Griser les applications bloquées</string>
     <string name="settings_device_owner_suspend_desc">Suspend les applications bloquées au niveau du système pendant les sessions de concentration — leurs icônes sont grisées et elles ne peuvent plus être ouvertes</string>
@@ -371,8 +307,6 @@
         <item quantity="other">%d blocages au total</item>
     </plurals>
     <string name="insights_most_blocked">Les plus bloqués</string>
-    <string name="insights_time_limit_status">État des limites de temps</string>
-    <string name="insights_time_used">%1$d / %2$d min</string>
     <string name="insights_session_history">Historique des sessions</string>
     <string name="insights_session_duration">%d min</string>
     <plurals name="insights_session_breaks">
@@ -404,7 +338,7 @@
     <string name="onboarding_pact_title">Scellez vos premières applications</string>
     <string name="onboarding_pact_desc">Choisissez les applications qui dévorent votre attention. Elles seront scellées par défaut — en ouvrir une demande de combien de temps vous avez vraiment besoin.</string>
     <string name="onboarding_pact_pick">Choisir les applications à sceller (%d sélectionnées)</string>
-    <string name="onboarding_pact_defaults_note">Chaque pacte démarre avec des réglages raisonnables : jusqu\'à 15 minutes à la fois, puis scellée pendant 30. Ajustez chaque pacte plus tard dans l\'onglet Pactes.</string>
+    <string name="onboarding_pact_defaults_note">Chaque pacte puise dans le Puits de mana : choisissez de 2 à 30 minutes en ouvrant l\'appli. Modifiez la liste plus tard dans l\'onglet Pactes.</string>
     <string name="onboarding_notification_title">Accès aux notifications</string>
     <string name="onboarding_notification_desc">Accordez l\'accès aux notifications pour bloquer les notifications des applications distrayantes et activer le mode Ne pas déranger pendant la concentration.</string>
     <string name="onboarding_notification_granted">Accès aux notifications accordé</string>
@@ -485,29 +419,10 @@
     <string name="quick_spell_editor_allow_breaks">Autoriser les pauses</string>
 
     <!-- Champs de garde (partagés par l'éditeur et le tableau de bord) -->
-    <string name="time_limits_grant_usage">Accorder l\'accès à l\'utilisation</string>
-    <string name="time_limits_required">Requis pour le suivi des limites de temps</string>
-    <string name="time_limits_used_today">%1$d / %2$d min aujourd\'hui</string>
-    <string name="time_limits_select_app">Sélectionner une application</string>
-    <string name="time_limits_app_label">Application</string>
-    <string name="time_limits_pact_max_label">Pacte le plus long</string>
-    <string name="time_limits_pact_seal_label">Durée du sceau après chaque pacte</string>
-    <string name="time_limits_pact_alternative_label">Suggérer à la place (facultatif)</string>
-    <string name="time_limits_pact_alternative_none">Aucune suggestion</string>
-    <string name="time_limits_pact_alternative_clear">Retirer la suggestion</string>
 
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
-    <string name="pacts_config_summary">Jusqu\'\u00e0 %1$d min par pacte \u2192 scell\u00e9e %2$d min ensuite</string>
-    <string name="pacts_config_summary_well">Jusqu\'à %1$d min par pacte · puisées dans le Puits de mana</string>
-    <string name="pacts_backstop_label">Garde-fou quotidien (facultatif)</string>
-    <string name="pacts_backstop_none">Aucun</string>
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
     <string name="conditional_unlocks_pact_app_label">%s (Pacte)</string>
-    <string name="pacts_group_summary">Pacte d\'enchantement \u00b7 %d applications</string>
-    <string name="pacts_target_app">Une seule application</string>
-    <string name="pacts_target_enchantment">Tout un enchantement (liste noire)</string>
-    <string name="pacts_enchantment_label">Enchantement</string>
-    <string name="pacts_no_blacklists">Aucun enchantement en liste noire disponible \u2014 cr\u00e9ez-en un d\'abord dans Enchantements.</string>
 
 
     <!-- OverlayActivity -->
@@ -516,7 +431,6 @@
     <string name="overlay_close">Fermer</string>
     <string name="overlay_wait">Attendez %ds\u2026</string>
     <string name="overlay_pact_prompt">%s est scellée. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
-    <string name="overlay_pact_seal_desc">Quand votre temps est écoulé, %1$s se scelle à nouveau pendant %2$d minutes.</string>
     <string name="overlay_pact_well_desc">Ces minutes sont puisées dans le Puits de mana. Une fois écoulées, %s se referme.</string>
     <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
@@ -524,10 +438,6 @@
     <string name="overlay_pact_stats">Ouverture n°%d aujourd\'hui</string>
     <string name="overlay_pact_stats_reflex">Ouverture n°%1$d aujourd\'hui — %2$d réflexes de moins de 30 secondes</string>
     <string name="overlay_pact_alternative">Ouvrir %s à la place</string>
-    <string name="overlay_group_pact_prompt">%1$s est scellée. Ouvrir toutes vos applis sous pacte ensemble pendant %2$d minutes ?</string>
-    <string name="overlay_group_pact_seal_desc">À la fin de la fenêtre, toutes les applis sous pacte se scellent ensemble pendant %d minutes — impossible de sauter à une autre.</string>
-    <string name="overlay_group_pact_choice">Tout ouvrir — %d minutes</string>
-    <string name="pact_ending_toast">Votre pacte se termine — %s se scelle dans moins d\'une minute</string>
     <string name="pact_ending_no_seal_toast">Votre pacte se termine — %s se ferme dans moins d\'une minute</string>
 
     <!-- MyAccessibilityService -->
@@ -554,7 +464,6 @@
 
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Verrouillage par talisman</string>
-    <string name="service_daily_time_limit">Limite de temps quotidienne atteinte</string>
 
     <!-- MainActivity navigation and dialogs -->
     <string name="main_settings_content_desc">Paramètres</string>
@@ -565,7 +474,6 @@
     <string name="toast_max_rituals">Maximum de %d rituels atteint</string>
     <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
     <string name="toast_max_quick_spells">Maximum de %d sorts rapides atteint</string>
-    <string name="toast_max_time_limits">Maximum de %d limites de temps atteint</string>
     <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
     <string name="toast_preset_cast_timed">%1$s lancé pour %2$d min !</string>
     <string name="toast_enchantment_missing">Enchantement manquant pour %s</string>
@@ -678,7 +586,7 @@
 
     <!-- Progression : réglages -->
     <string name="settings_progression_title">Progression</string>
-    <string name="settings_progression_toggle">Progression — mana, épreuves et sceaux</string>
+    <string name="settings_progression_toggle">Progression — mana et épreuves</string>
     <string name="settings_progression_desc">Gagnez du mana avec vos sessions et vos épreuves, et dépensez-le en temps de Puits et en pauses supplémentaires. Désactiver masque toute la progression ; votre mana est conservé.</string>
     <string name="settings_trial_alerts_toggle">Alertes d\'épreuve accomplie</string>
     <string name="settings_trial_alerts_desc">Une notification quand une épreuve est prête à réclamer.</string>
@@ -695,14 +603,7 @@
     <string name="rituals_overnight_info">Ce rituel s\'étend sur la nuit. Il commencera le soir et se terminera le lendemain matin.</string>
 
     <!-- Limites de temps : limites de session et temps de repos -->
-    <string name="time_limits_daily_limit_label">Limite quotidienne</string>
     <string name="time_limits_no_apps_found">Aucune application trouvée</string>
-    <string name="time_limits_enable_cooldown">Temps de repos par session</string>
-    <string name="time_limits_enable_cooldown_desc">Bloque l\'application pendant une période de repos après une utilisation continue</string>
-    <string name="time_limits_session_limit_label">Limite de session (par utilisation continue)</string>
-    <string name="time_limits_cooldown_label">Durée du temps de repos</string>
-    <string name="time_limits_cooldown_desc">Session : %1$d min → %2$d min de repos</string>
-    <string name="time_limits_minutes_value">%d min</string>
 
     <!-- Déblocages conditionnels -->
     <string name="conditional_unlocks_title">Déblocages conditionnels</string>
@@ -739,15 +640,8 @@
     <string name="toast_max_conditional_unlocks">Maximum de %d déblocages conditionnels atteint</string>
 
     <!-- Superposition : temps de repos et friction de niveau 3 -->
-    <string name="overlay_cooldown_remaining">Repos : %d min restantes</string>
-    <string name="overlay_level3_prompt">Pour fermer cet écran, saisissez la phrase ci-dessous :</string>
-    <string name="overlay_level3_hint">Saisissez la phrase pour continuer</string>
-    <string name="overlay_level3_phrase">Je vais arrêter de scroller</string>
 
     <!-- Alertes de rythme d\'utilisation -->
-    <string name="pacing_toast_50">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — à mi-chemin. Gardez-en pour plus tard !</string>
-    <string name="pacing_toast_75">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — plus que %4$d min.</string>
-    <string name="pacing_toast_90">%1$s : %2$d min sur %3$d utilisées aujourd\'hui — presque épuisées !</string>
 
     <!-- Dialogue de fin de session -->
     <string name="session_complete_title">Session terminée !</string>
@@ -761,41 +655,11 @@
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
 
     <!-- Scellement d\'urgence (Tout sceller maintenant) -->
-    <string name="home_seal_all">Tout sceller maintenant</string>
-    <string name="home_seal_all_confirm_title">Tout sceller maintenant ?</string>
-    <string name="home_seal_all_confirm_message">Chaque application liée à un pacte est scellée immédiatement pour sa durée de scellement configurée, et tout temps de pacte en cours est révoqué. Les sceaux ne peuvent pas être levés en avance.</string>
-    <string name="home_seal_all_confirm_action">Les sceller</string>
-    <plurals name="home_seal_all_result">
-        <item quantity="one">%d application scellée</item>
-        <item quantity="many">%d applications scellées</item>
-        <item quantity="other">%d applications scellées</item>
-    </plurals>
 
-    <plurals name="home_group_open_result">
-        <item quantity="one">%d application ouverte</item>
-        <item quantity="many">%d applications ouvertes</item>
-        <item quantity="other">%d applications ouvertes</item>
-    </plurals>
 
     <!-- Heures de garde (horaires par garde) -->
-    <string name="guard_schedule_toggle">Heures de garde</string>
-    <string name="guard_schedule_desc">N\'appliquer cette garde que certains jours et à certaines heures. En dehors, l\'application est libre — mais un sceau en cours tient toujours.</string>
-    <string name="guard_schedule_days">Jours actifs — aucun sélectionné signifie tous les jours</string>
-    <string name="guard_schedule_hours_toggle">Entre certaines heures</string>
-    <string name="guard_schedule_hours_desc">Une fin avant le début s\'étend sur la nuit, p. ex. 21:00–07:00.</string>
-    <string name="guard_schedule_summary">Heures de garde : %1$s · %2$s</string>
-    <string name="guard_schedule_every_day">Tous les jours</string>
-    <string name="guard_schedule_all_day">Toute la journée</string>
-    <string name="home_guard_off_schedule">Hors heures — non appliquée en ce moment</string>
-    <string name="home_guard_chip_off">HORS HEURES</string>
 
     <!-- Canal Gardes + notification de sceau levé -->
-    <string name="guards_channel_name">Gardes</string>
-    <string name="guards_channel_desc">Alertes de levée de sceau pour les pactes et protections</string>
-    <string name="seal_lifted_title">Sceau levé</string>
-    <string name="seal_lifted_message">%1$s est de nouveau accessible.</string>
-    <string name="settings_seal_lifted_toggle">Alertes de levée de sceau</string>
-    <string name="settings_seal_lifted_desc">Une note discrète quand une application scellée redevient accessible, pour ne pas vérifier en ouvrant l\'application.</string>
 
     <!-- Santé de la protection -->
     <string name="settings_protection_health">Santé de la protection</string>
@@ -805,13 +669,13 @@
     <string name="settings_protection_usage">Accès à l\'utilisation</string>
     <string name="settings_protection_usage_off">Les limites quotidiennes et déblocages conditionnels ne peuvent pas être suivis.</string>
     <string name="settings_protection_notifications">Notifications</string>
-    <string name="settings_protection_notifications_off">Les alertes de rituels, comptes à rebours et notes de sceau ne s\'afficheront pas.</string>
+    <string name="settings_protection_notifications_off">Les alertes de rituels et les comptes à rebours ne s\'afficheront pas.</string>
     <string name="settings_protection_battery">Batterie sans restriction</string>
     <string name="settings_protection_battery_off">L\'optimisation de la batterie peut tuer l\'application en arrière-plan.</string>
     <string name="settings_protection_fix">Corriger</string>
     <string name="settings_protection_ok_desc">En place</string>
     <string name="settings_protection_problem_desc">Attention requise</string>
-    <string name="home_battery_warning">L\'optimisation de la batterie peut tuer l\'application en arrière-plan. Exemptez Focus Pocus pour que les sceaux et limites tiennent.</string>
+    <string name="home_battery_warning">L\'optimisation de la batterie peut tuer l\'application en arrière-plan. Exemptez Focus Pocus pour que le Puits tienne.</string>
     <string name="home_battery_warning_fix">Vérifier les réglages batterie</string>
 
     <!-- Divulgation visible : accessibilité -->
@@ -821,7 +685,7 @@
 
     <!-- Sauvegarde / restauration -->
     <string name="settings_backup">Sauvegarde</string>
-    <string name="settings_backup_desc">Enregistrez vos enchantements, pactes, rituels, historique et réglages dans un fichier — une réinstallation ou un nouveau téléphone ne devrait pas vous coûter vos séries. L\'état de session en cours et les sceaux actifs restent sur l\'appareil.</string>
+    <string name="settings_backup_desc">Enregistrez vos enchantements, applis du Puits, rituels, historique et réglages dans un fichier — une réinstallation ou un nouveau téléphone ne devrait pas vous coûter vos séries. L\'état de session en cours et les pactes actifs restent sur l\'appareil.</string>
     <string name="settings_backup_export">Enregistrer la sauvegarde…</string>
     <string name="settings_backup_import">Restaurer une sauvegarde…</string>
     <string name="backup_export_done">Sauvegarde enregistrée</string>
@@ -833,4 +697,22 @@
     <string name="backup_import_confirm_title">Restaurer une sauvegarde ?</string>
     <string name="backup_import_confirm_message">La restauration remplace vos enchantements, pactes, rituels, historique et réglages actuels par ceux de la sauvegarde, puis redémarre l\'application. C\'est irréversible.</string>
     <string name="backup_import_confirm_yes">Choisir le fichier</string>
+
+    <!-- Well apps (2.0) -->
+    <string name="home_well_apps_header">Applis du Puits</string>
+    <string name="home_well_edit">Modifier les applis du Puits</string>
+    <string name="home_well_empty_title">Aucune appli derrière le Puits</string>
+    <string name="home_well_empty_body">Placez vos applis les plus distrayantes derrière le Puits de mana. Pour en ouvrir une, vous concluez un pacte payé sur une réserve de temps qui se remplit lentement.</string>
+    <string name="home_well_add">Ajouter des applis au Puits</string>
+    <string name="well_app_removal_pending">Quitte le Puits dans %1$s</string>
+    <string name="well_apps_title">Applis du Puits</string>
+    <string name="well_apps_intro">Ces applis restent fermées jusqu\'à ce que vous concluiez un pacte, payé sur le Puits de mana. Ajouter une appli prend effet tout de suite. En retirer une prend 24 heures.</string>
+    <string name="well_apps_add">Ajouter des applis</string>
+    <string name="well_apps_pick_substitute">Proposer cette appli à la place</string>
+    <string name="well_apps_substitute">À la place : %1$s</string>
+    <string name="well_apps_no_substitute">Aucune appli de remplacement</string>
+    <string name="well_apps_set_substitute">Remplacement</string>
+    <string name="well_apps_clear_substitute">Effacer</string>
+    <string name="well_apps_keep">La garder</string>
+    <string name="well_apps_remove">Retirer</string>
 </resources>

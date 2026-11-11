@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,9 +63,6 @@ import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
-import com.infinicada.focuspocus.limit.GuardLiveState
-import com.infinicada.focuspocus.limit.GuardRow
-import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.PresetAction
@@ -85,9 +83,9 @@ import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
 import com.infinicada.focuspocus.ui.screens.Greeting
-import com.infinicada.focuspocus.ui.screens.GuardEditorScreen
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
-import com.infinicada.focuspocus.ui.screens.PactsHomeScreen
+import com.infinicada.focuspocus.ui.screens.WellAppsScreen
+import com.infinicada.focuspocus.ui.screens.WellHomeScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
 import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
@@ -144,9 +142,9 @@ fun FocusPocusApp(
     val schedules by spellbookVM.schedules.collectAsStateWithLifecycle()
     val focusPresets by spellbookVM.focusPresets.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
-    val appTimeLimits by spellbookVM.appTimeLimits.collectAsStateWithLifecycle()
-    val appTimeLimitConfigs by spellbookVM.appTimeLimitConfigs.collectAsStateWithLifecycle()
     val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
+    val wellAppsForRules = spellbookVM.wellApps.collectAsStateWithLifecycle().value
+        .mapTo(mutableSetOf()) { it.packageName }
     val installedApps by spellbookVM.installedApps.collectAsStateWithLifecycle()
     val spellbookRoute by spellbookVM.spellbookRoute.collectAsStateWithLifecycle()
     val pactsRoute by spellbookVM.pactsRoute.collectAsStateWithLifecycle()
@@ -162,10 +160,7 @@ fun FocusPocusApp(
     val hideStopButton by settingsVM.hideStopButton.collectAsStateWithLifecycle()
     val muteBlockedNotifications by settingsVM.muteBlockedNotifications.collectAsStateWithLifecycle()
     val nfcLockMode by settingsVM.nfcLockMode.collectAsStateWithLifecycle()
-    val sealLiftedAlertsEnabled by settingsVM.sealLiftedAlertsEnabled.collectAsStateWithLifecycle()
     val isDeviceOwner by settingsVM.isDeviceOwner.collectAsStateWithLifecycle()
-    val pactGroups by spellbookVM.pactGroups.collectAsStateWithLifecycle()
-    val pendingPactRevisions by spellbookVM.pendingPactRevisions.collectAsStateWithLifecycle()
     val deviceOwnerEnforcement by settingsVM.deviceOwnerEnforcement.collectAsStateWithLifecycle()
     val deviceOwnerSuspendPacts by settingsVM.deviceOwnerSuspendPacts.collectAsStateWithLifecycle()
     val wardenRemovalRequestMillis by settingsVM.wardenRemovalRequestMillis.collectAsStateWithLifecycle()
@@ -182,9 +177,6 @@ fun FocusPocusApp(
 
     val progressionEnabled by settingsVM.progressionEnabled.collectAsStateWithLifecycle()
     val trialAlertsEnabled by settingsVM.trialAlertsEnabled.collectAsStateWithLifecycle()
-    val groupSealEnabled by settingsVM.groupSealEnabled.collectAsStateWithLifecycle()
-    val groupSealOpenWindowMinutes by settingsVM.groupSealOpenWindowMinutes.collectAsStateWithLifecycle()
-    val groupSealDurationMinutes by settingsVM.groupSealDurationMinutes.collectAsStateWithLifecycle()
     val showProgressionIntroDialog by settingsVM.showProgressionIntroDialog.collectAsStateWithLifecycle()
     val manaBalance by progressionVM.balance.collectAsStateWithLifecycle()
     val trials by progressionVM.trials.collectAsStateWithLifecycle()
@@ -425,8 +417,6 @@ fun FocusPocusApp(
                 val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                 context.startActivity(intent)
             },
-            sealLiftedAlertsEnabled = sealLiftedAlertsEnabled,
-            onSealLiftedAlertsChanged = { settingsVM.setSealLiftedAlertsEnabled(it) },
             nfcLockMode = nfcLockMode,
             onNfcLockModeChanged = { settingsVM.setNfcLockMode(it) },
             isDeviceOwner = isDeviceOwner,
@@ -498,12 +488,6 @@ fun FocusPocusApp(
             },
             trialAlertsEnabled = trialAlertsEnabled,
             onTrialAlertsEnabledChanged = { settingsVM.setTrialAlertsEnabled(it) },
-            groupSealEnabled = groupSealEnabled,
-            onGroupSealEnabledChanged = { settingsVM.setGroupSealEnabled(it) },
-            groupSealOpenWindowMinutes = groupSealOpenWindowMinutes,
-            onGroupSealOpenWindowChanged = { settingsVM.setGroupSealOpenWindowMinutes(it) },
-            groupSealDurationMinutes = groupSealDurationMinutes,
-            onGroupSealDurationChanged = { settingsVM.setGroupSealDurationMinutes(it) },
             wellSettingsState = wellSettingsState,
             onWellSettingsRequested = { settingsVM.requestWellSettings(it) },
             onCancelWellRevision = { settingsVM.cancelWellRevision() },
@@ -545,7 +529,7 @@ fun FocusPocusApp(
         BackHandler { spellbookVM.handleBack() }
     }
 
-    // Back handler for the guard editor on the Pacts tab
+    // Back handler for the Well apps editor on the Home tab
     if (pactsRoute !is PactsRoute.Overview && currentDestination == AppDestinations.HOME) {
         BackHandler { spellbookVM.handlePactsBack() }
     }
@@ -568,7 +552,7 @@ fun FocusPocusApp(
                             spellbookVM.navigateTo(SpellbookRoute.Overview)
                         }
                         // Same convention as Spellbook: tapping the tab lands
-                        // on its overview, not a stale guard editor.
+                        // on its overview, not a stale editor.
                         if (it == AppDestinations.HOME) {
                             spellbookVM.navigateToPacts(PactsRoute.Overview)
                         }
@@ -598,56 +582,45 @@ fun FocusPocusApp(
             when (currentDestination) {
                 AppDestinations.HOME -> {
                     val route = pactsRoute
-                    // Both the dashboard and the guard editor care whether
-                    // usage access is granted; re-checked on every resume.
-                    var usageAccessGranted by remember {
-                        mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context))
-                    }
+                    val wellApps by spellbookVM.wellApps.collectAsStateWithLifecycle()
+                    val pendingRemovals by spellbookVM.pendingRemovals.collectAsStateWithLifecycle()
                     if (route is PactsRoute.Overview) {
-                        // Live guard state refreshes while the dashboard is
-                        // visible (the ticker below dies with this branch's
-                        // composition), on every return to the foreground, and on
-                        // any data mutation via dataVersion. The snapshot reads
-                        // prefs and usage stats, so it's taken off the main thread.
-                        var guardTick by remember { mutableIntStateOf(0) }
+                        // Live state refreshes while the dashboard is visible
+                        // (the ticker below dies with this branch's
+                        // composition), on every return to the foreground, and
+                        // on any data mutation via dataVersion. The snapshot
+                        // reads prefs and may walk usage stats, so it's taken
+                        // off the main thread.
+                        var homeTick by remember { mutableIntStateOf(0) }
                         LifecycleResumeEffect(Unit) {
-                            guardTick++
-                            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
+                            homeTick++
                             protectionStatus = ProtectionHealth.check(context)
                             onPauseOrDispose { }
                         }
-                        var guardLiveStates by remember {
-                            mutableStateOf(emptyMap<String, GuardLiveState>())
-                        }
-                        var guardOpenStats by remember {
-                            mutableStateOf(emptyMap<String, AppOpenStats>())
-                        }
-                        var guardNow by remember { mutableStateOf(System.currentTimeMillis()) }
+                        var activePacts by remember { mutableStateOf(emptyMap<String, Long>()) }
+                        var openStats by remember { mutableStateOf(emptyMap<String, AppOpenStats>()) }
+                        var homeNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
                         // The Mana Well is a few primitive prefs, so it is
-                        // read up front: the card is there on the first frame
-                        // instead of popping in after the guard snapshot.
-                        var guardWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
-                        val groupOpenScope = rememberCoroutineScope()
-                        LaunchedEffect(dataVersion, guardTick) {
+                        // read up front: the card is there on the first frame.
+                        var homeWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
+                        LaunchedEffect(dataVersion, homeTick) {
                             val snapshot = withContext(Dispatchers.IO) {
-                                // A pact revision coming due while the dashboard
-                                // is open lands on this same tick (it bumps
-                                // dataVersion, which re-runs this effect with
-                                // nothing further due).
-                                spellbookVM.applyDuePactRevisions()
+                                // A removal coming due while the dashboard is
+                                // open lands on this same tick.
+                                spellbookVM.applyDueWellRemovals()
                                 // Before the Well is read: a conditional
                                 // unlock met since the last look pays in now.
                                 val unlockMinutes = spellbookVM.creditWellUnlocks()
                                 Triple(
-                                    spellbookVM.getGuardLiveState(),
+                                    spellbookVM.getActivePacts(),
                                     spellbookVM.getTodayOpenStats(),
                                     spellbookVM.getWellSnapshot()
                                 ) to unlockMinutes
                             }
-                            guardLiveStates = snapshot.first.first
-                            guardOpenStats = snapshot.first.second
-                            guardWell = snapshot.first.third
-                            guardNow = System.currentTimeMillis()
+                            activePacts = snapshot.first.first
+                            openStats = snapshot.first.second
+                            homeWell = snapshot.first.third
+                            homeNow = System.currentTimeMillis()
                             if (snapshot.second > 0) {
                                 Toast.makeText(
                                     context,
@@ -656,19 +629,13 @@ fun FocusPocusApp(
                                 ).show()
                             }
                         }
-                        // Wake exactly when something on screen changes instead
-                        // of on a fixed minute from an arbitrary phase, which
-                        // left a lifted seal or closed pact showing for up to a
-                        // minute. Expiries and wall-clock minutes re-snapshot
-                        // (a lapsed pact only turns into its seal service-side,
-                        // and guard hours / daily usage move on the minute);
-                        // a countdown merely rolling to its next minute only
-                        // needs a new clock reading, no I/O. Restarts whenever
-                        // the snapshot brings new expiries.
-                        LaunchedEffect(guardLiveStates, pendingPactRevisions) {
-                            val expiries = guardLiveStates.values.flatMap {
-                                listOfNotNull(it.allowanceExpiryMillis, it.cooldownExpiryMillis)
-                            } + pendingPactRevisions.map { it.appliesAtMillis }
+                        // Wake exactly when something on screen changes: a
+                        // pact or removal coming due re-snapshots, a countdown
+                        // rolling to its next minute only needs a new clock
+                        // reading. Restarts whenever the snapshot brings new
+                        // expiries.
+                        LaunchedEffect(activePacts, pendingRemovals) {
+                            val expiries = activePacts.values + pendingRemovals.values
                             while (true) {
                                 val now = System.currentTimeMillis()
                                 // Slack lets the service's own wakeup (expiry
@@ -678,31 +645,27 @@ fun FocusPocusApp(
                                     expiries.filter { it > now }.minOrNull()
                                         ?.let { it - now + 1_000L } ?: Long.MAX_VALUE
                                 )
-                                // A countdown's last change is its expiry, which
-                                // the refresh above covers.
                                 val nextLabel = expiries
                                     .filter { it - now > 60_000L }
                                     .mapNotNull { DisplayTicks.untilCountdownMinuteChanges(it, now) }
                                     .minOrNull()
                                 if (nextLabel != null && nextLabel < nextRefresh) {
                                     delay(nextLabel)
-                                    guardNow = System.currentTimeMillis()
+                                    homeNow = System.currentTimeMillis()
                                 } else {
                                     delay(nextRefresh)
-                                    guardTick++
+                                    homeTick++
                                 }
                             }
                         }
 
-                        PactsHomeScreen(
+                        WellHomeScreen(
                             installedApps = installedApps,
-                            appTimeLimitConfigs = appTimeLimitConfigs,
-                            pactGroups = pactGroups,
-                            blockerLists = blockerLists,
-                            todayOpenStats = guardOpenStats,
-                            guardLiveStates = guardLiveStates,
-                            pendingRevisions = pendingPactRevisions,
-                            nowMillis = guardNow,
+                            wellApps = wellApps,
+                            pendingRemovals = pendingRemovals,
+                            activePacts = activePacts,
+                            todayOpenStats = openStats,
+                            nowMillis = homeNow,
                             sessionActive = focusMode,
                             isOnBreak = isOnBreak,
                             sessionLabel = activeSchedule?.name
@@ -712,55 +675,30 @@ fun FocusPocusApp(
                             progressionEnabled = progressionEnabled,
                             manaBalance = manaBalance,
                             currentStreak = currentStreak,
-                            usageAccessGranted = usageAccessGranted,
-                            onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
                             batteryUnrestricted = protectionStatus.batteryUnrestricted,
                             onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
                             onOpenMana = { showMana = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
-                            onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
-                            onSealAll = { sealResultToast(context, spellbookVM.sealAllPacts()) },
-                            onEndPact = { row ->
-                                sealResultToast(
+                            onEditWellApps = { spellbookVM.navigateToPacts(PactsRoute.EditWellApps) },
+                            onEndPact = { pkg ->
+                                val refunded = spellbookVM.endPactNow(pkg)
+                                val ended = context.resources.getQuantityString(
+                                    R.plurals.home_end_pact_result, 1, 1
+                                )
+                                Toast.makeText(
                                     context,
-                                    when (row) {
-                                        is GuardRow.App -> spellbookVM.endPactNow(row.packageName)
-                                        is GuardRow.Circle ->
-                                            spellbookVM.endCirclePactsNow(row.group.blockerName)
-                                    }
-                                )
-                            },
-                            onGuardClick = { row ->
-                                spellbookVM.navigateToPacts(
-                                    when (row) {
-                                        is GuardRow.App -> PactsRoute.EditGuard(row.packageName)
-                                        is GuardRow.Circle -> PactsRoute.EditCircle(row.group.blockerName)
-                                    }
-                                )
+                                    if (refunded > 0) {
+                                        ended + " · " + context.getString(R.string.well_refund_toast, refunded)
+                                    } else {
+                                        ended
+                                    },
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
                             onRequestTime = { pkg, minutes ->
                                 spellbookVM.requestPactTime(pkg, minutes)
                             },
-                            groupSealEnabled = groupSealEnabled,
-                            groupSealOpenWindowMinutes = groupSealOpenWindowMinutes,
-                            groupSealDurationMinutes = groupSealDurationMinutes,
-                            onGroupOpen = {
-                                // groupOpenPacts suspends: its eligibility
-                                // snapshot reads the stores and usage stats.
-                                groupOpenScope.launch {
-                                    // Null: the Mana Well refused the window,
-                                    // and the view model already said so.
-                                    val openedCount = spellbookVM.groupOpenPacts() ?: return@launch
-                                    Toast.makeText(
-                                        context,
-                                        context.resources.getQuantityString(
-                                            R.plurals.home_group_open_result, openedCount, openedCount
-                                        ),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            },
-                            well = guardWell,
+                            well = homeWell,
                             wellChannelCost = wellChannelCost,
                             onChannelMana = {
                                 val channeled = progressionVM.redeemPerk(Perk.WELL_CHANNEL)
@@ -776,68 +714,31 @@ fun FocusPocusApp(
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 // Re-snapshot: the level just moved.
-                                guardTick++
+                                homeTick++
                                 channeled
                             },
                             modifier = contentModifier
                         )
                     } else {
-                        LifecycleResumeEffect(Unit) {
-                            usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context)
-                            onPauseOrDispose { }
+                        var editorNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                        // Re-read the clock whenever the list changes (a removal
+                        // just requested counts from now) and on every minute.
+                        LaunchedEffect(pendingRemovals) {
+                            editorNow = System.currentTimeMillis()
+                            while (true) {
+                                delay(DisplayTicks.untilNextWallClockMinute(System.currentTimeMillis()) + 1_000L)
+                                editorNow = System.currentTimeMillis()
+                            }
                         }
-                        val editPackageName = (route as? PactsRoute.EditGuard)?.packageName
-                        val editCircleName = (route as? PactsRoute.EditCircle)?.blockerName
-                        // The Well-exemption switch only means something
-                        // while the Mana Well is on.
-                        val wellEnabled = remember { spellbookVM.getWellSnapshot().enabled }
-                        GuardEditorScreen(
-                            wellEnabled = wellEnabled,
+                        WellAppsScreen(
                             installedApps = installedApps,
-                            blockerLists = blockerLists,
-                            pactGroups = pactGroups,
-                            appTimeLimitConfigs = appTimeLimitConfigs,
-                            editPackageName = editPackageName,
-                            editCircleName = editCircleName,
-                            usageAccessGranted = usageAccessGranted,
-                            pendingRevision = pendingPactRevisions.find {
-                                if (editPackageName != null) {
-                                    it.packageName == editPackageName
-                                } else {
-                                    editCircleName != null &&
-                                        it.packageName == null && it.blockerName == editCircleName
-                                }
-                            },
-                            onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
-                            onSaveConfig = { config ->
-                                spellbookVM.saveAppTimeLimitConfig(config)
-                                spellbookVM.navigateToPacts(PactsRoute.Overview)
-                            },
-                            onDeleteConfig = { pkg ->
-                                spellbookVM.deleteAppTimeLimit(pkg)
-                                spellbookVM.navigateToPacts(PactsRoute.Overview)
-                            },
-                            onSaveGroup = { group ->
-                                spellbookVM.savePactGroup(group)
-                                spellbookVM.navigateToPacts(PactsRoute.Overview)
-                            },
-                            onDeleteGroup = { name ->
-                                spellbookVM.deletePactGroup(name)
-                                spellbookVM.navigateToPacts(PactsRoute.Overview)
-                            },
-                            onCancelPendingRevision = {
-                                if (editPackageName != null) {
-                                    spellbookVM.cancelAppPactRevision(editPackageName)
-                                } else if (editCircleName != null) {
-                                    spellbookVM.cancelCirclePactRevision(editCircleName)
-                                }
-                            },
-                            onOpenEnchantment = { blocker ->
-                                spellbookVM.navigateToPacts(PactsRoute.Overview)
-                                spellbookVM.setSelectedBlocker(blocker)
-                                spellbookVM.navigateTo(SpellbookRoute.EditEnchantment)
-                                currentDestination = AppDestinations.SPELLBOOK
-                            },
+                            wellApps = wellApps,
+                            pendingRemovals = pendingRemovals,
+                            nowMillis = editorNow,
+                            onAddApps = { spellbookVM.addWellApps(it) },
+                            onSetSubstitute = { pkg, sub -> spellbookVM.setWellAppSubstitute(pkg, sub) },
+                            onRequestRemoval = { spellbookVM.requestWellAppRemoval(it) },
+                            onCancelRemoval = { spellbookVM.cancelWellAppRemoval(it) },
                             onNavigateBack = { spellbookVM.navigateToPacts(PactsRoute.Overview) },
                             modifier = contentModifier
                         )
@@ -988,7 +889,6 @@ fun FocusPocusApp(
                         is SpellbookRoute.EditEnchantment -> selectedBlocker?.let {
                             EditBlockerScreen(
                                 blocker = it,
-                                hasPactCircle = pactGroups.any { group -> group.blockerName == it.name },
                                 onSaveBlocker = { blockerToSave ->
                                     spellbookVM.saveBlocker(blockerToSave)
                                     spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList)
@@ -1083,13 +983,10 @@ fun FocusPocusApp(
                             conditionalUnlocks = conditionalUnlocks,
                             installedApps = installedApps,
                             blockerLists = blockerLists,
-                            appTimeLimits = appTimeLimits,
-                            // Pact-gated apps carry a "(Pact)" label in the pickers;
-                            // GuardStatus owns the explicit-config-wins precedence.
-                            pactPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-                                GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
-                            },
-                            wellEnabled = remember { spellbookVM.getWellSnapshot().enabled },
+                            // A rule pays into the Well for the Well apps it names.
+                            appTimeLimits = wellAppsForRules.associateWith { 0 },
+                            pactPackages = wellAppsForRules,
+                            wellEnabled = true,
                             onSave = { spellbookVM.saveConditionalUnlock(it) },
                             onDelete = { spellbookVM.deleteConditionalUnlock(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
@@ -1106,7 +1003,6 @@ fun FocusPocusApp(
                         currentStreak = currentStreak,
                         longestStreak = insightsLongestStreak,
                         blockEvents = blockEvents,
-                        appTimeLimits = appTimeLimits,
                         openDailyStats = appOpenDailyStats,
                         progressionEnabled = progressionEnabled,
                         manaBalance = manaBalance,
@@ -1255,26 +1151,3 @@ fun FocusPocusApp(
     }
 }
 
-/**
- * Says what ending pacts early did: how many apps were sealed — or, for pacts
- * paid from the Mana Well, which end without a seal, how many pacts ended —
- * and how many unused minutes went back into the Well.
- */
-private fun sealResultToast(context: Context, result: SpellbookViewModel.SealResult) {
-    // "0 apps sealed" would read as a failure when nothing was meant to seal.
-    val outcome = if (result.sealedCount == 0 && result.endedUnsealedCount > 0) {
-        context.resources.getQuantityString(
-            R.plurals.home_end_pact_result, result.endedUnsealedCount, result.endedUnsealedCount
-        )
-    } else {
-        context.resources.getQuantityString(
-            R.plurals.home_seal_all_result, result.sealedCount, result.sealedCount
-        )
-    }
-    val text = if (result.refundedMinutes > 0) {
-        outcome + " · " + context.getString(R.string.well_refund_toast, result.refundedMinutes)
-    } else {
-        outcome
-    }
-    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-}

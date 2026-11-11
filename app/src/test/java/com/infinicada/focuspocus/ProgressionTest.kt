@@ -44,7 +44,7 @@ class ProgressionTest {
 
     @Test
     fun `claiming a completed trial credits its reward once`() {
-        val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()
+        val today = com.infinicada.focuspocus.limit.DayKey.today()
         saveTrials(listOf(
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 2, progress = 2,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
@@ -62,7 +62,7 @@ class ProgressionTest {
 
     @Test
     fun `incomplete or unknown trials cannot be claimed`() {
-        val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()
+        val today = com.infinicada.focuspocus.limit.DayKey.today()
         saveTrials(listOf(
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 3, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
@@ -75,7 +75,7 @@ class ProgressionTest {
     @Test
     fun `claims are gated by the master toggle`() {
         prefs.putBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, false)
-        val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()
+        val today = com.infinicada.focuspocus.limit.DayKey.today()
         saveTrials(listOf(
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 1, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
@@ -116,17 +116,15 @@ class ProgressionTest {
     }
 
     @Test
-    fun `rollover judges an ended stay-under-limits day from block events`() {
+    fun `a leftover stay-under-limits trial is never credited now that limits are gone`() {
         prefs.putBoolean(Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT, true)
-        // A configured limit so the trial is judgeable
-        prefs.putString(Constants.PrefsKeys.APP_TIME_LIMITS, gson.toJson(mapOf("com.example.feed" to 30)))
         saveTrials(listOf(
             Trial("ul", TrialType.STAY_UNDER_LIMITS, target = 1, progress = 0,
                 period = TrialPeriod.DAILY, periodKey = "20200101", rewardMana = 60L)
         ))
-        // No block events on 2020-01-01 -> success, auto-credited
         Progression.rolloverIfNeeded(prefs, gson)
-        assertEquals(60L, balance())
+        assertEquals(0L, balance())
+        assertTrue(trials().none { it.type == TrialType.STAY_UNDER_LIMITS })
     }
 
     @Test
@@ -276,7 +274,7 @@ class ProgressionTest {
 
     @Test
     fun `lifetime earned tracks credits not debits`() {
-        val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()
+        val today = com.infinicada.focuspocus.limit.DayKey.today()
         saveTrials(listOf(
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 1, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)

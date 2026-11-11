@@ -97,20 +97,12 @@ fun SettingsScreen(
     onProgressionEnabledChanged: (Boolean) -> Unit,
     trialAlertsEnabled: Boolean,
     onTrialAlertsEnabledChanged: (Boolean) -> Unit,
-    groupSealEnabled: Boolean,
-    onGroupSealEnabledChanged: (Boolean) -> Unit,
-    groupSealOpenWindowMinutes: Int,
-    onGroupSealOpenWindowChanged: (Int) -> Unit,
-    groupSealDurationMinutes: Int,
-    onGroupSealDurationChanged: (Int) -> Unit,
     wellSettingsState: WellSettingsState,
     onWellSettingsRequested: (WellSettings) -> Unit,
     onCancelWellRevision: () -> Unit,
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
-    sealLiftedAlertsEnabled: Boolean,
-    onSealLiftedAlertsChanged: (Boolean) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     nfcLockMode: Boolean,
     onNfcLockModeChanged: (Boolean) -> Unit,
@@ -448,26 +440,6 @@ fun SettingsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_seal_lifted_toggle))
-                            Text(
-                                stringResource(R.string.settings_seal_lifted_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = sealLiftedAlertsEnabled,
-                            onCheckedChange = onSealLiftedAlertsChanged
-                        )
-                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -509,66 +481,12 @@ fun SettingsScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mana Well Card — one slowly refilling pool of time for pact apps
+            // Mana Well Card — one slowly refilling pool of time for the Well apps
             WellSettingsCard(
                 state = wellSettingsState,
                 onRequest = onWellSettingsRequested,
                 onCancelRevision = onCancelWellRevision
             )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Group Seal Card — open every pact app together, seal them together
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.settings_group_seal_title), style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_group_seal_toggle))
-                            Text(
-                                stringResource(R.string.settings_group_seal_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = groupSealEnabled,
-                            onCheckedChange = onGroupSealEnabledChanged
-                        )
-                    }
-
-                    if (groupSealEnabled) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            stringResource(R.string.settings_group_seal_open_window, groupSealOpenWindowMinutes)
-                        )
-                        Slider(
-                            value = groupSealOpenWindowMinutes.coerceIn(5, 60).toFloat(),
-                            onValueChange = { onGroupSealOpenWindowChanged((it / 5).roundToInt() * 5) },
-                            valueRange = 5f..60f,
-                            steps = 10,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            stringResource(R.string.settings_group_seal_duration, groupSealDurationMinutes)
-                        )
-                        Slider(
-                            value = groupSealDurationMinutes.coerceIn(5, 120).toFloat(),
-                            onValueChange = { onGroupSealDurationChanged((it / 5).roundToInt() * 5) },
-                            valueRange = 5f..120f,
-                            steps = 22,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(16.dp))
 
             // Warden Mode (device owner) Card
@@ -992,28 +910,13 @@ private fun WellSettingsCard(
             Text(stringResource(R.string.settings_well_title), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_well_toggle))
-                    Text(
-                        stringResource(R.string.settings_well_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = target.enabled,
-                    onCheckedChange = { onRequest(target.copy(enabled = it)) }
-                )
-            }
+            Text(
+                stringResource(R.string.settings_well_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-            // Still shown while a switch-off is cooling off: the Well is in
-            // force until then, and its terms can still be tightened.
-            if (state.enforced.enabled || target.enabled) {
+            run {
                 Spacer(modifier = Modifier.height(16.dp))
                 var capacity by remember(target.capacityMinutes) {
                     mutableFloatStateOf(target.capacityMinutes.toFloat())
@@ -1114,11 +1017,7 @@ private fun WellSettingsCard(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        if (pending.settings.enabled) {
-                            stringResource(R.string.settings_well_pending_change, wait, enforcedTerms)
-                        } else {
-                            stringResource(R.string.settings_well_pending_off, wait, enforcedTerms)
-                        },
+                        stringResource(R.string.settings_well_pending_change, wait, enforcedTerms),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.tertiary
                     )

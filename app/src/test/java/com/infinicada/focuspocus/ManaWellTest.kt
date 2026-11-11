@@ -3,7 +3,6 @@ package com.infinicada.focuspocus
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.limit.WellSettings
-import com.infinicada.focuspocus.model.AppTimeLimit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -153,22 +152,6 @@ class ManaWellTest {
     }
 
     // ── The pool ──
-
-    @Test
-    fun `the Well is off by default and binds nothing`() {
-        val pact = AppTimeLimit(packageName = "a", dailyLimitMinutes = 0, pactModeEnabled = true)
-        assertFalse(ManaWell.isEnabled(prefs, t0))
-        assertFalse(ManaWell.isBound(prefs, pact, t0))
-    }
-
-    @Test
-    fun `a Well that is on binds pacts but not exempt pacts or wards`() {
-        turnOn()
-        val pact = AppTimeLimit(packageName = "a", dailyLimitMinutes = 0, pactModeEnabled = true)
-        assertTrue(ManaWell.isBound(prefs, pact, t0))
-        assertFalse(ManaWell.isBound(prefs, pact.copy(wellExempt = true), t0))
-        assertFalse(ManaWell.isBound(prefs, pact.copy(pactModeEnabled = false), t0))
-    }
 
     @Test
     fun `a fresh Well starts full`() {

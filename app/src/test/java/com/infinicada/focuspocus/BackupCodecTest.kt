@@ -2,7 +2,8 @@ package com.infinicada.focuspocus
 
 import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.ManaWell
-import com.infinicada.focuspocus.limit.WellMath
+import com.infinicada.focuspocus.limit.WellApp
+import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,14 +62,14 @@ class BackupCodecTest {
         target.putString(Constants.PrefsKeys.SCHEDULES, """[{"name":"Old ritual"}]""")
         // …while live enforcement state must survive untouched.
         target.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        target.putString(Constants.PrefsKeys.APP_COOLDOWN_STATES, """{"com.x":{}}""")
+        target.putString(Constants.PrefsKeys.WELL_APP_REMOVALS, """{"com.x":123}""")
         target.putString(Constants.PrefsKeys.PACT_ALLOWANCES, """{"com.x":123}""")
 
         BackupCodec.import(target, gson, json)
 
         assertFalse(target.contains(Constants.PrefsKeys.SCHEDULES))
         assertTrue(target.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false))
-        assertEquals("""{"com.x":{}}""", target.getString(Constants.PrefsKeys.APP_COOLDOWN_STATES, null))
+        assertEquals("""{"com.x":123}""", target.getString(Constants.PrefsKeys.WELL_APP_REMOVALS, null))
         assertEquals("""{"com.x":123}""", target.getString(Constants.PrefsKeys.PACT_ALLOWANCES, null))
     }
 
@@ -76,14 +77,14 @@ class BackupCodecTest {
     fun `live enforcement state never travels in an export`() {
         seedTypicalData()
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.APP_COOLDOWN_STATES, """{"com.x":{}}""")
+        prefs.putString(Constants.PrefsKeys.WELL_APP_REMOVALS, """{"com.x":123}""")
         prefs.putString(Constants.PrefsKeys.PACT_ALLOWANCES, """{"com.x":123}""")
         prefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-id")
 
         val json = BackupCodec.export(prefs, gson, appVersionCode = 30, now = t0)
 
         assertFalse(json.contains(Constants.PrefsKeys.MANUAL_FOCUS_MODE))
-        assertFalse(json.contains(Constants.PrefsKeys.APP_COOLDOWN_STATES))
+        assertFalse(json.contains(Constants.PrefsKeys.WELL_APP_REMOVALS))
         assertFalse(json.contains(Constants.PrefsKeys.PACT_ALLOWANCES))
         assertFalse(json.contains(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID))
     }
@@ -161,11 +162,9 @@ class BackupCodecTest {
             // Per-session perk tokens: cleared at every session start and stop
             Constants.PrefsKeys.EXTRA_BREAK_TOKENS,
             // Live enforcement state — a restore must not resurrect a stale
-            // seal, allowance, or queued pact revision
-            Constants.PrefsKeys.APP_COOLDOWN_STATES,
+            // pact or skip a queued removal's delay
             Constants.PrefsKeys.PACT_ALLOWANCES,
-            Constants.PrefsKeys.PACT_PENDING_REVISIONS,
-            Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE,
+            Constants.PrefsKeys.WELL_APP_REMOVALS,
             // The Mana Well's pool, today's draws and any queued loosening —
             // a restore must neither refill the Well nor skip its cooling-off
             Constants.PrefsKeys.WELL_LEVEL_MILLIS,
@@ -208,20 +207,6 @@ class BackupCodecTest {
         )
     }
 
-    @Test
-    fun `group seal settings travel in a backup`() {
-        prefs.putBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, true)
-        prefs.putInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, 20)
-        prefs.putInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, 45)
-
-        val fresh = FakeSharedPreferences()
-        BackupCodec.import(fresh, gson, BackupCodec.export(prefs, gson, appVersionCode = 37, now = t0))
-
-        assertTrue(fresh.getBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, false))
-        assertEquals(20, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, -1))
-        assertEquals(45, fresh.getInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, -1))
-    }
-
     // ── Mana Well ──
 
     private val wellOn = WellSettings(enabled = true, capacityMinutes = 30, refillIntervalMinutes = 20)
@@ -243,7 +228,7 @@ class BackupCodecTest {
     }
 
     @Test
-    fun `restore cannot loosen or switch off an enforced mana well`() {
+    fun `restore never switches the Well off or refills it`() {
         // The backup predates the Well entirely, so it says nothing about it.
         val json = BackupCodec.export(FakeSharedPreferences(), gson, appVersionCode = 38, now = t0)
 
@@ -251,13 +236,9 @@ class BackupCodecTest {
         ManaWell.tryDraw(prefs, 30, t0, "20261109")
         BackupCodec.import(prefs, gson, json, t0)
 
-        // Still on, still drained; switching off waits out the usual day.
         assertEquals(wellOn, ManaWell.settings(prefs, t0))
         assertEquals(0, ManaWell.snapshot(prefs, t0, "20261109").availableMinutesAt(t0))
-        val pending = ManaWell.settingsState(prefs, t0).pending
-        assertFalse(pending!!.settings.enabled)
-        assertEquals(t0 + WellMath.REVISION_DELAY_MS, pending.appliesAtMillis)
-        assertFalse(ManaWell.isEnabled(prefs, t0 + WellMath.REVISION_DELAY_MS))
+        assertEquals(null, ManaWell.settingsState(prefs, t0).pending)
     }
 
     @Test
@@ -276,72 +257,74 @@ class BackupCodecTest {
         assertEquals(null, ManaWell.settingsState(prefs, t0).pending)
     }
 
+    // ── Well apps ──
+
+    private fun wellPackages(p: FakeSharedPreferences) = WellApps.packages(p, gson)
+
     @Test
-    fun `restore keeps enforced per-app pacts and queues the backup's terms`() {
-        // Backup made before the pact existed: no config for com.a at all.
+    fun `well apps travel in a backup`() {
+        WellApps.save(prefs, gson, listOf(WellApp("com.a", substitutePackage = "com.read"), WellApp("com.b")))
+        val fresh = FakeSharedPreferences()
+        BackupCodec.import(fresh, gson, BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0), now = t0)
+        assertEquals(WellApps.load(prefs, gson), WellApps.load(fresh, gson))
+    }
+
+    @Test
+    fun `restore keeps the device's well apps and queues the removal of ones the backup leaves out`() {
         prefs.putString(Constants.PrefsKeys.THEME_MODE, "DARK")
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0)
 
         val device = FakeSharedPreferences()
-        val pact = com.infinicada.focuspocus.model.AppTimeLimit(
-            packageName = "com.a", dailyLimitMinutes = 0, pactModeEnabled = true
-        )
-        AppTimeLimitManager.saveTimeLimitConfigs(device, gson, mapOf("com.a" to pact))
-
+        WellApps.save(device, gson, listOf(WellApp("com.a")))
         BackupCodec.import(device, gson, json, now = t0)
 
-        assertEquals(pact, AppTimeLimitManager.getTimeLimitConfigs(device, gson)["com.a"])
-        val revision = com.infinicada.focuspocus.limit.PactRevisionManager(device, gson)
-            .revisionForApp("com.a")
-        org.junit.Assert.assertNotNull(revision)
-        assertTrue(revision!!.isRemoval)
+        assertEquals(setOf("com.a"), wellPackages(device))
         assertEquals(
-            t0 + com.infinicada.focuspocus.limit.PactRevisionManager.REVISION_DELAY_MS,
-            revision.appliesAtMillis
+            mapOf("com.a" to t0 + WellApps.REMOVAL_DELAY_MS),
+            WellApps.pendingRemovals(device, gson)
         )
         // Everything else still restores normally.
         assertEquals("DARK", device.getString(Constants.PrefsKeys.THEME_MODE, null))
     }
 
     @Test
-    fun `restore keeps an enforced pact circle and its enchantment's apps`() {
-        prefs.putString(
-            Constants.PrefsKeys.BLOCKER_LISTS,
-            """[{"name":"Social","mode":"BLACKLIST","apps":[]}]"""
-        )
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+    fun `restore adds the backup's well apps at once and queues nothing for shared ones`() {
+        WellApps.save(prefs, gson, listOf(WellApp("com.a"), WellApp("com.b")))
+        val json = BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0)
 
         val device = FakeSharedPreferences()
-        device.putString(
-            Constants.PrefsKeys.BLOCKER_LISTS,
-            """[{"name":"Social","mode":"BLACKLIST","apps":["com.b"]}]"""
-        )
-        val circle = com.infinicada.focuspocus.model.PactGroup(blockerName = "Social")
-        com.infinicada.focuspocus.limit.PactManager(device, gson).saveGroup(circle)
-
+        WellApps.save(device, gson, listOf(WellApp("com.a")))
         BackupCodec.import(device, gson, json, now = t0)
 
-        assertEquals(listOf(circle), com.infinicada.focuspocus.limit.PactManager(device, gson).getGroups())
-        assertEquals(
-            setOf("com.b"),
-            BlockerRepository.getBlocker(device, "Social")?.effectiveApps
-        )
-        val revision = com.infinicada.focuspocus.limit.PactRevisionManager(device, gson)
-            .revisionForCircle("Social")
-        assertTrue(revision!!.isRemoval)
+        assertEquals(setOf("com.a", "com.b"), wellPackages(device))
+        assertTrue(WellApps.pendingRemovals(device, gson).isEmpty())
     }
 
     @Test
-    fun `restore with identical pact terms queues nothing`() {
-        val pact = com.infinicada.focuspocus.model.AppTimeLimit(
-            packageName = "com.a", dailyLimitMinutes = 0, pactModeEnabled = true
-        )
-        AppTimeLimitManager.saveTimeLimitConfigs(prefs, gson, mapOf("com.a" to pact))
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 40, now = t0)
+    fun `a version 1 backup's pacts and circles become well apps and its wards are dropped`() {
+        val configs = gson.toJson(gson.toJson(mapOf(
+            "com.pact" to mapOf("packageName" to "com.pact", "pactModeEnabled" to true,
+                "pactAlternativePackage" to "com.read"),
+            "com.ward" to mapOf("packageName" to "com.ward", "dailyLimitMinutes" to 30)
+        )))
+        val groups = gson.toJson(gson.toJson(listOf(mapOf("blockerName" to "Social"))))
+        val blockers = gson.toJson("""[{"name":"Social","mode":"BLACKLIST","apps":["com.circle"]}]""")
+        val json = """
+            {"format":"${BackupCodec.FORMAT}","formatVersion":1,"prefs":{
+                "appTimeLimitConfigs":{"type":"string","value":$configs},
+                "pactGroups":{"type":"string","value":$groups},
+                "${Constants.PrefsKeys.BLOCKER_LISTS}":{"type":"string","value":$blockers}
+            }}
+        """.trimIndent()
 
-        BackupCodec.import(prefs, gson, json, now = t0)
+        val device = FakeSharedPreferences()
+        val result = BackupCodec.import(device, gson, json, now = t0)
 
-        assertTrue(com.infinicada.focuspocus.limit.PactRevisionManager(prefs, gson).getRevisions().isEmpty())
-        assertEquals(pact, AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)["com.a"])
+        assertTrue(result is BackupCodec.ImportResult.Success)
+        assertEquals(setOf("com.pact", "com.circle"), wellPackages(device))
+        assertEquals("com.read", WellApps.find(device, gson, "com.pact")?.substitutePackage)
+        assertFalse(device.contains("appTimeLimitConfigs"))
+        assertFalse(device.contains("pactGroups"))
+        assertTrue(device.getBoolean(Constants.PrefsKeys.WELL_ENABLED, false))
     }
 }

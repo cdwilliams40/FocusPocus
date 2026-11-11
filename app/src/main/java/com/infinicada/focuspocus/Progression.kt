@@ -6,7 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
-import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.DayKey
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
@@ -58,7 +58,7 @@ object Progression {
                 amount = mana,
                 kind = LedgerKind.SESSION,
                 minutes = session.durationMinutes,
-                dateKey = SessionCooldownManager.todayString()
+                dateKey = DayKey.today()
             )
         )
 
@@ -77,7 +77,7 @@ object Progression {
      */
     @Synchronized
     fun rolloverIfNeeded(prefs: SharedPreferences, gson: Gson) {
-        val dailyKey = SessionCooldownManager.todayString()
+        val dailyKey = DayKey.today()
         val weekKey = TrialEngine.weekKeyForDay(dailyKey)
         val trials = loadTrials(prefs, gson)
         val (active, ended) = trials.partition { !TrialEngine.isEnded(it, dailyKey, weekKey) }
@@ -85,7 +85,9 @@ object Progression {
         if (ended.isNotEmpty()) {
             val blockEvents = loadBlockEvents(prefs, gson)
             val reflexDays = OpenReflexTracker(prefs, gson).getDailyStats()
-            val limitsConfigured = AppTimeLimitManager.getTimeLimits(prefs, gson).values.any { it > 0 }
+            // Daily limits were removed in 2.0, so a stay-under-limits trial
+            // left over from before can't be judged a success.
+            val limitsConfigured = false
             val enabled = isEnabled(prefs)
             for (endedTrial in ended) {
                 val judged = TrialEngine.judgeEndedTrial(endedTrial, blockEvents, reflexDays, limitsConfigured)
@@ -123,7 +125,7 @@ object Progression {
                 amount = trial.rewardMana,
                 kind = LedgerKind.TRIAL,
                 refId = trial.id,
-                dateKey = SessionCooldownManager.todayString()
+                dateKey = DayKey.today()
             )
         )
         return trial.rewardMana
@@ -175,7 +177,7 @@ object Progression {
     fun wellChannelCost(
         prefs: SharedPreferences,
         gson: Gson,
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): Long {
         val channelsToday = loadLedger(prefs, gson).count {
             it.kind == LedgerKind.PERK && it.refId == Perk.WELL_CHANNEL.name && it.dateKey == todayKey
@@ -211,12 +213,12 @@ object Progression {
             prefs, gson, Constants.PrefsKeys.SCHEDULES,
             object : TypeToken<List<Schedule>>() {}.type
         ) ?: emptyList()
-        val limitsConfigured = AppTimeLimitManager.getTimeLimits(prefs, gson).values.any { it > 0 }
         val usagePermission = prefs.getBoolean(Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT, false)
         val reflexHistory = OpenReflexTracker(prefs, gson).getDailyStats().isNotEmpty()
         return TrialEngine.Eligibility(
             hasSchedules = schedules.isNotEmpty(),
-            canJudgeLimits = limitsConfigured && usagePermission,
+            // No daily limits exist any more (2.0), so this template is never drawn.
+            canJudgeLimits = false,
             hasReflexHistory = reflexHistory
         )
     }
@@ -259,7 +261,7 @@ object Progression {
         amount = -cost,
         kind = LedgerKind.PERK,
         refId = perk.name,
-        dateKey = SessionCooldownManager.todayString()
+        dateKey = DayKey.today()
     )
 
     internal fun loadTrials(prefs: SharedPreferences, gson: Gson): List<Trial> =

@@ -48,7 +48,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.UsageStatsHelper
-import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.AppInfo
@@ -84,7 +83,9 @@ fun ConditionalUnlocksScreen(
     // whole day's event stream, which is far too slow to run per-row in composition.
     val usedMinutesByPkg by produceState(initialValue = emptyMap<String, Int>(), hasUsagePermission) {
         if (hasUsagePermission) {
-            value = withContext(Dispatchers.IO) { AppTimeLimitManager.getAllUsedMinutesToday(context) }
+            value = withContext(Dispatchers.IO) {
+                UsageStatsHelper.getTodayForegroundUsage(context).mapValues { (_, ms) -> (ms / 60_000).toInt() }
+            }
         }
     }
 

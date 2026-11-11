@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.TrialEngine
 import com.infinicada.focuspocus.data.ProgressionRepository
-import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.DayKey
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Trial
@@ -61,7 +61,7 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun computeWeekEarned(): Long {
-        val weekKey = TrialEngine.weekKeyForDay(SessionCooldownManager.todayString())
+        val weekKey = TrialEngine.weekKeyForDay(DayKey.today())
         return repo.getLedger()
             .filter { it.amount > 0 && it.dateKey.isNotEmpty() && TrialEngine.weekKeyForDay(it.dateKey) == weekKey }
             .sumOf { it.amount }

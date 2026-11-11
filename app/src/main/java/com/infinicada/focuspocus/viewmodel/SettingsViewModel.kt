@@ -57,9 +57,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _nfcLockMode = MutableStateFlow(repo.getNfcLockMode())
     val nfcLockMode: StateFlow<Boolean> = _nfcLockMode.asStateFlow()
 
-    private val _sealLiftedAlertsEnabled = MutableStateFlow(repo.getSealLiftedAlertsEnabled())
-    val sealLiftedAlertsEnabled: StateFlow<Boolean> = _sealLiftedAlertsEnabled.asStateFlow()
-
     private val _isDeviceOwner = MutableStateFlow(DeviceOwnerManager.isDeviceOwner(application))
     val isDeviceOwner: StateFlow<Boolean> = _isDeviceOwner.asStateFlow()
 
@@ -91,15 +88,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _trialAlertsEnabled = MutableStateFlow(repo.getTrialAlertsEnabled())
     val trialAlertsEnabled: StateFlow<Boolean> = _trialAlertsEnabled.asStateFlow()
-
-    private val _groupSealEnabled = MutableStateFlow(repo.getGroupSealEnabled())
-    val groupSealEnabled: StateFlow<Boolean> = _groupSealEnabled.asStateFlow()
-
-    private val _groupSealOpenWindowMinutes = MutableStateFlow(repo.getGroupSealOpenWindowMinutes())
-    val groupSealOpenWindowMinutes: StateFlow<Int> = _groupSealOpenWindowMinutes.asStateFlow()
-
-    private val _groupSealDurationMinutes = MutableStateFlow(repo.getGroupSealDurationMinutes())
-    val groupSealDurationMinutes: StateFlow<Int> = _groupSealDurationMinutes.asStateFlow()
 
     // The Mana Well's enforced terms plus any loosening still cooling off.
     private val _wellSettingsState = MutableStateFlow(ManaWell.settingsState(appPrefs))
@@ -164,11 +152,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setNfcLockMode(enabled: Boolean) {
         _nfcLockMode.value = enabled
         repo.setNfcLockMode(enabled)
-    }
-
-    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
-        _sealLiftedAlertsEnabled.value = enabled
-        repo.setSealLiftedAlertsEnabled(enabled)
     }
 
     fun refreshDeviceOwnerState() {
@@ -264,21 +247,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setTrialAlertsEnabled(enabled: Boolean) {
         _trialAlertsEnabled.value = enabled
         repo.setTrialAlertsEnabled(enabled)
-    }
-
-    fun setGroupSealEnabled(enabled: Boolean) {
-        _groupSealEnabled.value = enabled
-        repo.setGroupSealEnabled(enabled)
-    }
-
-    fun setGroupSealOpenWindowMinutes(minutes: Int) {
-        _groupSealOpenWindowMinutes.value = minutes
-        repo.setGroupSealOpenWindowMinutes(minutes)
-    }
-
-    fun setGroupSealDurationMinutes(minutes: Int) {
-        _groupSealDurationMinutes.value = minutes
-        repo.setGroupSealDurationMinutes(minutes)
     }
 
     // ── Mana Well ──
