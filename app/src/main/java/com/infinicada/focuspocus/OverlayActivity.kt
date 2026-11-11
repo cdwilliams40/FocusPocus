@@ -71,6 +71,25 @@ import kotlinx.coroutines.withContext
 
 class OverlayActivity : ComponentActivity() {
 
+    companion object {
+        /**
+         * True while this block screen is the activity in front. The accessibility
+         * service reads it to tell a real return to a just-blocked app from the
+         * window event that app can still send while it is being closed: with
+         * this screen on top, the app cannot be the one in the foreground.
+         */
+        @Volatile
+        var isOnTop: Boolean = false
+            private set
+    }
+
+    // The system reports the loss before onPause, so this cannot stay set once
+    // another activity has come in front.
+    override fun onTopResumedActivityChanged(isTopResumedActivity: Boolean) {
+        super.onTopResumedActivityChanged(isTopResumedActivity)
+        isOnTop = isTopResumedActivity
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

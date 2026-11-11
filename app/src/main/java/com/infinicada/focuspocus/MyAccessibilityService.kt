@@ -20,6 +20,7 @@ import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.data.SettingsRepository
+import com.infinicada.focuspocus.limit.BlockDebounce
 import com.infinicada.focuspocus.limit.FrictionLevel
 import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.GuardWindow
@@ -37,7 +38,6 @@ import java.util.Calendar
 class MyAccessibilityService : AccessibilityService() {
 
     companion object {
-        private const val APP_BLOCK_DEBOUNCE_MS = 2000L
         private const val TRANSITION_SLACK_MS = 250L
         private val TRANSITION_KEYS = SessionTransitions.WATCHED_KEYS + setOf(
             Constants.PrefsKeys.PACT_ALLOWANCES,
@@ -214,7 +214,8 @@ class MyAccessibilityService : AccessibilityService() {
     // a timed session ending, an auto-break starting, a pact window closing,
     // a seal lifting — so each lands on time instead of on the following
     // minute tick. The notification, the dashboard and Warden greying all
-    // follow the state written here. The minute tick remains the backstop.
+    // follow the state written here, and the app in front is closed here if
+    // the change took its access away. The minute tick remains the backstop.
     private val transitionHandler = Handler(Looper.getMainLooper())
     private val transitionRunnable = Runnable {
         try {
@@ -224,6 +225,11 @@ class MyAccessibilityService : AccessibilityService() {
             // before seal-lifted detection and the suspension sync read the stores.
             sealLapsedPacts()
             maybeNotifySealsLifted()
+            // A pact that has just run out must also close the app the user is
+            // still inside: no window event fires while they stay in it, and
+            // leaving this to the minute tick let every pact run up to a minute
+            // over.
+            currentForegroundPackage?.let { checkTimeLimitAndBlock(it) }
             DeviceOwnerManager.syncSuspensions(this)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error in transition check", e)
@@ -797,6 +803,17 @@ class MyAccessibilityService : AccessibilityService() {
     private fun handleWindowStateChanged(event: AccessibilityEvent) {
         val packageName = event.packageName?.toString() ?: return
 
+        // An app the service has just closed can still send a window event a
+        // moment later, after FocusPocus's block screen is already in front.
+        // That is not the app coming back. Taking it for one counted an open
+        // that never happened, restarted the app's continuous-use session, and
+        // left the next timed check blocking it a second time while the user
+        // was still reading the first block.
+        if (BlockDebounce.isEcho(
+                lastAppBlockTimes[packageName], System.currentTimeMillis(), OverlayActivity.isOnTop
+            )
+        ) return
+
         trackOpenTransition(packageName)
 
         if (packageName == this.packageName || isLauncher(packageName) || isInputMethod(packageName) || isSystemUI(packageName)) {
@@ -838,7 +855,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Debounce — prevent rapid re-triggering when Android fires multiple events
         val now = System.currentTimeMillis()
-        if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
+        if (BlockDebounce.isRecent(lastAppBlockTimes[packageName], now)) return
 
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
         val focusActive = SessionManager.isFocusActive(sharedPreferences)
@@ -896,9 +913,9 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun checkTimeLimitAndBlock(packageName: String) {
-        // Debounce — prevent rapid re-triggering from both window-state and minute-tick paths
+        // Debounce — prevent rapid re-triggering from the window-state and timed paths
         val now = System.currentTimeMillis()
-        if (now - (lastAppBlockTimes[packageName] ?: 0L) < APP_BLOCK_DEBOUNCE_MS) return
+        if (BlockDebounce.isRecent(lastAppBlockTimes[packageName], now)) return
 
         // Per-app entries live in the flat map; apps covered only by a pact group
         // have no entry there, so their pact config supplies the daily cap.
