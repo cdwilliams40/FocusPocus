@@ -238,8 +238,19 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     fun requestPactTime(packageName: String, minutes: Int): Boolean {
         val now = System.currentTimeMillis()
         pactManager.takeLapsedAllowance(packageName, now)?.let { lapsedExpiry ->
-            effectivePactConfig(packageName)?.let {
-                sessionCooldownManager.startCooldown(packageName, it, lapsedExpiry)
+            effectivePactConfig(packageName)?.let { config ->
+                sessionCooldownManager.startSeals(
+                    listOfNotNull(
+                        GuardStatus.lapseSealRequest(
+                            packageName = packageName,
+                            config = config,
+                            lapsedExpiry = lapsedExpiry,
+                            wellEnabled = ManaWell.isEnabled(appPrefs, now),
+                            groupSealEnabled = settingsRepo.getGroupSealEnabled(),
+                            groupSealMinutes = settingsRepo.getGroupSealDurationMinutes()
+                        )
+                    )
+                )
             }
         }
         val seal = sessionCooldownManager.getCooldownState(packageName, now)
@@ -277,56 +288,76 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         return true
     }
 
-    /** What a chosen seal did: apps newly sealed, and whole minutes returned to the Mana Well. */
-    data class SealResult(val sealedCount: Int, val refundedMinutes: Int)
+    /**
+     * What ending pacts early did: apps newly sealed, running pacts ended
+     * without a seal, and whole minutes returned to the Mana Well.
+     */
+    data class SealResult(
+        val sealedCount: Int,
+        val refundedMinutes: Int,
+        val endedUnsealedCount: Int = 0
+    )
 
     /**
      * Panic action: seals every pact-gated app (explicit pacts and live circle
      * members) right now, revoking any running allowances. Apps already sealed
      * keep their current seal. Uses the non-escalating panic seal — choosing
-     * protection is not an offence.
+     * protection is not an offence. Seals pacts paid from the Mana Well too:
+     * this is the one place the user asks for the lock itself.
      */
-    fun sealAllPacts(): SealResult = sealNow(
+    fun sealAllPacts(): SealResult = endPacts(
         GuardStatus.pactGatedConfigs(
             _appTimeLimitConfigs.value, _pactGroups.value, _blockerLists.value
-        )
+        ),
+        alwaysSeal = true
     )
 
     /**
-     * "I'm done": ends [packageName]'s running pact and seals it now, on the
-     * same terms as the panic seal. Without this a pact could only run out
-     * its clock — and a pact paid from the Mana Well would be worth using to
-     * the last minute. Ending early gives the unused time back instead.
+     * "I'm done": ends [packageName]'s running pact now. Without this a pact
+     * could only run out its clock — and a pact paid from the Mana Well would
+     * be worth using to the last minute. Ending early gives the unused time
+     * back instead.
+     *
+     * What follows is what running out would have brought
+     * ([GuardStatus.sealsWhenPactEnds]): a pact that seals is sealed, on the
+     * panic seal's terms; a pact paid from the Well just closes — otherwise
+     * handing minutes back would lock the app while spending them all would
+     * not.
      */
-    fun sealPactNow(packageName: String): SealResult =
-        sealNow(listOfNotNull(effectivePactConfig(packageName)?.let { packageName to it }).toMap())
+    fun endPactNow(packageName: String): SealResult = endPacts(
+        listOfNotNull(effectivePactConfig(packageName)?.let { packageName to it }).toMap(),
+        alwaysSeal = false
+    )
 
-    /** [sealPactNow] for a circle: ends and seals every member with a running pact. */
-    fun sealCircleNow(blockerName: String): SealResult {
+    /** [endPactNow] for a circle: ends every member's running pact. */
+    fun endCirclePactsNow(blockerName: String): SealResult {
         val group = _pactGroups.value.find { it.blockerName == blockerName }
             ?: return SealResult(0, 0)
         val running = pactManager.getActiveAllowances().keys
-        return sealNow(
+        return endPacts(
             GuardStatus.circleMemberPackages(group, _blockerLists.value, _appTimeLimitConfigs.value)
                 .filter { it in running }
-                .associateWith { group.toAppTimeLimit(it) }
+                .associateWith { group.toAppTimeLimit(it) },
+            alwaysSeal = false
         )
     }
 
     /**
      * Revokes the running allowances of [targets] (package → governing pact
-     * config) and seals them, in one write per store. Time left on allowances
-     * that were paid from the Mana Well goes back into it
+     * config) and seals them — all of them when [alwaysSeal], otherwise only
+     * those whose pact ends in a seal anyway — in one write per store. Time
+     * left on allowances that were paid from the Mana Well goes back into it
      * ([WellMath.refundableMillis]): which allowances those are is read off
      * the governing config, so the rare allowance that predates the Well
      * being switched on is refunded too — bounded by the capacity, like
      * every refund.
      */
-    private fun sealNow(targets: Map<String, AppTimeLimit>): SealResult {
+    private fun endPacts(targets: Map<String, AppTimeLimit>, alwaysSeal: Boolean): SealResult {
         if (targets.isEmpty()) return SealResult(0, 0)
         val now = System.currentTimeMillis()
         val active = pactManager.getActiveAllowances(now)
-        val refundMillis = if (ManaWell.isEnabled(appPrefs, now)) {
+        val wellEnabled = ManaWell.isEnabled(appPrefs, now)
+        val refundMillis = if (wellEnabled) {
             WellMath.refundableMillis(
                 revoked = targets.filterValues { !it.wellExempt }.keys.mapNotNull { active[it] },
                 stillRunning = (active - targets.keys).values,
@@ -337,8 +368,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         }
         pactManager.revokeAllowances(targets.keys)
         val alreadySealed = sessionCooldownManager.peekActiveCooldowns(now).keys
+        val groupSealEnabled = settingsRepo.getGroupSealEnabled()
         val requests = targets
-            .filterKeys { it !in alreadySealed }
+            .filter { (pkg, config) ->
+                pkg !in alreadySealed &&
+                    (alwaysSeal || GuardStatus.sealsWhenPactEnds(config, wellEnabled, groupSealEnabled))
+            }
             .map { (pkg, config) ->
                 SessionCooldownManager.SealRequest(pkg, config, now, countsAsOffence = false)
             }
@@ -346,7 +381,12 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         ManaWell.refund(appPrefs, refundMillis, now)
         syncWardenGreying()
         _dataVersion.value++
-        return SealResult(requests.size, (refundMillis / WellMath.MINUTE_MS).toInt())
+        val sealed = requests.mapTo(mutableSetOf()) { it.packageName }
+        return SealResult(
+            sealedCount = requests.size,
+            refundedMinutes = (refundMillis / WellMath.MINUTE_MS).toInt(),
+            endedUnsealedCount = targets.keys.count { it in active && it !in sealed && it !in alreadySealed }
+        )
     }
 
     /**

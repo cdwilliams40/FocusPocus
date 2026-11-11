@@ -20,7 +20,8 @@ import com.infinicada.focuspocus.model.PactGroup
  * allowance lapses, the caller seals the app by starting a cooldown *anchored at
  * the allowance's expiry time* (not at discovery time), so a user who walks away
  * mid-pact isn't punished with a fresh full-length seal when they come back hours
- * later.
+ * later. Whether a lapse seals at all is GuardStatus.lapseSeal's call: a pact
+ * paid from the Mana Well does not.
  *
  * Allowances are persisted in SharedPreferences so they survive service restarts.
  */

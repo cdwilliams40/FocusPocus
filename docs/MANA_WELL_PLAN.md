@@ -30,6 +30,7 @@ Rows marked ✔ were decided with the project owner.
 | ✔ Refill | **Two sources.** A slow passive refill on the clock, plus mana top-ups ("channeling") earned through focus sessions. |
 | ✔ Capacity | **30 minutes** by default (adjustable 10–60). |
 | ✔ Scope | **Every pact app draws from the Well**, with a per-pact (and per-circle) exemption. |
+| ✔ Seal after a pact | **None for a pact paid from the Well** (§3.3). The Well is the limit; exempt pacts, Group Seal and "Seal everything now" still seal. Not a setting. |
 | Passive rate | Default **1 minute per 20 minutes** of real time (3 per hour). Adjustable 10–60 minutes per Well minute, or off entirely ("earned only"). |
 | Separate meter | The Well is **not** the mana balance. Mana is uncapped and earned in bulk, so a banked balance could fund a binge, and a passive trickle would cheapen boons. Mana feeds the Well; it does not replace it. |
 | Draw timing | **Up front**, when the pact is chosen — the same moment as today's conscious minute choice. Pact allowances already run on the wall clock, so this matches. |
@@ -71,25 +72,58 @@ level(now) = min(capacity, storedLevel + (now − storedAt) / refillInterval)
   was drained in the meantime (two overlays, a race), the grant is refused.
 - A dry Well shows when the next choice becomes affordable, plus the pact's healthier
   substitute if one is set. There is nothing to tap through.
-- Per-app seals, escalation, daily backstops and guard hours all keep working as they
-  do today. Outside guard hours a pact stands down and draws nothing.
+- Daily backstops and guard hours keep working as they do today. Outside guard
+  hours a pact stands down and draws nothing.
 
-### 3.3 Exemptions
+### 3.3 No seal after a Well-paid pact
 
-`wellExempt` on a pact or circle means "this pact keeps its own allowance, outside the
-shared pool". The field is named so that `false` — what Gson fills in for configs
+When a pact paid from the Well runs out, the app goes back behind its pact gate and
+nothing else happens: no seal, no offence, no escalation step. The next pact is one
+more draw from the same pool. The first version kept the per-app seal on top of the
+Well, and it worked against the Well in three ways:
+
+- **It pushed towards hopping.** The seal locked only the app just used; with minutes
+  left in the Well every other pact app was still open.
+- **It punished short visits.** A 2-minute check cost the same 30-minute seal as a
+  15-minute pact, so the sensible move was always to take the maximum.
+- **It added nothing once the Well was dry.** At the default refill a dry Well needs
+  40 minutes to pay for even a 2-minute pact — longer than the default seal.
+
+What is given up is the forced pause between pacts: the whole Well can go in one
+sitting, in one app. That was already possible by switching apps.
+
+Sealing stays in three places:
+
+- **Exempt pacts** (and every pact while the Well is off): the seal is their only limit.
+- **Group Seal**: the shared seal still closes every app in the group together.
+- **"Seal everything now"**: the user asked for the lock, so Well-paid pacts are
+  sealed too, for their configured length.
+
+The rule is one function, `GuardStatus.lapseSeal` (`NONE` / `OWN` / `GROUP`), and
+every place that turns a finished pact into a seal goes through it: the service's two
+lapse paths, the dashboard's request path, and ending a pact early.
+
+A Well-bound pact's seal length and escalation settings are kept, not hidden: the
+seal length is still what "Seal everything now" uses, and both apply again if the
+pact is exempted or the Well is turned off.
+
+### 3.4 Exemptions
+
+`wellExempt` on a pact or circle means "this pact keeps its own allowance and its own
+seal, outside the shared pool". The field is named so that `false` — what Gson fills in for configs
 stored before the field existed — is the bound state. Changing it is a pact edit, so
 the existing 24-hour revision queue already covers it.
 
-### 3.4 Group Seal with the Well
+### 3.5 Group Seal with the Well
 
 - The group is every Well-bound pact app. Opening one draws
-  `min(shared window, Well level)` once and opens all of them for that long.
+  `min(shared window, Well level)` once and opens all of them for that long. When the
+  window ends they seal together for the shared length, as without the Well.
 - Exempt pacts are not part of the group: they use plain per-app pacts, and they stay
   requestable from the dashboard next to the group panel.
 - With the Well off, Group Seal behaves exactly as before.
 
-### 3.5 Channeling mana
+### 3.6 Channeling mana
 
 - `Perk.WELL_CHANNEL`: 75 mana for 5 minutes, doubling per channel per day, counted
   from the structured ledger like the existing once-per-day perk check.
@@ -97,7 +131,7 @@ the existing 24-hour revision queue already covers it.
 - While the Well is on, the sealed-minutes perk is hidden and refused: it is a
   per-app bypass of the pool, and it also lifts a seal, which channeling never does.
 
-### 3.6 Changing the Well's terms
+### 3.7 Changing the Well's terms
 
 A requested change is split per field. Anything that tightens applies at once;
 anything that loosens is queued for 24 hours and can be cancelled ("keep current
@@ -116,7 +150,7 @@ New prefs keys (primitives only — no new Gson classes, so no R8 keep rules):
 | `wellRefillIntervalMinutes` | Int | Real minutes per Well minute; 10–60, default 20; 0 = no passive refill |
 | `wellLevelMillis`, `wellUpdatedAtMillis` | Long | The pool (§3.1) |
 | `wellDrawnDate`, `wellDrawnMillis` | String, Long | Net minutes drawn today, for the dashboard |
-| `wellPendingAppliesAtMillis` + three pending values | Long, … | The queued loosening (§3.6); 0 = none |
+| `wellPendingAppliesAtMillis` + three pending values | Long, … | The queued loosening (§3.7); 0 = none |
 | `wellUnlockCreditDate`, `wellUnlockCreditedRules` | String, String | Conditional-unlock rules that already paid today (comma-joined ids) |
 
 Model fields: `AppTimeLimit.wellExempt`, `PactGroup.wellExempt` (both default false).
@@ -132,13 +166,14 @@ change stay on the device, like seals and allowances do.
 | `MyAccessibilityService.checkTimeLimitAndBlock` step 4 | Flags the pact overlay as Well-bound; Group Seal only governs Well-bound configs while the Well is on. `sealRequestFor` follows the same rule. |
 | `OverlayActivity` | Limits choices to the Well level, shows the level, draws before granting, and renders the dry state. |
 | `SpellbookViewModel.requestPactTime` / `groupOpenPacts` | Draw before granting; refuse with a toast when dry. |
-| `GuardStatus` | `groupOpenEligiblePackages` / `groupSealSummary` take the Well state and skip exempt configs. |
-| `PactsHomeScreen` | Well card (level, refill rate, drawn today, channel button); Well-aware request dialog. |
-| `GuardEditorScreen` | "Draws from the Mana Well" switch on pacts and circles, shown while the Well is on. |
+| `GuardStatus` | `groupOpenEligiblePackages` / `groupSealSummary` take the Well state and skip exempt configs. `lapseSeal` / `lapseSealRequest` decide what a finished pact turns into (§3.3). |
+| `PactsHomeScreen` | Well card (level, refill rate, drawn today, channel button); Well-aware request dialog; "End pact" and a seal-free summary on Well-paid pact cards. |
+| `GuardEditorScreen` | "Draws from the Mana Well" switch on pacts and circles, shown while the Well is on; its description says the pact starts no seal of its own. |
 | `SettingsScreen` / `SettingsViewModel` | Mana Well card: switch, capacity, refill, pending-change line with cancel. |
 | `Progression.redeemPerk`, `BoonsScreen` | `WELL_CHANNEL` perk; sealed minutes hidden and refused while the Well is on. |
 | `BackupCodec` | Export the settings; hold enforced terms on restore. |
-| `SpellbookViewModel.sealNow` | One path for the panic seal and per-pact "Seal now"; refunds unused Well time. |
+| `SpellbookViewModel.endPacts` | One path for the panic seal and for ending one pact early ("Seal now" / "End pact"); refunds unused Well time, and seals unless the pact was paid from the Well. |
+| `MyAccessibilityService.sealRequestFor` / `maybeWarnPactEnding` | Lapsed Well-paid allowances are dropped without a seal; the ending toast only mentions a seal when one is coming. |
 | `limit/WellUnlocks.kt` (new), `DeviceOwnerManager` | Rules pay into the Well instead of freeing Well-bound pacts; Warden greying mirrors it. |
 
 ## 6. Phases
@@ -149,16 +184,20 @@ change stay on the device, like seals and allowances do.
 | 2 | Channeling mana into the Well; sealed-minutes perk retired while the Well is on | Implemented |
 | 3 | Seal early and get unused minutes back (per-pact "seal now", and the panic button) | Implemented |
 | 4 | Conditional unlocks add minutes to the Well instead of bypassing the pact gate for the rest of the day | Implemented |
-| 5 | Later ideas: overflow from a full Well trickles into mana; drawn-per-day history on Insights; Well trials ("keep the Well above half all day"); home-screen widget | Ideas |
+| 5 | No seal after a pact paid from the Well; "Seal now" becomes "End pact" on those pacts (§3.3) | Implemented (1.10.1) |
+| 6 | Later ideas: overflow from a full Well trickles into mana; drawn-per-day history on Insights; Well trials ("keep the Well above half all day"); home-screen widget | Ideas |
 
 ### Phase 3: sealing early
 
 A pact runs on the wall clock and there was no per-app way to end one, so paying up
 front pushed towards using every minute.
 
-- A card with a running pact carries **Seal now** (apps and circles). It ends the
-  pact and seals on the panic seal's terms: base length, not an offence.
-- **Seal everything now** does the same for every pact app.
+- A card with a running pact carries a way to end it (apps and circles). For a pact
+  that seals — exempt, or any pact while the Well is off — it is **Seal now**: after a
+  confirmation it ends the pact and seals on the panic seal's terms (base length, not
+  an offence). For a pact paid from the Well it is **End pact** (phase 5): the pact
+  closes with no seal and no confirmation, since a slip costs only asking again.
+- **Seal everything now** ends and seals every pact app, Well-paid ones included.
 - Either way, time left on allowances paid from the Well goes back into it, and comes
   off the day's drawn total.
 - No record of "paid" allowances is kept. Each distinct expiry among the revoked
@@ -166,7 +205,7 @@ front pushed towards using every minute.
   nothing sharing its expiry stays open (`WellMath.refundableMillis`). That is what
   makes a Group Seal window — one draw, many apps — refund once, and only when the
   whole window is closed. For that reason a pact inside a Group Seal window has no
-  Seal-now button of its own; the panic button closes the window.
+  button of its own to end it; the panic button closes the window.
 - Known looseness: an allowance granted just before the Well was switched on is
   refunded although it was never drawn. It is bounded by the capacity and can only
   happen in the minutes after switching on.
@@ -194,7 +233,9 @@ Unit tests, in the existing pure-function style:
 - `ManaWellTest`: refill math, capacity clamp, backwards clock, draw/refuse, channel
   room check, daily counter rollover, settings split (tighten now, loosen later),
   due-revision settlement, cancel.
-- `GuardStatusTest`: exempt configs excluded from the group while the Well is on.
+- `GuardStatusTest`: exempt configs excluded from the group while the Well is on;
+  `lapseSeal` for every combination of Well, exemption and Group Seal, and the seal
+  request each one produces (none, own terms as an offence, shared length as no offence).
 - `ProgressionTest` / `ProgressionMathTest`: channel pricing, doubling, room and
   balance refusals, sealed minutes refused while the Well is on.
 - `BackupCodecTest`: settings round-trip; a looser backup is queued, not applied.
@@ -213,9 +254,12 @@ Manual checklist (no Compose UI tests exist):
 6. Raise the capacity; it is queued, shown, and cancellable. Lower it; it is instant.
 7. Channel mana twice in a day; the second costs double.
 8. Warden greying: requesting time from the dashboard still un-greys the app.
-9. Seal a running pact early; the unused minutes return and the day's total drops.
+9. End a running Well-paid pact early ("End pact"): no dialog, no seal, the unused
+   minutes return and the day's total drops. An exempt pact still offers "Seal now".
 10. Meet a conditional unlock that names a Well-bound pact: the app stays sealed and
     the Well gains 10 minutes, once.
+11. Let a Well-paid pact run out: the app closes, no seal starts, and the pact screen
+    offers what the Well has left. The same with Group Seal on still seals the group.
 
 ## 8. Risks
 
@@ -224,7 +268,8 @@ Manual checklist (no Compose UI tests exist):
 | Too strict, so it gets switched off | Off takes 24 hours; capacity and rate are adjustable; exemptions cover apps that are only mildly distracting. |
 | Clock tampering refills the Well | Same exposure pact allowances and seals already have; out of scope here. |
 | Conditional unlocks bypass the pool | Closed in phase 4 for Well-bound pacts; exempt pacts and wards keep the bypass by design. |
-| Minutes wasted by leaving early | Phase 3: "Seal now" refunds the unused time. Walking away without sealing still spends the whole pact. |
+| Minutes wasted by leaving early | Phases 3 and 5: "End pact" refunds the unused time and costs nothing. Walking away without ending the pact still spends all of it. |
+| No pause between pacts: the whole Well can go in one sitting | By design (§3.3) — the capacity bounds it, and the refill makes it expensive. Group Seal and "Seal everything now" give a real lock when one is wanted. |
 | Mana farming (an overnight Sleep Mode session mints up to 240) | Channel price doubles per day and never exceeds the capacity, so farmed mana buys at most a full Well. |
 
 ## 9. Open tunables

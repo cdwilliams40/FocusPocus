@@ -5,10 +5,12 @@ import com.infinicada.focuspocus.limit.GuardLiveState
 import com.infinicada.focuspocus.limit.GuardRow
 import com.infinicada.focuspocus.limit.GuardState
 import com.infinicada.focuspocus.limit.GuardStatus
+import com.infinicada.focuspocus.limit.SessionCooldownManager
 import com.infinicada.focuspocus.model.AppTimeLimit
 import com.infinicada.focuspocus.model.PactGroup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -599,6 +601,133 @@ class GuardStatusTest {
         val group = PactGroup(blockerName = "Mild", wellExempt = true)
         assertTrue(group.toAppTimeLimit("com.c1").wellExempt)
         assertFalse(PactGroup(blockerName = "Doom").toAppTimeLimit("com.d1").wellExempt)
+    }
+
+    // ── lapseSeal: what a finished pact turns into ──
+
+    @Test
+    fun `a pact seals on its own terms while the Well is off`() {
+        val bound = pact("com.a")
+        val exempt = pact("com.b").copy(wellExempt = true)
+        assertEquals(
+            GuardStatus.LapseSeal.OWN,
+            GuardStatus.lapseSeal(bound, wellEnabled = false, groupSealEnabled = false)
+        )
+        // The exemption means nothing without a Well to be exempt from.
+        assertEquals(
+            GuardStatus.LapseSeal.OWN,
+            GuardStatus.lapseSeal(exempt, wellEnabled = false, groupSealEnabled = false)
+        )
+    }
+
+    @Test
+    fun `a pact paid from the Well starts no seal`() {
+        assertEquals(
+            GuardStatus.LapseSeal.NONE,
+            GuardStatus.lapseSeal(pact("com.a"), wellEnabled = true, groupSealEnabled = false)
+        )
+    }
+
+    @Test
+    fun `an exempt pact keeps its own seal while the Well is on`() {
+        val exempt = pact("com.a").copy(wellExempt = true)
+        assertEquals(
+            GuardStatus.LapseSeal.OWN,
+            GuardStatus.lapseSeal(exempt, wellEnabled = true, groupSealEnabled = false)
+        )
+        // Group Seal doesn't claim it either: it stands outside the group.
+        assertEquals(
+            GuardStatus.LapseSeal.OWN,
+            GuardStatus.lapseSeal(exempt, wellEnabled = true, groupSealEnabled = true)
+        )
+    }
+
+    @Test
+    fun `Group Seal's shared seal holds with or without the Well`() {
+        assertEquals(
+            GuardStatus.LapseSeal.GROUP,
+            GuardStatus.lapseSeal(pact("com.a"), wellEnabled = false, groupSealEnabled = true)
+        )
+        // Paid from the Well, but the window still closes for everyone at once.
+        assertEquals(
+            GuardStatus.LapseSeal.GROUP,
+            GuardStatus.lapseSeal(pact("com.a"), wellEnabled = true, groupSealEnabled = true)
+        )
+        // With the Well off an "exempt" pact is in the group like any other.
+        assertEquals(
+            GuardStatus.LapseSeal.GROUP,
+            GuardStatus.lapseSeal(
+                pact("com.a").copy(wellExempt = true), wellEnabled = false, groupSealEnabled = true
+            )
+        )
+    }
+
+    @Test
+    fun `only a pact paid from the Well ends without a seal`() {
+        val bound = pact("com.a")
+        val exempt = pact("com.b").copy(wellExempt = true)
+        assertFalse(GuardStatus.sealsWhenPactEnds(bound, wellEnabled = true, groupSealEnabled = false))
+        assertTrue(GuardStatus.sealsWhenPactEnds(bound, wellEnabled = false, groupSealEnabled = false))
+        assertTrue(GuardStatus.sealsWhenPactEnds(bound, wellEnabled = true, groupSealEnabled = true))
+        assertTrue(GuardStatus.sealsWhenPactEnds(exempt, wellEnabled = true, groupSealEnabled = false))
+    }
+
+    @Test
+    fun `a lapse paid from the Well asks for no seal`() {
+        assertNull(
+            GuardStatus.lapseSealRequest(
+                packageName = "com.a",
+                config = pact("com.a"),
+                lapsedExpiry = t0,
+                wellEnabled = true,
+                groupSealEnabled = false,
+                groupSealMinutes = 45
+            )
+        )
+    }
+
+    @Test
+    fun `an own-terms lapse seal is an offence anchored at the lapse`() {
+        val config = pact("com.a")
+        val request = GuardStatus.lapseSealRequest(
+            packageName = "com.a",
+            config = config,
+            lapsedExpiry = t0 - 5 * 60_000,
+            wellEnabled = false,
+            groupSealEnabled = false,
+            groupSealMinutes = 45
+        )
+        assertEquals(
+            SessionCooldownManager.SealRequest(
+                packageName = "com.a",
+                config = config,
+                anchorMillis = t0 - 5 * 60_000,
+                countsAsOffence = true
+            ),
+            request
+        )
+    }
+
+    @Test
+    fun `a Group Seal lapse uses the shared length and is no offence`() {
+        val config = pact("com.a").copy(cooldownEscalationEnabled = true)
+        val request = GuardStatus.lapseSealRequest(
+            packageName = "com.a",
+            config = config,
+            lapsedExpiry = t0,
+            wellEnabled = true,
+            groupSealEnabled = true,
+            groupSealMinutes = 45
+        )
+        assertEquals(
+            SessionCooldownManager.SealRequest(
+                packageName = "com.a",
+                config = config.copy(cooldownMinutes = 45),
+                anchorMillis = t0,
+                countsAsOffence = false
+            ),
+            request
+        )
     }
 
     // ── groupSealSummary ──

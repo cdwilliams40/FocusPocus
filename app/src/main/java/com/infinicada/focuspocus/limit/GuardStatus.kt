@@ -180,6 +180,76 @@ object GuardStatus {
     fun inGroupSeal(config: AppTimeLimit, wellEnabled: Boolean): Boolean =
         !wellEnabled || !config.wellExempt
 
+    /** What becomes of a pact-gated app when its allowance runs out. */
+    enum class LapseSeal {
+        /** No seal: the app simply goes back behind its pact gate. */
+        NONE,
+        /** The app's own seal, on its own terms — an offence for escalation. */
+        OWN,
+        /** Group Seal's shared, non-escalating seal. */
+        GROUP
+    }
+
+    /**
+     * The one rule for what a finished pact does. A pact paid from the Mana
+     * Well starts no seal of its own: the pool already charged for the time,
+     * and a per-app seal on top only pushes the user to the next app while
+     * the Well still holds minutes. Group Seal's shared seal still applies
+     * (it locks every app together), and an exempt pact — or any pact while
+     * the Well is off — seals on its own terms as before.
+     */
+    fun lapseSeal(
+        config: AppTimeLimit,
+        wellEnabled: Boolean,
+        groupSealEnabled: Boolean
+    ): LapseSeal = when {
+        groupSealEnabled && inGroupSeal(config, wellEnabled) -> LapseSeal.GROUP
+        wellEnabled && !config.wellExempt -> LapseSeal.NONE
+        else -> LapseSeal.OWN
+    }
+
+    /**
+     * Whether a pact under [config] ends in a seal — by running out, or by
+     * being ended early from its card. False only for a pact paid from the
+     * Mana Well ([LapseSeal.NONE]). The dashboard reads it to offer "End
+     * pact" in place of "Seal now" and to keep a seal that won't happen out
+     * of the card's summary.
+     */
+    fun sealsWhenPactEnds(
+        config: AppTimeLimit,
+        wellEnabled: Boolean,
+        groupSealEnabled: Boolean
+    ): Boolean = lapseSeal(config, wellEnabled, groupSealEnabled) != LapseSeal.NONE
+
+    /**
+     * The seal a lapsed allowance turns into, anchored at [lapsedExpiry], or
+     * null when it turns into none ([lapseSeal]). Shared by every place that
+     * converts a lapse, so the service and the dashboard can't disagree.
+     */
+    fun lapseSealRequest(
+        packageName: String,
+        config: AppTimeLimit,
+        lapsedExpiry: Long,
+        wellEnabled: Boolean,
+        groupSealEnabled: Boolean,
+        groupSealMinutes: Int
+    ): SessionCooldownManager.SealRequest? =
+        when (lapseSeal(config, wellEnabled, groupSealEnabled)) {
+            LapseSeal.NONE -> null
+            LapseSeal.OWN -> SessionCooldownManager.SealRequest(
+                packageName = packageName,
+                config = config,
+                anchorMillis = lapsedExpiry,
+                countsAsOffence = true
+            )
+            LapseSeal.GROUP -> SessionCooldownManager.SealRequest(
+                packageName = packageName,
+                config = config.copy(cooldownMinutes = groupSealMinutes),
+                anchorMillis = lapsedExpiry,
+                countsAsOffence = false
+            )
+        }
+
     /** The pact-gated configs Group Seal governs — see [inGroupSeal]. */
     fun groupSealConfigs(
         configs: Map<String, AppTimeLimit>,
