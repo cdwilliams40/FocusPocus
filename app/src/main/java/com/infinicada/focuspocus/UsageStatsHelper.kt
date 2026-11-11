@@ -238,6 +238,35 @@ object UsageStatsHelper {
         return totals
     }
 
+    /**
+     * The package whose activity was resumed most recently since [sinceMillis], or
+     * null when that cannot be told: no usage access, or nothing on record yet.
+     */
+    fun lastResumedPackageSince(context: Context, sinceMillis: Long): String? {
+        if (!hasUsageStatsPermission(context)) return null
+        val usageStatsManager =
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return null
+        val usageEvents =
+            usageStatsManager.queryEvents(sinceMillis, System.currentTimeMillis()) ?: return null
+
+        val events = ArrayList<ForegroundEvent>()
+        val event = UsageEvents.Event()
+        while (usageEvents.hasNextEvent()) {
+            usageEvents.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                events.add(ForegroundEvent(event.packageName ?: "", event.eventType, event.timeStamp))
+            }
+        }
+        return lastResumedPackage(events)
+    }
+
+    /** The package of the last ACTIVITY_RESUMED in a time-ordered event stream, if any. */
+    internal fun lastResumedPackage(events: List<ForegroundEvent>): String? =
+        events.lastOrNull {
+            it.eventType == UsageEvents.Event.ACTIVITY_RESUMED && it.packageName.isNotEmpty()
+        }?.packageName
+
     fun openUsageAccessSettings(context: Context) {
         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

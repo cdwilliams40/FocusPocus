@@ -39,6 +39,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TRANSITION_SLACK_MS = 250L
+        private const val DEBOUNCE_RECHECK_SLACK_MS = 50L
         private val TRANSITION_KEYS = SessionTransitions.WATCHED_KEYS + setOf(
             Constants.PrefsKeys.PACT_ALLOWANCES,
             Constants.PrefsKeys.APP_COOLDOWN_STATES
@@ -107,6 +108,40 @@ class MyAccessibilityService : AccessibilityService() {
 
     // Most recently focused "real" app (updated on every window state change, before debounce)
     @Volatile private var currentForegroundPackage: String? = null
+
+    // An event from an app inside its debounce window is not judged, but it may
+    // be the user getting straight back into the app. This judges the app once
+    // the window has passed, if it is still in front — otherwise a quick reopen
+    // stayed open until the next timed check, up to a minute later.
+    private var debounceRecheckPackage: String? = null
+    private val debounceRecheckRunnable = Runnable {
+        val packageName = debounceRecheckPackage ?: return@Runnable
+        debounceRecheckPackage = null
+        try {
+            val now = System.currentTimeMillis()
+            val lastBlock = lastAppBlockTimes[packageName] ?: return@Runnable
+            // Blocked again in the meantime: that block has its own window.
+            if (BlockDebounce.isRecent(lastBlock, now)) return@Runnable
+            // The cheap half of the rule first, so the usage query only runs
+            // when the window events still say the app is in front.
+            if (currentForegroundPackage != packageName) return@Runnable
+            val stillInFront = BlockDebounce.isStillInFront(
+                packageName,
+                trackedForeground = currentForegroundPackage,
+                lastResumedPackage = UsageStatsHelper.lastResumedPackageSince(this, lastBlock)
+            )
+            if (stillInFront) blockIfDue(packageName, now)
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error rechecking after debounce", e)
+            reportNonFatal(e)
+        }
+    }
+
+    private fun scheduleDebounceRecheck(packageName: String, delayMillis: Long) {
+        transitionHandler.removeCallbacks(debounceRecheckRunnable)
+        debounceRecheckPackage = packageName
+        transitionHandler.postDelayed(debounceRecheckRunnable, delayMillis + DEBOUNCE_RECHECK_SLACK_MS)
+    }
 
     // Cache for time limits
     @Volatile private var cachedTimeLimitsJson: String? = null
@@ -455,6 +490,7 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         transitionHandler.removeCallbacks(transitionRunnable)
+        transitionHandler.removeCallbacks(debounceRecheckRunnable)
         if (transitionListenerRegistered) {
             sharedPreferences.unregisterOnSharedPreferenceChangeListener(transitionPrefsListener)
             transitionListenerRegistered = false
@@ -853,10 +889,24 @@ class MyAccessibilityService : AccessibilityService() {
         val pacingLimit = getCachedTimeLimits()[packageName]
         if (pacingLimit != null) checkPacingNotification(packageName, pacingLimit)
 
-        // Debounce — prevent rapid re-triggering when Android fires multiple events
+        // Debounce — prevent rapid re-triggering when Android fires multiple events.
+        // The app is judged when the window has passed instead, in case this
+        // is the user coming straight back to it.
         val now = System.currentTimeMillis()
-        if (BlockDebounce.isRecent(lastAppBlockTimes[packageName], now)) return
+        val lastBlock = lastAppBlockTimes[packageName]
+        if (BlockDebounce.isRecent(lastBlock, now)) {
+            scheduleDebounceRecheck(packageName, BlockDebounce.remainingMillis(lastBlock, now))
+            return
+        }
 
+        blockIfDue(packageName, now)
+    }
+
+    /**
+     * Judges an app that is in front and blocks it if anything says so: the
+     * talisman lock, a focus session's enchantments, then the app's own guards.
+     */
+    private fun blockIfDue(packageName: String, now: Long) {
         val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
         val focusActive = SessionManager.isFocusActive(sharedPreferences)
         val nfcLockMode = sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
