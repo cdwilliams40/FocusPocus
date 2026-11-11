@@ -247,6 +247,14 @@ time-limit status list.
 per-app milliseconds, number of draws, refunded milliseconds, dry blocks. It
 replaces `WELL_DRAWN_DATE` and `WELL_DRAWN_MILLIS`, which hold today only.
 
+Done in Phase 5 as built: the range switch is today, 7 days and 30 days
+(the old "this month" and "all time" tabs map to 30 days). Charts are thin
+Compose bar charts with tap-to-read values and a caption naming the scale;
+focus minutes stack by source (by hand, ritual, talisman) in the first
+three categorical colours of the data-viz reference palette, with a legend
+that carries values. Sessions recorded before 2.0 count as "by hand".
+Pours list the price each one cost. Screen time is collapsed by default.
+
 ### Phase 6: finish
 
 - Prune English and French strings (886 and 916 today).

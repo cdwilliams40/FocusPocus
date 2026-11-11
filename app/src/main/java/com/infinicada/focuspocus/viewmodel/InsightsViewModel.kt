@@ -11,7 +11,10 @@ import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.calculateCurrentStreak
 import com.infinicada.focuspocus.data.InsightsRepository
 import com.infinicada.focuspocus.limit.AppOpenStats
+import com.infinicada.focuspocus.limit.DailyHistory
 import com.infinicada.focuspocus.limit.OpenReflexTracker
+import com.infinicada.focuspocus.model.ManaDay
+import com.infinicada.focuspocus.model.WellDay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,10 +37,14 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
     private val _blockEvents = MutableStateFlow(repo.getBlockEvents())
     val blockEvents: StateFlow<List<BlockEvent>> = _blockEvents.asStateFlow()
 
-    private val openReflexTracker = OpenReflexTracker(
-        application.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE),
-        Gson()
-    )
+    private val prefs = application.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+    private val openReflexTracker = OpenReflexTracker(prefs, Gson())
+
+    /** Per-day history of the Well and of mana ("yyyyMMdd" -> day). */
+    private val _wellDays = MutableStateFlow(DailyHistory.wellDays(prefs))
+    val wellDays: StateFlow<Map<String, WellDay>> = _wellDays.asStateFlow()
+    private val _manaDays = MutableStateFlow(DailyHistory.manaDays(prefs))
+    val manaDays: StateFlow<Map<String, ManaDay>> = _manaDays.asStateFlow()
 
     // Per-day open/reflex history ("yyyyMMdd" -> package -> stats)
     private val _appOpenDailyStats = MutableStateFlow(openReflexTracker.getDailyStats())
@@ -50,5 +57,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
         _longestStreak.value = repo.getLongestStreak()
         _blockEvents.value = repo.getBlockEvents()
         _appOpenDailyStats.value = openReflexTracker.getDailyStats()
+        _wellDays.value = DailyHistory.wellDays(prefs)
+        _manaDays.value = DailyHistory.manaDays(prefs)
     }
 }
