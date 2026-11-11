@@ -99,53 +99,30 @@
     <string name="home_cast_hint">Choose an enchantment below to begin</string>
 
     <!-- PactsHomeScreen (guard dashboard) -->
-    <plurals name="home_guard_sealed_count">
-        <item quantity="one">%d app sealed</item>
-        <item quantity="other">%d apps sealed</item>
-    </plurals>
     <plurals name="home_guard_active_count">
         <item quantity="one">%d pact active</item>
         <item quantity="other">%d pacts active</item>
-    </plurals>
-    <plurals name="home_guard_over_count">
-        <item quantity="one">%d limit spent</item>
-        <item quantity="other">%d limits spent</item>
     </plurals>
     <string name="home_guard_all_quiet">All quiet</string>
     <string name="home_guard_rollup">Today: %1$d opens · %2$d reflexes caught</string>
     <string name="home_session_banner_detail">%1$s · %2$s left</string>
     <string name="home_session_banner_time_left">%1$s left</string>
     <string name="home_session_banner_hint">Tap to manage on the Focus tab</string>
-    <string name="home_guard_seal_lifts">Seal lifts in %1$s</string>
     <string name="home_guard_pact_left">Pact active — %1$s left</string>
-    <string name="home_guard_sealed_of">%1$d of %2$d sealed</string>
-    <string name="home_guard_chip_sealed">Sealed</string>
-    <string name="home_guard_chip_active">Pact active</string>
-    <string name="home_guard_chip_over">Limit spent</string>
-    <string name="home_guard_circle_icon_desc">Pact circle</string>
-    <string name="home_guard_make_pact">Make a pact</string>
     <string name="pacts_request_time">Request time</string>
-    <string name="pacts_request_sealed_toast">Still sealed — the seal lifts in %1$d min</string>
-    <string name="home_guard_empty_title">No pacts yet</string>
-    <string name="home_guard_empty_body">Seal your most distracting app behind a conscious, timed pact — and watch the reflex count drop.</string>
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
     <string name="home_create_enchantment">Create an enchantment</string>
     <string name="home_request_time_hint">Tap an app to choose your minutes and open it.</string>
-    <string name="home_group_seal_hint">Group Seal is on — opening one pact app opens all of them together.</string>
-    <string name="home_group_seal_cta">Open your pact apps</string>
-    <string name="home_group_seal_open_status">Open together — %1$s left</string>
-    <string name="home_group_seal_sealed_status">Sealed together — %1$s left</string>
 
     <!-- Mana Well: one slowly refilling pool of time shared by pact apps -->
     <string name="well_title">Mana Well</string>
-    <string name="well_subtitle">shared time for your pact apps</string>
+    <string name="well_subtitle">shared time for your Well apps</string>
     <string name="well_level_value">%1$d / %2$d min</string>
     <string name="well_level_line">Mana Well: %1$d of %2$d min</string>
     <string name="well_full">Full</string>
     <string name="well_refill_line">+1 min every %1$d min · full in %2$s</string>
     <string name="well_refill_off">Refills only when you channel mana into it</string>
     <string name="well_drawn_today">Drawn today: %1$d min</string>
-    <string name="well_dry_short">The Well is dry</string>
     <string name="well_draw_refused_toast">The Mana Well no longer holds that much</string>
     <string name="well_channel_cta">Channel mana: +%1$d min for %2$d mana</string>
     <string name="well_channel_title">Channel mana into the Well</string>
@@ -160,12 +137,8 @@
     <string name="overlay_well_dry_body">%s draws on the time your pact apps share, and there isn\'t enough left.</string>
     <string name="overlay_well_dry_eta">Enough for a %1$d-minute pact in %2$s.</string>
     <string name="overlay_well_dry_no_refill">The Well refills only when you channel mana into it.</string>
-    <string name="guard_well_toggle">Draws from the Mana Well</string>
-    <string name="guard_well_desc_bound">Time for this pact comes out of the shared pool, and running out starts no seal of its own. The seal length above still applies when you seal everything at once.</string>
-    <string name="guard_well_desc_exempt">Exempt — this pact keeps its own allowance and its own seal, outside the shared pool.</string>
     <string name="settings_well_title">Mana Well</string>
-    <string name="settings_well_toggle">Share one pool of time across pact apps</string>
-    <string name="settings_well_desc">Every pact draws its minutes from one slowly refilling well, so moving on to the next app spends the same time. A pact paid from the Well starts no seal of its own when it runs out — the Well is the limit. A pact can be exempted in its own settings.</string>
+    <string name="settings_well_desc">Every pact draws its minutes from one slowly refilling well, so moving on to the next app spends the same time. When the Well is empty, the Well apps stay closed until it refills or you pour mana in.</string>
     <string name="settings_well_capacity">The Well holds: %d min</string>
     <string name="settings_well_refill_toggle">Refill over time</string>
     <string name="settings_well_refill_toggle_desc">Off: the Well fills only when you channel mana into it.</string>
@@ -174,26 +147,19 @@
     <string name="settings_well_terms">holds %1$d min, +1 min every %2$d min</string>
     <string name="settings_well_terms_no_refill">holds %1$d min, no refill over time</string>
     <string name="settings_well_pending_change">Looser terms take effect in %1$s. Until then the Well %2$s.</string>
-    <string name="settings_well_pending_off">The Well turns off in %1$s. Until then it %2$s.</string>
     <string name="settings_well_cooling_note">Tightening applies at once. Loosening — or turning the Well off — takes 24 hours.</string>
     <string name="perk_well_channel_title">Channel into the Mana Well</string>
     <string name="perk_well_channel_desc">%1$d more minutes of shared pact time. The price doubles with each channel in a day.</string>
     <string name="ledger_perk_well_channel">Perk: channeled into the Mana Well</string>
-    <string name="home_seal_now">Seal now</string>
     <string name="home_end_pact">End pact</string>
     <plurals name="home_end_pact_result">
         <item quantity="one">%d pact ended</item>
         <item quantity="other">%d pacts ended</item>
     </plurals>
-    <string name="home_seal_now_title">Seal %s now?</string>
-    <string name="home_seal_now_message">The pact ends and the app is sealed for %d minutes. Seals can\'t be lifted early.</string>
-    <string name="home_seal_now_circle_message">Every running pact in this circle ends, and those apps are sealed for %d minutes. Seals can\'t be lifted early.</string>
-    <string name="home_seal_now_refund_note">Unused pact time goes back into the Mana Well.</string>
     <string name="well_refund_toast">%1$d min back in the Well</string>
     <string name="well_unlock_credit_toast">Conditional unlock met: +%1$d min in the Mana Well</string>
-    <string name="conditional_unlocks_well_note">While the Mana Well is on, a met rule adds %1$d minutes to the Well once a day instead of unlocking pacts that draw from it. Wards, exempt pacts and enchantments are unlocked as before.</string>
+    <string name="conditional_unlocks_well_note">A met rule adds %1$d minutes to the Mana Well once a day instead of unlocking a Well app. Enchantments are unlocked as before.</string>
     <string name="home_section_live">Happening now</string>
-    <string name="home_section_guards">Your pacts &amp; wards</string>
     <string name="home_guard_edit_label">Edit</string>
     <string name="home_talisman_activate">Activate</string>
     <string name="home_talisman_activate_desc">Activate %s</string>
@@ -202,32 +168,10 @@
     <string name="home_talisman_action_temp_disable">Takes a %d min break — needs an active session</string>
     <string name="home_talisman_toggle_desc">Starts a focus session with your selected enchantments</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
-    <string name="guard_editor_edit_pact">Edit Pact</string>
-    <string name="guard_editor_edit_ward">Edit Ward</string>
-    <string name="guard_editor_edit_circle">Edit Pact Circle</string>
-    <string name="guard_editor_style_header">Protection style</string>
-    <string name="guard_style_pact">Pact</string>
-    <string name="guard_style_pact_desc">Sealed by default — opening asks how long you truly need</string>
-    <string name="guard_style_ward">Ward</string>
-    <string name="guard_style_ward_desc">Open by default — a daily time limit, with an optional per-session cooldown</string>
-    <string name="guard_escalation_pact">Escalating seals</string>
-    <string name="guard_escalation_ward">Escalating cooldowns</string>
-    <string name="guard_escalation_desc">Each repeat on the same day lasts longer</string>
-    <string name="guard_escalation_step">Adds per repeat</string>
-    <string name="guard_circle_members_link">Edit enchantment members</string>
-    <string name="guard_delete_confirm_title">Remove %1$s?</string>
-    <string name="guard_delete_app_message">It opens freely again right away.</string>
-    <string name="guard_delete_pact_message">A pact binds for a day: it stays in force for 24 hours after you confirm, then lifts.</string>
-    <string name="guard_delete_circle_pact_message">A pact binds for a day: the circle stays in force for 24 hours after you confirm, then lifts. The enchantment itself is kept.</string>
 
     <!-- Pact revision cooling-off: changes to an existing pact hold for 24 h -->
-    <string name="pact_revision_notice">A pact binds for a day: any change or removal takes effect 24 hours after you confirm it. Until then, the current terms hold.</string>
-    <string name="pact_revision_pending_change">New terms take effect in %1$s</string>
-    <string name="pact_revision_pending_removal">Pact lifts in %1$s</string>
-    <string name="pact_revision_pending_header">Change pending</string>
     <string name="pact_revision_keep">Keep current terms</string>
-    <string name="pact_revision_queued_change_toast">The pact holds — new terms take effect in 24 hours</string>
-    <string name="pact_revision_queued_removal_toast">The pact holds — it lifts in 24 hours</string>
+    <string name="pact_revision_queued_removal_toast">It comes off the Well in 24 hours</string>
 
     <string name="pacts_home_intro_title">Pacts are now your home</string>
     <string name="pacts_home_intro_message">Your always-on protection — pacts and time limits — now greets you first. Casting focus sessions lives on the Focus tab, one tap away. Everything else works exactly as before.</string>
@@ -266,7 +210,6 @@
     <string name="spells_auto_add_new_apps_desc">Automatically add newly installed apps to this enchantment</string>
     <string name="spells_select_apps_title">Select Apps</string>
     <string name="spells_select_enchantment_title">Select Enchantment</string>
-    <string name="spells_pact_circle_note">This enchantment carries a pact circle — every app in it is sealed by default. Deleting the enchantment removes the circle too.</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">Settings</string>
@@ -300,11 +243,6 @@
     <string name="settings_talisman_lock">Talisman Lock Mode</string>
     <string name="settings_talisman_lock_desc">Require NFC talisman or QR code to stop focus sessions</string>
     <string name="settings_add_talisman_first">Add a talisman first to enable lock mode</string>
-    <string name="settings_group_seal_title">Group Seal Mode</string>
-    <string name="settings_group_seal_toggle">Open and seal pact apps together</string>
-    <string name="settings_group_seal_desc">Opening one pact app opens all of them for a shared window; when it lapses, all of them seal together — no hopping to another pact app to keep going.</string>
-    <string name="settings_group_seal_open_window">Shared open window: %d min</string>
-    <string name="settings_group_seal_duration">Shared seal duration: %d min</string>
     <string name="settings_device_owner">Warden Mode (Device Owner)</string>
     <string name="settings_device_owner_suspend">Grey Out Blocked Apps</string>
     <string name="settings_device_owner_suspend_desc">Suspend blocked apps at the system level during focus sessions — their icons grey out in the launcher and they can\'t be opened at all</string>
@@ -368,8 +306,6 @@
         <item quantity="other">%d total blocks</item>
     </plurals>
     <string name="insights_most_blocked">Most Blocked</string>
-    <string name="insights_time_limit_status">Time Limit Status</string>
-    <string name="insights_time_used">%1$d / %2$d min</string>
     <string name="insights_session_history">Session History</string>
     <string name="insights_session_duration">%d min</string>
     <plurals name="insights_session_breaks">
@@ -401,7 +337,7 @@
     <string name="onboarding_pact_title">Seal Your First Apps</string>
     <string name="onboarding_pact_desc">Pick the apps that eat your attention. They\'ll be sealed by default — opening one asks how much time you truly need.</string>
     <string name="onboarding_pact_pick">Choose apps to seal (%d selected)</string>
-    <string name="onboarding_pact_defaults_note">Each pact starts with sensible defaults: up to 15 minutes at a time, then sealed for 30. Tune every pact later on the Pacts tab.</string>
+    <string name="onboarding_pact_defaults_note">Each pact draws from the Mana Well: pick 2 to 30 minutes when you open the app. Change the list later on the Pacts tab.</string>
     <string name="onboarding_notification_title">Notification Access</string>
     <string name="onboarding_notification_desc">Grant notification access to block notifications from distracting apps and enable Do Not Disturb during focus.</string>
     <string name="onboarding_notification_granted">Notification access granted</string>
@@ -483,37 +419,11 @@
     <string name="quick_spell_editor_allow_breaks">Allow Breaks</string>
 
     <!-- Guard fields (shared by the editor and the Pacts dashboard) -->
-    <string name="time_limits_grant_usage">Grant Usage Access</string>
-    <string name="time_limits_required">Required for time limit tracking</string>
-    <string name="time_limits_used_today">%1$d / %2$d min today</string>
-    <string name="time_limits_select_app">Select App</string>
-    <string name="time_limits_app_label">App</string>
-    <string name="time_limits_daily_limit_label">Daily Limit</string>
     <string name="time_limits_no_apps_found">No apps found</string>
-    <string name="time_limits_enable_cooldown">Per-session cooldown</string>
-    <string name="time_limits_enable_cooldown_desc">Block the app for a cooldown period after continuous use</string>
-    <string name="time_limits_session_limit_label">Session limit (per continuous use)</string>
-    <string name="time_limits_cooldown_label">Cooldown duration</string>
-    <string name="time_limits_cooldown_desc">Session: %1$d min → %2$d min cooldown</string>
-    <string name="time_limits_minutes_value">%d min</string>
-    <string name="time_limits_pact_max_label">Longest pact</string>
-    <string name="time_limits_pact_seal_label">Seal duration after each pact</string>
-    <string name="time_limits_pact_alternative_label">Suggest instead (optional)</string>
-    <string name="time_limits_pact_alternative_none">No suggestion</string>
-    <string name="time_limits_pact_alternative_clear">Remove suggestion</string>
 
     <!-- Pact fields (shared by the editor and the Pacts dashboard) -->
-    <string name="pacts_config_summary">Up to %1$d min per pact \u2192 sealed %2$d min after</string>
-    <string name="pacts_config_summary_well">Up to %1$d min per pact · from the Mana Well</string>
-    <string name="pacts_backstop_label">Daily backstop (optional)</string>
-    <string name="pacts_backstop_none">None</string>
     <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
     <string name="conditional_unlocks_pact_app_label">%s (Pact)</string>
-    <string name="pacts_group_summary">Enchantment pact \u00b7 %d apps</string>
-    <string name="pacts_target_app">Single app</string>
-    <string name="pacts_target_enchantment">Whole enchantment (blacklist)</string>
-    <string name="pacts_enchantment_label">Enchantment</string>
-    <string name="pacts_no_blacklists">No blacklist enchantments available \u2014 create one under Enchantments first.</string>
 
     <!-- ConditionalUnlocksScreen -->
     <string name="conditional_unlocks_title">Conditional Unlocks</string>
@@ -553,12 +463,7 @@
     <string name="overlay_app_blocked">%s is blocked!</string>
     <string name="overlay_close">Close</string>
     <string name="overlay_wait">Wait %ds\u2026</string>
-    <string name="overlay_cooldown_remaining">Cooldown: %d min remaining</string>
-    <string name="overlay_level3_prompt">To close this overlay, type the phrase below:</string>
-    <string name="overlay_level3_hint">Type the phrase to continue</string>
-    <string name="overlay_level3_phrase">I will stop scrolling</string>
     <string name="overlay_pact_prompt">%s is sealed. Make a pact: how much time do you truly need?</string>
-    <string name="overlay_pact_seal_desc">When your time runs out, %1$s seals itself again for %2$d minutes.</string>
     <string name="overlay_pact_well_desc">These minutes come out of the Mana Well. When they run out, %s closes again.</string>
     <string name="overlay_pact_wait">You can choose in %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
@@ -566,10 +471,6 @@
     <string name="overlay_pact_stats">This is open #%d today</string>
     <string name="overlay_pact_stats_reflex">Open #%1$d today — %2$d were under-30-second reflexes</string>
     <string name="overlay_pact_alternative">Open %s instead</string>
-    <string name="overlay_group_pact_prompt">%1$s is sealed. Open all your pact apps together for %2$d minutes?</string>
-    <string name="overlay_group_pact_seal_desc">When the window ends, every pact app seals together for %d minutes — no hopping to another one.</string>
-    <string name="overlay_group_pact_choice">Open all — %d minutes</string>
-    <string name="pact_ending_toast">Your pact is ending — %s seals in under a minute</string>
     <string name="pact_ending_no_seal_toast">Your pact is ending — %s closes in under a minute</string>
 
     <!-- MyAccessibilityService -->
@@ -596,12 +497,8 @@
 
     <!-- MyAccessibilityService overlay strings -->
     <string name="service_talisman_lock">Talisman Lock</string>
-    <string name="service_daily_time_limit">Daily Time Limit Reached</string>
 
     <!-- Pacing toasts (near-limit warnings) -->
-    <string name="pacing_toast_50">%1$s: %2$d of %3$d min used today — halfway through. Save some for later!</string>
-    <string name="pacing_toast_75">%1$s: %2$d of %3$d min used today — only %4$d min left.</string>
-    <string name="pacing_toast_90">%1$s: %2$d of %3$d min used today — almost gone!</string>
 
     <!-- MainActivity navigation and dialogs -->
     <string name="main_settings_content_desc">Settings</string>
@@ -612,7 +509,6 @@
     <string name="toast_max_rituals" tools:ignore="PluralsCandidate">Maximum of %d rituals reached</string>
     <string name="toast_max_enchantments" tools:ignore="PluralsCandidate">Maximum of %d enchantments reached</string>
     <string name="toast_max_quick_spells" tools:ignore="PluralsCandidate">Maximum of %d quick spells reached</string>
-    <string name="toast_max_time_limits" tools:ignore="PluralsCandidate">Maximum of %d time limits reached</string>
     <string name="toast_max_talismans" tools:ignore="PluralsCandidate">Maximum of %d talismans reached</string>
     <string name="toast_preset_cast_timed">%1$s Cast for %2$d min!</string>
     <string name="toast_enchantment_missing">Enchantment missing for %s</string>
@@ -724,7 +620,7 @@
 
     <!-- Progression: settings -->
     <string name="settings_progression_title">Progression</string>
-    <string name="settings_progression_toggle">Progression — mana, trials &amp; sigils</string>
+    <string name="settings_progression_toggle">Progression — mana &amp; trials</string>
     <string name="settings_progression_desc">Earn mana for focus sessions and trials, and spend it on Well time and extra breaks. Turning this off hides all progression features; your mana is kept.</string>
     <string name="settings_trial_alerts_toggle">Trial completion alerts</string>
     <string name="settings_trial_alerts_desc">A notification when a trial is ready to claim.</string>
@@ -735,39 +631,11 @@
     <string name="progression_intro_ok">Begin earning</string>
 
     <!-- Panic seal (Seal everything now) -->
-    <string name="home_seal_all">Seal everything now</string>
-    <string name="home_seal_all_confirm_title">Seal everything now?</string>
-    <string name="home_seal_all_confirm_message">Every pact-bound app is sealed immediately for its configured seal length, and any running pact time is revoked. Seals can\'t be lifted early.</string>
-    <string name="home_seal_all_confirm_action">Seal them</string>
-    <plurals name="home_seal_all_result">
-        <item quantity="one">%d app sealed</item>
-        <item quantity="other">%d apps sealed</item>
-    </plurals>
 
-    <plurals name="home_group_open_result">
-        <item quantity="one">%d app opened</item>
-        <item quantity="other">%d apps opened</item>
-    </plurals>
 
     <!-- Guard hours (per-guard schedules) -->
-    <string name="guard_schedule_toggle">Guard hours</string>
-    <string name="guard_schedule_desc">Enforce this guard only on chosen days and hours. Outside them the app is free — though a running seal still holds.</string>
-    <string name="guard_schedule_days">Active days — none selected means every day</string>
-    <string name="guard_schedule_hours_toggle">Between certain hours</string>
-    <string name="guard_schedule_hours_desc">An end before the start runs overnight, e.g. 21:00–07:00.</string>
-    <string name="guard_schedule_summary">Guard hours: %1$s · %2$s</string>
-    <string name="guard_schedule_every_day">Every day</string>
-    <string name="guard_schedule_all_day">All day</string>
-    <string name="home_guard_off_schedule">Off hours — not enforced right now</string>
-    <string name="home_guard_chip_off">OFF HOURS</string>
 
     <!-- Guards channel + seal-lifted notification -->
-    <string name="guards_channel_name">Guards</string>
-    <string name="guards_channel_desc">Seal-lifted alerts for pacts and wards</string>
-    <string name="seal_lifted_title">Seal lifted</string>
-    <string name="seal_lifted_message">%1$s is open again.</string>
-    <string name="settings_seal_lifted_toggle">Seal-lifted alerts</string>
-    <string name="settings_seal_lifted_desc">A quiet note when a sealed app opens up again, so you don\'t check by opening the app.</string>
 
     <!-- Protection health -->
     <string name="settings_protection_health">Protection health</string>
@@ -777,13 +645,13 @@
     <string name="settings_protection_usage">Usage access</string>
     <string name="settings_protection_usage_off">Daily limits and conditional unlocks can\'t be tracked.</string>
     <string name="settings_protection_notifications">Notifications</string>
-    <string name="settings_protection_notifications_off">Ritual alerts, countdowns, and seal notes won\'t show.</string>
+    <string name="settings_protection_notifications_off">Ritual alerts and countdowns won\'t show.</string>
     <string name="settings_protection_battery">Unrestricted battery</string>
     <string name="settings_protection_battery_off">Battery optimization can kill enforcement in the background.</string>
     <string name="settings_protection_fix">Fix</string>
     <string name="settings_protection_ok_desc">In place</string>
     <string name="settings_protection_problem_desc">Needs attention</string>
-    <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so seals and limits hold.</string>
+    <string name="home_battery_warning">Battery optimization may kill enforcement in the background. Exempt Focus Pocus so the Well holds.</string>
     <string name="home_battery_warning_fix">Review battery settings</string>
 
     <!-- Accessibility prominent disclosure -->
@@ -793,7 +661,7 @@
 
     <!-- Backup / restore -->
     <string name="settings_backup">Backup</string>
-    <string name="settings_backup_desc">Save your enchantments, pacts, rituals, history, and settings to a file — a reinstall or a new phone shouldn\'t cost you your streaks. Live session state and running seals stay on the device.</string>
+    <string name="settings_backup_desc">Save your enchantments, Well apps, rituals, history, and settings to a file — a reinstall or a new phone shouldn\'t cost you your streaks. Live session state and running pacts stay on the device.</string>
     <string name="settings_backup_export">Save backup…</string>
     <string name="settings_backup_import">Restore from backup…</string>
     <string name="backup_export_done">Backup saved</string>
@@ -805,4 +673,22 @@
     <string name="backup_import_confirm_title">Restore from backup?</string>
     <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
     <string name="backup_import_confirm_yes">Choose file</string>
+
+    <!-- Well apps (2.0) -->
+    <string name="home_well_apps_header">Well apps</string>
+    <string name="home_well_edit">Edit Well apps</string>
+    <string name="home_well_empty_title">No apps behind the Well yet</string>
+    <string name="home_well_empty_body">Put your most distracting apps behind the Mana Well. Opening one asks you to make a pact, paid from a pool of time that refills slowly.</string>
+    <string name="home_well_add">Add apps to the Well</string>
+    <string name="well_app_removal_pending">Comes off the Well in %1$s</string>
+    <string name="well_apps_title">Well apps</string>
+    <string name="well_apps_intro">These apps stay closed until you make a pact, paid from the Mana Well. Adding an app takes effect now. Taking one off waits 24 hours.</string>
+    <string name="well_apps_add">Add apps</string>
+    <string name="well_apps_pick_substitute">Offer this app instead</string>
+    <string name="well_apps_substitute">Instead: %1$s</string>
+    <string name="well_apps_no_substitute">No substitute app</string>
+    <string name="well_apps_set_substitute">Substitute</string>
+    <string name="well_apps_clear_substitute">Clear</string>
+    <string name="well_apps_keep">Keep it</string>
+    <string name="well_apps_remove">Take off</string>
 </resources>

@@ -45,6 +45,8 @@ Warden mode, Protection Health, backup and Insights stay around those three.
 
 ## Decisions
 
+- **No per-app pact cap.** When making a pact, the picker offers 2 to 30
+  minutes, never more than the Well currently holds.
 - **Passive refill stays.** The Well drips back on its own (default 1 minute
   per 20). Mana is redeemed for extra minutes on top.
 - **Doubling price stays, with no daily cap.** A pour is 5 minutes. The first
@@ -159,6 +161,13 @@ now", seal-lifted alerts (`GuardNotifier`). Wards, guard hours and pact circles:
   by the time it is rebuilt.
 - Backup `FORMAT_VERSION` 2. A version 1 file is imported through the same
   migration.
+
+Done in Phase 2 as built: the pact screen offers 2, 5, 10, 15 and 30
+minutes, trimmed to what the Well holds. The Well's stored `enabled` flag is
+kept but is always true (migration and every restore set it); the Settings
+switch is gone. Stay-under-limits trials can no longer be drawn or won, and
+Phase 4 replaces the trial list. The Home tab is still labelled "Pacts";
+renaming it is left for Phase 6.
 
 ### Phase 3: sessions and talismans
 

@@ -58,7 +58,6 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.infinicada.focuspocus.AppTimeLimitManager
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
@@ -96,7 +95,6 @@ fun UsageStatsScreen(
     currentStreak: Int = 0,
     longestStreak: Int = 0,
     blockEvents: List<BlockEvent> = emptyList(),
-    appTimeLimits: Map<String, Int> = emptyMap(),
     openDailyStats: Map<String, Map<String, AppOpenStats>> = emptyMap(),
     // Progression sections (independent of the time-range tabs above:
     // trials carry their own periods)
@@ -225,17 +223,6 @@ fun UsageStatsScreen(
 
     val totalScreenTime = remember(filteredStats) {
         filteredStats.sumOf { it.totalTimeInForeground }
-    }
-
-    // Full-day queryEvents walk — must not run on the main thread in composition.
-    val allUsedMinutes by produceState(
-        initialValue = emptyMap<String, Int>(), appTimeLimits, hasPermission, dateStamp, usageRefreshKey
-    ) {
-        value = if (hasPermission) {
-            withContext(Dispatchers.IO) { AppTimeLimitManager.getAllUsedMinutesToday(context) }
-        } else {
-            emptyMap()
-        }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -575,55 +562,6 @@ fun UsageStatsScreen(
                                 }
                             }
                         }
-                }
-            }
-        }
-
-        // App Time Limit Status
-        if (appTimeLimits.isNotEmpty() && hasPermission) {
-            item {
-                SectionHeader(stringResource(R.string.insights_time_limit_status))
-            }
-            val limitEntries = appTimeLimits.entries.toList()
-            items(limitEntries) { (pkg, limit) ->
-                val appName = installedApps.find { it.packageName == pkg }?.name ?: pkg
-                val usedMinutes = allUsedMinutes[pkg] ?: 0
-                val progress = if (limit > 0) (usedMinutes.toFloat() / limit).coerceIn(0f, 1f) else 0f
-
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AppIcon(
-                            packageName = pkg,
-                            contentDescription = appName,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 12.dp)
-                        ) {
-                            Text(appName, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                stringResource(R.string.insights_time_used, usedMinutes, limit),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                color = if (usedMinutes >= limit) MaterialTheme.colorScheme.error
-                                        else MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                strokeCap = StrokeCap.Round
-                            )
-                        }
-                    }
                 }
             }
         }

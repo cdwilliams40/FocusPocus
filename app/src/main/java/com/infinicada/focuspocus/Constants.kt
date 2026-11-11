@@ -72,31 +72,17 @@ object Constants {
         // Removal only unlocks DeviceOwnerManager.REMOVAL_COOLDOWN_MS later.
         const val WARDEN_REMOVAL_REQUEST_MILLIS = "wardenRemovalRequestMillis"
 
-        // Per-app time limits
-        const val APP_TIME_LIMITS = "appTimeLimits"
-
-        // Per-app time limit configs (includes session-cooldown settings)
-        const val APP_TIME_LIMIT_CONFIGS = "appTimeLimitConfigs"
-
-        // Active per-app cooldown states (expiry time, attempt counts)
-        const val APP_COOLDOWN_STATES = "appCooldownStates"
-
-        // "yyyyMMdd" date the daily cooldown rollover last ran. Persisted so a
-        // service restart across midnight still detects the missed rollover
-        // instead of assuming today was already reset.
-        const val LAST_COOLDOWN_RESET_DATE = "lastCooldownResetDate"
-
         // Active pact allowances (packageName -> allowance expiry epoch millis)
         const val PACT_ALLOWANCES = "pactAllowances"
 
         // Per-day open/reflex-open counters for tracked apps
         const val APP_OPEN_STATS = "appOpenStats"
 
-        // Pact groups: pact settings bound to a blacklist enchantment
-        const val PACT_GROUPS = "pactGroups"
-
-        // Queued modifications to existing pacts, applied 24 h after request
-        const val PACT_PENDING_REVISIONS = "pactPendingRevisions"
+        // Apps behind the Mana Well (limit/WellApps.kt), and queued removals
+        // from that list (package -> epoch millis it comes off, 24 h after
+        // the request)
+        const val WELL_APPS = "wellApps"
+        const val WELL_APP_REMOVALS = "wellAppRemovals"
 
         // Conditional unlocks
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
@@ -135,20 +121,8 @@ object Constants {
         // usage-dependent trial templates deterministically.
         const val USAGE_PERMISSION_SNAPSHOT = "usagePermissionSnapshot"
 
-        // Opt-in "seal lifted" notification when a guard's cooldown expires
-        const val SEAL_LIFTED_ALERTS_ENABLED = "sealLiftedAlertsEnabled"
-
-        // Group-seal mode: opening one pact app opens all of them for a shared
-        // window, and the window's lapse seals all of them together for a
-        // shared duration — closes the "hop to a different pact app" gap that
-        // per-app allowances/seals leave open.
-        const val GROUP_SEAL_ENABLED = "groupSealEnabled"
-        const val GROUP_SEAL_OPEN_WINDOW_MINUTES = "groupSealOpenWindowMinutes"
-        const val GROUP_SEAL_DURATION_MINUTES = "groupSealDurationMinutes"
-
         // Mana Well: one slowly refilling pool of minutes shared by every
-        // pact app that isn't exempt — the answer to hopping between apps
-        // that per-app allowances can't give (limit/ManaWell.kt).
+        // Well app (limit/ManaWell.kt).
         const val WELL_ENABLED = "wellEnabled"
         const val WELL_CAPACITY_MINUTES = "wellCapacityMinutes"
         // Real minutes per Well minute; 0 = no passive refill.
@@ -195,7 +169,6 @@ object Constants {
     const val MAX_PRESETS = 100
     const val MAX_APPS_PER_BLOCKER = 500
     const val MAX_BLOCK_EVENTS = 1000
-    const val MAX_APP_TIME_LIMITS = 100
     const val MAX_CONDITIONAL_UNLOCKS = 50
     const val MAX_MANA_LEDGER = 300
 
@@ -203,12 +176,10 @@ object Constants {
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
     const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
-    const val GUARDS_CHANNEL_ID = "focus_pocus_guards"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
     // Tag-keyed by package name, so one id serves every app's seal-lifted note
-    const val SEAL_LIFTED_NOTIFICATION_ID = 9005
 }

@@ -4,11 +4,10 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.infinicada.focuspocus.Constants
-import com.infinicada.focuspocus.model.AppTimeLimit
 
 /**
- * The Mana Well's terms: one pool of minutes shared by every pact app that
- * isn't exempt ([AppTimeLimit.wellExempt]).
+ * The Mana Well's terms: one pool of minutes shared by every Well app
+ * ([WellApps]).
  */
 data class WellSettings(
     val enabled: Boolean = false,
@@ -82,8 +81,8 @@ object WellMath {
     const val MIN_REFILL_INTERVAL_MINUTES = 10
     const val MAX_REFILL_INTERVAL_MINUTES = 60
 
-    /** Loosening the Well waits as long as loosening a pact does. */
-    const val REVISION_DELAY_MS = PactRevisionManager.REVISION_DELAY_MS
+    /** Loosening the Well waits 24 hours, like taking an app off it. */
+    const val REVISION_DELAY_MS = 24L * 60 * 60 * 1000
 
     /**
      * The level at [now], given the level stored at [storedAtMillis]: the
@@ -234,16 +233,6 @@ object ManaWell {
     fun isEnabled(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
         settings(prefs, now).enabled
 
-    /**
-     * True when pact time for [config] is paid from the Well: the Well is on
-     * and the pact isn't exempt.
-     */
-    fun isBound(
-        prefs: SharedPreferences,
-        config: AppTimeLimit,
-        now: Long = System.currentTimeMillis()
-    ): Boolean = config.pactModeEnabled && !config.wellExempt && isEnabled(prefs, now)
-
     /** The enforced terms plus any queued loosening, for the Settings card. */
     @Synchronized
     fun settingsState(
@@ -258,7 +247,7 @@ object ManaWell {
     fun snapshot(
         prefs: SharedPreferences,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): WellSnapshot {
         applyDueRevision(prefs, now)
         val settings = readSettings(prefs)
@@ -281,7 +270,7 @@ object ManaWell {
         prefs: SharedPreferences,
         minutes: Int,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): Boolean {
         if (minutes <= 0) return false
         applyDueRevision(prefs, now)
@@ -309,7 +298,7 @@ object ManaWell {
         prefs: SharedPreferences,
         millis: Long,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ) {
         if (millis <= 0L) return
         applyDueRevision(prefs, now)
@@ -356,7 +345,7 @@ object ManaWell {
     /** Ids of the conditional-unlock rules that already paid into the Well today. */
     fun creditedUnlocks(
         prefs: SharedPreferences,
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): Set<String> {
         if (prefs.getString(Constants.PrefsKeys.WELL_UNLOCK_CREDIT_DATE, null) != todayKey) {
             return emptySet()
@@ -379,7 +368,7 @@ object ManaWell {
         ruleId: String,
         minutes: Int,
         now: Long = System.currentTimeMillis(),
-        todayKey: String = SessionCooldownManager.todayString()
+        todayKey: String = DayKey.today()
     ): Int {
         if (minutes <= 0 || ruleId.isEmpty()) return 0
         val paid = creditedUnlocks(prefs, todayKey)

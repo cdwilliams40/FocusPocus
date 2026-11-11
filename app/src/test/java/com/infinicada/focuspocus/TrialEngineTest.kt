@@ -1,7 +1,7 @@
 package com.infinicada.focuspocus
 
 import com.infinicada.focuspocus.limit.AppOpenStats
-import com.infinicada.focuspocus.limit.SessionCooldownManager
+import com.infinicada.focuspocus.limit.DayKey
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
 import com.infinicada.focuspocus.model.TrialType
@@ -33,7 +33,7 @@ class TrialEngineTest {
         try {
             Locale.setDefault(Locale.forLanguageTag("fa-IR"))
 
-            val dayKey = SessionCooldownManager.todayString()
+            val dayKey = DayKey.today()
             assertTrue("todayString must be ASCII digits, got $dayKey", dayKey.matches(Regex("\\d{8}")))
 
             val weekKey = TrialEngine.weekKeyForDay(dayKey)

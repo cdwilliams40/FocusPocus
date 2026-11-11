@@ -4,16 +4,11 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
-import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.limit.GuardStatus
 import com.infinicada.focuspocus.limit.ManaWell
-import com.infinicada.focuspocus.limit.PactManager
-import com.infinicada.focuspocus.limit.PactRevisionManager
-import com.infinicada.focuspocus.limit.PendingPactRevision
+import com.infinicada.focuspocus.limit.WellApp
+import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellSettings
 import com.infinicada.focuspocus.limit.WellSettingsState
-import com.infinicada.focuspocus.model.AppTimeLimit
-import com.infinicada.focuspocus.model.PactGroup
 
 /**
  * Grimoire export/import: serializes the app's configuration and history to a
@@ -34,7 +29,14 @@ import com.infinicada.focuspocus.model.PactGroup
 object BackupCodec {
 
     const val FORMAT = "focus-pocus-backup"
-    const val FORMAT_VERSION = 1
+    /** 2 (FocusPocus 2.0): pacts, wards and circles became the Well's app list. */
+    const val FORMAT_VERSION = 2
+
+    /** What a version-1 file carried instead of [Constants.PrefsKeys.WELL_APPS]. */
+    private val V1_LIMIT_KEYS = setOf(
+        Migrations.LegacyKeys.APP_TIME_LIMIT_CONFIGS,
+        Migrations.LegacyKeys.PACT_GROUPS
+    )
 
     /** Configuration and history that travels in a backup. */
     val EXPORT_KEYS: Set<String> = setOf(
@@ -43,9 +45,7 @@ object BackupCodec {
         Constants.PrefsKeys.SCHEDULES,
         Constants.PrefsKeys.FOCUS_PRESETS,
         Constants.PrefsKeys.NAMED_TAGS,
-        Constants.PrefsKeys.APP_TIME_LIMITS,
-        Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS,
-        Constants.PrefsKeys.PACT_GROUPS,
+        Constants.PrefsKeys.WELL_APPS,
         Constants.PrefsKeys.CONDITIONAL_UNLOCKS,
         // Settings
         Constants.PrefsKeys.THEME_MODE,
@@ -57,10 +57,6 @@ object BackupCodec {
         Constants.PrefsKeys.EMERGENCY_BREAK_CADENCE_WEEKS,
         Constants.PrefsKeys.HIDE_STOP_BUTTON,
         Constants.PrefsKeys.NFC_LOCK_MODE,
-        Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED,
-        Constants.PrefsKeys.GROUP_SEAL_ENABLED,
-        Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES,
-        Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES,
         // The Mana Well's terms travel; its level, today's draws and any
         // queued loosening are live state and stay on the device.
         Constants.PrefsKeys.WELL_ENABLED,
@@ -150,7 +146,10 @@ object BackupCodec {
      * state — are never touched.
      *
      * Commitments enforced on this device are the exception to plain
-     * replace: see [holdEnforcedPacts] and [holdEnforcedWell].
+     * replace: see [holdWellApps] and [holdEnforcedWell].
+     *
+     * A version-1 file's pacts and circles are restored through the same
+     * migration an upgraded install runs (Migrations.migrateToWellApps).
      */
     fun import(
         prefs: SharedPreferences,
@@ -166,8 +165,10 @@ object BackupCodec {
         if (file.format != FORMAT || file.prefs == null) return ImportResult.InvalidFormat
         if (file.formatVersion > FORMAT_VERSION) return ImportResult.UnsupportedVersion
 
-        val heldPacts = holdEnforcedPacts(prefs, gson, file.prefs, now)
+        val currentApps = WellApps.load(prefs, gson)
+        val currentRemovals = WellApps.pendingRemovals(prefs, gson)
         val heldWell = holdEnforcedWell(prefs, file.prefs, now)
+        val restoredKeys = if (file.formatVersion < 2) EXPORT_KEYS + V1_LIMIT_KEYS else EXPORT_KEYS
 
         var restored = 0
         // commit = true, not apply(): the caller restarts the process
@@ -175,7 +176,7 @@ object BackupCodec {
         prefs.edit(commit = true) {
             EXPORT_KEYS.forEach { remove(it) }
             for ((key, entry) in file.prefs) {
-                if (key !in EXPORT_KEYS) continue
+                if (key !in restoredKeys) continue
                 val value = entry?.value ?: continue
                 val applied = when (entry.type) {
                     "string" -> { putString(key, value); true }
@@ -188,18 +189,48 @@ object BackupCodec {
                 }
                 if (applied) restored++
             }
-            heldPacts?.forEach { (key, value) -> putString(key, value) }
             heldWell?.let { ManaWell.writeState(this, it) }
+            // Always on since 2.0, whatever the file says.
+            putBoolean(Constants.PrefsKeys.WELL_ENABLED, true)
         }
+        if (file.formatVersion < 2) Migrations.migrateToWellApps(prefs)
+        holdWellApps(prefs, gson, currentApps, currentRemovals, now)
         return ImportResult.Success(restored)
     }
 
     /**
-     * The Mana Well's twin of [holdEnforcedPacts]: while the Well is on, a
-     * restore gets exactly what changing its terms in Settings would — the
-     * backup's tighter terms apply at once, its looser ones (including "off",
-     * which is also what a backup from before the Well existed says) are
-     * queued behind the usual 24 h.
+     * A restore must not be a way around the 24 h delay on taking an app off
+     * the Well: every app the device has now stays, and one the backup leaves
+     * out is queued for removal exactly as removing it in the app would be.
+     * Apps the backup adds go on at once — that only makes things stricter.
+     */
+    private fun holdWellApps(
+        prefs: SharedPreferences,
+        gson: Gson,
+        currentApps: List<WellApp>,
+        currentRemovals: Map<String, Long>,
+        now: Long
+    ) {
+        if (currentApps.isEmpty()) return
+        val restored = WellApps.load(prefs, gson)
+        val restoredPackages = restored.mapTo(mutableSetOf()) { it.packageName }
+        val kept = currentApps.filter { it.packageName !in restoredPackages }
+        WellApps.save(prefs, gson, restored + kept)
+        val removals = WellApps.pendingRemovals(prefs, gson).toMutableMap()
+        kept.forEach { app ->
+            removals[app.packageName] = currentRemovals[app.packageName] ?: (now + WellApps.REMOVAL_DELAY_MS)
+        }
+        prefs.edit(commit = true) {
+            if (removals.isEmpty()) remove(Constants.PrefsKeys.WELL_APP_REMOVALS)
+            else putString(Constants.PrefsKeys.WELL_APP_REMOVALS, gson.toJson(removals))
+        }
+    }
+
+    /**
+     * The Mana Well's terms get exactly what changing them in Settings would:
+     * the backup's tighter terms apply at once, its looser ones are queued
+     * behind the usual 24 h. The Well is always on since 2.0, whatever an
+     * older backup says.
      *
      * Returns the terms to write over the restored ones, or null when the
      * Well isn't on and the restore is a plain replace.
@@ -213,8 +244,7 @@ object BackupCodec {
             backup[key]?.takeIf { it.type == type }?.value
         val defaults = WellSettings()
         val incoming = WellSettings(
-            enabled = backupValue(Constants.PrefsKeys.WELL_ENABLED, "boolean")
-                ?.toBooleanStrictOrNull() ?: defaults.enabled,
+            enabled = true,
             capacityMinutes = backupValue(Constants.PrefsKeys.WELL_CAPACITY_MINUTES, "int")
                 ?.toIntOrNull() ?: defaults.capacityMinutes,
             refillIntervalMinutes =
@@ -222,103 +252,5 @@ object BackupCodec {
                     ?.toIntOrNull() ?: defaults.refillIntervalMinutes
         )
         return ManaWell.holdForRestore(prefs, incoming, now)
-    }
-
-    /**
-     * A restore must not be a way around the pact cooling-off: every pact the
-     * device currently enforces keeps its current terms, and wherever the
-     * backup's terms differ they are queued as a normal 24 h revision instead
-     * (a pact missing from the backup queues as a removal) — exactly what
-     * editing the pact in the app would do. Enchantments bound to an enforced
-     * circle keep their current app list too, since shrinking the list would
-     * loosen the circle immediately.
-     *
-     * Returns the store values to write over the restored ones, or null when
-     * no pact is enforced and the restore is a plain replace.
-     */
-    private fun holdEnforcedPacts(
-        prefs: SharedPreferences,
-        gson: Gson,
-        backup: Map<String, PrefEntry?>,
-        now: Long
-    ): Map<String, String>? {
-        val currentConfigs = AppTimeLimitManager.getTimeLimitConfigs(prefs, gson)
-        val currentGroups = PactManager(prefs, gson).getGroups()
-        val currentBlockers = BlockerRepository.getBlockers(prefs)
-        val gated = GuardStatus.pactGatedPackages(currentConfigs, currentGroups, currentBlockers)
-        if (gated.isEmpty() && currentGroups.isEmpty()) return null
-
-        fun backupString(key: String): String? =
-            backup[key]?.takeIf { it.type == "string" }?.value
-        fun <T> parse(key: String, type: java.lang.reflect.Type): T? = try {
-            backupString(key)?.let { gson.fromJson<T>(it, type) }
-        } catch (e: Exception) {
-            null
-        }
-
-        // Same fallback as AppTimeLimitManager's migration: an old backup may
-        // carry only the legacy flat daily-limit map.
-        val incomingConfigs: MutableMap<String, AppTimeLimit> =
-            (parse<Map<String, AppTimeLimit>>(
-                Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS,
-                object : TypeToken<Map<String, AppTimeLimit>>() {}.type
-            ) ?: parse<Map<String, Int>>(
-                Constants.PrefsKeys.APP_TIME_LIMITS,
-                object : TypeToken<Map<String, Int>>() {}.type
-            )?.mapValues { (pkg, minutes) -> AppTimeLimit(packageName = pkg, dailyLimitMinutes = minutes) }
-                ?: emptyMap()).toMutableMap()
-        @Suppress("SENSELESS_COMPARISON")
-        val incomingGroups: MutableList<PactGroup> = (parse<List<PactGroup>>(
-            Constants.PrefsKeys.PACT_GROUPS, object : TypeToken<List<PactGroup>>() {}.type
-        ) ?: emptyList()).filterNotNull().filter { it.blockerName != null }.toMutableList()
-        val incomingBlockers: MutableList<Blocker> = Blocker.sanitize(
-            parse<List<Blocker>>(Constants.PrefsKeys.BLOCKER_LISTS, object : TypeToken<List<Blocker>>() {}.type)
-        ).toMutableList()
-
-        val revisions = PactRevisionManager(prefs, gson).getRevisions().toMutableList()
-        val appliesAt = now + PactRevisionManager.REVISION_DELAY_MS
-
-        for (group in currentGroups) {
-            val incoming = incomingGroups.find { it.blockerName == group.blockerName }
-            if (incoming != group) {
-                incomingGroups.removeAll { it.blockerName == group.blockerName }
-                incomingGroups += group
-                revisions.removeAll { it.packageName == null && it.blockerName == group.blockerName }
-                revisions += PendingPactRevision(
-                    blockerName = group.blockerName,
-                    newGroup = incoming,
-                    requestedAtMillis = now,
-                    appliesAtMillis = appliesAt
-                )
-            }
-            currentBlockers.find { it.name == group.blockerName }?.let { current ->
-                val index = incomingBlockers.indexOfFirst { it.name == current.name }
-                if (index >= 0) incomingBlockers[index] = current else incomingBlockers += current
-            }
-        }
-
-        for (pkg in gated) {
-            val current = currentConfigs[pkg]
-            val incoming = incomingConfigs[pkg]
-            if (incoming == current) continue
-            if (current != null) incomingConfigs[pkg] = current else incomingConfigs.remove(pkg)
-            revisions.removeAll { it.packageName == pkg }
-            revisions += PendingPactRevision(
-                packageName = pkg,
-                newConfig = incoming,
-                requestedAtMillis = now,
-                appliesAtMillis = appliesAt
-            )
-        }
-
-        return mapOf(
-            Constants.PrefsKeys.APP_TIME_LIMIT_CONFIGS to gson.toJson(incomingConfigs),
-            // Kept in lockstep with the config map, as saveTimeLimitConfigs does.
-            Constants.PrefsKeys.APP_TIME_LIMITS to
-                gson.toJson(incomingConfigs.mapValues { (_, v) -> v.dailyLimitMinutes }),
-            Constants.PrefsKeys.PACT_GROUPS to gson.toJson(incomingGroups),
-            Constants.PrefsKeys.BLOCKER_LISTS to gson.toJson(incomingBlockers),
-            Constants.PrefsKeys.PACT_PENDING_REVISIONS to gson.toJson(revisions)
-        )
     }
 }

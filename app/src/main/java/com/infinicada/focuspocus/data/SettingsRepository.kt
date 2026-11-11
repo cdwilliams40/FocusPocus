@@ -60,13 +60,6 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     }
 
     /** Opt-in (default off): notify when a guard's seal lifts. */
-    fun getSealLiftedAlertsEnabled(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, false)
-
-    fun setSealLiftedAlertsEnabled(enabled: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.SEAL_LIFTED_ALERTS_ENABLED, enabled) }
-    }
-
     fun getNfcLockMode(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 
@@ -152,27 +145,6 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     }
 
     // ── Group-seal mode ──
-
-    fun getGroupSealEnabled(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, false)
-
-    fun setGroupSealEnabled(enabled: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.GROUP_SEAL_ENABLED, enabled) }
-    }
-
-    fun getGroupSealOpenWindowMinutes(): Int =
-        prefs.getInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, 15).coerceIn(5, 60)
-
-    fun setGroupSealOpenWindowMinutes(minutes: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.GROUP_SEAL_OPEN_WINDOW_MINUTES, minutes.coerceIn(5, 60)) }
-    }
-
-    fun getGroupSealDurationMinutes(): Int =
-        prefs.getInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, 30).coerceIn(5, 120)
-
-    fun setGroupSealDurationMinutes(minutes: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.GROUP_SEAL_DURATION_MINUTES, minutes.coerceIn(5, 120)) }
-    }
 
     fun isProgressionIntroShown(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, false)

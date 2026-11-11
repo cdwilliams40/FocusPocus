@@ -28,7 +28,7 @@ data class AppOpenStats(
 class OpenReflexTracker(
     private val prefs: SharedPreferences,
     private val gson: Gson,
-    private val today: () -> String = { SessionCooldownManager.todayString() }
+    private val today: () -> String = { DayKey.today() }
 ) {
 
     /**
