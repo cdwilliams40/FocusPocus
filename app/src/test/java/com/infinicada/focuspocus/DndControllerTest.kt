@@ -95,12 +95,12 @@ class DndControllerTest {
     }
 
     @Test
-    fun `updateDndState enables priority mode when talisman focus tag active and mute enabled`() {
+    fun `updateDndState enables priority mode when a talisman session is active and mute enabled`() {
         `when`(mockNotificationManager.isNotificationPolicyAccessGranted).thenReturn(true)
         `when`(mockNotificationManager.currentInterruptionFilter).thenReturn(NotificationManager.INTERRUPTION_FILTER_ALL)
-        `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(false)
+        // A talisman session is an ordinary session started by a talisman.
+        `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)).thenReturn(true)
         `when`(mockSharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)).thenReturn(null)
-        `when`(mockSharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)).thenReturn("tag-1")
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS, true)).thenReturn(true)
         `when`(mockSharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)).thenReturn(false)
         `when`(mockSharedPreferences.getBoolean("dndEnabledByApp", false)).thenReturn(false)

@@ -15,13 +15,16 @@ object SessionManager {
         scheduleId: String? = null,
         durationMinutes: Int = 0,
         breaksEnabled: Boolean = true,
-        scheduleEndTimeMillis: Long? = null
+        scheduleEndTimeMillis: Long? = null,
+        /** The talisman whose tap started this session, if one did. */
+        talismanId: String? = null
     ) {
         val now = System.currentTimeMillis()
         sharedPreferences.edit {
             putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
             putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(blockerNames))
-            putString(Constants.PrefsKeys.ACTIVE_BLOCKER, blockerNames.firstOrNull())
+            if (talismanId != null) putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, talismanId)
+            else remove(Constants.PrefsKeys.ACTIVE_TALISMAN_ID)
             putLong(Constants.PrefsKeys.SESSION_START_TIME, now)
             putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
             putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, breaksEnabled)
@@ -61,15 +64,6 @@ object SessionManager {
         }
     }
 
-    /** Convenience overload for single blocker name */
-    fun startSession(
-        sharedPreferences: SharedPreferences,
-        blockerName: String,
-        scheduleId: String? = null,
-        durationMinutes: Int = 0,
-        breaksEnabled: Boolean = true
-    ) = startSession(sharedPreferences, listOf(blockerName), scheduleId, durationMinutes, breaksEnabled)
-
     fun stopSession(
         context: Context,
         sharedPreferences: SharedPreferences,
@@ -81,10 +75,9 @@ object SessionManager {
 
         sharedPreferences.edit {
             putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-            remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
             remove(Constants.PrefsKeys.ACTIVE_BLOCKERS)
             remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
-            remove(Constants.PrefsKeys.FOCUS_TAG_ID)
+            remove(Constants.PrefsKeys.ACTIVE_TALISMAN_ID)
             putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
             putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
             putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
@@ -111,8 +104,10 @@ object SessionManager {
         return sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
     }
 
-    /** True while any focus session is running: a manual one or a talisman one. */
-    fun isFocusActive(sharedPreferences: SharedPreferences): Boolean =
-        isSessionActive(sharedPreferences) ||
-            sharedPreferences.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null) != null
+    /** True while any focus session is running — timed, ritual or talisman. */
+    fun isFocusActive(sharedPreferences: SharedPreferences): Boolean = isSessionActive(sharedPreferences)
+
+    /** The talisman that started the running session, if one did. */
+    fun activeTalismanId(sharedPreferences: SharedPreferences): String? =
+        sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, null)
 }

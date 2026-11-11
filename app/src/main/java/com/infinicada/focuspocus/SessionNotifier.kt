@@ -46,9 +46,8 @@ object SessionNotifier {
     /** Session-state keys whose changes can alter what the notification shows. */
     private val WATCHED_KEYS = setOf(
         Constants.PrefsKeys.MANUAL_FOCUS_MODE,
-        Constants.PrefsKeys.FOCUS_TAG_ID,
+        Constants.PrefsKeys.ACTIVE_TALISMAN_ID,
         Constants.PrefsKeys.IS_ON_BREAK,
-        Constants.PrefsKeys.ACTIVE_BLOCKER,
         Constants.PrefsKeys.ACTIVE_BLOCKERS,
         Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
         // A ritual's display name comes from the schedule list, so a rename
@@ -157,8 +156,7 @@ object SessionNotifier {
      */
     fun resolveState(prefs: SharedPreferences, gson: Gson, nowMillis: Long): CountdownState? {
         val manualFocus = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-        val focusTagId = prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
-        if (!manualFocus && focusTagId == null) return null
+        if (!manualFocus) return null
 
         val scheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         val scheduleName = scheduleId?.let { loadScheduleName(prefs, gson, it) }

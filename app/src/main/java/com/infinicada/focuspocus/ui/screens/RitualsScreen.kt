@@ -54,8 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.DayOfWeek
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.model.Schedule
 import java.util.UUID
 
@@ -164,7 +163,7 @@ fun ScheduleListScreen(
 @Composable
 fun ScheduleEditorScreen(
     blockerLists: List<Blocker>,
-    namedTags: List<NamedTag>,
+    namedTags: List<Talisman>,
     onSaveSchedule: (Schedule) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,

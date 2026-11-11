@@ -75,11 +75,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Perk
-import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.GlassCard
@@ -89,13 +87,12 @@ import com.infinicada.focuspocus.ui.components.formatClock
 @Composable
 fun Greeting(
     focusMode: Boolean,
-    activeTagId: String?,
-    namedTags: List<NamedTag>,
+    /** The talisman that started the running session, if one did. */
+    activeTalismanId: String?,
+    namedTags: List<Talisman>,
     activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
-    focusPresets: List<FocusPreset>,
-    selectedPresetId: String?,
     focusDurationMinutes: Int,
     focusTimeRemaining: Int,
     isOnBreak: Boolean,
@@ -114,7 +111,6 @@ fun Greeting(
     progressionEnabled: Boolean = false,
     trials: List<Trial> = emptyList(),
     canAffordExtraBreak: Boolean = false,
-    onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
@@ -125,14 +121,15 @@ fun Greeting(
     onEmergencyStop: () -> Unit = {},
     onClaimTrial: (Trial) -> Unit = {},
     onBuyExtraBreak: () -> Unit = {},
-    onCreateEnchantment: () -> Unit = {},
-    onActivateTalismanPreset: (FocusPreset) -> Unit = {},
-    onActivateFocusTag: (NamedTag) -> Unit = {}
+    onCreateEnchantment: () -> Unit = {}
 ) {
-    val activeTagName = namedTags.find { it.id == activeTagId }?.name
+    val activeTalisman = namedTags.find { it.id == activeTalismanId }
+    val activeTagName = activeTalisman?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
         namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
     } else null
+    // A session a talisman started, and that only it may end.
+    val lockingTalismanName = activeTalisman?.takeIf { it.locksSession }?.name
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -160,9 +157,10 @@ fun Greeting(
                     nfcLockMode = nfcLockMode,
                     emergencyBreakAvailable = emergencyBreakAvailable,
                     emergencyBreakDaysRemaining = emergencyBreakDaysRemaining,
-                    activeTagId = activeTagId,
+                    activeTagId = activeTalismanId,
                     activeTagName = activeTagName,
                     boundTalismanName = boundTalismanName,
+                    lockingTalismanName = lockingTalismanName,
                     progressionEnabled = progressionEnabled,
                     canAffordExtraBreak = canAffordExtraBreak,
                     onStartClicked = onStartClicked,
@@ -177,22 +175,16 @@ fun Greeting(
                     activeBlockers = activeBlockers,
                     activeSchedule = activeSchedule,
                     blockerLists = blockerLists,
-                    focusPresets = focusPresets,
-                    namedTags = namedTags,
-                    selectedPresetId = selectedPresetId,
                     focusDurationMinutes = focusDurationMinutes,
                     sessionBreaksEnabled = sessionBreaksEnabled,
                     progressionEnabled = progressionEnabled,
                     trials = trials,
-                    onPresetSelected = onPresetSelected,
                     onBlockerToggled = onBlockerToggled,
                     onDurationSelected = onDurationSelected,
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
                     onClaimTrial = onClaimTrial,
-                    onCreateEnchantment = onCreateEnchantment,
-                    onActivateTalismanPreset = onActivateTalismanPreset,
-                    onActivateFocusTag = onActivateFocusTag
+                    onCreateEnchantment = onCreateEnchantment
                 )
             }
         }
@@ -208,22 +200,16 @@ private fun IdleContent(
     activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
-    focusPresets: List<FocusPreset>,
-    namedTags: List<NamedTag>,
-    selectedPresetId: String?,
     focusDurationMinutes: Int,
     sessionBreaksEnabled: Boolean,
     progressionEnabled: Boolean,
     trials: List<Trial>,
-    onPresetSelected: (FocusPreset) -> Unit,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
     onClaimTrial: (Trial) -> Unit,
-    onCreateEnchantment: () -> Unit,
-    onActivateTalismanPreset: (FocusPreset) -> Unit,
-    onActivateFocusTag: (NamedTag) -> Unit
+    onCreateEnchantment: () -> Unit
 ) {
     Text(
         text = stringResource(R.string.home_status_ready),
@@ -259,27 +245,6 @@ private fun IdleContent(
     }
 
     Spacer(modifier = Modifier.height(24.dp))
-
-    // Quick Spell chips (above config card when presets exist)
-    val validPresets = focusPresets.filter { preset ->
-        preset.effectiveBlockerNames.all { name -> blockerLists.any { it.name == name } }
-    }
-    if (activeSchedule == null && validPresets.isNotEmpty()) {
-        Text(
-            text = stringResource(R.string.home_quick_spells),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-        )
-        PresetChipRow(
-            presets = validPresets,
-            selectedPresetId = selectedPresetId,
-            onPresetSelected = onPresetSelected,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-    }
 
     // Configuration card
     if (activeSchedule == null) {
@@ -330,17 +295,6 @@ private fun IdleContent(
         Spacer(modifier = Modifier.height(20.dp))
     }
 
-    // Talismans — every bound trigger can also be activated by hand, so a
-    // missing phone-side NFC moment (tag at home, dead reader) never blocks
-    // the ritual the talisman stands for.
-    TalismansCard(
-        namedTags = namedTags,
-        focusPresets = focusPresets,
-        blockerLists = blockerLists,
-        onActivateTalismanPreset = onActivateTalismanPreset,
-        onActivateFocusTag = onActivateFocusTag
-    )
-
     // Today's trials — the daily carrot, right where the casting happens
     if (progressionEnabled && trials.isNotEmpty()) {
         GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -361,128 +315,6 @@ private fun IdleContent(
     }
 
     Spacer(modifier = Modifier.height(16.dp))
-}
-
-// ────────────────────────────────────────────────────────────
-//  TALISMANS (activate by hand, no NFC tap needed)
-// ────────────────────────────────────────────────────────────
-
-/**
- * Lists every talisman and lets it be activated from the screen itself — the
- * exact action a physical NFC tap would trigger. A talisman bound to a Quick
- * Spell casts that spell (same [FocusPreset] toggle path as NFC and deep
- * links, including the ritual-lock gate); an unbound talisman starts a
- * talisman focus session with the currently selected enchantments. Only
- * activation is offered: dispelling stays on the session controls (or the
- * physical tag, where a lock demands it).
- */
-@Composable
-private fun TalismansCard(
-    namedTags: List<NamedTag>,
-    focusPresets: List<FocusPreset>,
-    blockerLists: List<Blocker>,
-    onActivateTalismanPreset: (FocusPreset) -> Unit,
-    onActivateFocusTag: (NamedTag) -> Unit
-) {
-    // One row per talisman, resolved to the preset a physical tap would fire:
-    // handleNfcTag takes the FIRST preset bound to a tag, so a tag carrying
-    // stray extra bindings must not grow extra rows here. Bound spells appear
-    // only while castable (same visibility rule as the Quick Spell chips); a
-    // break spell stays visible but disabled, since it needs a session this
-    // idle screen doesn't have.
-    val boundRows = namedTags.mapNotNull { tag ->
-        val preset = focusPresets.find { it.talismanId == tag.id } ?: return@mapNotNull null
-        val castable = preset.effectiveBlockerNames.isNotEmpty() &&
-            preset.effectiveBlockerNames.all { name -> blockerLists.any { it.name == name } }
-        when (preset.action ?: PresetAction.TOGGLE) {
-            PresetAction.TEMP_DISABLE -> Triple(tag, preset, false)
-            else -> if (castable) Triple(tag, preset, true) else null
-        }
-    }
-    val unboundTags = namedTags.filter { tag -> focusPresets.none { it.talismanId == tag.id } }
-    if (boundRows.isEmpty() && unboundTags.isEmpty()) return
-
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.talismans_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        boundRows.forEachIndexed { index, (tag, preset, enabled) ->
-            if (index > 0) Spacer(modifier = Modifier.height(12.dp))
-            TalismanRow(
-                name = tag.name,
-                description = when (preset.action ?: PresetAction.TOGGLE) {
-                    PresetAction.TEMP_ENABLE -> stringResource(
-                        R.string.home_talisman_action_temp_enable,
-                        preset.name,
-                        preset.tempDurationMinutes ?: 30
-                    )
-                    PresetAction.TEMP_DISABLE -> stringResource(
-                        R.string.home_talisman_action_temp_disable,
-                        preset.tempDurationMinutes ?: 30
-                    )
-                    PresetAction.TOGGLE -> stringResource(
-                        R.string.home_talisman_action_cast, preset.name
-                    )
-                },
-                enabled = enabled,
-                onActivate = { onActivateTalismanPreset(preset) }
-            )
-        }
-        unboundTags.forEachIndexed { index, tag ->
-            if (index > 0 || boundRows.isNotEmpty()) Spacer(modifier = Modifier.height(12.dp))
-            TalismanRow(
-                name = tag.name,
-                description = stringResource(R.string.home_talisman_toggle_desc),
-                enabled = true,
-                onActivate = { onActivateFocusTag(tag) }
-            )
-        }
-    }
-    Spacer(modifier = Modifier.height(20.dp))
-}
-
-@Composable
-private fun TalismanRow(
-    name: String,
-    description: String,
-    enabled: Boolean,
-    onActivate: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Filled.Nfc,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(name, style = MaterialTheme.typography.titleSmall)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        // Every row's button shows the same "Activate" label, so give each a
-        // per-talisman accessible name — controls-mode TalkBack navigation
-        // otherwise hears a run of indistinguishable "Activate" buttons.
-        val activateDesc = stringResource(R.string.home_talisman_activate_desc, name)
-        FilledTonalButton(
-            onClick = onActivate,
-            enabled = enabled,
-            modifier = Modifier.semantics { contentDescription = activateDesc }
-        ) {
-            Text(stringResource(R.string.home_talisman_activate))
-        }
-    }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -509,6 +341,8 @@ private fun ActiveSessionContent(
     activeTagId: String?,
     activeTagName: String?,
     boundTalismanName: String?,
+    /** Set when a talisman started this session and only it may end it. */
+    lockingTalismanName: String?,
     progressionEnabled: Boolean,
     canAffordExtraBreak: Boolean,
     onStartClicked: () -> Unit,
@@ -696,10 +530,11 @@ private fun ActiveSessionContent(
     }
 
     // Dispel button
-    val isButtonEnabled = activeSchedule == null || activeSchedule.unbindingTalismanId == null
+    val boundToTalisman = (activeSchedule != null && activeSchedule.unbindingTalismanId != null) ||
+        lockingTalismanName != null
+    val isButtonEnabled = !boundToTalisman
     val shouldHideButton = nfcLockMode ||
-        (hideStopButton && focusDurationMinutes > 0 &&
-            !(activeSchedule != null && activeSchedule.unbindingTalismanId != null))
+        (hideStopButton && focusDurationMinutes > 0 && !boundToTalisman)
 
     if (!shouldHideButton && !isOnBreak) {
         Button(
@@ -725,7 +560,7 @@ private fun ActiveSessionContent(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null)
+                    text = if (boundToTalisman)
                         stringResource(R.string.home_button_bound)
                     else stringResource(R.string.home_button_dispel),
                     style = MaterialTheme.typography.titleMedium
@@ -755,7 +590,17 @@ private fun ActiveSessionContent(
         Spacer(modifier = Modifier.height(8.dp))
     }
 
-    if (nfcLockMode && activeSchedule?.unbindingTalismanId == null) {
+    if (lockingTalismanName != null && activeSchedule == null) {
+        Text(
+            stringResource(R.string.focus_talisman_locked, lockingTalismanName),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    if (nfcLockMode && activeSchedule?.unbindingTalismanId == null && lockingTalismanName == null) {
         Text(
             stringResource(R.string.home_scan_talisman_to_dispel),
             color = MaterialTheme.colorScheme.error,
@@ -1192,49 +1037,5 @@ fun DurationSelectorDropdown(
                 )
             }
         }
-    }
-}
-
-// ────────────────────────────────────────────────────────────
-//  PRESET CHIP ROW (unchanged logic, same API)
-// ────────────────────────────────────────────────────────────
-
-@Composable
-fun PresetChipRow(
-    presets: List<FocusPreset>,
-    selectedPresetId: String?,
-    onPresetSelected: (FocusPreset) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        presets.forEach { preset ->
-            FilterChip(
-                selected = selectedPresetId == preset.id,
-                onClick = { onPresetSelected(preset) },
-                label = { Text(preset.name) },
-                leadingIcon = if (selectedPresetId == preset.id) {
-                    { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                } else null,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
-        }
-        // "Custom" chip shown when no preset matches
-        FilterChip(
-            selected = selectedPresetId == null,
-            onClick = { /* Custom is selected by modifying any setting */ },
-            label = { Text(stringResource(R.string.label_custom)) },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        )
     }
 }

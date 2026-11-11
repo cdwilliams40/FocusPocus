@@ -38,7 +38,7 @@
 -keep class com.infinicada.focuspocus.BlockerMode { *; }
 -keep class com.infinicada.focuspocus.BlockEvent { *; }
 -keep class com.infinicada.focuspocus.FocusSession { *; }
--keep class com.infinicada.focuspocus.NamedTag { *; }
+-keep class com.infinicada.focuspocus.Talisman { *; }
 -keep class com.infinicada.focuspocus.limit.AppOpenStats { *; }
 -keep class com.infinicada.focuspocus.limit.OpenReflexTracker$Store { *; }
 # The grimoire backup envelope. Its field names ARE the on-disk format, so

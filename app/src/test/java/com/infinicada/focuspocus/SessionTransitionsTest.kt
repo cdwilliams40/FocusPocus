@@ -72,7 +72,8 @@ class SessionTransitionsTest {
 
     @Test
     fun `auto-break applies to talisman sessions too`() {
-        prefs.putString(Constants.PrefsKeys.FOCUS_TAG_ID, "tag")
+        prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
+        prefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag")
         prefs.putBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, true)
         prefs.putInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, 5)
         prefs.putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)

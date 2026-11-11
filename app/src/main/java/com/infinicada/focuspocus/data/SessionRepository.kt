@@ -22,8 +22,17 @@ class SessionRepository(
     private val gson: Gson
 ) {
     // Session lifecycle
-    fun startSession(blockerNames: List<String>, durationMinutes: Int = 0, breaksEnabled: Boolean = true) {
-        SessionManager.startSession(prefs, blockerNames, durationMinutes = durationMinutes, breaksEnabled = breaksEnabled)
+    fun startSession(
+        blockerNames: List<String>,
+        durationMinutes: Int = 0,
+        breaksEnabled: Boolean = true,
+        talismanId: String? = null
+    ) {
+        SessionManager.startSession(
+            prefs, blockerNames,
+            durationMinutes = durationMinutes, breaksEnabled = breaksEnabled, talismanId = talismanId
+        )
+        DndController.updateDndState(context)
         DeviceOwnerManager.syncSuspensions(context)
     }
 
@@ -39,9 +48,6 @@ class SessionRepository(
         prefs.edit { putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, active) }
     }
 
-    fun getActiveBlockerName(): String? =
-        prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-
     fun getActiveBlockerNames(): List<String> {
         val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
         if (json != null) {
@@ -50,20 +56,15 @@ class SessionRepository(
                 gson.fromJson(json, type) ?: emptyList()
             } catch (e: Exception) {
                 android.util.Log.e("SessionRepository", "Error parsing active blockers JSON", e)
-                // Fall back to single blocker pref
-                val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-                if (single != null) listOf(single) else emptyList()
+                emptyList()
             }
         }
-        // Fallback to old single-blocker pref
-        val single = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null)
-        return if (single != null) listOf(single) else emptyList()
+        return emptyList()
     }
 
     fun setActiveBlockerNames(names: List<String>) {
         prefs.edit {
             putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(names))
-            putString(Constants.PrefsKeys.ACTIVE_BLOCKER, names.firstOrNull())
         }
     }
 
@@ -151,35 +152,8 @@ class SessionRepository(
         prefs.edit { putLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, millis) }
     }
 
-    // Focus tag
-    fun getFocusTagId(): String? =
-        prefs.getString(Constants.PrefsKeys.FOCUS_TAG_ID, null)
-
-    fun setFocusTagId(tagId: String?) {
-        prefs.edit {
-            if (tagId != null) {
-                putString(Constants.PrefsKeys.FOCUS_TAG_ID, tagId)
-            } else {
-                remove(Constants.PrefsKeys.FOCUS_TAG_ID)
-            }
-            // When the talisman is the only session anchor, toggling it is a
-            // session boundary: clear leftover break bookkeeping so the next
-            // session doesn't inherit a live break or a spent quota. With a
-            // manual session also running, that session's break state stays.
-            if (!prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) {
-                putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-                putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
-                putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-                remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
-                // Extra-break perk tokens are session-scoped; never inherit one
-                remove(Constants.PrefsKeys.EXTRA_BREAK_TOKENS)
-                BreakClock.reset(this)
-            }
-        }
-        // Talisman sessions engage DND and device-owner suspensions like any other session.
-        DndController.updateDndState(context)
-        DeviceOwnerManager.syncSuspensions(context)
-    }
+    /** The talisman that started the running session, if one did. */
+    fun getActiveTalismanId(): String? = SessionManager.activeTalismanId(prefs)
 
     // Session history
     fun getFocusSessions(): List<FocusSession> {
@@ -219,7 +193,6 @@ class SessionRepository(
 
             if (activeScheduleId == null) {
                 putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(activeBlockerNames))
-                putString(Constants.PrefsKeys.ACTIVE_BLOCKER, activeBlockerNames.firstOrNull())
             }
 
             if (!sessionActive) {
@@ -283,7 +256,6 @@ class SessionRepository(
         if (activeNames.isEmpty()) return
         if (activeNames.none { it in blockerNames }) {
             prefs.edit {
-                remove(Constants.PrefsKeys.ACTIVE_BLOCKER)
                 remove(Constants.PrefsKeys.ACTIVE_BLOCKERS)
                 putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
             }

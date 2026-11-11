@@ -1,269 +1,110 @@
 package com.infinicada.focuspocus
 
-import android.content.Context
-import com.google.gson.Gson
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
-import com.infinicada.focuspocus.handler.TriggerResult
 import com.infinicada.focuspocus.model.DayOfWeek
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.model.Schedule
-import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
-import org.mockito.MockedStatic
-import org.mockito.Mockito
 
 class TriggerHandlerTest {
 
-    private lateinit var prefs: FakeSharedPreferences
-    private lateinit var handler: TriggerHandler
-    private lateinit var mockContext: Context
-    private lateinit var sessionRecorderMock: MockedStatic<SessionRecorder>
-    private lateinit var dndControllerMock: MockedStatic<DndController>
+    private val social = Blocker("Social", BlockerMode.BLACKLIST, setOf("com.feed"))
+    private val shield = Talisman("tag-1", "Shield", blockerNames = listOf("Social"), durationMinutes = 0)
 
-    private val gson = Gson()
-
-    private val testBlocker = Blocker("TestBlocker", BlockerMode.BLACKLIST, setOf("com.test"))
-    private val blockerLists = listOf(testBlocker)
-
-    private fun makePreset(
-        id: String = "abc123",
-        name: String = "TestPreset",
-        blockerNames: List<String> = listOf("TestBlocker"),
-        action: PresetAction? = PresetAction.TOGGLE,
-        durationMinutes: Int = 25,
-        breaksEnabled: Boolean = true,
-        talismanId: String? = null,
-        tempDurationMinutes: Int? = 30
-    ) = FocusPreset(
-        id = id,
-        name = name,
-        blockerNames = blockerNames,
-        action = action,
-        durationMinutes = durationMinutes,
-        breaksEnabled = breaksEnabled,
-        talismanId = talismanId,
-        tempDurationMinutes = tempDurationMinutes
+    private fun ritual(key: String?) = Schedule(
+        id = "sched-1", name = "Morning", blockerNames = listOf("Social"),
+        days = setOf(DayOfWeek.MONDAY), startTime = "06:00", endTime = "12:00",
+        unbindingTalismanId = key
     )
 
-    @Before
-    fun setUp() {
-        prefs = FakeSharedPreferences()
-        mockContext = Mockito.mock(Context::class.java)
-        sessionRecorderMock = Mockito.mockStatic(SessionRecorder::class.java)
-        dndControllerMock = Mockito.mockStatic(DndController::class.java)
-        handler = TriggerHandler(mockContext, prefs, gson)
-    }
+    private fun tap(
+        tagId: String,
+        activeScheduleId: String? = null,
+        activeTalismanId: String? = null,
+        sessionActive: Boolean = false,
+        schedules: List<Schedule> = emptyList(),
+        talismans: List<Talisman> = listOf(shield),
+        blockers: List<Blocker> = listOf(social)
+    ) = TriggerHandler.handleNfcTag(
+        tagId, activeScheduleId, activeTalismanId, sessionActive, schedules, talismans, blockers
+    )
 
-    @After
-    fun tearDown() {
-        sessionRecorderMock.close()
-        dndControllerMock.close()
-    }
-
-    // ── togglePreset TOGGLE ──
+    // ── ritual keys ──
 
     @Test
-    fun `togglePreset TOGGLE when inactive starts session and returns Success`() {
-        val preset = makePreset(action = PresetAction.TOGGLE)
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_preset_cast, (result as TriggerResult.Success).messageResId)
-        assertTrue(SessionManager.isSessionActive(prefs))
-    }
-
-    @Test
-    fun `togglePreset TOGGLE when active stops session and returns Success`() {
-        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 25)
-        val preset = makePreset(action = PresetAction.TOGGLE)
-
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_preset_dispelled, (result as TriggerResult.Success).messageResId)
-    }
-
-    @Test
-    fun `togglePreset TOGGLE when inactive with no valid blockers returns Error`() {
-        val preset = makePreset(blockerNames = listOf("NonExistent"))
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_enchantment_missing, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `togglePreset null action defaults to TOGGLE`() {
-        val preset = makePreset(action = null)
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_preset_cast, (result as TriggerResult.Success).messageResId)
-        assertTrue(SessionManager.isSessionActive(prefs))
-    }
-
-    // ── togglePreset TEMP_ENABLE ──
-
-    @Test
-    fun `togglePreset TEMP_ENABLE starts timed session`() {
-        val preset = makePreset(action = PresetAction.TEMP_ENABLE, tempDurationMinutes = 15)
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_preset_cast_timed, (result as TriggerResult.Success).messageResId)
-        assertTrue(SessionManager.isSessionActive(prefs))
-    }
-
-    @Test
-    fun `togglePreset TEMP_ENABLE with no valid blockers returns Error`() {
-        val preset = makePreset(action = PresetAction.TEMP_ENABLE, blockerNames = listOf("NonExistent"))
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_enchantment_missing, (result as TriggerResult.Error).messageResId)
-    }
-
-    @Test
-    fun `togglePreset TEMP_ENABLE with null tempDuration defaults to 30`() {
-        val preset = makePreset(action = PresetAction.TEMP_ENABLE, tempDurationMinutes = null)
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        val args = (result as TriggerResult.Success).args
-        assertEquals(30, args[1])
-    }
-
-    // ── togglePreset TEMP_DISABLE ──
-
-    @Test
-    fun `togglePreset TEMP_DISABLE when active sets break prefs and returns Success`() {
-        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 25)
-        val preset = makePreset(action = PresetAction.TEMP_DISABLE, tempDurationMinutes = 10)
-
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Success)
-        assertEquals(R.string.toast_temp_break, (result as TriggerResult.Success).messageResId)
-        assertTrue(prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false))
-        assertEquals(600, prefs.getInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0))
-    }
-
-    @Test
-    fun `togglePreset TEMP_DISABLE freezes focus countdown for the break`() {
-        // A 25-minute timed session persists its wall-clock end timestamp.
-        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 25)
-        val focusEndBefore = prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        assertTrue(focusEndBefore > 0L)
-
-        val preset = makePreset(action = PresetAction.TEMP_DISABLE, tempDurationMinutes = 10)
-        handler.togglePreset(preset, blockerLists)
-
-        // The countdown must be parked (end timestamp dropped, remaining seconds frozen)
-        // so the break-end path resumes from where the session left off instead of
-        // restarting the full duration from the stale value written at session start.
-        assertEquals(0L, prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L))
-        val frozenRemaining = prefs.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, -1)
-        assertTrue("Frozen remaining should be ~25min, was $frozenRemaining",
-            frozenRemaining in (25 * 60 - 5)..(25 * 60))
-    }
-
-    @Test
-    fun `togglePreset TEMP_DISABLE without timed session leaves focus countdown untouched`() {
-        // Unlimited session: no end timestamp exists and none must be invented.
-        SessionManager.startSession(prefs, "TestBlocker", durationMinutes = 0)
-        val preset = makePreset(action = PresetAction.TEMP_DISABLE, tempDurationMinutes = 10)
-
-        handler.togglePreset(preset, blockerLists)
-
-        assertTrue(prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false))
-        assertEquals(0L, prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L))
-        assertEquals(0, prefs.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, -1))
-    }
-
-    @Test
-    fun `togglePreset TEMP_DISABLE when inactive returns Error`() {
-        val preset = makePreset(action = PresetAction.TEMP_DISABLE)
-        val result = handler.togglePreset(preset, blockerLists)
-
-        assertTrue(result is TriggerResult.Error)
-        assertEquals(R.string.toast_no_active_focus, (result as TriggerResult.Error).messageResId)
-    }
-
-    // ── handleNfcTag ──
-
-    @Test
-    fun `handleNfcTag with matching unbinding talisman returns DispelSchedule`() {
-        val schedule = Schedule(
-            id = "sched-1", name = "Test", blockerNames = listOf("TestBlocker"),
-            days = setOf(DayOfWeek.MONDAY), startTime = "09:00", endTime = "17:00",
-            unbindingTalismanId = "tag-1"
-        )
-        val result = handler.handleNfcTag("tag-1", "sched-1", listOf(schedule), emptyList(), emptyList(), blockerLists)
-
+    fun `the ritual's own talisman ends it`() {
+        val result = tap("tag-1", activeScheduleId = "sched-1", sessionActive = true, schedules = listOf(ritual("tag-1")))
         assertTrue(result is NfcResult.DispelSchedule)
         assertEquals(R.string.toast_ritual_dispelled, (result as NfcResult.DispelSchedule).messageResId)
     }
 
     @Test
-    fun `handleNfcTag with wrong talisman for schedule returns Toast`() {
-        val schedule = Schedule(
-            id = "sched-1", name = "Test", blockerNames = listOf("TestBlocker"),
-            days = setOf(DayOfWeek.MONDAY), startTime = "09:00", endTime = "17:00",
-            unbindingTalismanId = "tag-other"
+    fun `any other tag is refused while a keyed ritual runs`() {
+        val result = tap("tag-1", activeScheduleId = "sched-1", sessionActive = true, schedules = listOf(ritual("tag-other")))
+        assertEquals(NfcResult.Toast(R.string.toast_wrong_talisman), result)
+    }
+
+    @Test
+    fun `a ritual without a key doesn't let a tap replace it`() {
+        val result = tap("tag-1", activeScheduleId = "sched-1", sessionActive = true, schedules = listOf(ritual(null)))
+        assertEquals(NfcResult.Toast(R.string.toast_session_already_running), result)
+    }
+
+    // ── talisman sessions ──
+
+    @Test
+    fun `a tap starts the talisman's session`() {
+        val result = tap("tag-1")
+        assertEquals(NfcResult.StartTalismanSession(shield, listOf("Social")), result)
+    }
+
+    @Test
+    fun `a second tap of the same talisman ends its session`() {
+        val result = tap("tag-1", activeTalismanId = "tag-1", sessionActive = true)
+        assertEquals(NfcResult.StopTalismanSession(shield), result)
+    }
+
+    @Test
+    fun `a tap never replaces a session something else started`() {
+        val other = Talisman("tag-2", "Desk", blockerNames = listOf("Social"))
+        val result = tap("tag-2", activeTalismanId = "tag-1", sessionActive = true, talismans = listOf(shield, other))
+        assertEquals(NfcResult.Toast(R.string.toast_session_already_running), result)
+    }
+
+    @Test
+    fun `deleted enchantments are dropped from the setup`() {
+        val talisman = shield.copy(blockerNames = listOf("Gone", "Social"))
+        val result = tap("tag-1", talismans = listOf(talisman))
+        assertEquals(NfcResult.StartTalismanSession(talisman, listOf("Social")), result)
+    }
+
+    @Test
+    fun `a talisman with no usable setup says so`() {
+        assertEquals(
+            NfcResult.Toast(R.string.toast_talisman_no_setup),
+            tap("tag-1", talismans = listOf(Talisman("tag-1", "Bare")))
         )
-        val result = handler.handleNfcTag("tag-1", "sched-1", listOf(schedule), emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is NfcResult.Toast)
-        assertEquals(R.string.toast_wrong_talisman, (result as NfcResult.Toast).messageResId)
-    }
-
-    @Test
-    fun `handleNfcTag with bound preset returns PresetToggled`() {
-        val preset = makePreset(id = "abc1", talismanId = "tag-1")
-        val result = handler.handleNfcTag("tag-1", null, emptyList(), listOf(preset), emptyList(), blockerLists)
-
-        assertTrue(result is NfcResult.PresetToggled)
-    }
-
-    @Test
-    fun `handleNfcTag with named tag but no preset returns ToggleFocusTag`() {
-        val namedTag = NamedTag("tag-1", "My Tag")
-        val result = handler.handleNfcTag("tag-1", null, emptyList(), emptyList(), listOf(namedTag), blockerLists)
-
-        assertTrue(result is NfcResult.ToggleFocusTag)
-    }
-
-    @Test
-    fun `handleNfcTag with unknown tag returns UnknownTag`() {
-        val result = handler.handleNfcTag("tag-unknown", null, emptyList(), emptyList(), emptyList(), blockerLists)
-
-        assertTrue(result is NfcResult.UnknownTag)
-    }
-
-    @Test
-    fun `handleNfcTag skips schedule check when activeScheduleId is null`() {
-        val preset = makePreset(id = "abc1", talismanId = "tag-1")
-        val result = handler.handleNfcTag("tag-1", null, emptyList(), listOf(preset), emptyList(), blockerLists)
-
-        assertTrue(result is NfcResult.PresetToggled)
-    }
-
-    @Test
-    fun `handleNfcTag schedule with null unbindingTalismanId falls through`() {
-        val schedule = Schedule(
-            id = "sched-1", name = "Test", blockerNames = listOf("TestBlocker"),
-            days = setOf(DayOfWeek.MONDAY), startTime = "09:00", endTime = "17:00",
-            unbindingTalismanId = null
+        assertEquals(
+            NfcResult.Toast(R.string.toast_talisman_no_setup),
+            tap("tag-1", talismans = listOf(shield.copy(blockerNames = listOf("Gone"))))
         )
-        val preset = makePreset(id = "abc1", talismanId = "tag-1")
-        val result = handler.handleNfcTag("tag-1", "sched-1", listOf(schedule), listOf(preset), emptyList(), blockerLists)
+    }
 
-        assertTrue(result is NfcResult.PresetToggled)
+    @Test
+    fun `an unknown tag does nothing`() {
+        assertEquals(NfcResult.UnknownTag, tap("tag-unknown"))
+    }
+
+    // ── setup defaults for talismans stored before 2.0 ──
+
+    @Test
+    fun `a stored talisman without setup fields reads as open-ended, breaks on, locking`() {
+        val bare = Talisman("t", "Old")
+        assertEquals(null, bare.timedMinutes)
+        assertTrue(bare.breaksAllowed)
+        assertTrue(bare.locksSession)
+        assertTrue(bare.enchantments.isEmpty())
     }
 }

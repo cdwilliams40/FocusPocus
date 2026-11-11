@@ -129,4 +129,62 @@ class MigrationsTest {
         assertTrue(WellApps.load(prefs, gson).isEmpty())
         assertEquals(Migrations.CURRENT_VERSION, prefs.getInt(Constants.PrefsKeys.SCHEMA_VERSION, 0))
     }
+
+    // ── Step 3: talismans carry their own setup ──
+
+    private fun talismans() = PrefsHelper.load<List<Talisman>>(
+        prefs, gson, Constants.PrefsKeys.NAMED_TAGS,
+        object : com.google.gson.reflect.TypeToken<List<Talisman>>() {}.type
+    ).orEmpty()
+
+    @Test
+    fun `a talisman takes its bound quick spell's setup`() {
+        prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Desk"},{"id":"t2","name":"Timer"}]""")
+        prefs.putString(Migrations.LegacyKeys.FOCUS_PRESETS, gson.toJson(listOf(
+            mapOf("id" to "p1", "name" to "Deep", "blockerNames" to listOf("Social", "Games"),
+                "durationMinutes" to 45, "breaksEnabled" to false, "talismanId" to "t1", "action" to "TOGGLE"),
+            mapOf("id" to "p2", "name" to "Quick", "blockerName" to "Social", "durationMinutes" to 0,
+                "breaksEnabled" to true, "talismanId" to "t2", "action" to "TEMP_ENABLE", "tempDurationMinutes" to 20)
+        )))
+        Migrations.run(prefs)
+
+        assertEquals(
+            listOf(
+                Talisman("t1", "Desk", listOf("Social", "Games"), 45, breaksEnabled = false, requireToEnd = true),
+                Talisman("t2", "Timer", listOf("Social"), 20, breaksEnabled = true, requireToEnd = true)
+            ),
+            talismans()
+        )
+        assertFalse(prefs.contains(Migrations.LegacyKeys.FOCUS_PRESETS))
+    }
+
+    @Test
+    fun `a talisman without a spell takes the focus tab's enchantments`() {
+        prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Shield"}]""")
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Shield list")))
+        Migrations.run(prefs)
+        assertEquals(listOf("Shield list"), talismans().single().enchantments)
+        assertTrue(talismans().single().locksSession)
+    }
+
+    @Test
+    fun `a running tag-only session becomes a recorded talisman session`() {
+        prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Shield"}]""")
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Migrations.LegacyKeys.FOCUS_TAG_ID, "t1")
+        Migrations.run(prefs)
+
+        assertTrue(SessionManager.isSessionActive(prefs))
+        assertEquals("t1", SessionManager.activeTalismanId(prefs))
+        assertTrue(prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L) > 0L)
+        assertFalse(prefs.contains(Migrations.LegacyKeys.FOCUS_TAG_ID))
+    }
+
+    @Test
+    fun `the single-enchantment key folds into the list`() {
+        prefs.putString(Migrations.LegacyKeys.ACTIVE_BLOCKER, "Social")
+        Migrations.run(prefs)
+        assertEquals(gson.toJson(listOf("Social")), prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
+        assertFalse(prefs.contains(Migrations.LegacyKeys.ACTIVE_BLOCKER))
+    }
 }

@@ -64,8 +64,6 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.WellMath
-import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.PresetAction
 import com.infinicada.focuspocus.navigation.AppDestinations
 import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -86,8 +84,6 @@ import com.infinicada.focuspocus.ui.screens.Greeting
 import com.infinicada.focuspocus.ui.screens.OnboardingScreen
 import com.infinicada.focuspocus.ui.screens.WellAppsScreen
 import com.infinicada.focuspocus.ui.screens.WellHomeScreen
-import com.infinicada.focuspocus.ui.screens.QuickSpellEditorScreen
-import com.infinicada.focuspocus.ui.screens.QuickSpellsListScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleEditorScreen
 import com.infinicada.focuspocus.ui.screens.ScheduleListScreen
 import com.infinicada.focuspocus.ui.screens.SettingsScreen
@@ -106,7 +102,6 @@ fun FocusPocusApp(
     isServiceEnabled: Boolean,
     lastScannedTagId: String?,
     nfcTriggerCount: Int,
-    onActivateTalismanPreset: (FocusPreset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sessionVM: SessionViewModel = viewModel()
@@ -124,12 +119,11 @@ fun FocusPocusApp(
     val focusDurationMinutes by sessionVM.focusDurationMinutes.collectAsStateWithLifecycle()
     val focusTimeRemaining by sessionVM.focusTimeRemaining.collectAsStateWithLifecycle()
     val sessionBreaksEnabled by sessionVM.sessionBreaksEnabled.collectAsStateWithLifecycle()
-    val selectedPresetId by sessionVM.selectedPresetId.collectAsStateWithLifecycle()
     val isOnBreak by sessionVM.isOnBreak.collectAsStateWithLifecycle()
     val breaksUsedThisSession by sessionVM.breaksUsedThisSession.collectAsStateWithLifecycle()
     val breakTimeRemaining by sessionVM.breakTimeRemaining.collectAsStateWithLifecycle()
     val lastEmergencyBreakMillis by sessionVM.lastEmergencyBreakMillis.collectAsStateWithLifecycle()
-    val focusTagId by sessionVM.focusTagId.collectAsStateWithLifecycle()
+    val activeTalismanId by sessionVM.activeTalismanId.collectAsStateWithLifecycle()
     val showSessionSummary by sessionVM.showSessionSummary.collectAsStateWithLifecycle()
     val sessionSummaryDuration by sessionVM.sessionSummaryDuration.collectAsStateWithLifecycle()
     val sessionSummaryBreaks by sessionVM.sessionSummaryBreaks.collectAsStateWithLifecycle()
@@ -140,7 +134,6 @@ fun FocusPocusApp(
 
     val blockerLists by spellbookVM.blockerLists.collectAsStateWithLifecycle()
     val schedules by spellbookVM.schedules.collectAsStateWithLifecycle()
-    val focusPresets by spellbookVM.focusPresets.collectAsStateWithLifecycle()
     val namedTags by spellbookVM.namedTags.collectAsStateWithLifecycle()
     val conditionalUnlocks by spellbookVM.conditionalUnlocks.collectAsStateWithLifecycle()
     val wellAppsForRules = spellbookVM.wellApps.collectAsStateWithLifecycle().value
@@ -338,7 +331,7 @@ fun FocusPocusApp(
     }
 
     var showBlockerSelectionDialog by remember { mutableStateOf(false) }
-    val focusMode = focusTagId != null || manualFocusMode
+    val focusMode = manualFocusMode
     // Saveable so the selected tab and settings screen survive rotation and
     // process recreation instead of snapping back to Home.
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -761,13 +754,11 @@ fun FocusPocusApp(
 
                     Greeting(
                         focusMode = focusMode,
-                        activeTagId = focusTagId,
+                        activeTalismanId = activeTalismanId,
                         namedTags = namedTags,
                         activeBlockers = activeManualBlockers,
                         activeSchedule = activeSchedule,
                         blockerLists = blockerLists,
-                        focusPresets = focusPresets,
-                        selectedPresetId = selectedPresetId,
                         focusDurationMinutes = focusDurationMinutes,
                         focusTimeRemaining = focusTimeRemaining,
                         isOnBreak = isOnBreak,
@@ -785,7 +776,6 @@ fun FocusPocusApp(
                         progressionEnabled = progressionEnabled,
                         trials = trials,
                         canAffordExtraBreak = manaBalance >= Perk.EXTRA_BREAK.costMana,
-                        onPresetSelected = { preset -> sessionVM.selectPreset(preset) },
                         onBlockerToggled = { blocker -> sessionVM.toggleBlocker(blocker) },
                         onDurationSelected = { duration -> sessionVM.selectDuration(duration) },
                         onSessionBreaksToggled = { enabled -> sessionVM.toggleSessionBreaks(enabled) },
@@ -798,7 +788,9 @@ fun FocusPocusApp(
                                         sessionVM.dispelSchedule()
                                         progressionVM.refresh()
                                     }
-                                } else {
+                                } else if (namedTags.none { it.id == activeTalismanId && it.locksSession }) {
+                                    // A session a locking talisman started ends
+                                    // only with that talisman.
                                     sessionVM.stopSession()
                                     progressionVM.refresh()
                                 }
@@ -837,12 +829,10 @@ fun FocusPocusApp(
                             currentDestination = AppDestinations.SPELLBOOK
                             spellbookVM.navigateTo(SpellbookRoute.CreateEnchantment)
                         },
-                        onActivateTalismanPreset = onActivateTalismanPreset,
                         // Same effect as tapping the physical tag while idle:
                         // anchor a talisman session on this tag. Dispelling is
                         // not offered here — the session controls (and any
                         // talisman lock) own that.
-                        onActivateFocusTag = { tag -> sessionVM.setFocusTagId(tag.id) },
                         modifier = contentModifier
                     )
                 }
@@ -851,13 +841,11 @@ fun FocusPocusApp(
                     when (val currentRoute = spellbookRoute) {
                         is SpellbookRoute.Overview -> SpellbookScreen(
                             blockerLists = blockerLists,
-                            focusPresets = focusPresets,
                             schedules = schedules,
                             namedTags = namedTags,
                             conditionalUnlocks = conditionalUnlocks,
                             onNavigateToConditionalUnlocks = { spellbookVM.navigateTo(SpellbookRoute.ConditionalUnlocks) },
                             onNavigateToEnchantments = { spellbookVM.navigateTo(SpellbookRoute.EnchantmentsList) },
-                            onNavigateToQuickSpells = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
                             onNavigateToRituals = { spellbookVM.navigateTo(SpellbookRoute.RitualsList) },
                             onNavigateToTalismans = { spellbookVM.navigateTo(SpellbookRoute.Talismans) },
                             modifier = contentModifier
@@ -902,39 +890,6 @@ fun FocusPocusApp(
                             )
                         }
 
-                        is SpellbookRoute.QuickSpellsList -> QuickSpellsListScreen(
-                            focusPresets = focusPresets,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onEditPreset = { preset -> spellbookVM.navigateTo(SpellbookRoute.EditQuickSpell(preset)) },
-                            onCreatePreset = { spellbookVM.navigateTo(SpellbookRoute.CreateQuickSpell) },
-                            onDeleteFocusPreset = { spellbookVM.deleteFocusPreset(it) },
-                            onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
-                            modifier = contentModifier
-                        )
-                        is SpellbookRoute.CreateQuickSpell -> QuickSpellEditorScreen(
-                            presetToEdit = null,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onSave = { preset ->
-                                spellbookVM.saveFocusPreset(preset)
-                                spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList)
-                            },
-                            onCancel = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
-                            modifier = contentModifier
-                        )
-                        is SpellbookRoute.EditQuickSpell -> QuickSpellEditorScreen(
-                            presetToEdit = currentRoute.preset,
-                            blockerLists = blockerLists,
-                            namedTags = namedTags,
-                            onSave = { preset ->
-                                spellbookVM.saveFocusPreset(preset)
-                                spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList)
-                            },
-                            onCancel = { spellbookVM.navigateTo(SpellbookRoute.QuickSpellsList) },
-                            modifier = contentModifier
-                        )
-
                         is SpellbookRoute.RitualsList -> ScheduleListScreen(
                             schedules = schedules,
                             onScheduleClick = { schedule -> spellbookVM.navigateTo(SpellbookRoute.EditRitual(schedule)) },
@@ -971,9 +926,11 @@ fun FocusPocusApp(
                         is SpellbookRoute.Talismans -> TalismansScreen(
                             lastScannedTagId = lastScannedTagId,
                             namedTags = namedTags,
+                            blockerLists = blockerLists,
                             onSaveTag = { name ->
                                 lastScannedTagId?.let { spellbookVM.saveNamedTag(it, name) }
                             },
+                            onSaveSetup = { spellbookVM.saveTalismanSetup(it) },
                             onDeleteTag = { spellbookVM.deleteNamedTag(it) },
                             onNavigateBack = { spellbookVM.navigateTo(SpellbookRoute.Overview) },
                             modifier = contentModifier

@@ -16,7 +16,6 @@
     <string name="action_cancel">Annuler</string>
     <string name="action_delete">Supprimer</string>
     <string name="action_remove">Retirer</string>
-    <string name="action_edit">Modifier</string>
     <string name="action_ok">OK</string>
     <string name="action_done">Terminé</string>
     <string name="action_back">Retour</string>
@@ -26,8 +25,6 @@
 
     <!-- Common terms -->
     <string name="label_active">Actif</string>
-    <string name="label_custom">Personnalisé</string>
-    <string name="label_none">Aucun</string>
     <string name="label_banish">Bannir</string>
     <string name="label_shield">Bouclier</string>
     <string name="label_banish_blacklist">Bannir (Liste noire)</string>
@@ -40,14 +37,9 @@
     <string name="duration_45_min">45 minutes</string>
     <string name="duration_1_hour">1 heure</string>
     <string name="duration_2_hours">2 heures</string>
-    <string name="duration_4_hours">4 heures</string>
-    <string name="duration_8_hours">8 heures</string>
     <string name="duration_unlimited">Illimité</string>
     <string name="duration_select">Choisir la durée</string>
     <string name="duration_label">Durée</string>
-    <string name="duration_5_min">5 min</string>
-    <string name="duration_10_min">10 min</string>
-    <string name="duration_30_min">30 min</string>
 
     <!-- formatDuration function strings -->
     <string name="format_duration_unlimited">Illimité</string>
@@ -67,7 +59,6 @@
     <string name="home_unlimited_session">Illimité</string>
     <string name="home_elapsed">écoulé</string>
     <string name="session_complete_icon_desc">Session terminée</string>
-    <string name="home_quick_spells">Sorts rapides</string>
     <string name="home_select_enchantment">Choisir un enchantement</string>
     <string name="home_allow_breaks">Autoriser les pauses</string>
     <string name="home_remaining">restant</string>
@@ -164,12 +155,6 @@
     <string name="conditional_unlocks_well_note">Une règle remplie ajoute %1$d minutes au Puits de mana une fois par jour au lieu de débloquer une appli du Puits. Les enchantements sont débloqués comme avant.</string>
     <string name="home_section_live">En ce moment</string>
     <string name="home_guard_edit_label">Modifier</string>
-    <string name="home_talisman_activate">Activer</string>
-    <string name="home_talisman_activate_desc">Activer %s</string>
-    <string name="home_talisman_action_cast">Lance %s</string>
-    <string name="home_talisman_action_temp_enable">Lance %1$s pendant %2$d min</string>
-    <string name="home_talisman_action_temp_disable">Fait une pause de %d min — nécessite une session active</string>
-    <string name="home_talisman_toggle_desc">Démarre une session de concentration avec vos enchantements sélectionnés</string>
     <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
 
     <!-- Révision de pacte : les modifications d'un pacte existant patientent 24 h -->
@@ -182,13 +167,11 @@
 
     <!-- SpellbookScreen -->
     <string name="spellbook_enchantments">Enchantements</string>
-    <string name="spellbook_quick_spells">Sorts rapides</string>
     <string name="spellbook_rituals">Rituels</string>
     <string name="spellbook_talismans">Talismans</string>
     <string name="spellbook_no_enchantments">Aucun enchantement. Créez-en un pour définir les applications à bloquer.</string>
     <string name="spellbook_no_rituals">Aucun rituel. Planifiez des sessions de concentration automatiques.</string>
     <string name="spellbook_more_count">+%d de plus</string>
-    <string name="spellbook_breaks_suffix"> - Pauses</string>
     <string name="spellbook_group_focus">Sessions de concentration</string>
     <string name="spellbook_group_gear">Autres magies</string>
 
@@ -394,29 +377,8 @@
     <string name="talismans_none_bound">Aucun talisman lié.</string>
 
     <!-- QuickSpellsListScreen -->
-    <string name="quick_spells_title">Sorts rapides</string>
-    <string name="quick_spells_create_content_desc">Créer un sort rapide</string>
-    <string name="quick_spells_subtitle">Configurations de concentration préréglées pour un accès rapide</string>
-    <string name="quick_spells_empty">Aucun sort rapide. Appuyez sur + pour créer le premier !</string>
-    <string name="quick_spells_enchantment_missing">Enchantement manquant - veuillez modifier</string>
-    <string name="quick_spells_bound_to">Lié à : %s</string>
-    <string name="quick_spells_temp_enable">Activer temporairement %dm</string>
-    <string name="quick_spells_temp_disable">Désactiver temporairement %dm</string>
 
     <!-- QuickSpellEditorScreen -->
-    <string name="quick_spell_editor_create_title">Créer un sort rapide</string>
-    <string name="quick_spell_editor_edit_title">Modifier le sort rapide</string>
-    <string name="quick_spell_editor_name_label">Nom</string>
-    <string name="quick_spell_editor_enchantment_label">Enchantement</string>
-    <string name="quick_spell_editor_select_enchantment">Sélectionner un enchantement</string>
-    <string name="quick_spell_editor_bind_talisman">Lier à un talisman</string>
-    <string name="quick_spell_editor_none_talisman">Aucun (appuyez pour sélectionner)</string>
-    <string name="quick_spell_editor_action_type">Type d\'action</string>
-    <string name="quick_spell_editor_action_toggle">Basculer</string>
-    <string name="quick_spell_editor_action_temp_enable">Activation temporaire</string>
-    <string name="quick_spell_editor_action_temp_disable">Désactivation temporaire</string>
-    <string name="quick_spell_editor_temp_duration">Durée temporaire</string>
-    <string name="quick_spell_editor_allow_breaks">Autoriser les pauses</string>
 
     <!-- Champs de garde (partagés par l'éditeur et le tableau de bord) -->
 
@@ -473,17 +435,9 @@
     <!-- Toast messages -->
     <string name="toast_max_rituals">Maximum de %d rituels atteint</string>
     <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
-    <string name="toast_max_quick_spells">Maximum de %d sorts rapides atteint</string>
     <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
-    <string name="toast_preset_cast_timed">%1$s lancé pour %2$d min !</string>
-    <string name="toast_enchantment_missing">Enchantement manquant pour %s</string>
-    <string name="toast_temp_break">Pause temporaire de %d min !</string>
-    <string name="toast_no_active_focus">Aucune concentration active à suspendre</string>
-    <string name="toast_preset_dispelled">%s dissipé !</string>
-    <string name="toast_preset_cast">%s lancé !</string>
     <string name="toast_ritual_dispelled">Rituel dissipé !</string>
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
-    <string name="toast_ritual_locked">Ce rituel est lié à un talisman — scannez-le pour le dissiper</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
 
     <!-- App Picker -->
@@ -715,4 +669,23 @@
     <string name="well_apps_clear_substitute">Effacer</string>
     <string name="well_apps_keep">La garder</string>
     <string name="well_apps_remove">Retirer</string>
+
+    <!-- Talisman sessions (2.0) -->
+    <string name="toast_session_already_running">Une session est déjà en cours</string>
+    <string name="toast_talisman_no_setup">Configurez d\'abord ce talisman dans le Grimoire</string>
+    <string name="toast_talisman_started">%1$s : session lancée</string>
+    <string name="toast_talisman_ended">%1$s : session terminée</string>
+    <string name="focus_talisman_locked">Touchez %1$s pour terminer cette session</string>
+    <string name="talisman_setup_edit">Configurer</string>
+    <string name="talisman_setup_title">Ce que lance %1$s</string>
+    <string name="talisman_setup_enchantments">Enchantements à lancer</string>
+    <string name="talisman_setup_no_enchantments">Créez d\'abord un enchantement.</string>
+    <string name="talisman_setup_length">Durée</string>
+    <string name="talisman_setup_open_ended">Jusqu\'au prochain contact</string>
+    <string name="talisman_setup_minutes">%1$d min</string>
+    <string name="talisman_setup_locked">Seul ce talisman y met fin</string>
+    <string name="talisman_setup_locked_desc">Le bouton d\'arrêt reste masqué ; touchez de nouveau le talisman pour terminer la session.</string>
+    <string name="talisman_setup_locked_short">seul ce talisman y met fin</string>
+    <string name="talisman_setup_none">Non configuré — touchez Configurer pour choisir ce qu\'il lance</string>
+    <string name="talisman_setup_save">Enregistrer</string>
 </resources>
