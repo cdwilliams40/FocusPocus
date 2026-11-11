@@ -4,12 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
-import com.infinicada.focuspocus.PrefsHelper
 import com.infinicada.focuspocus.Progression
 import com.infinicada.focuspocus.UsageStatsHelper
-import com.infinicada.focuspocus.model.Boon
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Trial
@@ -30,17 +27,6 @@ class ProgressionRepository(
 
     fun getLedger(): List<ManaLedgerEntry> = Progression.loadLedger(prefs, gson)
 
-    fun getBoons(): List<Boon> =
-        (PrefsHelper.load(prefs, gson, Constants.PrefsKeys.BOONS,
-            object : TypeToken<List<Boon>>() {}.type) ?: emptyList<Boon>())
-            .filterNotNull().filter(::isIntact)
-
-    /** Gson fills fields via Unsafe, so boons stored by a build with broken R8
-     *  keep rules (v1.4) can come back with null Strings in non-null fields. */
-    @Suppress("SENSELESS_COMPARISON")
-    private fun isIntact(boon: Boon): Boolean =
-        boon.id != null && boon.title != null && boon.note != null
-
     /**
      * Active trials. Refreshes the usage-permission snapshot and rotates the
      * slate first (compare-on-read), so an app that sat cached in recents
@@ -52,27 +38,7 @@ class ProgressionRepository(
         return Progression.loadTrials(prefs, gson)
     }
 
-    fun getUnlockedSigilIds(): Set<String> = Progression.loadUnlockedSigilIds(prefs, gson)
-
-    /** Adds or replaces a boon. False when the boon cap is hit. */
-    fun saveBoon(boon: Boon, currentBoons: List<Boon>): Boolean {
-        val isUpdate = currentBoons.any { it.id == boon.id }
-        if (!isUpdate && currentBoons.size >= Constants.MAX_BOONS) return false
-        val updated = currentBoons.filterNot { it.id == boon.id } + boon
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BOONS, updated)
-        return true
-    }
-
-    fun deleteBoon(boonId: String, currentBoons: List<Boon>): List<Boon> {
-        val updated = currentBoons.filterNot { it.id == boonId }
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BOONS, updated)
-        return updated
-    }
-
-    fun redeemBoon(boon: Boon): Boolean = Progression.redeemBoon(prefs, gson, boon)
-
-    fun redeemPerk(perk: Perk, packageName: String? = null): Boolean =
-        Progression.redeemPerk(prefs, gson, perk, packageName)
+    fun redeemPerk(perk: Perk): Boolean = Progression.redeemPerk(prefs, gson, perk)
 
     fun claimTrial(trialId: String): Long = Progression.claimTrial(prefs, gson, trialId)
 
@@ -81,20 +47,6 @@ class ProgressionRepository(
 
     /** Extra-break tokens bought during the current session. */
     fun getExtraBreakTokens(): Int = prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0)
-
-    /**
-     * Whether a sealed-minutes redemption is still available for [packageName]
-     * today (one per app per day, checked against structured ledger fields).
-     */
-    fun isSealedMinutesAvailableToday(packageName: String): Boolean {
-        val today = com.infinicada.focuspocus.limit.SessionCooldownManager.todayString()
-        return getLedger().none {
-            it.kind == com.infinicada.focuspocus.model.LedgerKind.PERK &&
-                it.refId == Perk.SEALED_MINUTES.name &&
-                it.packageName == packageName &&
-                it.dateKey == today
-        }
-    }
 
     fun refreshUsagePermissionSnapshot() {
         val granted = try {

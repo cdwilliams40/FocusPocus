@@ -2,7 +2,6 @@ package com.infinicada.focuspocus.handler
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.Uri
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.infinicada.focuspocus.Blocker
@@ -29,10 +28,8 @@ class TriggerHandler(
     private val prefs: SharedPreferences,
     private val gson: Gson
 ) {
-    private val validIdPattern = Regex("^[a-f0-9\\-]{1,64}$")
-
     /**
-     * Core preset toggle logic used by NFC and deep links.
+     * Core preset toggle logic used by NFC taps and the Focus tab.
      * Returns a TriggerResult describing what happened.
      */
     fun togglePreset(
@@ -41,8 +38,8 @@ class TriggerHandler(
         schedules: List<Schedule> = emptyList()
     ): TriggerResult {
         // A ritual bound to an unbinding talisman is locked against every
-        // other trigger. The NFC path enforces this before reaching here; deep
-        // links funnel through this gate instead — otherwise any preset
+        // other trigger. The NFC path enforces this before reaching here; the
+        // Focus tab funnels through this gate instead — otherwise any preset
         // toggle could dispel or overwrite a talisman-locked session.
         val activeScheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         if (activeScheduleId != null &&
@@ -164,28 +161,6 @@ class TriggerHandler(
         }
 
         return NfcResult.UnknownTag
-    }
-
-    /**
-     * Parse a deep link URI and resolve the preset.
-     */
-    fun resolveDeepLink(
-        data: Uri,
-        focusPresets: List<FocusPreset>,
-        namedTags: List<NamedTag>
-    ): FocusPreset? {
-        if (data.scheme != "focuspocus") return null
-        val id = data.pathSegments.firstOrNull() ?: return null
-        if (!validIdPattern.matches(id)) return null
-
-        return when (data.host) {
-            "preset" -> focusPresets.find { it.id == id }
-            "talisman" -> {
-                val talisman = namedTags.find { it.id == id }
-                if (talisman != null) focusPresets.find { it.talismanId == id } else null
-            }
-            else -> null
-        }
     }
 }
 

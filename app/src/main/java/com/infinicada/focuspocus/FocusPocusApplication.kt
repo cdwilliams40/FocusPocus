@@ -14,6 +14,9 @@ class FocusPocusApplication : Application() {
         } catch (e: Exception) {
             android.util.Log.e("FocusPocusApplication", "Firebase initialization failed", e)
         }
+        // Before anything reads prefs: bring stored data up to this build's
+        // schema (idempotent, cheap once current).
+        Migrations.run(getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE))
         // Re-assert device-owner protections on every process start; both are
         // cheap no-ops when the app is not device owner.
         DeviceOwnerManager.applySelfProtection(this)

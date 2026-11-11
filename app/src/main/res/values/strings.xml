@@ -17,7 +17,6 @@
     <string name="action_delete">Delete</string>
     <string name="action_remove">Remove</string>
     <string name="action_edit">Edit</string>
-    <string name="action_add">Add</string>
     <string name="action_ok">OK</string>
     <string name="action_done">Done</string>
     <string name="action_back">Back</string>
@@ -218,7 +217,6 @@
     <string name="guard_circle_members_link">Edit enchantment members</string>
     <string name="guard_delete_confirm_title">Remove %1$s?</string>
     <string name="guard_delete_app_message">It opens freely again right away.</string>
-    <string name="guard_delete_circle_message">Every app in this enchantment opens freely again. The enchantment itself is kept.</string>
     <string name="guard_delete_pact_message">A pact binds for a day: it stays in force for 24 hours after you confirm, then lifts.</string>
     <string name="guard_delete_circle_pact_message">A pact binds for a day: the circle stays in force for 24 hours after you confirm, then lifts. The enchantment itself is kept.</string>
 
@@ -241,9 +239,7 @@
     <string name="spellbook_rituals">Rituals</string>
     <string name="spellbook_talismans">Talismans</string>
     <string name="spellbook_no_enchantments">No enchantments yet. Create one to define which apps to block.</string>
-    <string name="spellbook_no_quick_spells">No quick spells yet. Create presets for one-tap focus sessions.</string>
     <string name="spellbook_no_rituals">No rituals yet. Schedule automatic focus sessions.</string>
-    <string name="spellbook_no_talismans">No talismans bound. Scan an NFC tag to get started.</string>
     <string name="spellbook_more_count" tools:ignore="PluralsCandidate">+%d more</string>
     <string name="spellbook_breaks_suffix"> - Breaks</string>
     <string name="spellbook_group_focus">Focus sessions</string>
@@ -611,22 +607,6 @@
     <string name="main_settings_content_desc">Settings</string>
     <string name="main_accessibility_title">Grant Magical Sight</string>
     <string name="main_accessibility_desc">Focus Pocus needs Accessibility permission to detect when you open distracting apps and gently guide you back to your focus. Without this enchantment, your spells cannot shield you from temptation.</string>
-    <string name="main_accessibility_go_to_settings">Go to Settings</string>
-    <string name="main_deep_link_confirm_title">Confirm Action</string>
-    <plurals name="main_deep_link_action_temp_enable">
-        <item quantity="one">activate \"%1$s\" for %2$d minute</item>
-        <item quantity="other">activate \"%1$s\" for %2$d minutes</item>
-    </plurals>
-    <plurals name="main_deep_link_action_temp_disable">
-        <item quantity="one">start a %d minute break</item>
-        <item quantity="other">start a %d minute break</item>
-    </plurals>
-    <string name="main_deep_link_action_temp_disable_inactive">pause focus (no active session)</string>
-    <string name="main_deep_link_action_dispel">dispel \"%s\"</string>
-    <string name="main_deep_link_action_cast">cast \"%s\"</string>
-    <string name="main_deep_link_confirm_message">An external link is requesting to %s. Allow this?</string>
-    <string name="main_deep_link_allow">Allow</string>
-    <string name="main_deep_link_deny">Deny</string>
 
     <!-- Toast messages -->
     <string name="toast_max_rituals" tools:ignore="PluralsCandidate">Maximum of %d rituals reached</string>
@@ -676,7 +656,7 @@
     <string name="progression_channel_name">Progression</string>
     <string name="progression_channel_desc">Mana, trials and daily wrap-ups</string>
     <string name="mana_chip">%1$d mana</string>
-    <string name="mana_chip_desc">Mana balance: %1$d. Opens boons.</string>
+    <string name="mana_chip_desc">Mana balance: %1$d. Opens the mana page.</string>
 
     <!-- Progression: notifications -->
     <string name="trial_complete_notification_title">Trial complete!</string>
@@ -684,38 +664,8 @@
         <item quantity="one">A trial is complete — claim your %2$d mana.</item>
         <item quantity="other">%1$d trials are complete — claim your %2$d mana.</item>
     </plurals>
-    <string name="wrapup_notification_title">Time reclaimed today</string>
-    <string name="wrapup_notification_text">You reclaimed %1$s · +%2$d mana · %3$d-day streak</string>
-    <string name="wrapup_time_hours_minutes">%1$dh %2$dm</string>
-    <string name="wrapup_time_minutes">%1$d min</string>
 
     <!-- Progression: sigils -->
-    <string name="sigil_first_spell_title">First Casting</string>
-    <string name="sigil_first_spell_desc">Complete your first focus session.</string>
-    <string name="sigil_ritual_kept_title">Ritual Kept</string>
-    <string name="sigil_ritual_kept_desc">Complete a scheduled ritual.</string>
-    <string name="sigil_iron_will_title">Iron Will</string>
-    <string name="sigil_iron_will_desc">Finish a session with the stop button hidden.</string>
-    <string name="sigil_deep_trance_title">Deep Trance</string>
-    <string name="sigil_deep_trance_desc">Focus for 4 hours in a single session.</string>
-    <string name="sigil_ten_hour_week_title">Ten-Hour Week</string>
-    <string name="sigil_ten_hour_week_desc">Focus for 10 hours within one week.</string>
-    <string name="sigil_hundred_castings_title">Hundred Castings</string>
-    <string name="sigil_hundred_castings_desc">Complete 100 focus sessions.</string>
-    <string name="sigil_streak_7_title">Seven Nights</string>
-    <string name="sigil_streak_7_desc">Reach a 7-day streak.</string>
-    <string name="sigil_streak_30_title">Thirty Nights</string>
-    <string name="sigil_streak_30_desc">Reach a 30-day streak.</string>
-    <string name="sigil_streak_100_title">Hundred Nights</string>
-    <string name="sigil_streak_100_desc">Reach a 100-day streak.</string>
-    <string name="sigil_warden_title">The Warden</string>
-    <string name="sigil_warden_desc">Provision Warden Mode enforcement.</string>
-    <string name="sigil_first_boon_title">First Boon</string>
-    <string name="sigil_first_boon_desc">Redeem your first boon.</string>
-    <string name="sigil_font_of_mana_title">Font of Mana</string>
-    <string name="sigil_font_of_mana_desc">Earn 1,000 lifetime mana.</string>
-    <string name="sigil_state_locked">Locked</string>
-    <string name="sigil_state_unlocked">Unlocked</string>
 
     <!-- Progression: trials -->
     <string name="trials_header">Trials — daily &amp; weekly challenges</string>
@@ -738,11 +688,9 @@
 
     <!-- Progression: Insights sections -->
     <string name="insights_mana_header">Mana — focus energy</string>
-    <string name="insights_sigils_header">Sigils — milestones you\'ve earned</string>
-    <string name="insights_manage_boons">Manage Boons</string>
+    <string name="insights_open_mana">Spend mana</string>
     <string name="insights_mana_balance_label">Balance</string>
     <string name="insights_mana_week_label">This Week</string>
-    <string name="insights_sigils_label">Sigils</string>
     <string name="insights_recent_ledger">Recent activity</string>
 
     <!-- Progression: ledger rendering -->
@@ -754,59 +702,36 @@
     <string name="ledger_milestone_reason">Streak milestone</string>
     <string name="ledger_sigil_reason">Sigil unlocked</string>
 
-    <!-- Progression: boons screen -->
-    <string name="boons_title">Boons</string>
-    <string name="boons_subtitle">Your rewards — spend mana on things you choose</string>
-    <string name="boons_balance_header">Your mana</string>
-    <string name="boons_empty">Create a boon — a real-life reward you\'ll redeem with mana, like a guilt-free game night.</string>
-    <string name="boon_add">New Boon</string>
-    <string name="boon_create_title">Create Boon</string>
-    <string name="boon_edit_title">Edit Boon</string>
-    <string name="boon_name_label">Title</string>
-    <string name="boon_cost_label">Cost (mana)</string>
-    <string name="boon_note_label">Note (optional)</string>
-    <string name="boon_save">Save</string>
-    <string name="boon_delete">Delete</string>
-    <string name="boon_redeem">Redeem</string>
-    <string name="boon_redeemed_toast">Enjoy: %1$s</string>
-    <string name="boon_cost_format">%1$d mana</string>
-    <string name="boon_limit_reached">You\'ve reached the maximum number of boons.</string>
+    <!-- Progression: mana screen -->
+    <string name="mana_screen_title">Mana</string>
+    <string name="mana_screen_subtitle">Spend mana on Well time and extra breaks</string>
+    <string name="mana_balance_header">Your mana</string>
+    <string name="mana_cost_format">%1$d mana</string>
 
     <!-- Progression: perks -->
-    <string name="perks_header">Perks — spend mana in-app</string>
+    <string name="perks_header">Spend mana</string>
     <string name="perk_extra_break_title">Extra break</string>
     <string name="perk_extra_break_desc">One more break in your current session.</string>
-    <string name="perk_sealed_minutes_title">Sealed-app minutes</string>
-    <string name="perk_sealed_minutes_desc">10 minutes in one pacted app, once per app per day.</string>
     <string name="perk_buy">Buy</string>
-    <string name="perk_pick_app">Choose app</string>
     <string name="perk_extra_break_inactive">Available during a focus session</string>
     <string name="perk_extra_break_no_breaks">Breaks are disabled for this session</string>
-    <string name="perk_sealed_none">No pacted apps yet</string>
-    <string name="perk_sealed_used_today">Already used for this app today</string>
-    <string name="perk_sealed_over_limit">Daily limit already spent</string>
     <string name="perk_not_enough_mana">Not enough mana</string>
     <string name="home_extra_break_button">Use %1$d mana for an extra break</string>
 
     <!-- Progression: session summary additions -->
     <string name="summary_mana_earned">+%1$d mana earned</string>
-    <string name="summary_milestone_bonus">Milestone bonus: +%1$d mana</string>
     <string name="summary_trial_complete">Trial complete: %1$s — claim in Insights</string>
-    <string name="summary_sigil_unlocked">Sigil unlocked: %1$s</string>
-    <string name="summary_more_unlocks">+%1$d more in Insights</string>
 
     <!-- Progression: settings -->
     <string name="settings_progression_title">Progression</string>
     <string name="settings_progression_toggle">Progression — mana, trials &amp; sigils</string>
-    <string name="settings_progression_desc">Earn mana for focus sessions and spend it on boons. Turning this off hides all progression features; your mana is kept.</string>
-    <string name="settings_wrapup_toggle">Daily wrap-up notification</string>
-    <string name="settings_wrapup_desc">An evening note with today\'s reclaimed time.</string>
+    <string name="settings_progression_desc">Earn mana for focus sessions and trials, and spend it on Well time and extra breaks. Turning this off hides all progression features; your mana is kept.</string>
     <string name="settings_trial_alerts_toggle">Trial completion alerts</string>
     <string name="settings_trial_alerts_desc">A notification when a trial is ready to claim.</string>
 
     <!-- Progression: intro dialog -->
     <string name="progression_intro_title">Focusing now earns mana</string>
-    <string name="progression_intro_message">Every focus session earns mana — energy you can spend on boons: rewards you define for yourself. Daily trials and permanent sigils mark your progress along the way.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
+    <string name="progression_intro_message">Every focus session earns mana, and so do daily and weekly trials. Spend it to pour extra time into the Mana Well or to buy an extra break.\n\nEverything stays on your device. You can turn it all off in Settings.</string>
     <string name="progression_intro_ok">Begin earning</string>
 
     <!-- Panic seal (Seal everything now) -->
@@ -880,7 +805,4 @@
     <string name="backup_import_confirm_title">Restore from backup?</string>
     <string name="backup_import_confirm_message">Restoring replaces your current enchantments, pacts, rituals, history, and settings with the backup\'s, then restarts the app. This can\'t be undone.</string>
     <string name="backup_import_confirm_yes">Choose file</string>
-    <string name="tile_quick_spell_label">Quick Spell</string>
-    <string name="tile_quick_spell_active">Focusing</string>
-    <string name="tile_quick_spell_none">No Quick Spell yet</string>
 </resources>

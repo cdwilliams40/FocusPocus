@@ -11,7 +11,6 @@ import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.data.SessionRepository
 import com.infinicada.focuspocus.model.FocusPreset
-import com.infinicada.focuspocus.model.Sigil
 import com.infinicada.focuspocus.model.Trial
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -81,17 +80,11 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _sessionSummaryMana = MutableStateFlow(0L)
     val sessionSummaryMana: StateFlow<Long> = _sessionSummaryMana.asStateFlow()
 
-    private val _sessionSummaryMilestoneBonus = MutableStateFlow(0L)
-    val sessionSummaryMilestoneBonus: StateFlow<Long> = _sessionSummaryMilestoneBonus.asStateFlow()
-
     private val _sessionSummaryStreak = MutableStateFlow(0)
     val sessionSummaryStreak: StateFlow<Int> = _sessionSummaryStreak.asStateFlow()
 
     private val _sessionSummaryTrials = MutableStateFlow<List<Trial>>(emptyList())
     val sessionSummaryTrials: StateFlow<List<Trial>> = _sessionSummaryTrials.asStateFlow()
-
-    private val _sessionSummarySigils = MutableStateFlow<List<Sigil>>(emptyList())
-    val sessionSummarySigils: StateFlow<List<Sigil>> = _sessionSummarySigils.asStateFlow()
 
     // Session history
     private val _focusSessions = MutableStateFlow(repo.getFocusSessions())
@@ -271,10 +264,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _sessionSummaryBreaks.value = recorded.breaksUsed
         _sessionSummaryBlocker.value = recorded.blockerName
         _sessionSummaryMana.value = result.manaEarned
-        _sessionSummaryMilestoneBonus.value = result.milestoneBonus
         _sessionSummaryStreak.value = result.newStreak
         _sessionSummaryTrials.value = result.completedTrials
-        _sessionSummarySigils.value = result.unlockedSigils
         _showSessionSummary.value = true
     }
 

@@ -158,12 +158,9 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun `wrapup and trial alerts default on and toggle`() {
-        assertTrue(repo.getWrapupEnabled())
+    fun `trial alerts default on and toggle`() {
         assertTrue(repo.getTrialAlertsEnabled())
-        repo.setWrapupEnabled(false)
         repo.setTrialAlertsEnabled(false)
-        assertFalse(repo.getWrapupEnabled())
         assertFalse(repo.getTrialAlertsEnabled())
     }
 

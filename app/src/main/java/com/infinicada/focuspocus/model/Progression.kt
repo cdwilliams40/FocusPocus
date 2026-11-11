@@ -4,7 +4,13 @@ package com.infinicada.focuspocus.model
  * What a mana ledger entry was for. Entries are structured (not display strings)
  * so history renders in the current locale and perks can query past redemptions.
  */
-enum class LedgerKind { SESSION, TRIAL, BOON, PERK, MILESTONE, SIGIL }
+enum class LedgerKind {
+    SESSION, TRIAL, PERK,
+
+    /** Legacy kinds from before 2.0 (boons, streak milestones, sigils). Never
+     *  written any more, but kept so old ledger entries still load. */
+    BOON, MILESTONE, SIGIL
+}
 
 data class ManaLedgerEntry(
     val timestampMillis: Long,
@@ -23,29 +29,13 @@ data class ManaLedgerEntry(
     val dateKey: String = ""
 )
 
-/** A self-defined real-life reward, redeemed on the honor system. */
-data class Boon(
-    val id: String,
-    val title: String,
-    val costMana: Long,
-    val note: String = ""
-)
-
 /**
  * In-app perks purchasable with mana. Deliberately a small, code-defined
- * catalog: each one trades a little enforcement for a little reward, so new
- * entries deserve the same scrutiny the first two got.
+ * catalog: each one trades a little enforcement for a little reward.
  */
 enum class Perk(val costMana: Long) {
     /** One extra break in the current manual session, beyond the per-session max. */
     EXTRA_BREAK(50),
-
-    /**
-     * A 10-minute allowance in one pacted/sealed app (once per app per day).
-     * Refused while the Mana Well is on: there, mana buys Well minutes
-     * instead of a per-app allowance that sidesteps the shared pool.
-     */
-    SEALED_MINUTES(150),
 
     /**
      * Minutes poured into the Mana Well. [costMana] is the day's first price;
@@ -55,7 +45,6 @@ enum class Perk(val costMana: Long) {
     WELL_CHANNEL(75);
 
     companion object {
-        const val SEALED_MINUTES_GRANT = 10
         const val WELL_CHANNEL_GRANT = 5
     }
 }

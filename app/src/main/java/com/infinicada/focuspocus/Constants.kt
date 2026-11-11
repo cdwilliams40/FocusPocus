@@ -118,20 +118,17 @@ object Constants {
         // Insights
         const val INSIGHTS_TIME_RANGE = "insightsTimeRange"
 
-        // Progression (mana, boons, trials, sigils)
+        // Stored-data schema version, advanced by Migrations
+        const val SCHEMA_VERSION = "schemaVersion"
+
+        // Progression (mana, trials)
         const val PROGRESSION_ENABLED = "progressionEnabled"
         const val PROGRESSION_INTRO_SHOWN = "progressionIntroShown"
         const val MANA_BALANCE = "manaBalance"
         const val MANA_LIFETIME_EARNED = "manaLifetimeEarned"
         const val MANA_LEDGER = "manaLedger"
-        const val BOONS = "boons"
         const val TRIALS = "trials"
-        const val UNLOCKED_SIGILS = "unlockedSigils"
-        const val HIGHEST_STREAK_MILESTONE_PAID = "highestStreakMilestonePaid"
         const val EXTRA_BREAK_TOKENS = "extraBreakTokens"
-        const val LAST_SESSION_RECORDED_DATE = "lastSessionRecordedDate"
-        const val LAST_WRAPUP_DATE = "lastWrapupDate"
-        const val WRAPUP_ENABLED = "wrapupEnabled"
         const val TRIAL_ALERTS_ENABLED = "trialAlertsEnabled"
         // Snapshot of the usage-stats permission, refreshed whenever a Context is
         // available, so Context-free code (SessionRecorder's award path) can gate
@@ -200,7 +197,6 @@ object Constants {
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_APP_TIME_LIMITS = 100
     const val MAX_CONDITIONAL_UNLOCKS = 50
-    const val MAX_BOONS = 50
     const val MAX_MANA_LEDGER = 300
 
     // Notification channels
@@ -212,7 +208,6 @@ object Constants {
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
-    const val DAILY_WRAPUP_NOTIFICATION_ID = 9003
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
     // Tag-keyed by package name, so one id serves every app's seal-lifted note
     const val SEAL_LIFTED_NOTIFICATION_ID = 9005

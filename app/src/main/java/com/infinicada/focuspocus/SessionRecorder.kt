@@ -4,7 +4,6 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.google.gson.Gson
-import com.infinicada.focuspocus.model.Sigil
 import com.infinicada.focuspocus.model.Trial
 
 /**
@@ -19,13 +18,9 @@ data class RecordResult(
     val recorded: FocusSession? = null,
     /** Mana earned by the session itself (0 when progression is disabled). */
     val manaEarned: Long = 0L,
-    /** One-time streak milestone bonus paid out by this recording, if any. */
-    val milestoneBonus: Long = 0L,
     val newStreak: Int = 0,
     /** Trials whose target was crossed by this session (unclaimed). */
-    val completedTrials: List<Trial> = emptyList(),
-    /** Sigils newly unlocked by this session. */
-    val unlockedSigils: List<Sigil> = emptyList()
+    val completedTrials: List<Trial> = emptyList()
 )
 
 /**
@@ -38,7 +33,7 @@ object SessionRecorder {
      * (SESSION_START_TIME, ACTIVE_BLOCKERS/ACTIVE_BLOCKER, BREAKS_USED_THIS_SESSION).
      *
      * Also updates LONGEST_STREAK if the new streak exceeds it, and runs the
-     * progression award step (mana, trials, sigils, milestones) exactly once
+     * progression award step (mana, trials) exactly once
      * per recorded session — this is the single choke point every session-stop
      * path funnels through.
      *
@@ -52,8 +47,8 @@ object SessionRecorder {
 
         // A session that expired while nothing was running to stop it (service
         // disabled, app dead) is credited until its scheduled end, not until
-        // whenever the stop finally executed — otherwise duration, mana and
-        // sigils are inflated by however long the phone sat idle. Timed sessions
+        // whenever the stop finally executed — otherwise duration and mana
+        // are inflated by however long the phone sat idle. Timed sessions
         // cap at FOCUS_END_TIME_MILLIS; ritual sessions at the schedule window
         // end snapshotted in SCHEDULE_END_TIME_MILLIS.
         val now = System.currentTimeMillis()
@@ -113,16 +108,14 @@ object SessionRecorder {
         // Award after the session list is committed, while ACTIVE_SCHEDULE_ID
         // and HIDE_STOP_BUTTON still describe this session (SessionManager
         // clears session prefs only after record() returns).
-        val award = Progression.awardForSession(prefs, gson, session, newStreak)
+        val award = Progression.awardForSession(prefs, gson, session)
 
         return RecordResult(
             sessions = pruned,
             recorded = session,
             manaEarned = award.manaEarned,
-            milestoneBonus = award.milestoneBonus,
             newStreak = newStreak,
-            completedTrials = award.completedTrials,
-            unlockedSigils = award.unlockedSigils
+            completedTrials = award.completedTrials
         )
     }
 }

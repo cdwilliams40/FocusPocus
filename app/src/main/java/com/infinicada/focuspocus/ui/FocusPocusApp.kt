@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.infinicada.focuspocus.ui.screens.BlockerListScreen
 import com.infinicada.focuspocus.ui.screens.BlockerSelectionDialog
-import com.infinicada.focuspocus.ui.screens.BoonsScreen
+import com.infinicada.focuspocus.ui.screens.ManaScreen
 import com.infinicada.focuspocus.ui.screens.ConditionalUnlocksScreen
 import com.infinicada.focuspocus.ui.screens.CreateBlockerScreen
 import com.infinicada.focuspocus.ui.screens.EditBlockerScreen
@@ -108,10 +108,6 @@ fun FocusPocusApp(
     isServiceEnabled: Boolean,
     lastScannedTagId: String?,
     nfcTriggerCount: Int,
-    pendingDeepLinkPreset: FocusPreset?,
-    showDeepLinkConfirmation: Boolean,
-    onConfirmDeepLink: () -> Unit,
-    onDismissDeepLink: () -> Unit,
     onActivateTalismanPreset: (FocusPreset) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -185,7 +181,6 @@ fun FocusPocusApp(
     val appOpenDailyStats by insightsVM.appOpenDailyStats.collectAsStateWithLifecycle()
 
     val progressionEnabled by settingsVM.progressionEnabled.collectAsStateWithLifecycle()
-    val wrapupEnabled by settingsVM.wrapupEnabled.collectAsStateWithLifecycle()
     val trialAlertsEnabled by settingsVM.trialAlertsEnabled.collectAsStateWithLifecycle()
     val groupSealEnabled by settingsVM.groupSealEnabled.collectAsStateWithLifecycle()
     val groupSealOpenWindowMinutes by settingsVM.groupSealOpenWindowMinutes.collectAsStateWithLifecycle()
@@ -193,18 +188,14 @@ fun FocusPocusApp(
     val showProgressionIntroDialog by settingsVM.showProgressionIntroDialog.collectAsStateWithLifecycle()
     val manaBalance by progressionVM.balance.collectAsStateWithLifecycle()
     val trials by progressionVM.trials.collectAsStateWithLifecycle()
-    val boons by progressionVM.boons.collectAsStateWithLifecycle()
     val manaLedger by progressionVM.ledger.collectAsStateWithLifecycle()
-    val unlockedSigilIds by progressionVM.unlockedSigilIds.collectAsStateWithLifecycle()
     val extraBreakTokens by progressionVM.extraBreakTokens.collectAsStateWithLifecycle()
     val manaEarnedThisWeek by progressionVM.manaEarnedThisWeek.collectAsStateWithLifecycle()
     val wellChannelCost by progressionVM.wellChannelCost.collectAsStateWithLifecycle()
     val wellSettingsState by settingsVM.wellSettingsState.collectAsStateWithLifecycle()
     val sessionSummaryMana by sessionVM.sessionSummaryMana.collectAsStateWithLifecycle()
-    val sessionSummaryMilestoneBonus by sessionVM.sessionSummaryMilestoneBonus.collectAsStateWithLifecycle()
     val sessionSummaryStreak by sessionVM.sessionSummaryStreak.collectAsStateWithLifecycle()
     val sessionSummaryTrials by sessionVM.sessionSummaryTrials.collectAsStateWithLifecycle()
-    val sessionSummarySigils by sessionVM.sessionSummarySigils.collectAsStateWithLifecycle()
 
     // Pause the per-second countdown tickers while the UI can't be seen —
     // the accessibility service enforces session expiry from the persisted
@@ -251,35 +242,6 @@ fun FocusPocusApp(
     // Sync UI with external changes to activeScheduleId
     LaunchedEffect(activeScheduleId) {
         sessionVM.onActiveScheduleIdChanged(activeScheduleId)
-    }
-
-    // Deep link confirmation dialog
-    if (showDeepLinkConfirmation) {
-        val preset = pendingDeepLinkPreset
-        if (preset != null) {
-            val isActive = manualFocusMode || focusTagId != null
-            val tempMinutes = preset.tempDurationMinutes ?: 30
-            val actionDescription = when (preset.action ?: PresetAction.TOGGLE) {
-                PresetAction.TEMP_ENABLE -> pluralStringResource(R.plurals.main_deep_link_action_temp_enable, tempMinutes, preset.name, tempMinutes)
-                PresetAction.TEMP_DISABLE -> if (isActive) pluralStringResource(R.plurals.main_deep_link_action_temp_disable, tempMinutes, tempMinutes) else stringResource(R.string.main_deep_link_action_temp_disable_inactive)
-                PresetAction.TOGGLE -> if (isActive) stringResource(R.string.main_deep_link_action_dispel, preset.name) else stringResource(R.string.main_deep_link_action_cast, preset.name)
-            }
-            AlertDialog(
-                onDismissRequest = { onDismissDeepLink() },
-                title = { Text(stringResource(R.string.main_deep_link_confirm_title)) },
-                text = { Text(stringResource(R.string.main_deep_link_confirm_message, actionDescription)) },
-                confirmButton = {
-                    Button(onClick = { onConfirmDeepLink() }) {
-                        Text(stringResource(R.string.main_deep_link_allow))
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { onDismissDeepLink() }) {
-                        Text(stringResource(R.string.main_deep_link_deny))
-                    }
-                }
-            )
-        }
     }
 
     // Onboarding screen
@@ -389,7 +351,7 @@ fun FocusPocusApp(
     // process recreation instead of snapping back to Home.
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    var showBoons by rememberSaveable { mutableStateOf(false) }
+    var showMana by rememberSaveable { mutableStateOf(false) }
 
     val activeManualBlockers = remember(activeBlockerNames, blockerLists) {
         blockerLists.filter { it.name in activeBlockerNames }
@@ -534,8 +496,6 @@ fun FocusPocusApp(
                 settingsVM.setProgressionEnabled(it)
                 progressionVM.refresh()
             },
-            wrapupEnabled = wrapupEnabled,
-            onWrapupEnabledChanged = { settingsVM.setWrapupEnabled(it) },
             trialAlertsEnabled = trialAlertsEnabled,
             onTrialAlertsEnabledChanged = { settingsVM.setTrialAlertsEnabled(it) },
             groupSealEnabled = groupSealEnabled,
@@ -553,49 +513,28 @@ fun FocusPocusApp(
         return
     }
 
-    // Boons screen (same full-screen pattern as Settings; the gear only exists
+    // Mana screen (same full-screen pattern as Settings; the gear only exists
     // on the main scaffold, so the two flags can't both be set)
-    if (showBoons) {
-        BackHandler { showBoons = false }
-        // Pact-gated apps can buy sealed minutes too; GuardStatus owns the
-        // explicit-config-wins precedence (mirroring resolvePactConfig).
-        val pactedPackages = remember(appTimeLimitConfigs, pactGroups, blockerLists) {
-            GuardStatus.pactGatedPackages(appTimeLimitConfigs, pactGroups, blockerLists)
-        }
-        val pactedApps = remember(installedApps, pactedPackages) {
-            installedApps.filter { it.packageName in pactedPackages }
-        }
-        // While the Mana Well is on, mana buys Well minutes instead of
-        // per-app sealed minutes; re-read after each channel for the room check.
-        var boonsWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
-        BoonsScreen(
+    if (showMana) {
+        BackHandler { showMana = false }
+        // Re-read after each channel for the room check.
+        var manaWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
+        ManaScreen(
             balance = manaBalance,
-            boons = boons,
             sessionActive = focusMode,
             breaksAllowed = activeSchedule?.breaksEnabled ?: sessionBreaksEnabled,
-            wellEnabled = boonsWell.enabled,
+            wellEnabled = manaWell.enabled,
             wellChannelCost = wellChannelCost,
-            wellHasRoom = boonsWell.levelMillisAt(System.currentTimeMillis()) +
+            wellHasRoom = manaWell.levelMillisAt(System.currentTimeMillis()) +
                 Perk.WELL_CHANNEL_GRANT * WellMath.MINUTE_MS <=
-                boonsWell.capacityMinutes * WellMath.MINUTE_MS,
+                manaWell.capacityMinutes * WellMath.MINUTE_MS,
             onChannelWell = {
                 val channeled = progressionVM.redeemPerk(Perk.WELL_CHANNEL)
-                boonsWell = spellbookVM.getWellSnapshot()
+                manaWell = spellbookVM.getWellSnapshot()
                 channeled
             },
-            pactedApps = pactedApps,
-            isSealedAvailableToday = { pkg -> progressionVM.isSealedMinutesAvailableToday(pkg) },
-            isSealedOverDailyLimit = { pkg ->
-                val limit = appTimeLimitConfigs[pkg]?.dailyLimitMinutes ?: 0
-                limit > 0 && com.infinicada.focuspocus.AppTimeLimitManager
-                    .getUsedMinutesToday(context, pkg) >= limit
-            },
-            onRedeemBoon = { boon -> progressionVM.redeemBoon(boon) },
-            onSaveBoon = { boon -> progressionVM.saveBoon(boon) },
-            onDeleteBoon = { boonId -> progressionVM.deleteBoon(boonId) },
             onBuyExtraBreak = { progressionVM.redeemPerk(Perk.EXTRA_BREAK) },
-            onBuySealedMinutes = { pkg -> progressionVM.redeemPerk(Perk.SEALED_MINUTES, pkg) },
-            onNavigateBack = { showBoons = false },
+            onNavigateBack = { showMana = false },
             modifier = modifier.fillMaxSize()
         )
         return
@@ -777,7 +716,7 @@ fun FocusPocusApp(
                             onGrantUsageAccess = { UsageStatsHelper.openUsageAccessSettings(context) },
                             batteryUnrestricted = protectionStatus.batteryUnrestricted,
                             onFixBattery = { ProtectionHealth.openBatteryOptimizationSettings(context) },
-                            onOpenBoons = { showBoons = true },
+                            onOpenMana = { showMana = true },
                             onOpenFocus = { currentDestination = AppDestinations.FOCUS },
                             onMakePact = { spellbookVM.navigateToPacts(PactsRoute.CreateGuard) },
                             onSealAll = { sealResultToast(context, spellbookVM.sealAllPacts()) },
@@ -1174,9 +1113,8 @@ fun FocusPocusApp(
                         manaEarnedThisWeek = manaEarnedThisWeek,
                         trials = trials,
                         ledger = manaLedger,
-                        unlockedSigilIds = unlockedSigilIds,
                         onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
-                        onOpenBoons = { showBoons = true },
+                        onOpenMana = { showMana = true },
                         modifier = contentModifier
                     )
                 }
@@ -1297,32 +1235,9 @@ fun FocusPocusApp(
                                     )
                                 }
                             }
-                            if (sessionSummaryMilestoneBonus > 0) {
-                                Text(
-                                    stringResource(R.string.summary_milestone_bonus, sessionSummaryMilestoneBonus),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
                             sessionSummaryTrials.forEach { trial ->
                                 Text(
                                     stringResource(R.string.summary_trial_complete, trialTitle(trial)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            // Cap unlock lines so a retroactive first run
-                            // celebrates without scrolling.
-                            sessionSummarySigils.take(3).forEach { sigil ->
-                                Text(
-                                    stringResource(R.string.summary_sigil_unlocked, stringResource(sigil.titleRes)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (sessionSummarySigils.size > 3) {
-                                Text(
-                                    stringResource(R.string.summary_more_unlocks, sessionSummarySigils.size - 3),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

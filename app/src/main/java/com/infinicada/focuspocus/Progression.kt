@@ -6,20 +6,16 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.OpenReflexTracker
-import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.SessionCooldownManager
-import com.infinicada.focuspocus.model.Boon
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Schedule
-import com.infinicada.focuspocus.model.Sigil
-import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.model.Trial
 
 /**
  * The single monitor for every mana mutation. SessionRecorder's award path,
- * trial claims, boon/perk redemptions, and rollover auto-credits all run
+ * trial claims, perk redemptions, and rollover auto-credits all run
  * through @Synchronized methods on this object, so balance updates can never
  * lose a write even if callers arrive from different threads.
  *
@@ -30,39 +26,31 @@ object Progression {
 
     data class AwardResult(
         val manaEarned: Long,
-        val milestoneBonus: Long,
-        val completedTrials: List<Trial>,
-        val unlockedSigils: List<Sigil>
+        val completedTrials: List<Trial>
     ) {
         companion object {
-            val EMPTY = AwardResult(0L, 0L, emptyList(), emptyList())
+            val EMPTY = AwardResult(0L, emptyList())
         }
     }
 
     /**
      * Awards everything a just-recorded session earns. Called from inside
-     * SessionRecorder.record() after the session list and streak are computed
-     * but before session prefs are cleared, so ACTIVE_SCHEDULE_ID and
+     * SessionRecorder.record() after the session list is updated but before session prefs are cleared, so ACTIVE_SCHEDULE_ID and
      * HIDE_STOP_BUTTON still describe the session being awarded.
      */
     @Synchronized
     fun awardForSession(
         prefs: SharedPreferences,
         gson: Gson,
-        session: FocusSession,
-        newStreak: Int
+        session: FocusSession
     ): AwardResult {
-        // Cheap activity marker for the evening wrap-up guard — written even
-        // when progression is off so re-enabling doesn't miss today.
-        prefs.edit { putString(Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE, SessionCooldownManager.todayString()) }
-
         rolloverIfNeeded(prefs, gson)
         if (!isEnabled(prefs)) return AwardResult.EMPTY
 
         val fromRitual = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null
         val hideStop = prefs.getBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, false)
 
-        val mana = ProgressionMath.computeManaAward(session.durationMinutes, newStreak, hideStop, fromRitual)
+        val mana = ProgressionMath.computeManaAward(session.durationMinutes, hideStop, fromRitual)
         credit(
             prefs, gson, mana,
             ManaLedgerEntry(
@@ -77,25 +65,7 @@ object Progression {
         val (advanced, completed) = TrialEngine.advanceForSession(loadTrials(prefs, gson), session.durationMinutes, fromRitual)
         saveTrials(prefs, gson, advanced)
 
-        val highestPaid = prefs.getInt(Constants.PrefsKeys.HIGHEST_STREAK_MILESTONE_PAID, 0)
-        val (bonus, newPaid) = ProgressionMath.milestoneBonus(newStreak, highestPaid)
-        if (bonus > 0) {
-            credit(
-                prefs, gson, bonus,
-                ManaLedgerEntry(
-                    timestampMillis = session.endTimeMillis,
-                    amount = bonus,
-                    kind = LedgerKind.MILESTONE,
-                    refId = "streak_$newPaid",
-                    dateKey = SessionCooldownManager.todayString()
-                )
-            )
-            prefs.edit { putInt(Constants.PrefsKeys.HIGHEST_STREAK_MILESTONE_PAID, newPaid) }
-        }
-
-        val unlocked = unlockSigils(prefs, gson, sessionSigilIds(prefs, gson, session, newStreak, hideStop, fromRitual))
-
-        return AwardResult(mana, bonus, completed, unlocked)
+        return AwardResult(mana, completed)
     }
 
     /**
@@ -159,37 +129,13 @@ object Progression {
         return trial.rewardMana
     }
 
-    /** Deducts a boon's cost on the honor system. False when the balance is too low. */
-    @Synchronized
-    fun redeemBoon(prefs: SharedPreferences, gson: Gson, boon: Boon): Boolean {
-        if (!isEnabled(prefs)) return false
-        if (!debit(
-                prefs, gson, boon.costMana,
-                ManaLedgerEntry(
-                    timestampMillis = System.currentTimeMillis(),
-                    amount = -boon.costMana,
-                    kind = LedgerKind.BOON,
-                    title = boon.title,
-                    refId = boon.id,
-                    dateKey = SessionCooldownManager.todayString()
-                )
-            )
-        ) return false
-        unlockSigils(prefs, gson, listOf(SigilCatalog.FIRST_BOON))
-        return true
-    }
-
     /**
-     * Buys an in-app perk. EXTRA_BREAK requires an active manual session (the
-     * token is session-scoped); SEALED_MINUTES requires the target package and
-     * is capped at one redemption per app per day. The daily-limit precedence
-     * check (a spent daily limit can't be bought back) is enforced by the UI,
-     * which has the Context this method deliberately doesn't. WELL_CHANNEL
-     * pours minutes into the Mana Well at a price that doubles per channel
-     * per day; while the Well is on it replaces SEALED_MINUTES outright.
+     * Buys an in-app perk. EXTRA_BREAK requires an active session (the token
+     * is session-scoped). WELL_CHANNEL pours minutes into the Mana Well at a
+     * price that doubles per channel per day.
      */
     @Synchronized
-    fun redeemPerk(prefs: SharedPreferences, gson: Gson, perk: Perk, packageName: String? = null): Boolean {
+    fun redeemPerk(prefs: SharedPreferences, gson: Gson, perk: Perk): Boolean {
         if (!isEnabled(prefs)) return false
         when (perk) {
             Perk.EXTRA_BREAK -> {
@@ -199,28 +145,13 @@ object Progression {
                 // up front instead of silently burning the mana.
                 if (!SessionManager.isFocusActive(prefs)) return false
                 if (!breaksAllowedNow(prefs, gson)) return false
-                if (!debit(prefs, gson, perk.costMana, perkEntry(perk, ""))) return false
+                if (!debit(prefs, gson, perk.costMana, perkEntry(perk))) return false
                 prefs.edit {
                     putInt(
                         Constants.PrefsKeys.EXTRA_BREAK_TOKENS,
                         prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0) + 1
                     )
                 }
-            }
-            Perk.SEALED_MINUTES -> {
-                if (packageName.isNullOrEmpty()) return false
-                // A per-app allowance bought outside the pool — and one that
-                // lifts a seal — is exactly the side door the Well closes.
-                if (ManaWell.isEnabled(prefs)) return false
-                val today = SessionCooldownManager.todayString()
-                val alreadyToday = loadLedger(prefs, gson).any {
-                    it.kind == LedgerKind.PERK && it.refId == perk.name &&
-                        it.packageName == packageName && it.dateKey == today
-                }
-                if (alreadyToday) return false
-                if (!debit(prefs, gson, perk.costMana, perkEntry(perk, packageName))) return false
-                PactManager(prefs, gson).grantAllowance(packageName, Perk.SEALED_MINUTES_GRANT)
-                SessionCooldownManager(prefs, gson).clearCooldown(packageName)
             }
             Perk.WELL_CHANNEL -> {
                 if (!ManaWell.isEnabled(prefs)) return false
@@ -231,7 +162,7 @@ object Progression {
                 // mana mutation runs under this monitor.
                 if (prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L) < cost) return false
                 if (!ManaWell.channel(prefs, Perk.WELL_CHANNEL_GRANT)) return false
-                debit(prefs, gson, cost, perkEntry(perk, "", cost))
+                debit(prefs, gson, cost, perkEntry(perk, cost))
             }
         }
         return true
@@ -239,8 +170,7 @@ object Progression {
 
     /**
      * What the next Well channel costs right now: the base price, doubled for
-     * every channel already bought today (counted from the structured ledger,
-     * like the sealed-minutes once-a-day check).
+     * every channel already bought today (counted from the structured ledger).
      */
     fun wellChannelCost(
         prefs: SharedPreferences,
@@ -269,53 +199,12 @@ object Progression {
         return prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
     }
 
-    /**
-     * Idempotently unlocks sigils by id and returns the ones that are new.
-     * External unlock sites (Warden provisioning) call this directly.
-     */
-    @Synchronized
-    fun unlockSigils(prefs: SharedPreferences, gson: Gson, ids: List<String>): List<Sigil> {
-        if (ids.isEmpty() || !isEnabled(prefs)) return emptyList()
-        val current = loadUnlockedSigilIds(prefs, gson)
-        val fresh = ids.filter { it !in current }.mapNotNull { SigilCatalog.byId(it) }
-        if (fresh.isEmpty()) return emptyList()
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.UNLOCKED_SIGILS, current + fresh.map { it.id })
-        return fresh
-    }
-
     fun isEnabled(prefs: SharedPreferences): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, true)
 
     // -------------------------------------------------------------------------
     // Internals
     // -------------------------------------------------------------------------
-
-    private fun sessionSigilIds(
-        prefs: SharedPreferences,
-        gson: Gson,
-        session: FocusSession,
-        newStreak: Int,
-        hideStop: Boolean,
-        fromRitual: Boolean
-    ): List<String> {
-        val ids = mutableListOf(SigilCatalog.FIRST_SPELL)
-        if (fromRitual) ids += SigilCatalog.RITUAL_KEPT
-        if (hideStop) ids += SigilCatalog.IRON_WILL
-        if (session.durationMinutes >= 240) ids += SigilCatalog.DEEP_TRANCE
-        if (newStreak >= 7) ids += SigilCatalog.STREAK_7
-        if (newStreak >= 30) ids += SigilCatalog.STREAK_30
-        if (newStreak >= 100) ids += SigilCatalog.STREAK_100
-
-        val sessions = loadSessions(prefs, gson)
-        if (sessions.size >= 100) ids += SigilCatalog.HUNDRED_CASTINGS
-        val weekKey = TrialEngine.weekKeyForDay(SessionCooldownManager.todayString())
-        val weekMinutes = sessions
-            .filter { TrialEngine.weekKeyForDay(TrialEngine.dateKeyOf(it.endTimeMillis)) == weekKey }
-            .sumOf { it.durationMinutes }
-        if (weekMinutes >= 600) ids += SigilCatalog.TEN_HOUR_WEEK
-        if (prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L) >= 1000L) ids += SigilCatalog.FONT_OF_MANA
-        return ids
-    }
 
     private fun eligibility(prefs: SharedPreferences, gson: Gson): TrialEngine.Eligibility {
         val schedules: List<Schedule> = PrefsHelper.load(
@@ -364,14 +253,12 @@ object Progression {
 
     private fun perkEntry(
         perk: Perk,
-        packageName: String,
         cost: Long = perk.costMana
     ) = ManaLedgerEntry(
         timestampMillis = System.currentTimeMillis(),
         amount = -cost,
         kind = LedgerKind.PERK,
         refId = perk.name,
-        packageName = packageName,
         dateKey = SessionCooldownManager.todayString()
     )
 
@@ -406,14 +293,6 @@ object Progression {
     private fun isIntact(entry: ManaLedgerEntry): Boolean =
         entry.kind != null && entry.title != null && entry.refId != null &&
             entry.packageName != null && entry.dateKey != null
-
-    internal fun loadUnlockedSigilIds(prefs: SharedPreferences, gson: Gson): Set<String> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.UNLOCKED_SIGILS, object : TypeToken<Set<String>>() {}.type)
-            ?: emptySet()
-
-    private fun loadSessions(prefs: SharedPreferences, gson: Gson): List<FocusSession> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.FOCUS_SESSIONS, object : TypeToken<List<FocusSession>>() {}.type)
-            ?: emptyList()
 
     private fun loadBlockEvents(prefs: SharedPreferences, gson: Gson): List<BlockEvent> =
         PrefsHelper.load(prefs, gson, Constants.PrefsKeys.BLOCK_EVENTS, object : TypeToken<List<BlockEvent>>() {}.type)

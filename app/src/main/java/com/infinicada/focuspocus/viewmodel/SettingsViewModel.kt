@@ -16,7 +16,6 @@ import com.infinicada.focuspocus.data.SettingsRepository
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.WellSettings
 import com.infinicada.focuspocus.limit.WellSettingsState
-import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,8 +88,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _progressionEnabled = MutableStateFlow(repo.getProgressionEnabled())
     val progressionEnabled: StateFlow<Boolean> = _progressionEnabled.asStateFlow()
 
-    private val _wrapupEnabled = MutableStateFlow(repo.getWrapupEnabled())
-    val wrapupEnabled: StateFlow<Boolean> = _wrapupEnabled.asStateFlow()
 
     private val _trialAlertsEnabled = MutableStateFlow(repo.getTrialAlertsEnabled())
     val trialAlertsEnabled: StateFlow<Boolean> = _trialAlertsEnabled.asStateFlow()
@@ -180,14 +177,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         // command), lock down uninstall — don't wait for the next app start.
         if (_isDeviceOwner.value) {
             DeviceOwnerManager.applySelfProtection(getApplication())
-            // Provisioning happens outside the app (adb), so this recheck is
-            // one of the two places the Warden sigil can be observed earned.
-            val app = getApplication<Application>()
-            Progression.unlockSigils(
-                app.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE),
-                com.google.gson.Gson(),
-                listOf(SigilCatalog.WARDEN)
-            )
         } else if (_wardenRemovalRequestMillis.value != 0L) {
             // Warden left some other way (test-only builds allow adb removal);
             // drop the stale request so re-provisioning starts a clean slate.
@@ -270,11 +259,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setProgressionEnabled(enabled: Boolean) {
         _progressionEnabled.value = enabled
         repo.setProgressionEnabled(enabled)
-    }
-
-    fun setWrapupEnabled(enabled: Boolean) {
-        _wrapupEnabled.value = enabled
-        repo.setWrapupEnabled(enabled)
     }
 
     fun setTrialAlertsEnabled(enabled: Boolean) {
