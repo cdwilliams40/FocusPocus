@@ -89,7 +89,7 @@ import com.infinicada.focuspocus.ui.screens.ScheduleListScreen
 import com.infinicada.focuspocus.ui.screens.SettingsScreen
 import com.infinicada.focuspocus.ui.screens.SpellbookScreen
 import com.infinicada.focuspocus.ui.screens.TalismansScreen
-import com.infinicada.focuspocus.ui.screens.UsageStatsScreen
+import com.infinicada.focuspocus.ui.screens.insights.InsightsScreen
 import com.infinicada.focuspocus.viewmodel.InsightsViewModel
 import com.infinicada.focuspocus.viewmodel.ProgressionViewModel
 import com.infinicada.focuspocus.viewmodel.SessionViewModel
@@ -972,20 +972,21 @@ fun FocusPocusApp(
                 }
 
                 AppDestinations.INSIGHTS -> {
-                    UsageStatsScreen(
-                        blockerLists = blockerLists,
+                    val wellDays by insightsVM.wellDays.collectAsStateWithLifecycle()
+                    val manaDays by insightsVM.manaDays.collectAsStateWithLifecycle()
+                    InsightsScreen(
                         installedApps = installedApps,
                         focusSessions = insightsFocusSessions,
                         currentStreak = currentStreak,
                         longestStreak = insightsLongestStreak,
                         blockEvents = blockEvents,
                         openDailyStats = appOpenDailyStats,
+                        wellDays = wellDays,
+                        manaDays = manaDays,
+                        ledger = manaLedger,
                         progressionEnabled = progressionEnabled,
                         manaBalance = manaBalance,
-                        manaEarnedThisWeek = manaEarnedThisWeek,
-                        trials = trials,
-                        ledger = manaLedger,
-                        onClaimTrial = { trial -> progressionVM.claimTrial(trial.id) },
+                        wellRefillIntervalMinutes = remember { spellbookVM.getWellSnapshot().refillIntervalMinutes },
                         onOpenMana = { showMana = true },
                         modifier = contentModifier
                     )

@@ -269,44 +269,13 @@
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
 
     <!-- InsightsScreen -->
-    <string name="insights_today">Aujourd\'hui</string>
-    <string name="insights_this_week">Cette semaine</string>
-    <string name="insights_this_month">Ce mois-ci</string>
-    <string name="insights_all_time">Depuis toujours</string>
-    <string name="insights_focus_streaks">Séries de concentration</string>
-    <string name="insights_current">Actuelle</string>
-    <string name="insights_best">Meilleure</string>
-    <string name="insights_total">Total</string>
-    <string name="insights_focus_stats">Statistiques de concentration</string>
-    <string name="insights_total_focus">Concentration totale</string>
     <string name="insights_avg_session">Session moyenne</string>
-    <string name="insights_sessions">Sessions</string>
-    <string name="insights_blocking_stats">Statistiques de blocage</string>
-    <plurals name="insights_total_blocks">
-        <item quantity="one">%d blocage au total</item>
-        <item quantity="many">%d blocages au total</item>
-        <item quantity="other">%d blocages au total</item>
-    </plurals>
-    <string name="insights_most_blocked">Les plus bloqués</string>
     <string name="insights_session_history">Historique des sessions</string>
-    <string name="insights_session_duration">%d min</string>
-    <plurals name="insights_session_breaks">
-        <item quantity="one">%d pause</item>
-        <item quantity="many">%d pauses</item>
-        <item quantity="other">%d pauses</item>
-    </plurals>
-    <string name="insights_usage_access_required">Accès à l\'utilisation requis</string>
     <string name="insights_usage_access_desc">Pour consulter vos statistiques d\'utilisation, veuillez accorder l\'autorisation d\'accès.</string>
     <string name="insights_grant_usage_access">Accorder l\'accès à l\'utilisation</string>
-    <string name="insights_today_screen_time">Temps d\'écran aujourd\'hui</string>
     <string name="insights_screen_time">Temps d\'écran</string>
-    <string name="insights_filtered_by">Filtré par : %s</string>
-    <string name="insights_all_apps">Toutes les applications</string>
-    <string name="insights_filter_by_enchantment">Filtrer par enchantement</string>
-    <string name="insights_app_usage">Utilisation des applications</string>
     <string name="insights_no_usage_data">Aucune donnée d\'utilisation disponible pour cette période.</string>
     <string name="insights_hours_minutes">%1$dh %2$dm</string>
-    <string name="insights_minutes_only">%dm</string>
 
     <!-- OnboardingScreen -->
     <string name="onboarding_step_of">Étape %1$d sur %2$d</string>
@@ -457,9 +426,6 @@
 
     <!-- Ajouts récents (traductions) -->
     <string name="settings_device_owner_testonly_warning">Cette version a été déployée depuis Android Studio et est marquée test-only — Android autorise la suppression des propriétaires d\'appareil test-only, la protection contre la désinstallation n\'est donc PAS active. Installez avec adb (gradlew assembleDebug) pour une protection complète.</string>
-    <string name="insights_app_opens">Ouvertures d\'applications</string>
-    <string name="insights_total_opens">%d ouvertures</string>
-    <string name="insights_reflex_summary">%1$d étaient des réflexes de moins de 30 secondes (%2$d%%)</string>
     <string name="insights_opens_row_count">%1$d · %2$d rfx</string>
     <string name="insights_reflex_hint">Réflexe = abandonnée dans les 30 secondes suivant l\'ouverture</string>
 
@@ -480,7 +446,6 @@
     <!-- Progression : sceaux -->
 
     <!-- Progression : épreuves -->
-    <string name="trials_header">Épreuves — défis du jour et de la semaine</string>
     <string name="home_trials_title">Épreuves du jour</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Lancez %1$d sortilège aujourd\'hui</item>
@@ -501,8 +466,6 @@
     <string name="insights_mana_header">Mana — énergie de concentration</string>
     <string name="insights_open_mana">Dépenser du mana</string>
     <string name="insights_mana_balance_label">Solde</string>
-    <string name="insights_mana_week_label">Cette semaine</string>
-    <string name="insights_recent_ledger">Activité récente</string>
 
     <!-- Progression : journal de mana -->
     <string name="ledger_session_reason">Concentration · %1$d min</string>
@@ -547,7 +510,6 @@
     <!-- Chaînes ajoutées : clés absentes de la traduction française -->
     <string name="home_take_break_with_count">Prendre une pause (%1$d restantes)</string>
     <string name="home_nfc_lock_active">Verrou talisman actif</string>
-    <string name="insights_daily_trend">Concentration quotidienne (7 derniers jours)</string>
     <string name="rituals_conflict_warning">Attention : chevauchement avec \"%1$s\"</string>
     <string name="rituals_overnight_info">Ce rituel s\'étend sur la nuit. Il commencera le soir et se terminera le lendemain matin.</string>
 
@@ -683,4 +645,51 @@
     <string name="mana_open_productive">Applis productives</string>
     <string name="well_dry_pour">Verser %1$d min pour %2$d mana</string>
     <string name="home_trials_header">Épreuves du jour</string>
+
+    <!-- Insights (2.0) -->
+    <string name="insights_minutes_value">%1$d min</string>
+    <string name="insights_chart_max">max : %1$s</string>
+    <string name="insights_range_today">Aujourd\'hui</string>
+    <string name="insights_range_week">7 jours</string>
+    <string name="insights_range_month">30 jours</string>
+    <string name="insights_summary_well">Puisé dans le Puits</string>
+    <string name="insights_summary_focus">Concentré</string>
+    <string name="insights_summary_net_mana">Mana net</string>
+    <string name="insights_summary_streak">Série · record %1$d</string>
+    <string name="insights_well_header">Le Puits</string>
+    <string name="insights_well_drawn">Minutes puisées</string>
+    <string name="insights_well_refill_per_day">Le Puits se remplit seul jusqu\'à %1$d min par jour.</string>
+    <string name="insights_well_pacts">Pactes conclus</string>
+    <string name="insights_well_average_pact">Pacte moyen</string>
+    <string name="insights_well_returned">Rendu en terminant tôt</string>
+    <string name="insights_well_pours">Versements de mana</string>
+    <string name="insights_well_dry">Ouvertures avec le Puits à sec</string>
+    <string name="insights_well_by_app">Par appli</string>
+    <string name="insights_reflex_header">Réflexes</string>
+    <string name="insights_reflex_opens">Ouvertures d\'applis du Puits</string>
+    <string name="insights_reflex_reflexes">Ouvertures réflexes</string>
+    <string name="insights_reflex_share">%1$d (%2$d %%)</string>
+    <string name="insights_reflex_by_app">Les plus ouvertes</string>
+    <string name="insights_source_manual">À la main</string>
+    <string name="insights_source_ritual">Rituels</string>
+    <string name="insights_source_talisman">Talismans</string>
+    <string name="insights_focus_header">Concentration</string>
+    <string name="insights_focus_sessions">Sessions</string>
+    <string name="insights_focus_blocked">Tentatives bloquées</string>
+    <string name="insights_mana_earned">Gagné</string>
+    <string name="insights_mana_spent">Dépensé</string>
+    <string name="insights_mana_from">D\'où il vient</string>
+    <string name="insights_mana_from_timed">Sessions minutées</string>
+    <string name="insights_mana_from_open_ended">Rituels et talismans sans durée</string>
+    <string name="insights_mana_from_productive">Applis productives</string>
+    <string name="insights_mana_from_trials">Épreuves (%1$d réussies)</string>
+    <string name="insights_mana_went">Où il est allé</string>
+    <string name="insights_mana_pours">Versements dans le Puits (%1$d)</string>
+    <string name="insights_mana_breaks">Pauses supplémentaires</string>
+    <string name="insights_screen_time_total">Total</string>
+    <plurals name="insights_streak_days">
+        <item quantity="one">%d jour</item>
+        <item quantity="many">%d jours</item>
+        <item quantity="other">%d jours</item>
+    </plurals>
 </resources>

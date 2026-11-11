@@ -264,48 +264,15 @@
     <string name="settings_analytics_desc">Send anonymous crash reports and usage data to help improve the app</string>
 
     <!-- InsightsScreen -->
-    <string name="insights_today">Today</string>
-    <string name="insights_this_week">This Week</string>
-    <string name="insights_this_month">This Month</string>
-    <string name="insights_all_time">All Time</string>
-    <string name="insights_focus_streaks">Focus Streaks</string>
-    <string name="insights_current">Current</string>
-    <string name="insights_best">Best</string>
-    <string name="insights_total">Total</string>
-    <string name="insights_focus_stats">Focus Stats</string>
-    <string name="insights_total_focus">Total Focus</string>
     <string name="insights_avg_session">Avg Session</string>
-    <string name="insights_sessions">Sessions</string>
-    <string name="insights_app_opens">App Opens</string>
-    <string name="insights_total_opens">%d opens</string>
-    <string name="insights_reflex_summary">%1$d were under-30-second reflexes (%2$d%%)</string>
     <string name="insights_opens_row_count">%1$d \u00b7 %2$d rfx</string>
     <string name="insights_reflex_hint">Reflex = abandoned within 30 seconds of opening</string>
-    <string name="insights_blocking_stats">Blocking Stats</string>
-    <plurals name="insights_total_blocks">
-        <item quantity="one">%d total block</item>
-        <item quantity="other">%d total blocks</item>
-    </plurals>
-    <string name="insights_most_blocked">Most Blocked</string>
     <string name="insights_session_history">Session History</string>
-    <string name="insights_session_duration">%d min</string>
-    <plurals name="insights_session_breaks">
-        <item quantity="one">%d break</item>
-        <item quantity="other">%d breaks</item>
-    </plurals>
-    <string name="insights_usage_access_required">Usage Access Required</string>
     <string name="insights_usage_access_desc">To view your app usage statistics, please grant usage access permission.</string>
     <string name="insights_grant_usage_access">Grant Usage Access</string>
-    <string name="insights_today_screen_time">Today\'s Screen Time</string>
     <string name="insights_screen_time">Screen Time</string>
-    <string name="insights_filtered_by">Filtered by: %s</string>
-    <string name="insights_all_apps">All Apps</string>
-    <string name="insights_filter_by_enchantment">Filter by Enchantment</string>
-    <string name="insights_app_usage">App Usage</string>
     <string name="insights_no_usage_data">No usage data available for this period.</string>
     <string name="insights_hours_minutes">%1$dh %2$dm</string>
-    <string name="insights_minutes_only">%dm</string>
-    <string name="insights_daily_trend">Daily Focus (Last 7 Days)</string>
 
     <!-- OnboardingScreen -->
     <string name="onboarding_step_of">Step %1$d of %2$d</string>
@@ -485,7 +452,6 @@
     <!-- Progression: sigils -->
 
     <!-- Progression: trials -->
-    <string name="trials_header">Trials — daily &amp; weekly challenges</string>
     <string name="home_trials_title">Today\'s Trials</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Cast %1$d spell today</item>
@@ -505,8 +471,6 @@
     <string name="insights_mana_header">Mana — focus energy</string>
     <string name="insights_open_mana">Spend mana</string>
     <string name="insights_mana_balance_label">Balance</string>
-    <string name="insights_mana_week_label">This Week</string>
-    <string name="insights_recent_ledger">Recent activity</string>
 
     <!-- Progression: ledger rendering -->
     <string name="ledger_session_reason">Focus · %1$d min</string>
@@ -661,4 +625,50 @@
     <string name="mana_open_productive">Productive apps</string>
     <string name="well_dry_pour" tools:ignore="PluralsCandidate">Pour %1$d min for %2$d mana</string>
     <string name="home_trials_header">Today\'s trials</string>
+
+    <!-- Insights (2.0) -->
+    <string name="insights_minutes_value" tools:ignore="PluralsCandidate">%1$d min</string>
+    <string name="insights_chart_max">top: %1$s</string>
+    <string name="insights_range_today">Today</string>
+    <string name="insights_range_week">7 days</string>
+    <string name="insights_range_month">30 days</string>
+    <string name="insights_summary_well">Drawn from the Well</string>
+    <string name="insights_summary_focus">Focused</string>
+    <string name="insights_summary_net_mana">Net mana</string>
+    <string name="insights_summary_streak" tools:ignore="PluralsCandidate">Streak · best %1$d</string>
+    <string name="insights_well_header">The Well</string>
+    <string name="insights_well_drawn">Minutes drawn</string>
+    <string name="insights_well_refill_per_day" tools:ignore="PluralsCandidate">The Well refills up to %1$d min a day on its own.</string>
+    <string name="insights_well_pacts">Pacts made</string>
+    <string name="insights_well_average_pact">Average pact</string>
+    <string name="insights_well_returned">Handed back by ending early</string>
+    <string name="insights_well_pours">Mana pours</string>
+    <string name="insights_well_dry">Opens with the Well dry</string>
+    <string name="insights_well_by_app">By app</string>
+    <string name="insights_reflex_header">Reflexes</string>
+    <string name="insights_reflex_opens">Opens of Well apps</string>
+    <string name="insights_reflex_reflexes">Reflex opens</string>
+    <string name="insights_reflex_share">%1$d (%2$d%%)</string>
+    <string name="insights_reflex_by_app">Most opened</string>
+    <string name="insights_source_manual">By hand</string>
+    <string name="insights_source_ritual">Rituals</string>
+    <string name="insights_source_talisman">Talismans</string>
+    <string name="insights_focus_header">Focus</string>
+    <string name="insights_focus_sessions">Sessions</string>
+    <string name="insights_focus_blocked">Blocked attempts</string>
+    <string name="insights_mana_earned">Earned</string>
+    <string name="insights_mana_spent">Spent</string>
+    <string name="insights_mana_from">Where it came from</string>
+    <string name="insights_mana_from_timed">Timed sessions</string>
+    <string name="insights_mana_from_open_ended">Rituals and untimed talismans</string>
+    <string name="insights_mana_from_productive">Productive apps</string>
+    <string name="insights_mana_from_trials" tools:ignore="PluralsCandidate">Trials (%1$d completed)</string>
+    <string name="insights_mana_went">Where it went</string>
+    <string name="insights_mana_pours" tools:ignore="PluralsCandidate">Pours into the Well (%1$d)</string>
+    <string name="insights_mana_breaks">Extra breaks</string>
+    <string name="insights_screen_time_total">Total</string>
+    <plurals name="insights_streak_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
 </resources>
