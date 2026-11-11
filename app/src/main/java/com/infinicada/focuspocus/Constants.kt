@@ -177,5 +177,4 @@ object Constants {
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
-    // Tag-keyed by package name, so one id serves every app's seal-lifted note
 }

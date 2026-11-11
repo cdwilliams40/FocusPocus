@@ -59,7 +59,6 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit { putBoolean(Constants.PrefsKeys.HIDE_STOP_BUTTON, enabled) }
     }
 
-    /** Opt-in (default off): notify when a guard's seal lifts. */
     fun getNfcLockMode(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 
@@ -143,8 +142,6 @@ class SettingsRepository(private val prefs: SharedPreferences) {
     fun setTrialAlertsEnabled(enabled: Boolean) {
         prefs.edit { putBoolean(Constants.PrefsKeys.TRIAL_ALERTS_ENABLED, enabled) }
     }
-
-    // ── Group-seal mode ──
 
     fun isProgressionIntroShown(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.PROGRESSION_INTRO_SHOWN, false)

@@ -27,9 +27,9 @@ object ProtectionHealth {
     data class Status(
         /** The accessibility service — the enforcement engine itself. */
         val accessibilityEnabled: Boolean,
-        /** Usage access — daily limits and conditional unlocks depend on it. */
+        /** Usage access — productive-app mana and screen time depend on it. */
         val usageAccessGranted: Boolean,
-        /** Notifications — ritual alerts, countdowns, seal-lifted notes. */
+        /** Notifications — ritual alerts, countdowns, trial completions. */
         val notificationsEnabled: Boolean,
         /** Battery optimization exemption — OEM optimizers kill the service. */
         val batteryUnrestricted: Boolean

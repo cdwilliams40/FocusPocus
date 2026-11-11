@@ -5,7 +5,7 @@
     <string name="accessibility_service_description">Ce service vous aide à rester concentré en surveillant les applications que vous utilisez.</string>
 
     <!-- Navigation -->
-    <string name="nav_pacts">Pactes</string>
+    <string name="nav_well">Puits</string>
     <string name="nav_focus">Concentration</string>
     <string name="nav_spellbook">Grimoire</string>
     <string name="nav_insights">Statistiques</string>
@@ -127,7 +127,7 @@
     <string name="well_channel_done">+%1$d minutes dans le Puits</string>
     <string name="well_channel_failed">Canalisation impossible — vérifiez votre mana et la place restante dans le Puits</string>
     <string name="overlay_well_dry_title">Le Puits de mana est à sec</string>
-    <string name="overlay_well_dry_body">%s puise dans le temps que partagent vos applis sous pacte, et il n\'en reste pas assez.</string>
+    <string name="overlay_well_dry_body">%s puise dans le temps que partagent vos applis du Puits, et il n\'en reste pas assez.</string>
     <string name="overlay_well_dry_eta">De quoi faire un pacte de %1$d minutes dans %2$s.</string>
     <string name="overlay_well_dry_no_refill">Le Puits ne se remplit que lorsque vous y canalisez du mana.</string>
     <string name="settings_well_title">Puits de mana</string>
@@ -153,7 +153,6 @@
     <string name="well_refund_toast">%1$d min rendues au Puits</string>
     <string name="home_section_live">En ce moment</string>
     <string name="home_guard_edit_label">Modifier</string>
-    <!-- GuardEditorScreen (éditeur unifié pacte/garde) -->
 
     <!-- Révision de pacte : les modifications d'un pacte existant patientent 24 h -->
     <string name="pact_revision_keep">Garder les termes actuels</string>
@@ -233,8 +232,8 @@
     <string name="settings_device_owner">Mode Gardien (propriétaire de l\'appareil)</string>
     <string name="settings_device_owner_suspend">Griser les applications bloquées</string>
     <string name="settings_device_owner_suspend_desc">Suspend les applications bloquées au niveau du système pendant les sessions de concentration — leurs icônes sont grisées et elles ne peuvent plus être ouvertes</string>
-    <string name="settings_device_owner_suspend_pacts">Griser les applications sous pacte</string>
-    <string name="settings_device_owner_suspend_pacts_desc">Garde les applications liées par un pacte suspendues en permanence — grisées, absentes des suggestions du lanceur, et ouvrables uniquement en demandant du temps dans l\'onglet Pactes</string>
+    <string name="settings_device_owner_suspend_pacts">Griser les applis du Puits</string>
+    <string name="settings_device_owner_suspend_pacts_desc">Garder les applis du Puits suspendues tant qu\'aucun pacte n\'est en cours — grisées, absentes des suggestions du lanceur, et ouvrables en demandant du temps dans l\'onglet Puits</string>
     <string name="settings_device_owner_active">FocusPocus est le propriétaire de cet appareil. Il ne peut pas être désinstallé tant que le Mode Gardien est actif.</string>
     <string name="settings_device_owner_inactive_desc">Faites de FocusPocus le propriétaire de l\'appareil pour griser les applications bloquées dans tout le système et empêcher la désinstallation de l\'application dans un moment de faiblesse. Configuration unique depuis un ordinateur avec adb :</string>
     <string name="settings_device_owner_step1">Supprimez temporairement tous les comptes de ce téléphone (Paramètres → Mots de passe et comptes). Vous pourrez tous les rajouter dès que la configuration sera terminée.</string>
@@ -262,8 +261,8 @@
     <string name="device_admin_label">Gardien FocusPocus</string>
     <string name="device_admin_description">Grise les applications bloquées pendant les sessions de concentration et protège FocusPocus contre la désinstallation.</string>
     <string name="device_admin_disable_warning">Désactiver ceci permettra aux applications bloquées de fonctionner librement pendant les sessions et rendra FocusPocus facile à désinstaller. Votre futur vous pourrait ne pas vous remercier.</string>
-    <string name="device_admin_support_short">Cette application est liée par un pacte Focus Pocus.</string>
-    <string name="device_admin_support_long">Cette application est liée par un pacte Focus Pocus : elle reste scellée jusqu\'à ce que vous demandiez consciemment du temps. Ouvrez Focus Pocus, trouvez l\'application dans l\'onglet Pactes et touchez « Demander du temps ».</string>
+    <string name="device_admin_support_short">Cette appli est derrière le Puits de mana de Focus Pocus.</string>
+    <string name="device_admin_support_long">Cette appli reste fermée jusqu\'à ce que vous concluiez un pacte. Ouvrez Focus Pocus, trouvez-la dans l\'onglet Puits et touchez-la sous « Demander du temps ».</string>
     <string name="settings_privacy">Confidentialité</string>
     <string name="settings_analytics">Partager les analyses</string>
     <string name="settings_analytics_desc">Envoyer des rapports de plantage anonymes et des données d\'utilisation pour améliorer l\'application</string>
@@ -281,24 +280,24 @@
     <string name="onboarding_step_of">Étape %1$d sur %2$d</string>
     <string name="onboarding_begin">Commencer</string>
     <string name="onboarding_welcome_title">Bienvenue sur Focus Pocus</string>
-    <string name="onboarding_welcome_desc">Vos applications les plus distrayantes, scellées jusqu\'à ce que vous choisissiez consciemment de les ouvrir. Configurons vos premiers pactes — les sorts de concentration minutés restent à un geste de là.</string>
+    <string name="onboarding_welcome_desc">Vos applis les plus distrayantes restent fermées jusqu\'à ce que vous concluiez un pacte conscient, payé sur une réserve de temps commune qui se remplit lentement : le Puits de mana. Commençons par choisir ces applis.</string>
     <string name="onboarding_accessibility_title">Accorder la vue magique</string>
-    <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour remarquer l\'ouverture d\'une application scellée ou bloquée et vous proposer un choix conscient à la place.</string>
+    <string name="onboarding_accessibility_desc">Focus Pocus a besoin de l\'autorisation d\'accessibilité pour remarquer quand vous ouvrez une appli du Puits ou une appli bloquée, et vous proposer un choix conscient à la place.</string>
     <string name="onboarding_accessibility_enabled">Accessibilité activée</string>
-    <string name="onboarding_pact_title">Scellez vos premières applications</string>
-    <string name="onboarding_pact_desc">Choisissez les applications qui dévorent votre attention. Elles seront scellées par défaut — en ouvrir une demande de combien de temps vous avez vraiment besoin.</string>
-    <string name="onboarding_pact_pick">Choisir les applications à sceller (%d sélectionnées)</string>
-    <string name="onboarding_pact_defaults_note">Chaque pacte puise dans le Puits de mana : choisissez de 2 à 30 minutes en ouvrant l\'appli. Modifiez la liste plus tard dans l\'onglet Pactes.</string>
+    <string name="onboarding_pact_title">Choisissez vos applis du Puits</string>
+    <string name="onboarding_pact_desc">Choisissez les applis qui dévorent votre attention. Elles resteront fermées — en ouvrir une vous demande de combien de temps vous avez vraiment besoin, et les minutes sont puisées dans le Puits de mana.</string>
+    <string name="onboarding_pact_pick">Choisir les applis du Puits (%d sélectionnées)</string>
+    <string name="onboarding_pact_defaults_note">Chaque pacte puise dans le Puits de mana : choisissez de 2 à 30 minutes en ouvrant l\'appli. Modifiez la liste à tout moment dans l\'onglet Puits.</string>
     <string name="onboarding_notification_title">Accès aux notifications</string>
     <string name="onboarding_notification_desc">Accordez l\'accès aux notifications pour bloquer les notifications des applications distrayantes et activer le mode Ne pas déranger pendant la concentration.</string>
     <string name="onboarding_notification_granted">Accès aux notifications accordé</string>
     <string name="onboarding_grant_notification">Accorder l\'accès aux notifications</string>
     <string name="onboarding_usage_title">Statistiques d\'utilisation</string>
-    <string name="onboarding_usage_desc">Accordez l\'accès à l\'utilisation pour alimenter les garde-fous quotidiens de vos pactes, les limites de temps par application et l\'écran Statistiques.</string>
+    <string name="onboarding_usage_desc">Accordez l\'accès aux données d\'utilisation pour que les applis productives rapportent du mana et que les Statistiques montrent votre temps d\'écran.</string>
     <string name="onboarding_usage_granted">Accès à l\'utilisation accordé</string>
     <string name="onboarding_grant_usage">Accorder l\'accès à l\'utilisation</string>
-    <string name="onboarding_done_title">Vos pactes sont scellés</string>
-    <string name="onboarding_done_desc">Les applications choisies attendent désormais derrière un pacte conscient. Lancez des sorts de concentration minutés depuis l\'onglet Concentration, et façonnez rituels, talismans et enchantements dans le Grimoire.</string>
+    <string name="onboarding_done_title">Votre Puits est prêt</string>
+    <string name="onboarding_done_desc">Les applis choisies attendent désormais derrière le Puits de mana. Ensuite, dans le Grimoire : planifiez un rituel, liez un talisman NFC ou choisissez des applis productives qui rapportent du mana. Les sessions minutées sont dans l\'onglet Concentration.</string>
     <string name="onboarding_analytics_title">Aidez à améliorer Focus Pocus</string>
     <string name="onboarding_analytics_desc">Nous utilisons des rapports de plantage anonymes et des statistiques d\'utilisation pour corriger les bugs et améliorer l\'application. Aucune donnée personnelle n\'est collectée. Vous pouvez modifier ce choix à tout moment dans les paramètres.</string>
     <string name="onboarding_analytics_toggle">Partager les analyses</string>
@@ -343,22 +342,15 @@
     <string name="talismans_disenchant">Désenchanter</string>
     <string name="talismans_none_bound">Aucun talisman lié.</string>
 
-    <!-- QuickSpellsListScreen -->
-
-    <!-- QuickSpellEditorScreen -->
-
-    <!-- Champs de garde (partagés par l'éditeur et le tableau de bord) -->
-
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
     <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
-
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Sort : %s</string>
     <string name="overlay_app_blocked">%s est bloqué !</string>
     <string name="overlay_close">Fermer</string>
     <string name="overlay_wait">Attendez %ds\u2026</string>
-    <string name="overlay_pact_prompt">%s est scellée. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
+    <string name="overlay_pact_prompt">%s est derrière le Puits de mana. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
     <string name="overlay_pact_well_desc">Ces minutes sont puisées dans le Puits de mana. Une fois écoulées, %s se referme.</string>
     <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
     <string name="overlay_pact_choice">%d minutes</string>
@@ -443,8 +435,6 @@
         <item quantity="other">%1$d épreuves sont accomplies — réclamez vos %2$d mana.</item>
     </plurals>
 
-    <!-- Progression : sceaux -->
-
     <!-- Progression : épreuves -->
     <string name="home_trials_title">Épreuves du jour</string>
     <plurals name="trial_sessions_daily">
@@ -516,12 +506,6 @@
     <!-- Limites de temps : limites de session et temps de repos -->
     <string name="time_limits_no_apps_found">Aucune application trouvée</string>
 
-    <!-- Déblocages conditionnels -->
-
-    <!-- Superposition : temps de repos et friction de niveau 3 -->
-
-    <!-- Alertes de rythme d\'utilisation -->
-
     <!-- Dialogue de fin de session -->
     <string name="session_complete_title">Session terminée !</string>
     <plurals name="session_complete_duration">
@@ -533,20 +517,13 @@
     <string name="session_complete_enchantment">Enchantement : %1$s</string>
     <string name="session_complete_great_work">Beau travail ! Vous êtes resté concentré.</string>
 
-    <!-- Scellement d\'urgence (Tout sceller maintenant) -->
-
-
-    <!-- Heures de garde (horaires par garde) -->
-
-    <!-- Canal Gardes + notification de sceau levé -->
-
     <!-- Santé de la protection -->
     <string name="settings_protection_health">Santé de la protection</string>
     <string name="settings_protection_all_good">Tout ce dont l\'application a besoin est en place.</string>
     <string name="settings_protection_accessibility">Service de blocage</string>
     <string name="settings_protection_accessibility_off">Le service d\'accessibilité est désactivé — rien n\'est bloqué.</string>
     <string name="settings_protection_usage">Accès à l\'utilisation</string>
-    <string name="settings_protection_usage_off">Les limites quotidiennes et déblocages conditionnels ne peuvent pas être suivis.</string>
+    <string name="settings_protection_usage_off">Les applis productives ne peuvent pas rapporter de mana et le temps d\'écran ne peut pas être affiché.</string>
     <string name="settings_protection_notifications">Notifications</string>
     <string name="settings_protection_notifications_off">Les alertes de rituels et les comptes à rebours ne s\'afficheront pas.</string>
     <string name="settings_protection_battery">Batterie sans restriction</string>
@@ -558,7 +535,7 @@
     <string name="home_battery_warning_fix">Vérifier les réglages batterie</string>
 
     <!-- Divulgation visible : accessibilité -->
-    <string name="accessibility_disclosure_body">Focus Pocus utilise l\'API AccessibilityService d\'Android pour une seule chose : remarquer quelle application passe au premier plan, afin de bloquer ou rediriger les applications que vous avez choisi de garder. Elle n\'écoute que les changements de fenêtre — elle ne peut lire ni le contenu de l\'écran, ni les frappes, ni les mots de passe. Rien de ce qu\'elle observe ne quitte votre appareil ni n\'est partagé.</string>
+    <string name="accessibility_disclosure_body">Focus Pocus utilise l\'API AccessibilityService d\'Android pour une seule chose : remarquer quelle application passe au premier plan, afin de fermer ou rediriger les applications que vous avez placées derrière le Puits ou bloquées. Elle n\'écoute que les changements de fenêtre — elle ne peut lire ni le contenu de l\'écran, ni les frappes, ni les mots de passe. Rien de ce qu\'elle observe ne quitte votre appareil ni n\'est partagé.</string>
     <string name="accessibility_disclosure_agree">Accepter et continuer</string>
     <string name="accessibility_disclosure_later">Pas maintenant</string>
 

@@ -2,123 +2,62 @@
 
 [![CI](https://github.com/cdwilliams40/FocusPocus/actions/workflows/ci.yml/badge.svg)](https://github.com/cdwilliams40/FocusPocus/actions/workflows/ci.yml)
 
-A mystical focus and productivity app for Android that helps you stay on task by blocking distracting apps. Cast spells to enter focus mode, bind talismans (NFC tags) to your rituals, and break free from digital distractions.
+A mystical focus app for Android built on three ideas: your most distracting apps stay closed until you make a conscious **pact**, paid from one slowly refilling pool of time — the **Mana Well**; **focus sessions** block whole lists of apps, started by hand, on a schedule, or with an NFC talisman; and **mana**, earned for focusing, buys extra time when you really need it.
 
 ## Features
 
-### App Blocking (Enchantments)
-- Create custom blocklists ("Enchantments") to block distracting apps
-- Choose between **Blacklist** mode (block specific apps) or **Whitelist** mode (allow only specific apps)
-- **Auto-banish new apps**: opt an enchantment in and newly installed apps are added to it automatically, closing the loophole of installing a fresh distraction mid-session (blacklist mode only)
-- Gentle redirection back to your task when you try to open a blocked app
-- Optionally silence notifications from blocked apps while a session is active
+### The Mana Well
+- Put your worst distractions behind the Well. A Well app is **closed by default**, not just during focus sessions
+- Opening one offers a **pact**: pick 2, 5, 10, 15 or 30 minutes — after a three-second pause, so muscle memory can't answer for you — and the minutes come out of the Well
+- Every Well app draws from **the same pool**, so hopping to the next app when one runs out spends the same time
+- The Well holds 30 minutes by default and **refills on its own** (one minute every 20 by default); there is no midnight reset to binge against
+- When a pact runs out the app simply closes; a toast warns you a minute before
+- **End pact** closes a running pact early and pours the unused minutes back
+- The pact screen shows today's opens and quick "reflex" opens, and can offer a **healthier substitute** ("Open Kindle instead") first
+- When the Well is dry, the screen says when time will be back and offers a **pour** of mana
+- **Taking an app off the Well waits 24 hours**, and loosening the Well's capacity or refill rate does too; adding apps and tightening are instant
 
-### Quick Spells (Focus Presets)
-- Pre-configured focus sessions with customizable duration and settings
-- One-tap activation for common focus scenarios like "Deep Work", "Quick Focus", or "Sleep Mode"
-- Bind Quick Spells to NFC talismans for physical activation
-- Activate via deep links (`focuspocus://preset`)
-- **Quick Settings tile**: cast your first Quick Spell straight from the notification shade (while a session runs, the tile opens the app instead of ending it)
+### Focus Sessions
+- **Enchantments**: blocklists in **Blacklist** mode (block these apps) or **Whitelist** mode (allow only these); optionally auto-add newly installed apps
+- **Timed or open-ended** sessions from the Focus tab, with breaks and optional **auto-breaks (Pomodoro)**
+- **Rituals**: scheduled sessions for set days and times, with an exact-alarm backstop so they start and end on time; a ritual can require its **talisman** to end
+- **Talismans**: NFC tags. Each has its own setup (enchantments, length, breaks). Tap to start its session; tap again to end it. By default **only that talisman can end its session**
+- **Talisman lock**: optionally block Settings apps during a session
+- Live countdown notification, Do Not Disturb while focusing, silenced notifications from blocked apps, a hidden stop button option, and a rare emergency stop
 
-### Scheduled Rituals
-- Schedule automatic focus sessions for specific days and times
-- Perfect for work hours, study sessions, or bedtime routines
-- Optional unbinding talisman requirement to end a ritual early
-- Persists across device reboots
-- Backed by an exact-alarm backstop: rituals start and end on time even if the accessibility service was killed
+### Mana
+Every number lives in one place (`ManaRules.kt`) and the app shows the same rules on the Mana page:
 
-### NFC Talisman Support
-- Use NFC tags as physical "talismans" to toggle focus mode
-- Bind talismans to specific Quick Spells for instant activation
-- Tap again to dispel the focus session
-- Optionally require a talisman tap to end a session early (talisman lock)
+| Earn | |
+|---|---|
+| Timed focus session | 1 per minute, up to 240 a day |
+| Ritual, or a talisman session with no length | 30 once a day, after an hour |
+| Time in a **productive app** you choose | 1 per 2 minutes, up to 60 a day |
+| Daily trials (two a day) / weekly trial | 40–60 each / 150–200 |
 
-### Timed Sessions with Breaks
-- Set focus duration (or unlimited)
-- Configurable break duration and maximum breaks per session
-- **Auto-breaks (Pomodoro)**: optionally start a break automatically after each uninterrupted focus stretch (5–60 minutes, default 25)
-- Breaks temporarily allow access to all apps and suspend Do Not Disturb
-- Emergency break feature with weekly cadence-based cooldown
-- Session and break timers are enforced by the background service using wall-clock timestamps, so they end on time even if the app is closed or the device reboots
-- **Live session notification**: while a session runs, a silent ongoing notification names the active spell or ritual and ticks down the time until it ends — or until focus resumes when you're on a break; untimed sessions show elapsed time instead
-- Optionally hide the stop button so a session can't be ended early on impulse
+| Spend | |
+|---|---|
+| Pour 5 minutes into the Well | 75, doubling with each pour that day |
+| One extra break in a session | 50 |
 
-### Per-App Time Limits (Wards)
-- Set daily usage limits for individual apps (e.g., 30 minutes/day for social media)
-- Apps are automatically blocked once they exceed their daily limit
-- **Session limits with cooldowns**: cap continuous use of an app (e.g., 10 minutes at a time), after which it's blocked for a configurable cooldown period — optionally escalating on repeated offences in the same day
-- **Escalating friction**: each attempt to open a cooled-down app makes the block overlay harder to dismiss, from a short countdown up to typing a reflective phrase
-- View per-app usage statistics on the Insights screen
+Trials include focusing in timed sessions, starting one by hand, keeping Well draws or reflex opens under a limit, and time in productive apps.
 
-### Pact Mode (Blocked by Default)
-- Flip the default for your worst distractions: the app is **sealed at all times**, not just during focus sessions
-- Opening it offers a *pact*: consciously choose how many minutes you need — after a short pause, so muscle memory can't answer for you
-- When your time is spent, the app seals itself again for a cooldown of your choosing, with the same escalating friction as session limits
-- A warning toast fires shortly before a pact lapses, so the seal never lands mid-scroll without notice
-- The pact screen shows **the shape of today's habit**: how many times you've opened the app and how many opens were under-30-second reflexes
-- Optionally suggest a **healthier substitute** ("Open Kindle instead") — shown as the most prominent button and usable immediately, while pact choices wait out the anti-reflex pause
-- Designed to break the reflexive reach-for-the-phone loop: most impulse opens don't survive a deliberate choice plus a three-second pause
-- Optional **daily backstop**: cap total daily use on top of the pact gate, or leave it off entirely
-- Managed front and center on the **Pacts tab — the app's home screen**: a **Request time** panel offers every requestable app as a one-tap icon grid, and the guards below it split into *Happening now* (seals, running pacts, spent limits — with countdowns) and the standing guard list, each card showing its live state and today's open/reflex counts
-- **Pact circles**: bind one pact configuration to a blacklist enchantment and every app in it is gated with the same settings — membership follows the enchantment live, including auto-banished new installs
-- **A pact binds for a day**: changing or removing an existing pact (or circle) takes effect only 24 hours after you confirm it — the current terms stay enforced in the meantime, and you can cancel the pending change to keep them. Creating a new pact, and tuning wards, stays instant
-
-### Mana Well (Shared Pact Time)
-- Turn it on and every pact draws its minutes from **one slowly refilling pool** instead of each app granting its own — moving on to the next app when one runs out spends the same time, so the hop-to-the-next-app cycle has nothing left to run on
-- The Well holds a small amount (30 minutes by default) and refills on the clock (one minute every 20 by default), so there is no midnight reset to binge against: draw 15 minutes and those 15 take five hours to come back
-- The pact screen only offers what the Well holds; when it is dry, it says when the time will be back and offers the pact's healthier substitute
-- **Channel mana** earned from focus sessions into the Well for extra minutes — never past its capacity, and each channel in a day costs double the one before. While the Well is on this replaces the sealed-minutes perk
-- **No seal after a Well-paid pact**: when the time runs out the app simply closes, and the next pact draws from the Well again. The Well is the limit — a per-app seal on top of it would punish a two-minute check as hard as a full pact and push you towards the next app
-- **Exempt** individual pacts or pact circles that are only mildly distracting; they keep their own allowance and seal
-- **End pact** closes a running pact early and returns the unused minutes to the Well, so there is no reason to scroll out a pact you are done with; "Seal everything now" refunds the same way, and is still there when you want the lock itself
-- **Conditional unlocks pay into the Well**: a met rule adds 10 minutes once a day instead of freeing a pact that draws from it (wards, exempt pacts and enchantments are unlocked as before)
-- The Pacts dashboard shows the Well's level, its refill rate, and **minutes drawn today across every pact app**
-- Loosening the Well — a larger capacity, a faster refill, or turning it off — takes effect 24 hours after you ask; tightening is instant
-- Works alongside Group Seal: with both on, one draw opens every Well-bound pact app for the shared window, and they still seal together when it ends
-
-### Guard Hours (Per-Guard Schedules)
-- Give any pact, ward, or pact circle a schedule: active days and an optional daily time window ("this pact only applies 21:00–07:00 on weekdays")
-- Overnight windows wrap past midnight with the same semantics as rituals
-- Outside its hours a guard stands down — the app is free, and Warden greying releases it — though a running seal always holds
-- The dashboard shows each guard's hours and an **Off hours** state
-
-### Seal Everything Now (Panic Button)
-- One tap on the Pacts dashboard seals every pact-bound app for its configured seal length and revokes running pact time
-- Sealing this way never counts as an offence — choosing protection doesn't make later real lapses harsher
-
-### Seal-Lifted Alerts
-- Optional quiet notification when a sealed app opens up again, so you don't "check" by opening the app (off by default)
+### Insights
+One switch — today, 7 days, 30 days — for every section: minutes drawn from the Well (per day, per app, pacts, pours, dry opens), reflex opens, focus minutes by source (by hand, rituals, talismans) with blocked attempts and session history, mana earned by source and spent on pours, your streak, and screen time. Tap any bar to read its day.
 
 ### Protection Health
 - A Settings card answers "am I actually protected right now?": accessibility service alive, usage access granted, notifications allowed, battery optimization exempted — each with a one-tap fix
-- The dashboard warns when an OEM battery optimizer could kill enforcement in the background
 
 ### Backup & Restore
-- Export enchantments, guards, rituals, presets, talismans, history, and settings to a JSON file; restore on a reinstall or a new phone
-- Live session state and running seals deliberately stay on the device, so a restore can't resurrect a stale seal
-- Restores are versioned, validated, and applied atomically before an automatic app restart
-- A restore can't be used to break a commitment: it's refused during a focus session, and pacts you currently have keep their terms — where the backup differs, the change is queued behind the usual 24-hour cooling-off
-
-### Conditional Unlocks
-- Earn access to blocked apps by first spending time in a productive one
-- Example: unlock social media only after 30 minutes in a study app
-- Unlocks can lift enchantment blocks and/or per-app time limits
-
-### Session Analytics & Insights
-- Track completed focus sessions with start time, duration, and breaks used
-- View daily app usage trends and per-app statistics
-- Monitor block events to understand your distraction patterns
-- **App Opens**: per-app open counts with reflex-open breakdown (opens abandoned within 30 seconds), filterable by day/week/month, with 30 days of history
-
-### Do Not Disturb Integration
-- Automatically enable DND when focus mode is active
-- Disable DND during breaks
-- Respects your notification preferences
+- Export enchantments, Well apps, rituals, talismans, productive apps, history and settings to a JSON file; restore on a reinstall or a new phone
+- Running sessions, running pacts and the Well's level stay on the device
+- A restore can't be used to break a commitment: it's refused during a focus session, it can add Well apps but only queues the removal of ones it leaves out, and it can't loosen the Well without the usual 24 hours
+- Backups from older versions restore through the same migration an upgrade runs
 
 ### Warden Mode (Device Owner)
 - Optionally provision FocusPocus as the Android *device owner* for OS-level enforcement
 - Blocked apps are **suspended** during focus sessions: their launcher icons grey out and the system refuses to open them — no race with the accessibility service
-- **Pact-bound apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact allowance is running. To open one, tap it in the **Request time** panel at the top of the Pacts dashboard; the allowance un-greys the app for exactly the minutes you chose
+- **Well apps stay greyed out around the clock** — suspended (and absent from launcher suggestions) whenever no pact is running. To open one, tap it in the **Request time** panel on the Well tab; the pact un-greys the app for exactly the minutes you chose
 - FocusPocus cannot be uninstalled while it holds device-owner status, so a moment of weakness can't undo your setup
 - Fully reversible from Settings (but never mid-session), and removal must be **requested 24 hours in advance** — a cancelable cooling-off countdown separates the urge from the act
 
@@ -132,7 +71,7 @@ Provisioning requires a one-time `adb` command from a computer (the same steps a
    adb shell dpm set-device-owner com.infinicada.focuspocus/.FocusDeviceAdminReceiver
    ```
 
-Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Pact Apps** rides on the same switch and is on by default). The accessibility service keeps handling time limits; suspension is layered on top for app blocking.
+Then enable **Grey Out Blocked Apps** in Settings → Warden Mode (**Grey Out Well Apps** rides on the same switch and is on by default). The accessibility service stays the fallback; suspension is layered on top.
 
 > **⚠️ Uninstall protection and Android Studio builds:** apps deployed with Android Studio's *Run* button are flagged **test-only**, and Android deliberately allows removing a test-only device owner — so FocusPocus *can* still be uninstalled in that setup, Warden Mode or not. For real uninstall protection, install a normal build instead: `./gradlew assembleDebug && adb install app/build/outputs/apk/debug/app-debug.apk` (or a release build). The app shows a warning in Settings → Warden Mode when it detects a test-only install.
 
@@ -162,7 +101,7 @@ Focus Pocus requires the following permissions:
 | Permission | Purpose |
 |------------|---------|
 | **Accessibility Service** | Detect when you open apps and redirect from blocked apps |
-| **Usage Stats** | Track per-app usage for time limit enforcement |
+| **Usage Stats** | Count time in productive apps (mana) and show screen time in Insights |
 | **NFC** | Read NFC tags for talisman features |
 | **Notifications** | Show notifications for scheduled rituals and breaks, plus the live countdown while a session is active |
 | **Notification Access** | Silence notifications from blocked apps during focus sessions |
@@ -184,47 +123,34 @@ cd FocusPocus
 
 ## Setup
 
-On first launch, a guided onboarding flow seals your first apps behind pacts and walks you through the required permissions (accessibility, Do Not Disturb, usage access, and optional analytics). After that you land on the Pacts dashboard with your new pacts live. For timed focus sessions:
+On first launch, a guided onboarding flow puts your first apps behind the Mana Well and walks you through the permissions (accessibility, notification access, usage access, and optional analytics). You then land on the Well tab. From there:
 
-1. **Create an Enchantment**: Open the Spellbook tab and create a blocklist with the apps you want to block during focus sessions (the Focus tab offers this directly when you have none).
-
-2. **Start Focusing**: On the Focus tab, select your enchantment and tap "Cast" to begin your focus session.
+1. **Create an Enchantment** in the Spellbook (the Focus tab offers this when you have none), then cast a session from the Focus tab.
+2. **Schedule a Ritual** for sessions that should start on their own, and **bind a Talisman** if you want an NFC tag to end it — or to start and end its own session.
+3. **Choose productive apps** (Spellbook → Productive apps) so time in them earns mana.
 
 ## Usage
 
-The app has four tabs, plus a Settings screen reached from the top bar.
+The app has four tabs, plus Settings and the Mana page reached from the top bar and the mana chip.
 
-### Pacts Tab (home)
-Your standing protection, always the first thing you see:
-- A **Request time** panel up top: every app you can currently request pact time for, as a one-tap icon grid, most-opened-today first — tap the app, sit out the anti-reflex pause, pick your minutes, and it opens
-- Below it, guards split into **Happening now** (sealed, pact running, or limit spent — with live countdowns) and **Your pacts & wards** — one compact card per **Pact** (sealed by default), **Ward** (a daily time limit, with optional per-session cooldowns), or **pact circle** (a pact over a whole enchantment); pact and circle cards also show today's open/reflex counts
-- Tap any card to open the unified guard editor with its full settings: allowances, seals, escalation, substitutes, daily backstops, guard hours — and convert between styles anytime
-- A banner links to the Focus tab whenever a session or ritual is running
-- "Make a pact" creates a new guard in the same editor; "Seal everything now" is the panic button
+### Well Tab (home)
+- The **Mana Well** card: what's left, when it's full again, minutes drawn today, and a pour button with today's price
+- **Today's trials**, a **Request time** grid of your Well apps (most-opened first), and running pacts with **End pact**
+- The Well apps list and **Edit Well apps**: add apps, set substitutes, take apps off (24 hours)
 
 ### Focus Tab
-- Select a Quick Spell or customize your session
-- Choose one or more enchantments (blocklists)
-- Set duration and break preferences
-- Tap "Cast" to start or "Dispel" to end
-- **Activate any talisman by hand** — casting its bound Quick Spell or starting a talisman session exactly as a physical NFC tap would
+- Choose enchantments, a length and breaks, and tap **Cast**; take or end breaks while a session runs
+- While a ritual or a locking talisman's session runs, the stop button shows **Bound**
 
 ### Spellbook Tab
-Your grimoire of focus-session configuration:
-- **Focus sessions**: **Enchantments** (app blocklists) and **Rituals** (scheduled automatic sessions)
-- **More magic**: **Quick Spells** (one-tap presets, also on the Focus tab), **Talismans** (NFC tags and bindings), and **Conditional Unlocks** (earn access after productive time)
+- **Enchantments** and **Rituals**
+- **Talismans** (bind a tag and set up what it starts) and **Productive apps**
 
 ### Insights Tab
-- App opens with reflex breakdown, right below your streaks
-- View session history and focus statistics
-- Daily usage trends, per-app usage, and most-blocked apps
+- See [Insights](#insights) above
 
 ### Settings
-- **Appearance**: Light/Dark/System theme
-- **Focus Behavior**: break duration, breaks per session, auto-breaks (Pomodoro interval), emergency break cadence, hide stop button
-- **Notifications**: mute notifications from blocked apps during focus
-- **Security**: talisman lock (require an NFC tap to end sessions)
-- **Privacy**: opt in or out of analytics
+- Appearance, focus behaviour (breaks, auto-breaks, emergency stop, hide stop button), notifications, talisman lock, the Mana Well's capacity and refill, Warden Mode, Protection Health, backup, and privacy
 
 ## Tech Stack
 
@@ -232,41 +158,31 @@ Your grimoire of focus-session configuration:
 - **UI**: Jetpack Compose with Material 3 (custom "Arcane Dusk" theme)
 - **Min SDK**: 29 (Android 10)
 - **Target SDK**: 36
-- **Architecture**: Single-activity with Compose navigation, ViewModels, and repository-based data layer
-- **Libraries**: Navigation Compose, Gson, Firebase Crashlytics & Analytics
+- **Architecture**: Single activity, Compose UI with ViewModels, repository-based data layer on SharedPreferences, versioned migrations (`Migrations.kt`)
+- **Libraries**: Gson, Firebase Crashlytics & Analytics
 
 ## Project Structure
 
 ```
 app/src/main/java/com/infinicada/focuspocus/
-├── MainActivity.kt                    # Single activity hosting the Compose UI
-├── FocusPocusApplication.kt           # Application class and initialization
-├── MyAccessibilityService.kt          # Background blocking, timer/break enforcement, auto-breaks
-├── FocusNotificationListenerService.kt# Silences notifications from blocked apps
-├── OverlayActivity.kt                 # Blocker overlay shown when an app is blocked
-├── SessionManager.kt                  # Focus session state management
-├── SessionRecorder.kt                 # Session history persistence
-├── TimeLimitChecker.kt                # Per-app daily time limit enforcement
-├── AppTimeLimitManager.kt             # Time limit configuration persistence
-├── DndController.kt                   # Do Not Disturb management
-├── UsageStatsHelper.kt                # Device usage statistics queries
-├── BlockerRepository.kt               # Blocklist persistence
-├── BootCompletedReceiver.kt           # Restore state after device restart
-├── Constants.kt                       # Shared constants and preference keys
-├── data/                              # Repositories (blockers, presets, schedules,
-│                                      #   talismans, sessions, settings, insights,
-│                                      #   conditional unlocks)
-├── model/                             # Data models (Blocker, FocusPreset, Schedule,
-│                                      #   AppTimeLimit, ConditionalUnlock, ...)
-├── limit/                             # Session cooldowns and escalating friction levels
-├── handler/                           # Trigger handling (NFC, deep links)
-├── navigation/                        # Navigation routes and destinations
-├── viewmodel/                         # ViewModels for session, settings, spellbook, insights
-└── ui/                                # Theme, shared composables, and screens
-    ├── theme/                         # Arcane Dusk Material 3 theme
-    └── screens/                       # Compose screens (Home, Spellbook, Insights,
-                                       #   Settings, Onboarding, editors, ...)
+├── MainActivity.kt                    # Single activity; NFC tag reading
+├── FocusPocusApplication.kt           # Initialization; runs Migrations
+├── MyAccessibilityService.kt          # Enforcement: sessions, the Well, timers, breaks
+├── OverlayActivity.kt                 # Block screen and the pact / dry-Well screens
+├── SessionManager.kt, SessionRecorder.kt  # Session state and history
+├── Progression.kt, ManaRules.kt, TrialEngine.kt  # Mana, its rules, and trials
+├── ProductiveApps.kt                  # Productive apps that earn mana
+├── Migrations.kt                      # Stored-data schema steps
+├── BackupCodec.kt                     # Backup export / import
+├── DeviceOwnerManager.kt              # Warden Mode
+├── handler/TriggerHandler.kt          # What an NFC tap means
+├── limit/                             # ManaWell, WellApps, PactManager, DailyHistory
+├── insights/InsightsReport.kt         # Every Insights figure, from stored history
+├── data/, model/, navigation/, viewmodel/
+└── ui/                                # Theme, components, and screens
 ```
+
+Design notes: [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## Building
 

@@ -28,11 +28,11 @@ data class ManaLedgerEntry(
     val kind: LedgerKind,
     /** SESSION: focused minutes the award was based on. */
     val minutes: Int = 0,
-    /** BOON: the user's own boon title (user data, shown verbatim). */
+    /** Legacy BOON entries: the user's own boon title (shown verbatim). */
     val title: String = "",
-    /** TRIAL/SIGIL id, or [Perk] name for PERK entries. */
+    /** TRIAL id (or legacy SIGIL id), or [Perk] name for PERK entries. */
     val refId: String = "",
-    /** PERK (sealed minutes): which app the allowance was granted to. */
+    /** Legacy PERK (sealed minutes) entries: which app it was for. */
     val packageName: String = "",
     /** "yyyyMMdd" of the day the entry was written (drives per-day perk caps). */
     val dateKey: String = ""

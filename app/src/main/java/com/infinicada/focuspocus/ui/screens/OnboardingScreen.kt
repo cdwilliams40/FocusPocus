@@ -202,7 +202,7 @@ fun OnboardingScreen(
             if (currentStep < totalSteps - 1) {
                 val canProceed = when (currentStep) {
                     1 -> true // Accessibility - allow skip but warn
-                    2 -> selectedPactApps.isNotEmpty() // Must seal at least one app
+                    2 -> selectedPactApps.isNotEmpty() // Must choose at least one Well app
                     else -> true
                 }
                 Button(

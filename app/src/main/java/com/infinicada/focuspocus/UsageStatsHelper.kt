@@ -33,8 +33,8 @@ object UsageStatsHelper {
     /**
      * How long a cached today-usage snapshot stays valid. The underlying query
      * walks the whole day's event stream, and several callers hit it from the
-     * accessibility service's main thread (conditional unlocks check once per
-     * rule per block attempt, daily limits, pacing, the Warden minute sync) —
+     * accessibility service and the dashboard (productive-app credit, the
+     * Warden minute sync) —
      * so they must share one scan rather than each paying for their own. The
      * cost is enforcement decisions lagging real usage by up to this long,
      * the same trade TimeLimitChecker already makes for its verdict cache.

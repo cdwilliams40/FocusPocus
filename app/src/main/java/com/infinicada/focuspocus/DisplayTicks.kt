@@ -5,8 +5,8 @@ package com.infinicada.focuspocus
  * it shows next changes, rather than on a fixed period from an arbitrary
  * phase. A fixed `delay(1000)` started mid-second shows each value up to a
  * second late and, as the loop's own overhead accumulates, now and then
- * skips one; a fixed minute tick can show a lifted seal as "1 min" for up
- * to a minute after it lifted.
+ * skips one; a fixed minute tick can show an ended pact as "1 min" for up
+ * to a minute after it ended.
  *
  * All results are in 1..period, so a ticker can never busy-spin.
  */
@@ -36,7 +36,7 @@ object DisplayTicks {
         return (msLeft - 1L) % MINUTE + 1L
     }
 
-    /** Millis until the next wall-clock minute boundary (guard hours, daily usage). */
+    /** Millis until the next wall-clock minute boundary. */
     fun untilNextWallClockMinute(now: Long): Long =
         MINUTE - Math.floorMod(now, MINUTE)
 }

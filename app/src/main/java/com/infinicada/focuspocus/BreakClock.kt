@@ -4,7 +4,7 @@ import android.content.SharedPreferences
 
 /**
  * Tracks how much of a session was spent on break, so the recorded focus
- * duration (and the mana, trials and sigils it drives) counts only time
+ * duration (and the mana and trials it drives) counts only time
  * spent under enforcement. Every edit that turns a break on or off calls
  * [markStarted] / [markEnded] inside the same editor block; the recorder
  * reads the total through [breakMillisUntil].

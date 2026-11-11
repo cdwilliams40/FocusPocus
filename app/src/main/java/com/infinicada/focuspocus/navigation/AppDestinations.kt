@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.infinicada.focuspocus.R
 
@@ -12,8 +12,8 @@ enum class AppDestinations(
     val labelRes: Int,
     val icon: ImageVector,
 ) {
-    /** The Pacts guard dashboard — the app's default screen. */
-    HOME(R.string.nav_pacts, Icons.Filled.Shield),
+    /** The Mana Well and its apps — the app's default screen. */
+    HOME(R.string.nav_well, Icons.Filled.WaterDrop),
 
     /** Focus sessions: the cast flow, timers, and breaks. */
     FOCUS(R.string.nav_focus, Icons.Filled.AutoFixHigh),

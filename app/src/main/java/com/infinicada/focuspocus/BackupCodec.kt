@@ -15,9 +15,9 @@ import com.infinicada.focuspocus.limit.WellSettingsState
  * self-describing JSON document and restores it with replace semantics.
  *
  * Only keys on the explicit [EXPORT_KEYS] list travel — live enforcement and
- * session state (running sessions, active seals and allowances, Warden
+ * session state (running sessions, running pacts, the Well's level, Warden
  * bookkeeping, daily-rollover markers) deliberately stays on the device: a
- * backup restored days later must not resurrect a stale seal or a phantom
+ * backup restored days later must not resurrect a stale pact or a phantom
  * running session. Unknown keys in a backup file are ignored, so a newer
  * build's export degrades gracefully on an older build within the same
  * format version.
