@@ -49,6 +49,11 @@ object Migrations {
         const val FOCUS_PRESETS = "focusPresets"
         const val FOCUS_TAG_ID = "focusTagId"
         const val ACTIVE_BLOCKER = "activeBlocker"
+
+        // Conditional unlocks (replaced by productive apps in 2.0)
+        const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
+        const val WELL_UNLOCK_CREDIT_DATE = "wellUnlockCreditDate"
+        const val WELL_UNLOCK_CREDITED_RULES = "wellUnlockCreditedRules"
     }
 
     private val steps: List<(SharedPreferences) -> Unit> = listOf(
@@ -77,6 +82,14 @@ object Migrations {
             migrateTalismans(prefs)
             convertRunningTagSession(prefs)
             migrateActiveBlocker(prefs)
+        },
+        // 4: conditional unlocks are gone. The app each rule asked you to
+        // use becomes a productive app, which now earns mana directly. The
+        // trial list changed too: unfinished trials are dropped so today's
+        // slate is drawn from the new list (finished, unclaimed ones stay).
+        { prefs ->
+            migrateConditionalUnlocks(prefs)
+            dropUnfinishedTrials(prefs)
         }
     )
 
@@ -192,6 +205,32 @@ object Migrations {
             if (updated.isNotEmpty()) putString(Constants.PrefsKeys.NAMED_TAGS, gson.toJson(updated))
             remove(LegacyKeys.FOCUS_PRESETS)
         }
+    }
+
+    /** Step 4. Also run by backup import over a file from before version 4. */
+    internal fun migrateConditionalUnlocks(prefs: SharedPreferences) {
+        val gson = Gson()
+        val required = parse(prefs, LegacyKeys.CONDITIONAL_UNLOCKS)?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject?.str("requiredAppPackage") }
+            .orEmpty()
+        if (required.isNotEmpty()) {
+            ProductiveApps.save(prefs, gson, ProductiveApps.load(prefs, gson) + required)
+        }
+        prefs.edit {
+            remove(LegacyKeys.CONDITIONAL_UNLOCKS)
+            remove(LegacyKeys.WELL_UNLOCK_CREDIT_DATE)
+            remove(LegacyKeys.WELL_UNLOCK_CREDITED_RULES)
+        }
+    }
+
+    private fun dropUnfinishedTrials(prefs: SharedPreferences) {
+        val trials = parse(prefs, Constants.PrefsKeys.TRIALS)?.takeIf { it.isJsonArray }?.asJsonArray ?: return
+        val kept = com.google.gson.JsonArray()
+        trials.forEach { e ->
+            val trial = e.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            if (trial.bool("claimed") || trial.int("progress") >= trial.int("target").coerceAtLeast(1)) kept.add(trial)
+        }
+        prefs.edit { putString(Constants.PrefsKeys.TRIALS, kept.toString()) }
     }
 
     /** Step 3, second half: a running tag-only session becomes a real one. */

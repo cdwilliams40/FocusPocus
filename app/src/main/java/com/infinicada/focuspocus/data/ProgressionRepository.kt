@@ -27,6 +27,9 @@ class ProgressionRepository(
 
     fun getLedger(): List<ManaLedgerEntry> = Progression.loadLedger(prefs, gson)
 
+    fun getManaToday(): com.infinicada.focuspocus.model.ManaDay =
+        com.infinicada.focuspocus.limit.DailyHistory.manaDay(prefs, com.infinicada.focuspocus.limit.DayKey.today())
+
     /**
      * Active trials. Refreshes the usage-permission snapshot and rotates the
      * slate first (compare-on-read), so an app that sat cached in recents

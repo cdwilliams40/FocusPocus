@@ -23,8 +23,6 @@ import com.infinicada.focuspocus.limit.BlockDebounce
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.WellApps
-import com.infinicada.focuspocus.limit.WellUnlocks
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.Schedule
 import java.util.Calendar
 
@@ -33,6 +31,7 @@ class MyAccessibilityService : AccessibilityService() {
     companion object {
         private const val TRANSITION_SLACK_MS = 250L
         private const val DEBOUNCE_RECHECK_SLACK_MS = 50L
+        private const val PRODUCTIVE_CREDIT_EVERY_TICKS = 5
         private val TRANSITION_KEYS = SessionTransitions.WATCHED_KEYS + setOf(
             Constants.PrefsKeys.PACT_ALLOWANCES
         )
@@ -135,10 +134,6 @@ class MyAccessibilityService : AccessibilityService() {
         transitionHandler.postDelayed(debounceRecheckRunnable, delayMillis + DEBOUNCE_RECHECK_SLACK_MS)
     }
 
-    // Cache for conditional unlocks
-    @Volatile private var cachedConditionalUnlocksJson: String? = null
-    @Volatile private var cachedConditionalUnlocks: List<ConditionalUnlock> = emptyList()
-
     // Pact manager — tracks running pacts (Well apps opened for a while)
     private lateinit var pactManager: PactManager
 
@@ -154,6 +149,9 @@ class MyAccessibilityService : AccessibilityService() {
     // keyboard and system UI deliberately leave alone.
     @Volatile private var openTrackingPackage: String? = null
     @Volatile private var openTrackingSince: Long = 0L
+
+    // Minute ticks since the service started, for the productive-app credit
+    private var productiveTicks = 0
 
     // "yyyyMMdd" of the last minute tick, to clear the day's pact warnings at midnight
     @Volatile private var lastTickDay: String? = null
@@ -269,12 +267,24 @@ class MyAccessibilityService : AccessibilityService() {
         // sync below see them gone.
         dropLapsedPacts()
 
+        // Pay for time in productive apps every few minutes. The usage query
+        // walks the day's events, so it runs on the writer thread.
+        if (++productiveTicks % PRODUCTIVE_CREDIT_EVERY_TICKS == 0) {
+            blockEventWriter.execute {
+                try {
+                    ProductiveApps.creditToday(this, sharedPreferences, gson)
+                } catch (e: Exception) {
+                    Log.e("MyAccessibilityService", "Error crediting productive apps", e)
+                }
+            }
+        }
+
         // Re-judge the app in front: no window event fires while the user
         // stays inside it.
         currentForegroundPackage?.let { checkWellAndBlock(it) }
 
         // Device owner: catch-all reconciliation for anything the event-driven sync
-        // points missed (conditional unlocks flipping, apps installed mid-session).
+        // points missed (apps installed mid-session, a missed transition).
         DeviceOwnerManager.syncSuspensions(this)
 
         // Re-assert the session-countdown notification (or clear a stale one):
@@ -790,7 +800,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // unselectable system surfaces (Android Auto's projection UI,
                 // permission dialogs…) get blocked with no way to exempt them.
                 if (blocker.mode == BlockerMode.WHITELIST && !isWhitelistBlockable(packageName)) continue
-                if (blocker.shouldBlock(packageName) && !isConditionallyUnlocked(blocker.name)) {
+                if (blocker.shouldBlock(packageName)) {
                     val appName = AppUtils.getAppName(this, packageName)
                     if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
                     lastAppBlockTimes[packageName] = now
@@ -827,81 +837,11 @@ class MyAccessibilityService : AccessibilityService() {
         currentForegroundPackage = null
         recordBlockEvent(packageName, "Pact Gate")
         closeApp()
-        creditWellUnlocks()
         showPactOverlay(appName, packageName, wellApp.substitutePackage)
-    }
-
-    private fun isConditionallyUnlocked(blockerName: String): Boolean {
-        val rules = getCachedConditionalUnlocks()
-
-        return rules.any { rule ->
-            if (blockerName !in rule.effectiveUnlockedBlockerNames) return@any false
-            if (rule.requiredMinutes <= 0) return@any false
-            val usedMs = UsageStatsHelper.getPackageUsageToday(this, rule.requiredAppPackage)
-            val requiredMs = rule.requiredMinutes.toLong() * 60 * 1000
-            val unlocked = usedMs >= requiredMs
-            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService",
-                "Conditional unlock check for blocker=$blockerName: ${usedMs / 60000}m / ${rule.requiredMinutes}m required in ${rule.requiredAppPackage} -> unlocked=$unlocked")
-            unlocked
-        }
-    }
-
-    /**
-     * Pays any conditional-unlock rule that is satisfied, covers a Well app,
-     * and hasn't paid yet today — run right before a pact is offered, so the
-     * offer already counts the minutes just earned.
-     * Costs nothing when there are no rules, and no usage query once every
-     * paying rule has paid for the day.
-     */
-    private fun creditWellUnlocks() {
-        val rules = getCachedConditionalUnlocks()
-        if (rules.isEmpty()) return
-        val added = WellUnlocks.creditSatisfied(
-            prefs = sharedPreferences,
-            rules = rules,
-            isWellBound = { it in WellApps.packages(sharedPreferences, gson) },
-            usedMillisToday = { UsageStatsHelper.getPackageUsageToday(this, it) }
-        )
-        if (added > 0) {
-            val message = getString(R.string.well_unlock_credit_toast, added)
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(this@MyAccessibilityService, message, Toast.LENGTH_LONG).show()
-            }
-        }
     }
 
     private fun getActiveBlockerNames(): List<String> =
         BlockerRepository.getActiveBlockerNames(sharedPreferences)
-
-    private fun getCachedConditionalUnlocks(): List<ConditionalUnlock> {
-        val json = sharedPreferences.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null)
-        if (json == null) {
-            if (cachedConditionalUnlocksJson != null) {
-                cachedConditionalUnlocksJson = null
-                cachedConditionalUnlocks = emptyList()
-            }
-            return emptyList()
-        }
-        if (json == cachedConditionalUnlocksJson) return cachedConditionalUnlocks
-        return try {
-            val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            val parsed: List<ConditionalUnlock>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedConditionalUnlocksJson = null
-                cachedConditionalUnlocks = emptyList()
-                emptyList()
-            } else {
-                cachedConditionalUnlocksJson = json
-                cachedConditionalUnlocks = parsed
-                parsed
-            }
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Error parsing conditional unlocks JSON", e)
-            cachedConditionalUnlocksJson = null
-            cachedConditionalUnlocks = emptyList()
-            emptyList()
-        }
-    }
 
     private fun recordBlockEvent(packageName: String, blockerName: String) {
         val shouldFlush: Boolean

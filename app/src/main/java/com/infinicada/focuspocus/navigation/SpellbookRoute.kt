@@ -14,6 +14,6 @@ sealed class SpellbookRoute {
     data class EditRitual(val schedule: Schedule) : SpellbookRoute()
     // Talismans
     object Talismans : SpellbookRoute()
-    // Conditional Unlocks
-    object ConditionalUnlocks : SpellbookRoute()
+    // Productive apps (earn mana)
+    object ProductiveApps : SpellbookRoute()
 }

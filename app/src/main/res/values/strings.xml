@@ -148,8 +148,6 @@
         <item quantity="other">%d pacts ended</item>
     </plurals>
     <string name="well_refund_toast">%1$d min back in the Well</string>
-    <string name="well_unlock_credit_toast">Conditional unlock met: +%1$d min in the Mana Well</string>
-    <string name="conditional_unlocks_well_note">A met rule adds %1$d minutes to the Mana Well once a day instead of unlocking a Well app. Enchantments are unlocked as before.</string>
     <string name="home_section_live">Happening now</string>
     <string name="home_guard_edit_label">Edit</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
@@ -385,39 +383,8 @@
 
     <!-- Pact fields (shared by the editor and the Pacts dashboard) -->
     <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
-    <string name="conditional_unlocks_pact_app_label">%s (Pact)</string>
 
     <!-- ConditionalUnlocksScreen -->
-    <string name="conditional_unlocks_title">Conditional Unlocks</string>
-    <string name="conditional_unlocks_description">Unlock blocked apps as a reward after spending time in another app.</string>
-    <string name="conditional_unlocks_add">Add Conditional Unlock</string>
-    <string name="conditional_unlocks_rule_summary">Unlock after %1$d min in %2$s</string>
-    <string name="conditional_unlocks_unlocked_enchantments">Unlocks: %s</string>
-    <string name="conditional_unlocks_editor_title_create">New Conditional Unlock</string>
-    <string name="conditional_unlocks_editor_title_edit">Edit Conditional Unlock</string>
-    <string name="conditional_unlocks_name_label">Rule name</string>
-    <string name="conditional_unlocks_name_placeholder">e.g. Language reward</string>
-    <string name="conditional_unlocks_required_app_label">Required app</string>
-    <string name="conditional_unlocks_required_app_placeholder">Select app to use first</string>
-    <string name="conditional_unlocks_required_minutes_label">Required time</string>
-    <string name="conditional_unlocks_enchantments_label">Enchantments to unlock</string>
-    <string name="conditional_unlocks_enchantments_placeholder">Select enchantments</string>
-    <plurals name="conditional_unlocks_enchantments_count">
-        <item quantity="one">%d enchantment selected</item>
-        <item quantity="other">%d enchantments selected</item>
-    </plurals>
-    <string name="conditional_unlocks_progress">%1$d / %2$d min today</string>
-    <string name="conditional_unlocks_grant_usage">Grant Usage Access</string>
-    <string name="conditional_unlocks_usage_required">Usage access is required to track time spent in apps</string>
-    <string name="conditional_unlocks_time_limit_apps_label">App timers to bypass</string>
-    <string name="conditional_unlocks_time_limit_apps_placeholder">Select time-limited apps</string>
-    <plurals name="conditional_unlocks_time_limit_apps_count">
-        <item quantity="one">%d app timer selected</item>
-        <item quantity="other">%d app timers selected</item>
-    </plurals>
-    <string name="conditional_unlocks_bypassed_timers">Bypassed timers: %s</string>
-    <string name="conditional_unlocks_delete">Delete</string>
-    <string name="toast_max_conditional_unlocks" tools:ignore="PluralsCandidate">Maximum of %d conditional unlocks reached</string>
 
 
     <!-- OverlayActivity -->
@@ -524,10 +491,8 @@
         <item quantity="one">Cast %1$d spell today</item>
         <item quantity="other">Cast %1$d spells today</item>
     </plurals>
-    <string name="trial_minutes_daily">Focus for %1$d minutes today</string>
     <string name="trial_ritual_daily">Complete a scheduled ritual today</string>
     <string name="trial_under_limits_daily">Stay under every app limit today</string>
-    <string name="trial_minutes_weekly">Focus for %1$d minutes this week</string>
     <string name="trial_reflex_weekly">Keep reflex opens under %1$d this week</string>
     <string name="trial_progress">%1$d/%2$d</string>
     <string name="trial_claim">Claim</string>
@@ -664,4 +629,36 @@
     <string name="talisman_setup_locked_short">only this talisman ends it</string>
     <string name="talisman_setup_none">Not set up — tap Set up to choose what it casts</string>
     <string name="talisman_setup_save">Save</string>
+
+    <!-- Mana rules and productive apps (2.0) -->
+    <string name="productive_title">Productive apps</string>
+    <string name="productive_intro" tools:ignore="PluralsCandidate">Time in these apps earns mana: 1 for every %1$d minutes, up to %2$d a day. It\'s counted every few minutes.</string>
+    <string name="productive_needs_usage">Productive time is read from usage access. Grant it to start earning.</string>
+    <string name="productive_grant_usage">Grant usage access</string>
+    <string name="productive_today" tools:ignore="PluralsCandidate">Today: %1$d min · +%2$d mana</string>
+    <string name="productive_remove">Remove</string>
+    <string name="productive_choose">Choose productive apps</string>
+    <string name="trial_timed_minutes_daily" tools:ignore="PluralsCandidate">Focus for %1$d minutes in timed sessions today</string>
+    <string name="trial_timed_minutes_weekly" tools:ignore="PluralsCandidate">Focus for %1$d minutes in timed sessions this week</string>
+    <string name="trial_start_timed">Start a timed focus session today</string>
+    <string name="trial_well_under_daily" tools:ignore="PluralsCandidate">Draw at most %1$d minutes from the Well today</string>
+    <string name="trial_well_under_weekly" tools:ignore="PluralsCandidate">Draw at most %1$d minutes from the Well this week</string>
+    <string name="trial_reflex_daily">Keep reflex opens to %1$d or fewer today</string>
+    <string name="trial_productive_daily" tools:ignore="PluralsCandidate">Spend %1$d minutes in productive apps today</string>
+    <string name="trial_productive_weekly" tools:ignore="PluralsCandidate">Spend %1$d minutes in productive apps this week</string>
+    <string name="ledger_open_ended_reason">Open-ended session · %1$d min</string>
+    <string name="ledger_productive_reason">Productive apps · %1$d min</string>
+    <string name="mana_today_earned" tools:ignore="PluralsCandidate">Earned %1$d · spent %2$d</string>
+    <string name="mana_how_header">How mana works</string>
+    <string name="mana_how_earn">Earn</string>
+    <string name="mana_how_spend">Spend</string>
+    <string name="mana_rule_timed" tools:ignore="PluralsCandidate">Timed focus session: %1$d per minute, up to %2$d a day</string>
+    <string name="mana_rule_open_ended" tools:ignore="PluralsCandidate">Ritual or untimed talisman session: %1$d once a day, after %2$d minutes</string>
+    <string name="mana_rule_productive" tools:ignore="PluralsCandidate">Productive apps: 1 per %1$d minutes, up to %2$d a day</string>
+    <string name="mana_rule_trials" tools:ignore="PluralsCandidate">Daily trials: %1$d–%2$d each · weekly trial: %3$d–%4$d</string>
+    <string name="mana_rule_pour" tools:ignore="PluralsCandidate">Pour %1$d minutes into the Well: %2$d, doubling with each pour that day</string>
+    <string name="mana_rule_break" tools:ignore="PluralsCandidate">Extra break in a session: %1$d</string>
+    <string name="mana_open_productive">Productive apps</string>
+    <string name="well_dry_pour" tools:ignore="PluralsCandidate">Pour %1$d min for %2$d mana</string>
+    <string name="home_trials_header">Today\'s trials</string>
 </resources>

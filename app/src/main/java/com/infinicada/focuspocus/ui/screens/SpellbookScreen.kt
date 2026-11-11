@@ -39,14 +39,13 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerMode
 import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.R
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.ui.components.GlassCard
 
 /**
  * Spellbook overview: the grimoire of focus-session configuration —
  * Enchantments and Rituals up top, compact rows for the set-and-forget
- * extras (Talismans, Conditional Unlocks) below. The Well apps live on the
+ * extras (Talismans, Productive apps) below. The Well apps live on the
  * home tab, not here.
  */
 @Composable
@@ -54,8 +53,8 @@ fun SpellbookScreen(
     blockerLists: List<Blocker>,
     schedules: List<Schedule>,
     namedTags: List<Talisman>,
-    conditionalUnlocks: List<ConditionalUnlock>,
-    onNavigateToConditionalUnlocks: () -> Unit,
+    productiveAppCount: Int,
+    onNavigateToProductiveApps: () -> Unit,
     onNavigateToEnchantments: () -> Unit,
     onNavigateToRituals: () -> Unit,
     onNavigateToTalismans: () -> Unit,
@@ -146,10 +145,10 @@ fun SpellbookScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         SpellbookCompactRow(
-            title = stringResource(R.string.conditional_unlocks_title),
+            title = stringResource(R.string.productive_title),
             icon = Icons.Filled.LockOpen,
-            count = conditionalUnlocks.size,
-            onClick = onNavigateToConditionalUnlocks
+            count = productiveAppCount,
+            onClick = onNavigateToProductiveApps
         )
 
         Spacer(modifier = Modifier.height(16.dp))

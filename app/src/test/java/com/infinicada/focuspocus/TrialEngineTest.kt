@@ -15,10 +15,10 @@ import java.util.Locale
 class TrialEngineTest {
 
     private val allEligible = TrialEngine.Eligibility(
-        hasSchedules = true, canJudgeLimits = true, hasReflexHistory = true
+        hasWellApps = true, canMeasureProductive = true, hasReflexHistory = true
     )
     private val noneExtra = TrialEngine.Eligibility(
-        hasSchedules = false, canJudgeLimits = false, hasReflexHistory = false
+        hasWellApps = false, canMeasureProductive = false, hasReflexHistory = false
     )
 
     // ── locale-independent date keys ──
@@ -80,8 +80,8 @@ class TrialEngineTest {
         for (day in 1..28) {
             val key = "202607%02d".format(day)
             val slate = TrialEngine.drawSlate(key, TrialEngine.weekKeyForDay(key), emptyList(), noneExtra)
-            assertTrue(slate.none { it.type == TrialType.COMPLETE_RITUAL })
-            assertTrue(slate.none { it.type == TrialType.STAY_UNDER_LIMITS })
+            assertTrue(slate.none { it.type == TrialType.WELL_UNDER })
+            assertTrue(slate.none { it.type == TrialType.PRODUCTIVE_MINUTES })
             assertTrue(slate.none { it.type == TrialType.NO_REFLEX_OPENS })
             assertEquals(2, slate.count { it.period == TrialPeriod.DAILY })
             assertEquals(1, slate.count { it.period == TrialPeriod.WEEKLY })
@@ -120,127 +120,100 @@ class TrialEngineTest {
     ) = Trial("t_${type.name}", type, target, progress, period, "20260713", 40L, claimed, param)
 
     @Test
-    fun `sessions advance session-count and minute trials`() {
-        val trials = listOf(
-            trial(TrialType.COMPLETE_SESSIONS, target = 2),
-            trial(TrialType.FOCUS_MINUTES, target = 60)
-        )
-        val (updated, completed) = TrialEngine.advanceForSession(trials, durationMinutes = 45, fromRitual = false)
-        assertEquals(1, updated[0].progress)
-        assertEquals(45, updated[1].progress)
-        assertTrue(completed.isEmpty())
+    fun `retired templates are never drawn`() {
+        for (day in 1..28) {
+            val key = "202607%02d".format(day)
+            val slate = TrialEngine.drawSlate(key, TrialEngine.weekKeyForDay(key), emptyList(), allEligible)
+            assertTrue(slate.none {
+                it.type in setOf(TrialType.COMPLETE_SESSIONS, TrialType.COMPLETE_RITUAL, TrialType.STAY_UNDER_LIMITS)
+            })
+        }
     }
 
     @Test
-    fun `crossing the target reports a completion exactly once`() {
-        val trials = listOf(trial(TrialType.FOCUS_MINUTES, target = 60, progress = 30))
-        val (updated, completed) = TrialEngine.advanceForSession(trials, 45, false)
-        assertEquals(60, updated[0].progress) // capped
-        assertEquals(1, completed.size)
-
-        val (again, completedAgain) = TrialEngine.advanceForSession(updated, 45, false)
-        assertEquals(60, again[0].progress)
-        assertTrue(completedAgain.isEmpty())
+    fun `only timed sessions advance minute trials`() {
+        val trials = listOf(trial(TrialType.FOCUS_MINUTES, target = 60))
+        val (afterRitual, _) = TrialEngine.advanceForSession(trials, 240, timed = false, startedByHand = false)
+        assertEquals(0, afterRitual.single().progress)
+        val (afterTimed, _) = TrialEngine.advanceForSession(trials, 25, timed = true, startedByHand = true)
+        assertEquals(25, afterTimed.single().progress)
     }
 
     @Test
-    fun `ritual trials only advance for ritual sessions`() {
-        val trials = listOf(trial(TrialType.COMPLETE_RITUAL, target = 1))
-        val (unchanged, none) = TrialEngine.advanceForSession(trials, 30, fromRitual = false)
-        assertEquals(0, unchanged[0].progress)
+    fun `starting a timed session by hand completes the start trial once`() {
+        val trials = listOf(trial(TrialType.START_TIMED_SESSION, target = 1))
+        val (byTalisman, none) = TrialEngine.advanceForSession(trials, 30, timed = true, startedByHand = false)
+        assertEquals(0, byTalisman.single().progress)
         assertTrue(none.isEmpty())
-        val (updated, completed) = TrialEngine.advanceForSession(trials, 30, fromRitual = true)
-        assertEquals(1, updated[0].progress)
-        assertEquals(1, completed.size)
+        val (byHand, done) = TrialEngine.advanceForSession(trials, 30, timed = true, startedByHand = true)
+        assertTrue(byHand.single().completed)
+        assertEquals(1, done.size)
+        val (again, doneAgain) = TrialEngine.advanceForSession(byHand, 30, timed = true, startedByHand = true)
+        assertEquals(byHand, again)
+        assertTrue(doneAgain.isEmpty())
     }
 
     @Test
     fun `claimed trials never advance`() {
-        val trials = listOf(trial(TrialType.COMPLETE_SESSIONS, target = 2, progress = 1, claimed = true))
-        val (updated, completed) = TrialEngine.advanceForSession(trials, 30, false)
-        assertEquals(1, updated[0].progress)
-        assertTrue(completed.isEmpty())
+        val trials = listOf(trial(TrialType.FOCUS_MINUTES, target = 60, progress = 60, claimed = true))
+        assertEquals(trials, TrialEngine.advanceForSession(trials, 30, timed = true, startedByHand = true).first)
     }
 
     @Test
-    fun `rollover-judged types are not advanced by sessions`() {
+    fun `productive trials follow the day's total and the week's growth`() {
         val trials = listOf(
-            trial(TrialType.STAY_UNDER_LIMITS, target = 1),
-            trial(TrialType.NO_REFLEX_OPENS, target = 1, period = TrialPeriod.WEEKLY, param = 10)
+            trial(TrialType.PRODUCTIVE_MINUTES, target = 60),
+            trial(TrialType.PRODUCTIVE_MINUTES, target = 120, period = TrialPeriod.WEEKLY).copy(id = "w")
         )
-        val (updated, completed) = TrialEngine.advanceForSession(trials, 120, true)
-        assertTrue(updated.all { it.progress == 0 })
-        assertTrue(completed.isEmpty())
-    }
-
-    // ── judgment ──
-
-    @Test
-    fun `stay-under-limits succeeds on a clean day`() {
-        val t = trial(TrialType.STAY_UNDER_LIMITS, target = 1)
-        val judged = TrialEngine.judgeEndedTrial(t, emptyList(), emptyMap(), limitsConfigured = true)
-        assertTrue(judged.completed)
+        val (after, _) = TrialEngine.advanceForProductive(trials, minutesToday = 40, addedMinutes = 10)
+        assertEquals(40, after[0].progress)
+        assertEquals(10, after[1].progress)
     }
 
     @Test
-    fun `stay-under-limits fails on a time-limit block that day`() {
-        val t = trial(TrialType.STAY_UNDER_LIMITS, target = 1)
-        val blockTime = Calendar.getInstance().apply {
-            set(2026, Calendar.JULY, 13, 15, 0, 0)
-        }.timeInMillis
-        val events = listOf(BlockEvent("com.example.feed", blockTime, TrialEngine.TIME_LIMIT_BLOCK_REASON))
-        val judged = TrialEngine.judgeEndedTrial(t, events, emptyMap(), limitsConfigured = true)
-        assertFalse(judged.completed)
-    }
+    fun `well-under is judged from the period's net draws`() {
+        val day = trial(TrialType.WELL_UNDER, target = 1, param = 15)
+        assertTrue(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 15, "20260714" to 90), emptyMap()).completed)
+        assertFalse(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 16), emptyMap()).completed)
 
-    @Test
-    fun `stay-under-limits ignores blocks on other days and other reasons`() {
-        val t = trial(TrialType.STAY_UNDER_LIMITS, target = 1)
-        val otherDay = Calendar.getInstance().apply { set(2026, Calendar.JULY, 12, 15, 0, 0) }.timeInMillis
-        val sameDay = Calendar.getInstance().apply { set(2026, Calendar.JULY, 13, 15, 0, 0) }.timeInMillis
-        val events = listOf(
-            BlockEvent("com.example.feed", otherDay, TrialEngine.TIME_LIMIT_BLOCK_REASON),
-            BlockEvent("com.example.feed", sameDay, "Pact Gate")
+        val week = Trial(
+            "w", TrialType.WELL_UNDER, target = 1, period = TrialPeriod.WEEKLY,
+            periodKey = TrialEngine.weekKeyForDay("20260713"), rewardMana = 200L, param = 60
         )
-        val judged = TrialEngine.judgeEndedTrial(t, events, emptyMap(), limitsConfigured = true)
-        assertTrue(judged.completed)
+        assertTrue(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 30), emptyMap()).completed)
+        assertFalse(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 31), emptyMap()).completed)
     }
 
     @Test
-    fun `stay-under-limits is vacuously false without configured limits`() {
-        val t = trial(TrialType.STAY_UNDER_LIMITS, target = 1)
-        val judged = TrialEngine.judgeEndedTrial(t, emptyList(), emptyMap(), limitsConfigured = false)
-        assertFalse(judged.completed)
+    fun `daily reflex trial counts its own day only`() {
+        val day = trial(TrialType.NO_REFLEX_OPENS, target = 1, param = 3)
+        val history = mapOf(
+            "20260713" to mapOf("a" to AppOpenStats(opens = 9, reflexOpens = 3)),
+            "20260714" to mapOf("a" to AppOpenStats(opens = 9, reflexOpens = 9))
+        )
+        assertTrue(TrialEngine.judgeEndedTrial(day, emptyMap(), history).completed)
     }
 
     @Test
     fun `no-reflex-opens sums the trial week only`() {
         val inWeekDay = "20260713"
         val nextDay = "20260714"
-        val farOffDay = "20260601" // clearly a different ISO week
+        val farOffDay = "20260601"
         val weekKey = TrialEngine.weekKeyForDay(inWeekDay)
-        assertEquals(weekKey, TrialEngine.weekKeyForDay(nextDay))
-        assertTrue(weekKey != TrialEngine.weekKeyForDay(farOffDay))
-
         val t = Trial(
             "t", TrialType.NO_REFLEX_OPENS, target = 1, progress = 0,
             period = TrialPeriod.WEEKLY, periodKey = weekKey, rewardMana = 150L, param = 10
         )
-        // 8 reflexes in the trial week, a flood outside it: still under the cap
         val history = mapOf(
             inWeekDay to mapOf("a" to AppOpenStats(opens = 20, reflexOpens = 8)),
             farOffDay to mapOf("a" to AppOpenStats(opens = 30, reflexOpens = 30))
         )
-        val judged = TrialEngine.judgeEndedTrial(t, emptyList(), history, true)
-        assertTrue(judged.completed)
-
-        // 11 reflexes inside the week: over the cap of 10
+        assertTrue(TrialEngine.judgeEndedTrial(t, emptyMap(), history).completed)
         val overHistory = mapOf(
             inWeekDay to mapOf("a" to AppOpenStats(opens = 20, reflexOpens = 8)),
             nextDay to mapOf("b" to AppOpenStats(opens = 10, reflexOpens = 3))
         )
-        val judgedOver = TrialEngine.judgeEndedTrial(t, emptyList(), overHistory, true)
-        assertFalse(judgedOver.completed)
+        assertFalse(TrialEngine.judgeEndedTrial(t, emptyMap(), overHistory).completed)
     }
 
     // ── date keys ──

@@ -217,6 +217,14 @@ A physical tag tap is covered by unit tests only; the emulator has no NFC.
 - Home panel: Well level and refill, mana balance, next pour price, today's
   trials.
 
+Done in Phase 4 as built: a talisman session with a length counts as
+timed (paid per minute); one without, and every ritual, is open-ended.
+Productive time is credited every 5 minutes by the service and whenever the
+home screen refreshes. Conditional-unlock rules became productive apps
+(migration step 4), which also drops unfinished trials so the new list is
+drawn at once. Per-day `WellHistory` and `ManaHistory` (60 days) now exist
+and are backed up (format 4). The dry-Well screen offers a pour.
+
 ### Phase 5: Insights redesign
 
 The screen is one 976-line composable. Split it into section files and

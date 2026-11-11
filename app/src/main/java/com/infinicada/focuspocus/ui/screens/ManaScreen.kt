@@ -33,7 +33,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.infinicada.focuspocus.ManaRules
 import com.infinicada.focuspocus.R
+import com.infinicada.focuspocus.model.ManaDay
+import androidx.compose.material3.OutlinedButton
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 import com.infinicada.focuspocus.ui.components.GlassCard
@@ -55,6 +58,8 @@ fun ManaScreen(
     wellHasRoom: Boolean,
     onChannelWell: () -> Boolean,
     onBuyExtraBreak: () -> Boolean,
+    manaToday: ManaDay,
+    onOpenProductiveApps: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -118,6 +123,13 @@ fun ManaScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.mana_today_earned, manaToday.earned, manaToday.spent),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 Spacer(modifier = Modifier.height(24.dp))
                 SectionHeader(stringResource(R.string.perks_header))
                 Spacer(modifier = Modifier.height(12.dp))
@@ -168,9 +180,51 @@ fun ManaScreen(
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
+                SectionHeader(stringResource(R.string.mana_how_header))
+                Spacer(modifier = Modifier.height(12.dp))
+                HowManaWorks()
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = onOpenProductiveApps, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.mana_open_productive))
+                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
+}
+
+/** The earn and spend rules, read straight from [ManaRules]. */
+@Composable
+private fun HowManaWorks() {
+    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+        Text(stringResource(R.string.mana_how_earn), style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(4.dp))
+        RuleLine(stringResource(R.string.mana_rule_timed, ManaRules.TIMED_MANA_PER_MINUTE, ManaRules.TIMED_DAILY_CAP))
+        RuleLine(stringResource(R.string.mana_rule_open_ended, ManaRules.OPEN_ENDED_MANA, ManaRules.OPEN_ENDED_MIN_MINUTES))
+        RuleLine(stringResource(R.string.mana_rule_productive, ManaRules.PRODUCTIVE_MINUTES_PER_MANA, ManaRules.PRODUCTIVE_DAILY_CAP))
+        RuleLine(
+            stringResource(
+                R.string.mana_rule_trials,
+                ManaRules.DAILY_TRIAL_MIN_REWARD, ManaRules.DAILY_TRIAL_MAX_REWARD,
+                ManaRules.WEEKLY_TRIAL_MIN_REWARD, ManaRules.WEEKLY_TRIAL_MAX_REWARD
+            )
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(stringResource(R.string.mana_how_spend), style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(4.dp))
+        RuleLine(stringResource(R.string.mana_rule_pour, ManaRules.POUR_MINUTES, ManaRules.POUR_BASE_COST))
+        RuleLine(stringResource(R.string.mana_rule_break, ManaRules.EXTRA_BREAK_COST))
+    }
+}
+
+@Composable
+private fun RuleLine(text: String) {
+    Text(
+        "• $text",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(vertical = 2.dp)
+    )
 }
 
 @Composable

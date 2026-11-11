@@ -40,17 +40,28 @@ fun trialTitle(trial: Trial): String = when (trial.type) {
     TrialType.COMPLETE_SESSIONS ->
         pluralStringResource(R.plurals.trial_sessions_daily, trial.target, trial.target)
     TrialType.FOCUS_MINUTES ->
-        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_minutes_daily, trial.target)
-        else stringResource(R.string.trial_minutes_weekly, trial.target)
+        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_timed_minutes_daily, trial.target)
+        else stringResource(R.string.trial_timed_minutes_weekly, trial.target)
+    TrialType.START_TIMED_SESSION -> stringResource(R.string.trial_start_timed)
+    TrialType.WELL_UNDER ->
+        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_well_under_daily, trial.param)
+        else stringResource(R.string.trial_well_under_weekly, trial.param)
+    TrialType.PRODUCTIVE_MINUTES ->
+        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_productive_daily, trial.target)
+        else stringResource(R.string.trial_productive_weekly, trial.target)
     TrialType.COMPLETE_RITUAL -> stringResource(R.string.trial_ritual_daily)
     TrialType.STAY_UNDER_LIMITS -> stringResource(R.string.trial_under_limits_daily)
-    TrialType.NO_REFLEX_OPENS -> stringResource(R.string.trial_reflex_weekly, trial.param)
+    TrialType.NO_REFLEX_OPENS ->
+        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_reflex_daily, trial.param)
+        else stringResource(R.string.trial_reflex_weekly, trial.param)
 }
 
 /** Localized one-line reason for a ledger entry. */
 @Composable
 fun ledgerReason(entry: ManaLedgerEntry): String = when (entry.kind) {
     LedgerKind.SESSION -> stringResource(R.string.ledger_session_reason, entry.minutes)
+    LedgerKind.OPEN_ENDED -> stringResource(R.string.ledger_open_ended_reason, entry.minutes)
+    LedgerKind.PRODUCTIVE -> stringResource(R.string.ledger_productive_reason, entry.minutes)
     LedgerKind.TRIAL -> stringResource(R.string.ledger_trial_reason)
     LedgerKind.BOON -> stringResource(R.string.ledger_boon_reason, entry.title)
     LedgerKind.PERK -> when (entry.refId) {
@@ -103,7 +114,8 @@ fun TrialRow(
     modifier: Modifier = Modifier
 ) {
     val title = trialTitle(trial)
-    val judgedAtEnd = trial.type == TrialType.STAY_UNDER_LIMITS || trial.type == TrialType.NO_REFLEX_OPENS
+    val judgedAtEnd = trial.type == TrialType.STAY_UNDER_LIMITS || trial.type == TrialType.NO_REFLEX_OPENS ||
+        trial.type == TrialType.WELL_UNDER
     val progressText = stringResource(R.string.trial_progress, trial.progress, trial.target)
     Column(
         modifier = modifier

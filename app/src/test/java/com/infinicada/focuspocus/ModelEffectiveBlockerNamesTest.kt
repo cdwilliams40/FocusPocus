@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.Schedule
 import org.junit.Assert.assertEquals
@@ -47,29 +46,5 @@ class ModelEffectiveBlockerNamesTest {
             endTime = "17:00"
         )
         assertEquals(emptyList<String>(), schedule.effectiveBlockerNames)
-    }
-
-    // ── ConditionalUnlock.effectiveUnlockedBlockerNames ──
-
-    @Test
-    fun `ConditionalUnlock effectiveUnlockedBlockerNames returns set when non-empty`() {
-        val unlock = ConditionalUnlock(
-            name = "Test",
-            requiredAppPackage = "com.test",
-            requiredMinutes = 10,
-            unlockedBlockerNames = setOf("A", "B")
-        )
-        assertEquals(setOf("A", "B"), unlock.effectiveUnlockedBlockerNames)
-    }
-
-    @Test
-    fun `ConditionalUnlock effectiveUnlockedBlockerNames returns empty set when empty`() {
-        val unlock = ConditionalUnlock(
-            name = "Test",
-            requiredAppPackage = "com.test",
-            requiredMinutes = 10,
-            unlockedBlockerNames = emptySet()
-        )
-        assertEquals(emptySet<String>(), unlock.effectiveUnlockedBlockerNames)
     }
 }

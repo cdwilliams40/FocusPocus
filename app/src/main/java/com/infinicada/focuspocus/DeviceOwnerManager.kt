@@ -11,7 +11,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.WellApps
-import com.infinicada.focuspocus.model.ConditionalUnlock
 
 /**
  * Device-owner enforcement layer.
@@ -198,7 +197,7 @@ object DeviceOwnerManager {
     /**
      * Packages that should be suspended right now: session-blocked apps plus
      * Well apps with no running pact, each minus its own escape hatches
-     * (breaks, conditional unlocks) and system-critical exemptions.
+     * (breaks) and system-critical exemptions.
      *
      * The launchable/exempt snapshots are queried once here and shared by both
      * computations — they are binder round-trips enumerating installed apps,
@@ -213,8 +212,7 @@ object DeviceOwnerManager {
 
     /**
      * Launchable apps blocked by any active blocker while a focus session is
-     * running (and not on a break), minus apps freed by a satisfied conditional
-     * unlock.
+     * running (and not on a break).
      */
     private fun computeSessionSuspensions(
         context: Context,
@@ -229,7 +227,7 @@ object DeviceOwnerManager {
         val activeNames = BlockerRepository.getActiveBlockerNames(prefs)
         if (activeNames.isEmpty()) return emptySet()
         val activeBlockers = BlockerRepository.getBlockers(prefs)
-            .filter { it.name in activeNames && !isConditionallyUnlocked(context, prefs, it.name) }
+            .filter { it.name in activeNames }
         if (activeBlockers.isEmpty()) return emptySet()
 
         return computeBlockedPackages(
@@ -396,30 +394,5 @@ object DeviceOwnerManager {
         cachedExemptPackages = exempt
         cachedExemptAtMillis = now
         return exempt
-    }
-
-    /** Mirrors MyAccessibilityService's conditional-unlock check for blockers. */
-    private fun isConditionallyUnlocked(
-        context: Context,
-        prefs: SharedPreferences,
-        blockerName: String
-    ): Boolean = loadConditionalUnlocks(prefs).any { rule ->
-        blockerName in rule.effectiveUnlockedBlockerNames && isRuleSatisfied(context, rule)
-    }
-
-    private fun isRuleSatisfied(context: Context, rule: ConditionalUnlock): Boolean =
-        rule.requiredMinutes > 0 &&
-            UsageStatsHelper.getPackageUsageToday(context, rule.requiredAppPackage) >=
-            rule.requiredMinutes.toLong() * 60 * 1000
-
-    private fun loadConditionalUnlocks(prefs: SharedPreferences): List<ConditionalUnlock> {
-        val json = prefs.getString(Constants.PrefsKeys.CONDITIONAL_UNLOCKS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<ConditionalUnlock>>() {}.type
-            gson.fromJson(json, type) ?: emptyList()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing conditional unlocks JSON", e)
-            emptyList()
-        }
     }
 }

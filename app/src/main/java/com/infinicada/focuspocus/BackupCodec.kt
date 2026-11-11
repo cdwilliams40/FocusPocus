@@ -32,8 +32,9 @@ object BackupCodec {
     /**
      * 2: pacts, wards and circles became the Well's app list.
      * 3: Quick Spells became talisman setups.
+     * 4: conditional unlocks became productive apps.
      */
-    const val FORMAT_VERSION = 3
+    const val FORMAT_VERSION = 4
 
     /** What a version-1 file carried instead of [Constants.PrefsKeys.WELL_APPS]. */
     private val V1_LIMIT_KEYS = setOf(
@@ -44,6 +45,9 @@ object BackupCodec {
     /** What a file before version 3 carried instead of talisman setups. */
     private val V2_PRESET_KEYS = setOf(Migrations.LegacyKeys.FOCUS_PRESETS)
 
+    /** What a file before version 4 carried instead of productive apps. */
+    private val V3_UNLOCK_KEYS = setOf(Migrations.LegacyKeys.CONDITIONAL_UNLOCKS)
+
     /** Configuration and history that travels in a backup. */
     val EXPORT_KEYS: Set<String> = setOf(
         // Spellbook configuration
@@ -51,7 +55,9 @@ object BackupCodec {
         Constants.PrefsKeys.SCHEDULES,
         Constants.PrefsKeys.NAMED_TAGS,
         Constants.PrefsKeys.WELL_APPS,
-        Constants.PrefsKeys.CONDITIONAL_UNLOCKS,
+        Constants.PrefsKeys.PRODUCTIVE_APPS,
+        Constants.PrefsKeys.MANA_HISTORY,
+        Constants.PrefsKeys.WELL_HISTORY,
         // Settings
         Constants.PrefsKeys.THEME_MODE,
         Constants.PrefsKeys.MUTE_BLOCKED_NOTIFICATIONS,
@@ -175,7 +181,8 @@ object BackupCodec {
         val heldWell = holdEnforcedWell(prefs, file.prefs, now)
         val restoredKeys = EXPORT_KEYS +
             (if (file.formatVersion < 2) V1_LIMIT_KEYS else emptySet()) +
-            (if (file.formatVersion < 3) V2_PRESET_KEYS else emptySet())
+            (if (file.formatVersion < 3) V2_PRESET_KEYS else emptySet()) +
+            (if (file.formatVersion < 4) V3_UNLOCK_KEYS else emptySet())
 
         var restored = 0
         // commit = true, not apply(): the caller restarts the process
@@ -202,6 +209,7 @@ object BackupCodec {
         }
         if (file.formatVersion < 2) Migrations.migrateToWellApps(prefs)
         if (file.formatVersion < 3) Migrations.migrateTalismans(prefs)
+        if (file.formatVersion < 4) Migrations.migrateConditionalUnlocks(prefs)
         holdWellApps(prefs, gson, currentApps, currentRemovals, now)
         return ImportResult.Success(restored)
     }
