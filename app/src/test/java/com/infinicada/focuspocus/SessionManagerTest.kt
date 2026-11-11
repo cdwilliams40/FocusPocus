@@ -41,13 +41,13 @@ class SessionManagerTest {
 
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
-            blockerName = blockerName,
+            blockerNames = listOf(blockerName),
             durationMinutes = durationMinutes,
             breaksEnabled = breaksEnabled
         )
 
         assertTrue(sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false))
-        assertEquals(blockerName, sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null))
+        assertEquals(gson.toJson(listOf(blockerName)), sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
         assertTrue(sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L) > 0)
         assertTrue(sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, false))
 
@@ -66,7 +66,7 @@ class SessionManagerTest {
 
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
-            blockerName = blockerName,
+            blockerNames = listOf(blockerName),
             scheduleId = scheduleId
         )
 
@@ -107,7 +107,7 @@ class SessionManagerTest {
 
         SessionManager.startSession(
             sharedPreferences = sharedPreferences,
-            blockerName = blockerName
+            blockerNames = listOf(blockerName)
         )
 
         assertEquals(0, sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, -1))
@@ -120,16 +120,15 @@ class SessionManagerTest {
 
     @Test
     fun `stopSession clears all session prefs`() {
-        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         assertTrue(SessionManager.isSessionActive(sharedPreferences))
 
         SessionManager.stopSession(mockContext, sharedPreferences, gson)
 
         assertFalse(sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true))
-        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.ACTIVE_BLOCKER))
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.ACTIVE_BLOCKERS))
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID))
-        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.FOCUS_TAG_ID))
+        assertFalse(sharedPreferences.contains(Constants.PrefsKeys.ACTIVE_TALISMAN_ID))
         assertFalse(sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, true))
         assertEquals(0, sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, -1))
         assertEquals(0, sharedPreferences.getInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, -1))
@@ -139,7 +138,7 @@ class SessionManagerTest {
 
     @Test
     fun `start then stop round trip leaves session inactive`() {
-        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         assertTrue(SessionManager.isSessionActive(sharedPreferences))
 
         SessionManager.stopSession(mockContext, sharedPreferences, gson)
@@ -151,13 +150,13 @@ class SessionManagerTest {
     @Test
     fun `startSession clears leftover extra-break tokens`() {
         sharedPreferences.putInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 2)
-        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.EXTRA_BREAK_TOKENS))
     }
 
     @Test
     fun `stopSession clears extra-break tokens and returns a result`() {
-        SessionManager.startSession(sharedPreferences, "TestBlocker", durationMinutes = 25)
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         sharedPreferences.putInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 1)
 
         val result = SessionManager.stopSession(mockContext, sharedPreferences, gson)
@@ -167,5 +166,24 @@ class SessionManagerTest {
         // empty result is returned rather than a real recording.
         assertTrue(result.sessions.isEmpty())
         assertEquals(null, result.recorded)
+    }
+
+    // ── talisman sessions ──
+
+    @Test
+    fun `a talisman session remembers its talisman until it stops`() {
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), talismanId = "tag-1")
+        assertEquals("tag-1", SessionManager.activeTalismanId(sharedPreferences))
+        assertTrue(SessionManager.isFocusActive(sharedPreferences))
+
+        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        assertEquals(null, SessionManager.activeTalismanId(sharedPreferences))
+    }
+
+    @Test
+    fun `a session started any other way clears a leftover talisman`() {
+        sharedPreferences.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "stale")
+        SessionManager.startSession(sharedPreferences, listOf("TestBlocker"))
+        assertEquals(null, SessionManager.activeTalismanId(sharedPreferences))
     }
 }

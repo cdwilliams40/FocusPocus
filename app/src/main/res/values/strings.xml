@@ -16,7 +16,6 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_delete">Delete</string>
     <string name="action_remove">Remove</string>
-    <string name="action_edit">Edit</string>
     <string name="action_ok">OK</string>
     <string name="action_done">Done</string>
     <string name="action_back">Back</string>
@@ -26,8 +25,6 @@
 
     <!-- Common terms -->
     <string name="label_active">Active</string>
-    <string name="label_custom">Custom</string>
-    <string name="label_none">None</string>
     <string name="label_banish">Banish</string>
     <string name="label_shield">Shield</string>
     <string name="label_banish_blacklist">Banish (Blacklist)</string>
@@ -40,14 +37,9 @@
     <string name="duration_45_min">45 minutes</string>
     <string name="duration_1_hour">1 hour</string>
     <string name="duration_2_hours">2 hours</string>
-    <string name="duration_4_hours">4 hours</string>
-    <string name="duration_8_hours">8 hours</string>
     <string name="duration_unlimited">Unlimited</string>
     <string name="duration_select">Select Duration</string>
     <string name="duration_label">Duration</string>
-    <string name="duration_5_min">5 min</string>
-    <string name="duration_10_min">10 min</string>
-    <string name="duration_30_min">30 min</string>
 
     <!-- formatDuration function strings -->
     <string name="format_duration_unlimited">Unlimited</string>
@@ -66,7 +58,6 @@
     <string name="home_unlimited_session">Unlimited</string>
     <string name="home_elapsed">elapsed</string>
     <string name="session_complete_icon_desc">Session complete</string>
-    <string name="home_quick_spells">Quick Spells</string>
     <string name="home_select_enchantment">Select Enchantment</string>
     <string name="home_allow_breaks">Allow Breaks</string>
     <string name="home_remaining">remaining</string>
@@ -161,12 +152,6 @@
     <string name="conditional_unlocks_well_note">A met rule adds %1$d minutes to the Mana Well once a day instead of unlocking a Well app. Enchantments are unlocked as before.</string>
     <string name="home_section_live">Happening now</string>
     <string name="home_guard_edit_label">Edit</string>
-    <string name="home_talisman_activate">Activate</string>
-    <string name="home_talisman_activate_desc">Activate %s</string>
-    <string name="home_talisman_action_cast">Casts %s</string>
-    <string name="home_talisman_action_temp_enable">Casts %1$s for %2$d min</string>
-    <string name="home_talisman_action_temp_disable">Takes a %d min break — needs an active session</string>
-    <string name="home_talisman_toggle_desc">Starts a focus session with your selected enchantments</string>
     <!-- GuardEditorScreen (unified pact/ward editor) -->
 
     <!-- Pact revision cooling-off: changes to an existing pact hold for 24 h -->
@@ -179,13 +164,11 @@
 
     <!-- SpellbookScreen -->
     <string name="spellbook_enchantments">Enchantments</string>
-    <string name="spellbook_quick_spells">Quick Spells</string>
     <string name="spellbook_rituals">Rituals</string>
     <string name="spellbook_talismans">Talismans</string>
     <string name="spellbook_no_enchantments">No enchantments yet. Create one to define which apps to block.</string>
     <string name="spellbook_no_rituals">No rituals yet. Schedule automatic focus sessions.</string>
     <string name="spellbook_more_count" tools:ignore="PluralsCandidate">+%d more</string>
-    <string name="spellbook_breaks_suffix"> - Breaks</string>
     <string name="spellbook_group_focus">Focus sessions</string>
     <string name="spellbook_group_gear">More magic</string>
 
@@ -394,29 +377,8 @@
     <string name="talismans_none_bound">No talismans bound yet.</string>
 
     <!-- QuickSpellsListScreen -->
-    <string name="quick_spells_title">Quick Spells</string>
-    <string name="quick_spells_create_content_desc">Create quick spell</string>
-    <string name="quick_spells_subtitle">Preset focus configurations for quick access</string>
-    <string name="quick_spells_empty">No quick spells yet. Tap + to create your first one!</string>
-    <string name="quick_spells_enchantment_missing">Enchantment missing - please edit</string>
-    <string name="quick_spells_bound_to">Bound to: %s</string>
-    <string name="quick_spells_temp_enable">Temp Enable %dm</string>
-    <string name="quick_spells_temp_disable">Temp Disable %dm</string>
 
     <!-- QuickSpellEditorScreen -->
-    <string name="quick_spell_editor_create_title">Create Quick Spell</string>
-    <string name="quick_spell_editor_edit_title">Edit Quick Spell</string>
-    <string name="quick_spell_editor_name_label">Name</string>
-    <string name="quick_spell_editor_enchantment_label">Enchantment</string>
-    <string name="quick_spell_editor_select_enchantment">Select Enchantment</string>
-    <string name="quick_spell_editor_bind_talisman">Bind to Talisman</string>
-    <string name="quick_spell_editor_none_talisman">None (tap to select)</string>
-    <string name="quick_spell_editor_action_type">Action Type</string>
-    <string name="quick_spell_editor_action_toggle">Toggle</string>
-    <string name="quick_spell_editor_action_temp_enable">Temporary Enable</string>
-    <string name="quick_spell_editor_action_temp_disable">Temporary Disable</string>
-    <string name="quick_spell_editor_temp_duration">Temp Duration</string>
-    <string name="quick_spell_editor_allow_breaks">Allow Breaks</string>
 
     <!-- Guard fields (shared by the editor and the Pacts dashboard) -->
     <string name="time_limits_no_apps_found">No apps found</string>
@@ -508,17 +470,9 @@
     <!-- Toast messages -->
     <string name="toast_max_rituals" tools:ignore="PluralsCandidate">Maximum of %d rituals reached</string>
     <string name="toast_max_enchantments" tools:ignore="PluralsCandidate">Maximum of %d enchantments reached</string>
-    <string name="toast_max_quick_spells" tools:ignore="PluralsCandidate">Maximum of %d quick spells reached</string>
     <string name="toast_max_talismans" tools:ignore="PluralsCandidate">Maximum of %d talismans reached</string>
-    <string name="toast_preset_cast_timed">%1$s Cast for %2$d min!</string>
-    <string name="toast_enchantment_missing">Enchantment missing for %s</string>
-    <string name="toast_temp_break">Temporary break for %d min!</string>
-    <string name="toast_no_active_focus">No active focus to pause</string>
-    <string name="toast_preset_dispelled">%s Dispelled!</string>
-    <string name="toast_preset_cast">%s Cast!</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
-    <string name="toast_ritual_locked">This ritual is bound to a talisman — scan it to dispel</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
 
     <!-- Session Complete Dialog -->
@@ -691,4 +645,23 @@
     <string name="well_apps_clear_substitute">Clear</string>
     <string name="well_apps_keep">Keep it</string>
     <string name="well_apps_remove">Take off</string>
+
+    <!-- Talisman sessions (2.0) -->
+    <string name="toast_session_already_running">A session is already running</string>
+    <string name="toast_talisman_no_setup">Set up this talisman in the Spellbook first</string>
+    <string name="toast_talisman_started">%1$s: session started</string>
+    <string name="toast_talisman_ended">%1$s: session ended</string>
+    <string name="focus_talisman_locked">Tap %1$s to end this session</string>
+    <string name="talisman_setup_edit">Set up</string>
+    <string name="talisman_setup_title">What %1$s starts</string>
+    <string name="talisman_setup_enchantments">Enchantments to cast</string>
+    <string name="talisman_setup_no_enchantments">Create an enchantment first.</string>
+    <string name="talisman_setup_length">Length</string>
+    <string name="talisman_setup_open_ended">Until tapped again</string>
+    <string name="talisman_setup_minutes">%1$d min</string>
+    <string name="talisman_setup_locked">Only this talisman ends it</string>
+    <string name="talisman_setup_locked_desc">The stop button stays hidden; tap the talisman again to end the session.</string>
+    <string name="talisman_setup_locked_short">only this talisman ends it</string>
+    <string name="talisman_setup_none">Not set up — tap Set up to choose what it casts</string>
+    <string name="talisman_setup_save">Save</string>
 </resources>

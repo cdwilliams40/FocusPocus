@@ -10,10 +10,10 @@ object Constants {
     // SharedPreferences keys
     object PrefsKeys {
         const val MANUAL_FOCUS_MODE = "manualFocusMode"
-        const val ACTIVE_BLOCKER = "activeBlocker"
         const val ACTIVE_BLOCKERS = "activeBlockers"
         const val ACTIVE_SCHEDULE_ID = "activeScheduleId"
-        const val FOCUS_TAG_ID = "focusTagId"
+        // The talisman whose tap started the running session, if one did
+        const val ACTIVE_TALISMAN_ID = "activeTalismanId"
         const val IS_ON_BREAK = "isOnBreak"
         const val BREAKS_USED_THIS_SESSION = "breaksUsedThisSession"
         const val BREAK_TIME_REMAINING = "breakTimeRemaining"
@@ -56,7 +56,6 @@ object Constants {
         const val NAMED_TAGS = "namedTags"
         const val BLOCKER_LISTS = "blockerLists"
         const val SCHEDULES = "schedules"
-        const val FOCUS_PRESETS = "focusPresets"
 
         // NFC lock mode
         const val NFC_LOCK_MODE = "nfcLockMode"
@@ -166,7 +165,6 @@ object Constants {
     const val MAX_NAMED_TAGS = 100
     const val MAX_BLOCKERS = 50
     const val MAX_SCHEDULES = 50
-    const val MAX_PRESETS = 100
     const val MAX_APPS_PER_BLOCKER = 500
     const val MAX_BLOCK_EVENTS = 1000
     const val MAX_CONDITIONAL_UNLOCKS = 50

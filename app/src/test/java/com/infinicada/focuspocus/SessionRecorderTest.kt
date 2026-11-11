@@ -36,7 +36,7 @@ class SessionRecorderTest {
     @Test
     fun testRecord_basic() {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000) // 2 mins ago
-        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, "TestBlocker")
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("TestBlocker")))
         fakePrefs.putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 1)
 
         val result = SessionRecorder.record(fakePrefs, gson)
@@ -231,7 +231,7 @@ class SessionRecorderTest {
     fun testRecord_excludesBankedAndRunningBreakTime() {
         val now = System.currentTimeMillis()
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 30 * 60_000L)
-        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, "TestBlocker")
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("TestBlocker")))
         // 5 minutes of earlier breaks, plus a break running for the last 10.
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, 5 * 60_000L)
         fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
@@ -251,5 +251,22 @@ class SessionRecorderTest {
 
         assertEquals(4 * 60_000L, fakePrefs.getLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, 0L))
         assertEquals(0L, fakePrefs.getLong(Constants.PrefsKeys.BREAK_START_TIME_MILLIS, 0L))
+    }
+
+    @Test
+    fun testRecord_notesWhatStartedTheSession() {
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 10 * 60_000L)
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag-1")
+        fakePrefs.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 30)
+        val talisman = SessionRecorder.record(fakePrefs, gson).recorded!!
+        assertEquals(FocusSession.SOURCE_TALISMAN, talisman.source)
+        assertEquals(30, talisman.plannedMinutes)
+
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 10 * 60_000L)
+        fakePrefs.edit().remove(Constants.PrefsKeys.ACTIVE_TALISMAN_ID).commit()
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "sched")
+        val ritual = SessionRecorder.record(fakePrefs, gson).recorded!!
+        assertEquals(FocusSession.SOURCE_RITUAL, ritual.source)
+        assertEquals(null, ritual.plannedMinutes)
     }
 }

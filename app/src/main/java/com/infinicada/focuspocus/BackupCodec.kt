@@ -29,8 +29,11 @@ import com.infinicada.focuspocus.limit.WellSettingsState
 object BackupCodec {
 
     const val FORMAT = "focus-pocus-backup"
-    /** 2 (FocusPocus 2.0): pacts, wards and circles became the Well's app list. */
-    const val FORMAT_VERSION = 2
+    /**
+     * 2: pacts, wards and circles became the Well's app list.
+     * 3: Quick Spells became talisman setups.
+     */
+    const val FORMAT_VERSION = 3
 
     /** What a version-1 file carried instead of [Constants.PrefsKeys.WELL_APPS]. */
     private val V1_LIMIT_KEYS = setOf(
@@ -38,12 +41,14 @@ object BackupCodec {
         Migrations.LegacyKeys.PACT_GROUPS
     )
 
+    /** What a file before version 3 carried instead of talisman setups. */
+    private val V2_PRESET_KEYS = setOf(Migrations.LegacyKeys.FOCUS_PRESETS)
+
     /** Configuration and history that travels in a backup. */
     val EXPORT_KEYS: Set<String> = setOf(
         // Spellbook configuration
         Constants.PrefsKeys.BLOCKER_LISTS,
         Constants.PrefsKeys.SCHEDULES,
-        Constants.PrefsKeys.FOCUS_PRESETS,
         Constants.PrefsKeys.NAMED_TAGS,
         Constants.PrefsKeys.WELL_APPS,
         Constants.PrefsKeys.CONDITIONAL_UNLOCKS,
@@ -168,7 +173,9 @@ object BackupCodec {
         val currentApps = WellApps.load(prefs, gson)
         val currentRemovals = WellApps.pendingRemovals(prefs, gson)
         val heldWell = holdEnforcedWell(prefs, file.prefs, now)
-        val restoredKeys = if (file.formatVersion < 2) EXPORT_KEYS + V1_LIMIT_KEYS else EXPORT_KEYS
+        val restoredKeys = EXPORT_KEYS +
+            (if (file.formatVersion < 2) V1_LIMIT_KEYS else emptySet()) +
+            (if (file.formatVersion < 3) V2_PRESET_KEYS else emptySet())
 
         var restored = 0
         // commit = true, not apply(): the caller restarts the process
@@ -194,6 +201,7 @@ object BackupCodec {
             putBoolean(Constants.PrefsKeys.WELL_ENABLED, true)
         }
         if (file.formatVersion < 2) Migrations.migrateToWellApps(prefs)
+        if (file.formatVersion < 3) Migrations.migrateTalismans(prefs)
         holdWellApps(prefs, gson, currentApps, currentRemovals, now)
         return ImportResult.Success(restored)
     }

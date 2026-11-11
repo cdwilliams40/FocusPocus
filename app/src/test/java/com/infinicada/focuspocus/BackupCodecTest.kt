@@ -142,10 +142,9 @@ class BackupCodecTest {
         val deviceLocalKeys = setOf(
             // Live session / break state
             Constants.PrefsKeys.MANUAL_FOCUS_MODE,
-            Constants.PrefsKeys.ACTIVE_BLOCKER,
             Constants.PrefsKeys.ACTIVE_BLOCKERS,
             Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
-            Constants.PrefsKeys.FOCUS_TAG_ID,
+            Constants.PrefsKeys.ACTIVE_TALISMAN_ID,
             Constants.PrefsKeys.IS_ON_BREAK,
             Constants.PrefsKeys.BREAKS_USED_THIS_SESSION,
             Constants.PrefsKeys.BREAK_TIME_REMAINING,

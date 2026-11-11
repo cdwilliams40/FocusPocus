@@ -32,8 +32,6 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
-import com.infinicada.focuspocus.handler.TriggerResult
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.ui.FocusPocusApp
 import com.infinicada.focuspocus.ui.theme.DarkBackground
 import com.infinicada.focuspocus.ui.theme.FocusPocusTheme
@@ -48,13 +46,10 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var nfcAdapter: NfcAdapter? = null
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
-    private lateinit var triggerHandler: TriggerHandler
 
     private var lastScannedTagId by mutableStateOf<String?>(null)
     private var isServiceEnabled by mutableStateOf(false)
     private var nfcTriggerCount by mutableIntStateOf(0)
-
-    // Deep link confirmation state
 
     // Session-state keys the accessibility service can change on its own (ending rituals,
     // expiring timed sessions, starting/ending breaks). These are only written on state
@@ -63,7 +58,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
         Constants.PrefsKeys.MANUAL_FOCUS_MODE,
         Constants.PrefsKeys.IS_ON_BREAK,
-        Constants.PrefsKeys.FOCUS_TAG_ID
+        Constants.PrefsKeys.ACTIVE_TALISMAN_ID
     )
 
     // Listener to detect when the accessibility service changes session state while the app is in the foreground
@@ -80,7 +75,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         enableEdgeToEdge()
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        triggerHandler = TriggerHandler(this, sharedPreferences, gson)
 
         // Run data cleanup via repositories
         val container = (application as FocusPocusApplication).container
@@ -130,37 +124,9 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     lastScannedTagId = lastScannedTagId,
                     nfcTriggerCount = nfcTriggerCount,
-                    onActivateTalismanPreset = { preset -> runPresetToggle(preset) },
                     modifier = Modifier
                 )
             }
-        }
-    }
-
-    /**
-     * Toggles [preset] exactly as an NFC tap would —
-     * one path, so the ritual-lock gate and session bookkeeping in
-     * [TriggerHandler.togglePreset] apply to every trigger source, including
-     * the Focus tab's in-app talisman activation.
-     */
-    private fun runPresetToggle(preset: FocusPreset) {
-        val container = (application as FocusPocusApplication).container
-        val result = triggerHandler.togglePreset(
-            preset,
-            container.blockers.getBlockers(),
-            container.schedules.getSchedules()
-        )
-        when (result) {
-            is TriggerResult.Success -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                // Same sync mechanism as prefs-change and NFC triggers: force
-                // the ViewModels to re-read session state from prefs.
-                nfcTriggerCount++
-            }
-            is TriggerResult.Error -> {
-                Toast.makeText(this, getString(result.messageResId, *result.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-            }
-            else -> {}
         }
     }
 
@@ -201,12 +167,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 lastScannedTagId = newTagId
 
                 val container = (application as FocusPocusApplication).container
-                val result = triggerHandler.handleNfcTag(
+                val result = TriggerHandler.handleNfcTag(
                     tagId = newTagId,
                     activeScheduleId = container.session.getActiveScheduleId(),
+                    activeTalismanId = container.session.getActiveTalismanId(),
+                    sessionActive = container.session.isSessionActive(),
                     schedules = container.schedules.getSchedules(),
-                    focusPresets = container.presets.getPresets(),
-                    namedTags = container.talismans.getNamedTags(),
+                    talismans = container.talismans.getNamedTags(),
                     blockerLists = container.blockers.getBlockers()
                 )
 
@@ -219,26 +186,23 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     is NfcResult.Toast -> {
                         Toast.makeText(this, getString(result.messageResId), Toast.LENGTH_SHORT).show()
                     }
-                    is NfcResult.PresetToggled -> {
-                        val triggerResult = result.triggerResult
-                        when (triggerResult) {
-                            is TriggerResult.Success -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                                nfcTriggerCount++
-                            }
-                            is TriggerResult.Error -> {
-                                Toast.makeText(this, getString(triggerResult.messageResId, *triggerResult.args.toTypedArray()), Toast.LENGTH_SHORT).show()
-                            }
-                            else -> {}
-                        }
+                    is NfcResult.StartTalismanSession -> {
+                        container.session.startSession(
+                            blockerNames = result.enchantments,
+                            durationMinutes = result.talisman.timedMinutes ?: 0,
+                            breaksEnabled = result.talisman.breaksAllowed,
+                            talismanId = result.talisman.id
+                        )
+                        Toast.makeText(
+                            this, getString(R.string.toast_talisman_started, result.talisman.name), Toast.LENGTH_SHORT
+                        ).show()
+                        nfcTriggerCount++
                     }
-                    is NfcResult.ToggleFocusTag -> {
-                        val currentFocusTagId = container.session.getFocusTagId()
-                        if (currentFocusTagId == null) {
-                            container.session.setFocusTagId(newTagId)
-                        } else {
-                            container.session.setFocusTagId(null)
-                        }
+                    is NfcResult.StopTalismanSession -> {
+                        container.session.stopSession()
+                        Toast.makeText(
+                            this, getString(R.string.toast_talisman_ended, result.talisman.name), Toast.LENGTH_SHORT
+                        ).show()
                         nfcTriggerCount++
                     }
                     is NfcResult.UnknownTag -> { /* no-op */ }

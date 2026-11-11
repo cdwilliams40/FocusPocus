@@ -59,7 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.DeviceOwnerManager
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.ProtectionHealth
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.limit.GuardStatus
@@ -120,7 +120,7 @@ fun SettingsScreen(
     onAnalyticsConsentChanged: (Boolean) -> Unit,
     onExportBackup: (android.net.Uri) -> Unit,
     onImportBackup: (android.net.Uri) -> Unit,
-    namedTags: List<NamedTag>,
+    namedTags: List<Talisman>,
     focusMode: Boolean,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier

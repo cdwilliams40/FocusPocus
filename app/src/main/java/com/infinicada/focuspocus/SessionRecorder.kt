@@ -30,7 +30,7 @@ object SessionRecorder {
 
     /**
      * Records the current focus session using state already stored in SharedPreferences
-     * (SESSION_START_TIME, ACTIVE_BLOCKERS/ACTIVE_BLOCKER, BREAKS_USED_THIS_SESSION).
+     * (SESSION_START_TIME, ACTIVE_BLOCKERS, BREAKS_USED_THIS_SESSION).
      *
      * Also updates LONGEST_STREAK if the new streak exceeds it, and runs the
      * progression award step (mana, trials) exactly once
@@ -68,15 +68,24 @@ object SessionRecorder {
                     names?.joinToString(", ")?.ifEmpty { null }
                 } catch (e: Exception) { null }
             } else null
-        } ?: prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKER, null) ?: "Unknown"
+        } ?: "Unknown"
         val breaksUsed = prefs.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
 
+        val source = when {
+            prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null -> FocusSession.SOURCE_RITUAL
+            prefs.getString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, null) != null -> FocusSession.SOURCE_TALISMAN
+            else -> FocusSession.SOURCE_MANUAL
+        }
         val session = FocusSession(
             startTimeMillis = startTime,
             endTimeMillis = endTime,
             durationMinutes = durationMin,
             blockerName = blockerName,
-            breaksUsed = breaksUsed
+            breaksUsed = breaksUsed,
+            source = source,
+            plannedMinutes = prefs.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0).takeIf {
+                it > 0 && source != FocusSession.SOURCE_RITUAL
+            }
         )
 
         val json = prefs.getString(Constants.PrefsKeys.FOCUS_SESSIONS, null)

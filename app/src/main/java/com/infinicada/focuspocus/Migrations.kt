@@ -43,6 +43,12 @@ object Migrations {
         const val GROUP_SEAL_ENABLED = "groupSealEnabled"
         const val GROUP_SEAL_OPEN_WINDOW_MINUTES = "groupSealOpenWindowMinutes"
         const val GROUP_SEAL_DURATION_MINUTES = "groupSealDurationMinutes"
+
+        // Quick Spells, tag-only sessions and the single-enchantment session
+        // key (replaced by talisman setups and ACTIVE_BLOCKERS in 2.0)
+        const val FOCUS_PRESETS = "focusPresets"
+        const val FOCUS_TAG_ID = "focusTagId"
+        const val ACTIVE_BLOCKER = "activeBlocker"
     }
 
     private val steps: List<(SharedPreferences) -> Unit> = listOf(
@@ -61,7 +67,17 @@ object Migrations {
         // pact-circle member becomes a Well app (keeping its substitute), a
         // pending removal of a pact keeps its original time, and the Well is
         // switched on. Wards and every seal/circle/Group Seal store go.
-        { prefs -> migrateToWellApps(prefs) }
+        { prefs -> migrateToWellApps(prefs) },
+        // 3: Quick Spells are gone and talismans carry their own setup. A
+        // talisman bound to a spell takes its enchantments, breaks and
+        // duration; one without takes the enchantments selected on the Focus
+        // tab. A tag-only session running now becomes an ordinary recorded
+        // session started by that talisman.
+        { prefs ->
+            migrateTalismans(prefs)
+            convertRunningTagSession(prefs)
+            migrateActiveBlocker(prefs)
+        }
     )
 
     val CURRENT_VERSION: Int get() = steps.size
@@ -133,6 +149,78 @@ object Migrations {
         }
     }
 
+    /**
+     * Step 3, first half. Also run by backup import over a file from before
+     * talismans had setups. Leaves talismans that already have one alone.
+     */
+    internal fun migrateTalismans(prefs: SharedPreferences) {
+        val gson = Gson()
+        val talismans = PrefsHelper.load<List<Talisman>>(
+            prefs, gson, Constants.PrefsKeys.NAMED_TAGS,
+            object : com.google.gson.reflect.TypeToken<List<Talisman>>() {}.type
+        ).orEmpty().filterNotNull()
+        val presets = parse(prefs, LegacyKeys.FOCUS_PRESETS)?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject }.orEmpty()
+        val focusTabSelection = activeBlockerNames(prefs)
+
+        val updated = talismans.map { talisman ->
+            if (talisman.blockerNames != null) return@map talisman
+            // handleNfcTag used to take the first spell bound to a tag.
+            val preset = presets.firstOrNull { it.str("talismanId") == talisman.id }
+            val action = preset?.str("action") ?: "TOGGLE"
+            if (preset == null || action == "TEMP_DISABLE") {
+                talisman.copy(blockerNames = focusTabSelection)
+            } else {
+                val names = preset.get("blockerNames")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString }
+                    .orEmpty()
+                    .ifEmpty { listOfNotNull(preset.str("blockerName")) }
+                val minutes = if (action == "TEMP_ENABLE") {
+                    preset.int("tempDurationMinutes").takeIf { it > 0 } ?: 30
+                } else {
+                    preset.int("durationMinutes")
+                }
+                talisman.copy(
+                    blockerNames = names,
+                    durationMinutes = minutes,
+                    breaksEnabled = preset.bool("breaksEnabled"),
+                    requireToEnd = true
+                )
+            }
+        }
+        prefs.edit {
+            if (updated.isNotEmpty()) putString(Constants.PrefsKeys.NAMED_TAGS, gson.toJson(updated))
+            remove(LegacyKeys.FOCUS_PRESETS)
+        }
+    }
+
+    /** Step 3, second half: a running tag-only session becomes a real one. */
+    private fun convertRunningTagSession(prefs: SharedPreferences) {
+        val tagId = prefs.getString(LegacyKeys.FOCUS_TAG_ID, null)
+        prefs.edit { remove(LegacyKeys.FOCUS_TAG_ID) }
+        if (tagId == null || SessionManager.isSessionActive(prefs)) return
+        val blockers = activeBlockerNames(prefs)
+        if (blockers.isEmpty()) return
+        SessionManager.startSession(prefs, blockers, talismanId = tagId)
+    }
+
+    /** Step 3: the single-enchantment key folds into ACTIVE_BLOCKERS. */
+    private fun migrateActiveBlocker(prefs: SharedPreferences) {
+        val single = prefs.getString(LegacyKeys.ACTIVE_BLOCKER, null)
+        prefs.edit {
+            if (single != null && !prefs.contains(Constants.PrefsKeys.ACTIVE_BLOCKERS)) {
+                putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, Gson().toJson(listOf(single)))
+            }
+            remove(LegacyKeys.ACTIVE_BLOCKER)
+        }
+    }
+
+    private fun activeBlockerNames(prefs: SharedPreferences): List<String> =
+        parse(prefs, Constants.PrefsKeys.ACTIVE_BLOCKERS)?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString }
+            ?.ifEmpty { null }
+            ?: listOfNotNull(prefs.getString(LegacyKeys.ACTIVE_BLOCKER, null))
+
     private fun parse(prefs: SharedPreferences, key: String): JsonElement? = try {
         prefs.getString(key, null)?.let { JsonParser.parseString(it) }
     } catch (e: Exception) {
@@ -145,6 +233,9 @@ object Migrations {
 
     private fun JsonObject.bool(name: String): Boolean =
         get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asBoolean }.getOrNull() } == true
+
+    private fun JsonObject.int(name: String): Int =
+        get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asInt }.getOrNull() } ?: 0
 
     private fun JsonObject.long(name: String): Long =
         get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asLong }.getOrNull() } ?: 0L

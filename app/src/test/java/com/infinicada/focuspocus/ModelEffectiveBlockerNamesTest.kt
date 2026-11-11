@@ -2,50 +2,11 @@ package com.infinicada.focuspocus
 
 import com.infinicada.focuspocus.model.ConditionalUnlock
 import com.infinicada.focuspocus.model.DayOfWeek
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ModelEffectiveBlockerNamesTest {
-
-    // ── FocusPreset.effectiveBlockerNames ──
-
-    @Test
-    fun `FocusPreset effectiveBlockerNames returns blockerNames when non-empty`() {
-        val preset = FocusPreset(
-            name = "Test",
-            blockerName = "Legacy",
-            blockerNames = listOf("A", "B"),
-            durationMinutes = 25,
-            breaksEnabled = true
-        )
-        assertEquals(listOf("A", "B"), preset.effectiveBlockerNames)
-    }
-
-    @Test
-    fun `FocusPreset effectiveBlockerNames falls back to blockerName when blockerNames empty`() {
-        val preset = FocusPreset(
-            name = "Test",
-            blockerName = "Legacy",
-            blockerNames = emptyList(),
-            durationMinutes = 25,
-            breaksEnabled = true
-        )
-        assertEquals(listOf("Legacy"), preset.effectiveBlockerNames)
-    }
-
-    @Test
-    fun `FocusPreset effectiveBlockerNames returns empty when both empty`() {
-        val preset = FocusPreset(
-            name = "Test",
-            blockerName = "",
-            blockerNames = emptyList(),
-            durationMinutes = 25,
-            breaksEnabled = true
-        )
-        assertEquals(emptyList<String>(), preset.effectiveBlockerNames)
-    }
 
     // ── Schedule.effectiveBlockerNames ──
 

@@ -61,14 +61,14 @@ import androidx.compose.ui.res.stringResource
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.MyAccessibilityService
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.ui.components.AppPickerDialog
 import com.infinicada.focuspocus.ui.components.ArcaneBackground
 
 @Composable
 fun OnboardingScreen(
-    namedTags: List<NamedTag>,
+    namedTags: List<Talisman>,
     installedApps: List<AppInfo>,
     isServiceEnabled: Boolean,
     analyticsConsent: Boolean,

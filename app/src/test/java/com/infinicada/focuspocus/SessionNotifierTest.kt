@@ -148,8 +148,9 @@ class SessionNotifierTest {
     }
 
     @Test
-    fun `talisman-only session is active with no chronometer anchors`() {
-        prefs.putString(Constants.PrefsKeys.FOCUS_TAG_ID, "tag-1")
+    fun `open-ended talisman session is active with no chronometer anchors`() {
+        prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
+        prefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag-1")
         prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
 
         val state = SessionNotifier.resolveState(prefs, gson, now)
@@ -158,18 +159,6 @@ class SessionNotifierTest {
         assertEquals("Social", state!!.sessionName)
         assertNull(state.countdownEndMillis)
         assertNull(state.countUpStartMillis)
-    }
-
-    @Test
-    fun `corrupt active blockers json falls back to the single blocker pref`() {
-        prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, "{not json]")
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKER, "Social")
-
-        val state = SessionNotifier.resolveState(prefs, gson, now)
-
-        assertNotNull(state)
-        assertEquals("Social", state!!.sessionName)
     }
 
     @Test

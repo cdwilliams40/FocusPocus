@@ -11,7 +11,7 @@ import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
@@ -25,12 +25,10 @@ import com.infinicada.focuspocus.limit.WellSnapshot
 import com.infinicada.focuspocus.limit.WellUnlocks
 import com.infinicada.focuspocus.data.BlockerListRepository
 import com.infinicada.focuspocus.data.ConditionalUnlockRepository
-import com.infinicada.focuspocus.data.PresetRepository
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ConditionalUnlock
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Schedule
 import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
@@ -219,7 +217,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     }
     private val blockerRepo: BlockerListRepository = container.blockers
     private val scheduleRepo: ScheduleRepository = container.schedules
-    private val presetRepo: PresetRepository = container.presets
     private val talismanRepo: TalismanRepository = container.talismans
     private val conditionalUnlockRepo: ConditionalUnlockRepository = container.conditionalUnlocks
 
@@ -229,11 +226,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _schedules = MutableStateFlow(scheduleRepo.getSchedules())
     val schedules: StateFlow<List<Schedule>> = _schedules.asStateFlow()
 
-    private val _focusPresets = MutableStateFlow(presetRepo.getPresets())
-    val focusPresets: StateFlow<List<FocusPreset>> = _focusPresets.asStateFlow()
-
     private val _namedTags = MutableStateFlow(talismanRepo.getNamedTags())
-    val namedTags: StateFlow<List<NamedTag>> = _namedTags.asStateFlow()
+    val namedTags: StateFlow<List<Talisman>> = _namedTags.asStateFlow()
 
     private val _conditionalUnlocks = MutableStateFlow(conditionalUnlockRepo.getConditionalUnlocks())
     val conditionalUnlocks: StateFlow<List<ConditionalUnlock>> = _conditionalUnlocks.asStateFlow()
@@ -265,7 +259,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         val blockerNames = _blockerLists.value.map { it.name }.toSet()
         val talismanIds = _namedTags.value.map { it.id }.toSet()
         _schedules.value = scheduleRepo.cleanupOrphanedSchedules(_schedules.value, blockerNames, talismanIds)
-        _focusPresets.value = presetRepo.cleanupOrphanedPresets(_focusPresets.value, talismanIds)
     }
 
     /**
@@ -330,7 +323,6 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         if (current is SpellbookRoute.Overview) return false
         _spellbookRoute.value = when (current) {
             is SpellbookRoute.CreateEnchantment, is SpellbookRoute.EditEnchantment -> SpellbookRoute.EnchantmentsList
-            is SpellbookRoute.CreateQuickSpell, is SpellbookRoute.EditQuickSpell -> SpellbookRoute.QuickSpellsList
             is SpellbookRoute.CreateRitual, is SpellbookRoute.EditRitual -> SpellbookRoute.RitualsList
             else -> SpellbookRoute.Overview
         }
@@ -384,24 +376,9 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
-    fun saveFocusPreset(preset: FocusPreset) {
-        if (!presetRepo.savePreset(preset, _focusPresets.value)) {
-            Toast.makeText(getApplication(), getApplication<Application>().getString(
-                R.string.toast_max_quick_spells, com.infinicada.focuspocus.Constants.MAX_PRESETS
-            ), Toast.LENGTH_SHORT).show()
-            return
-        }
-        _focusPresets.value = presetRepo.getPresets()
-        _dataVersion.value++
-    }
-
-    fun deleteFocusPreset(preset: FocusPreset) {
-        _focusPresets.value = presetRepo.deletePreset(preset, _focusPresets.value)
-        _dataVersion.value++
-    }
-
+    /** Binds a newly scanned tag. A re-scan of a known tag renames it and keeps its setup. */
     fun saveNamedTag(tagId: String, name: String) {
-        val tag = NamedTag(tagId, name)
+        val tag = _namedTags.value.find { it.id == tagId }?.copy(name = name) ?: Talisman(tagId, name)
         if (!talismanRepo.saveNamedTag(tag, _namedTags.value)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(
                 R.string.toast_max_talismans, com.infinicada.focuspocus.Constants.MAX_NAMED_TAGS
@@ -412,7 +389,14 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _dataVersion.value++
     }
 
-    fun deleteNamedTag(tag: NamedTag) {
+    /** Saves a talisman's session setup (enchantments, duration, breaks, lock). */
+    fun saveTalismanSetup(talisman: Talisman) {
+        talismanRepo.saveNamedTag(talisman, _namedTags.value)
+        _namedTags.value = talismanRepo.getNamedTags()
+        _dataVersion.value++
+    }
+
+    fun deleteNamedTag(tag: Talisman) {
         _namedTags.value = talismanRepo.deleteNamedTag(tag, _namedTags.value)
         _dataVersion.value++
     }

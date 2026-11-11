@@ -192,6 +192,12 @@ Independent of Phase 4; either can go first.
   setup. Spellbook holds Enchantments, Rituals and Talismans.
 - The talisman lock setting (`NFC_LOCK_MODE`) is unchanged.
 
+Done in Phase 3 as built: a tap while some other session runs is refused
+rather than replacing it. Talismans keep their stored key (`namedTags`) and
+gain nullable setup fields, so talismans from older backups still load.
+Backup format 3 restores a pre-3 file's Quick Spells onto their talismans.
+A physical tag tap is covered by unit tests only; the emulator has no NFC.
+
 ### Phase 4: mana
 
 - `ManaRules.kt` and the "How mana works" screen.

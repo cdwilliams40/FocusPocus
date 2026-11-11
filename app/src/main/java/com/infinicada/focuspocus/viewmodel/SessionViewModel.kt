@@ -10,7 +10,6 @@ import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.data.SessionRepository
-import com.infinicada.focuspocus.model.FocusPreset
 import com.infinicada.focuspocus.model.Trial
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,8 +41,6 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     private val _sessionBreaksEnabled = MutableStateFlow(repo.getSessionBreaksEnabled())
     val sessionBreaksEnabled: StateFlow<Boolean> = _sessionBreaksEnabled.asStateFlow()
 
-    private val _selectedPresetId = MutableStateFlow<String?>(null)
-    val selectedPresetId: StateFlow<String?> = _selectedPresetId.asStateFlow()
 
     // Break state
     private val _isOnBreak = MutableStateFlow(repo.getIsOnBreak())
@@ -60,8 +57,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     val lastEmergencyBreakMillis: StateFlow<Long> = _lastEmergencyBreakMillis.asStateFlow()
 
     // Focus tag
-    private val _focusTagId = MutableStateFlow(repo.getFocusTagId())
-    val focusTagId: StateFlow<String?> = _focusTagId.asStateFlow()
+    /** The talisman that started the running session, if one did. */
+    private val _activeTalismanId = MutableStateFlow(repo.getActiveTalismanId())
+    val activeTalismanId: StateFlow<String?> = _activeTalismanId.asStateFlow()
 
     // Session summary dialog — populated from the RecordResult a stop returns,
     // so the dialog and the persisted record can never disagree.
@@ -273,23 +271,12 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _showSessionSummary.value = false
     }
 
-    fun selectPreset(preset: FocusPreset) {
-        _selectedPresetId.value = preset.id
-        _activeBlockerNames.value = preset.effectiveBlockerNames
-        _focusDurationMinutes.value = preset.durationMinutes
-        _sessionBreaksEnabled.value = preset.breaksEnabled
-        repo.setFocusDurationMinutes(preset.durationMinutes)
-        repo.setSessionBreaksEnabled(preset.breaksEnabled)
-    }
-
     fun selectBlocker(blocker: Blocker) {
         _activeBlockerNames.value = listOf(blocker.name)
-        _selectedPresetId.value = null
     }
 
     fun selectBlockers(blockers: List<Blocker>) {
         _activeBlockerNames.value = blockers.map { it.name }
-        _selectedPresetId.value = null
     }
 
     fun toggleBlocker(blocker: Blocker) {
@@ -299,19 +286,16 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         } else {
             current + blocker.name
         }
-        _selectedPresetId.value = null
     }
 
     fun selectDuration(duration: Int) {
         _focusDurationMinutes.value = duration
         repo.setFocusDurationMinutes(duration)
-        _selectedPresetId.value = null
     }
 
     fun toggleSessionBreaks(enabled: Boolean) {
         _sessionBreaksEnabled.value = enabled
         repo.setSessionBreaksEnabled(enabled)
-        _selectedPresetId.value = null
     }
 
     fun startSession(blockerNames: List<String>) {
@@ -382,11 +366,6 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _manualFocusMode.value = false
     }
 
-    fun setFocusTagId(tagId: String?) {
-        _focusTagId.value = tagId
-        repo.setFocusTagId(tagId)
-    }
-
     fun onActiveScheduleIdChanged(newId: String?) {
         _activeScheduleId.value = newId
         if (newId == null) {
@@ -398,10 +377,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun writeFocusModeState() {
-        // A talisman can hold a session open with manual mode off, so "manual
-        // mode off" is not "no session" — only clear break/countdown state
-        // when neither anchor is active.
-        val sessionActive = _manualFocusMode.value || _focusTagId.value != null
+        val sessionActive = _manualFocusMode.value
         repo.writeFocusModeState(
             manualFocusMode = _manualFocusMode.value,
             activeBlockerNames = _activeBlockerNames.value,
@@ -433,7 +409,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _isOnBreak.value = repo.getIsOnBreak()
         _breaksUsedThisSession.value = repo.getBreaksUsedThisSession()
         _breakTimeRemaining.value = repo.getEffectiveBreakTimeRemaining()
-        _focusTagId.value = repo.getFocusTagId()
+        _activeTalismanId.value = repo.getActiveTalismanId()
         _activeScheduleId.value = repo.getActiveScheduleId()
         _focusSessions.value = repo.getFocusSessions()
         _longestStreak.value = repo.getLongestStreak()

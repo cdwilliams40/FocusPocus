@@ -1,6 +1,14 @@
 package com.infinicada.focuspocus.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,20 +43,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.infinicada.focuspocus.NamedTag
+import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TalismansScreen(
     lastScannedTagId: String?,
-    namedTags: List<NamedTag>,
+    namedTags: List<Talisman>,
+    blockerLists: List<Blocker>,
     onSaveTag: (String) -> Unit,
-    onDeleteTag: (NamedTag) -> Unit,
+    onSaveSetup: (Talisman) -> Unit,
+    onDeleteTag: (Talisman) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var tagName by remember { mutableStateOf("") }
+    var editing by remember { mutableStateOf<Talisman?>(null) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -128,12 +141,22 @@ fun TalismansScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(tag.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                talismanSummary(tag, blockerLists),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        Button(
-                            onClick = { onDeleteTag(tag) },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text(stringResource(R.string.talismans_disenchant))
+                        Column(horizontalAlignment = Alignment.End) {
+                            TextButton(onClick = { editing = tag }) {
+                                Text(stringResource(R.string.talisman_setup_edit))
+                            }
+                            Button(
+                                onClick = { onDeleteTag(tag) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text(stringResource(R.string.talismans_disenchant))
+                            }
                         }
                     }
                 }
@@ -149,5 +172,134 @@ fun TalismansScreen(
                 }
             }
         }
+    }
+
+    editing?.let { talisman ->
+        TalismanSetupDialog(
+            talisman = talisman,
+            blockerLists = blockerLists,
+            onSave = {
+                onSaveSetup(it)
+                editing = null
+            },
+            onDismiss = { editing = null }
+        )
+    }
+}
+
+/** "Social, Games · 60 min · only this talisman ends it" */
+@Composable
+private fun talismanSummary(talisman: Talisman, blockerLists: List<Blocker>): String {
+    val names = talisman.enchantments.filter { name -> blockerLists.any { it.name == name } }
+    if (names.isEmpty()) return stringResource(R.string.talisman_setup_none)
+    val parts = mutableListOf(names.joinToString(", "))
+    parts += talisman.timedMinutes?.let { stringResource(R.string.talisman_setup_minutes, it) }
+        ?: stringResource(R.string.talisman_setup_open_ended)
+    if (talisman.locksSession) parts += stringResource(R.string.talisman_setup_locked_short)
+    return parts.joinToString(" · ")
+}
+
+private val DURATION_CHOICES = listOf(0, 15, 25, 30, 45, 60, 90, 120)
+
+/** What a tap of [talisman] starts: enchantments, length, breaks, and whether only it can end it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TalismanSetupDialog(
+    talisman: Talisman,
+    blockerLists: List<Blocker>,
+    onSave: (Talisman) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember { mutableStateOf(talisman.enchantments.toSet()) }
+    var minutes by remember { mutableIntStateOf(talisman.timedMinutes ?: 0) }
+    var breaks by remember { mutableStateOf(talisman.breaksAllowed) }
+    var locked by remember { mutableStateOf(talisman.locksSession) }
+    val durationChoices = (DURATION_CHOICES + minutes).distinct().sorted()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.talisman_setup_title, talisman.name)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.talisman_setup_enchantments), style = MaterialTheme.typography.labelLarge)
+                Spacer(modifier = Modifier.height(4.dp))
+                if (blockerLists.isEmpty()) {
+                    Text(
+                        stringResource(R.string.talisman_setup_no_enchantments),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    blockerLists.forEach { blocker ->
+                        FilterChip(
+                            selected = blocker.name in selected,
+                            onClick = {
+                                selected = if (blocker.name in selected) selected - blocker.name else selected + blocker.name
+                            },
+                            label = { Text(blocker.name) }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(stringResource(R.string.talisman_setup_length), style = MaterialTheme.typography.labelLarge)
+                Spacer(modifier = Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    durationChoices.forEach { choice ->
+                        FilterChip(
+                            selected = minutes == choice,
+                            onClick = { minutes = choice },
+                            label = {
+                                Text(
+                                    if (choice == 0) stringResource(R.string.talisman_setup_open_ended)
+                                    else stringResource(R.string.talisman_setup_minutes, choice)
+                                )
+                            }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SetupSwitchRow(stringResource(R.string.home_allow_breaks), breaks) { breaks = it }
+                SetupSwitchRow(stringResource(R.string.talisman_setup_locked), locked) { locked = it }
+                Text(
+                    stringResource(R.string.talisman_setup_locked_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        talisman.copy(
+                            // Keep the dialog's order stable: the enchantment list's own order.
+                            blockerNames = blockerLists.map { it.name }.filter { it in selected },
+                            durationMinutes = minutes,
+                            breaksEnabled = breaks,
+                            requireToEnd = locked
+                        )
+                    )
+                },
+                enabled = selected.isNotEmpty()
+            ) {
+                Text(stringResource(R.string.talisman_setup_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
+}
+
+@Composable
+private fun SetupSwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

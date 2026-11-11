@@ -24,7 +24,6 @@ object SessionTransitions {
         Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS,
         Constants.PrefsKeys.MANUAL_FOCUS_MODE,
         Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
-        Constants.PrefsKeys.FOCUS_TAG_ID,
         Constants.PrefsKeys.SESSION_BREAKS_ENABLED,
         Constants.PrefsKeys.AUTO_BREAK_ENABLED,
         Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES
