@@ -144,13 +144,6 @@ class SettingsRepository(private val prefs: SharedPreferences) {
         prefs.edit { putBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, enabled) }
     }
 
-    fun getWrapupEnabled(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.WRAPUP_ENABLED, true)
-
-    fun setWrapupEnabled(enabled: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.WRAPUP_ENABLED, enabled) }
-    }
-
     fun getTrialAlertsEnabled(): Boolean =
         prefs.getBoolean(Constants.PrefsKeys.TRIAL_ALERTS_ENABLED, true)
 

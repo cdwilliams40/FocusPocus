@@ -68,12 +68,10 @@ import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.ManaLedgerEntry
-import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.AppIcon
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.SectionHeader
-import com.infinicada.focuspocus.ui.components.SigilTile
 import com.infinicada.focuspocus.ui.components.StatTile
 import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.ledgerReason
@@ -101,15 +99,14 @@ fun UsageStatsScreen(
     appTimeLimits: Map<String, Int> = emptyMap(),
     openDailyStats: Map<String, Map<String, AppOpenStats>> = emptyMap(),
     // Progression sections (independent of the time-range tabs above:
-    // trials carry their own periods and sigils are lifetime)
+    // trials carry their own periods)
     progressionEnabled: Boolean = false,
     manaBalance: Long = 0L,
     manaEarnedThisWeek: Long = 0L,
     trials: List<Trial> = emptyList(),
     ledger: List<ManaLedgerEntry> = emptyList(),
-    unlockedSigilIds: Set<String> = emptySet(),
     onClaimTrial: (Trial) -> Unit = {},
-    onOpenBoons: () -> Unit = {}
+    onOpenMana: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageStatsPermission(context)) }
@@ -350,20 +347,14 @@ fun UsageStatsScreen(
                         accent = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     )
-                    StatTile(
-                        value = "${unlockedSigilIds.size}/${SigilCatalog.ALL.size}",
-                        label = stringResource(R.string.insights_sigils_label),
-                        accent = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
             }
             item {
                 Button(
-                    onClick = onOpenBoons,
+                    onClick = onOpenMana,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.insights_manage_boons))
+                    Text(stringResource(R.string.insights_open_mana))
                 }
             }
             if (ledger.isNotEmpty()) {
@@ -420,28 +411,6 @@ fun UsageStatsScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
                             }
                         }
-                    }
-                }
-            }
-
-            // ── Progression: sigils ──
-            item {
-                SectionHeader(stringResource(R.string.insights_sigils_header))
-            }
-            items(SigilCatalog.ALL.chunked(3)) { rowSigils ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    rowSigils.forEach { sigil ->
-                        SigilTile(
-                            sigil = sigil,
-                            unlocked = sigil.id in unlockedSigilIds,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    repeat(3 - rowSigils.size) {
-                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }

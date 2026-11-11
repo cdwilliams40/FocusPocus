@@ -2,12 +2,10 @@ package com.infinicada.focuspocus.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
 import com.infinicada.focuspocus.TrialEngine
 import com.infinicada.focuspocus.data.ProgressionRepository
 import com.infinicada.focuspocus.limit.SessionCooldownManager
-import com.infinicada.focuspocus.model.Boon
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Trial
@@ -27,14 +25,8 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
     private val _trials = MutableStateFlow(repo.getTrials())
     val trials: StateFlow<List<Trial>> = _trials.asStateFlow()
 
-    private val _boons = MutableStateFlow(repo.getBoons())
-    val boons: StateFlow<List<Boon>> = _boons.asStateFlow()
-
     private val _ledger = MutableStateFlow(repo.getLedger())
     val ledger: StateFlow<List<ManaLedgerEntry>> = _ledger.asStateFlow()
-
-    private val _unlockedSigilIds = MutableStateFlow(repo.getUnlockedSigilIds())
-    val unlockedSigilIds: StateFlow<Set<String>> = _unlockedSigilIds.asStateFlow()
 
     private val _extraBreakTokens = MutableStateFlow(repo.getExtraBreakTokens())
     val extraBreakTokens: StateFlow<Int> = _extraBreakTokens.asStateFlow()
@@ -51,9 +43,7 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
         _wellChannelCost.value = repo.getWellChannelCost()
         _balance.value = repo.getBalance()
         _trials.value = repo.getTrials()
-        _boons.value = repo.getBoons()
         _ledger.value = repo.getLedger()
-        _unlockedSigilIds.value = repo.getUnlockedSigilIds()
         _extraBreakTokens.value = repo.getExtraBreakTokens()
         _manaEarnedThisWeek.value = computeWeekEarned()
     }
@@ -64,38 +54,11 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
         return mana
     }
 
-    /** False when the boon cap is hit. */
-    fun saveBoon(boon: Boon): Boolean {
-        val saved = repo.saveBoon(boon, _boons.value)
-        refresh()
-        return saved
-    }
-
-    fun deleteBoon(boonId: String) {
-        repo.deleteBoon(boonId, _boons.value)
-        refresh()
-    }
-
-    /** False when the balance doesn't cover the boon. */
-    fun redeemBoon(boon: Boon): Boolean {
-        val redeemed = repo.redeemBoon(boon)
+    fun redeemPerk(perk: Perk): Boolean {
+        val redeemed = repo.redeemPerk(perk)
         refresh()
         return redeemed
     }
-
-    fun redeemPerk(perk: Perk, packageName: String? = null): Boolean {
-        val redeemed = repo.redeemPerk(perk, packageName)
-        // The sealed-minutes perk grants a pact allowance, which under Warden
-        // greying must also lift the app's OS suspension right away.
-        if (redeemed && perk == Perk.SEALED_MINUTES) {
-            DeviceOwnerManager.syncSuspensions(getApplication())
-        }
-        refresh()
-        return redeemed
-    }
-
-    fun isSealedMinutesAvailableToday(packageName: String): Boolean =
-        repo.isSealedMinutesAvailableToday(packageName)
 
     private fun computeWeekEarned(): Long {
         val weekKey = TrialEngine.weekKeyForDay(SessionCooldownManager.todayString())

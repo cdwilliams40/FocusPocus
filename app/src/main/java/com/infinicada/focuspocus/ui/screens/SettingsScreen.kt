@@ -95,8 +95,6 @@ fun SettingsScreen(
     onHideStopButtonChanged: (Boolean) -> Unit,
     progressionEnabled: Boolean,
     onProgressionEnabledChanged: (Boolean) -> Unit,
-    wrapupEnabled: Boolean,
-    onWrapupEnabledChanged: (Boolean) -> Unit,
     trialAlertsEnabled: Boolean,
     onTrialAlertsEnabledChanged: (Boolean) -> Unit,
     groupSealEnabled: Boolean,
@@ -381,28 +379,6 @@ fun SettingsScreen(
                         Switch(
                             checked = progressionEnabled,
                             onCheckedChange = onProgressionEnabledChanged
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_wrapup_toggle))
-                            Text(
-                                stringResource(R.string.settings_wrapup_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = wrapupEnabled,
-                            onCheckedChange = onWrapupEnabledChanged,
-                            enabled = progressionEnabled
                         )
                     }
 

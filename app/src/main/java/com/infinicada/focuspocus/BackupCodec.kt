@@ -67,7 +67,6 @@ object BackupCodec {
         Constants.PrefsKeys.WELL_CAPACITY_MINUTES,
         Constants.PrefsKeys.WELL_REFILL_INTERVAL_MINUTES,
         Constants.PrefsKeys.PROGRESSION_ENABLED,
-        Constants.PrefsKeys.WRAPUP_ENABLED,
         Constants.PrefsKeys.TRIAL_ALERTS_ENABLED,
         Constants.PrefsKeys.ANALYTICS_CONSENT,
         Constants.PrefsKeys.ANALYTICS_CONSENT_SHOWN,
@@ -84,14 +83,10 @@ object BackupCodec {
         Constants.PrefsKeys.BLOCK_EVENTS,
         Constants.PrefsKeys.APP_OPEN_STATS,
         Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS,
-        Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE,
         Constants.PrefsKeys.MANA_BALANCE,
         Constants.PrefsKeys.MANA_LIFETIME_EARNED,
         Constants.PrefsKeys.MANA_LEDGER,
-        Constants.PrefsKeys.BOONS,
-        Constants.PrefsKeys.TRIALS,
-        Constants.PrefsKeys.UNLOCKED_SIGILS,
-        Constants.PrefsKeys.HIGHEST_STREAK_MILESTONE_PAID
+        Constants.PrefsKeys.TRIALS
     )
 
     data class PrefEntry(val type: String?, val value: String?)

@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
-import com.infinicada.focuspocus.model.Sigil
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
 import com.infinicada.focuspocus.model.TrialType
@@ -55,8 +54,8 @@ fun ledgerReason(entry: ManaLedgerEntry): String = when (entry.kind) {
     LedgerKind.TRIAL -> stringResource(R.string.ledger_trial_reason)
     LedgerKind.BOON -> stringResource(R.string.ledger_boon_reason, entry.title)
     LedgerKind.PERK -> when (entry.refId) {
-        com.infinicada.focuspocus.model.Perk.SEALED_MINUTES.name ->
-            stringResource(R.string.ledger_perk_sealed_minutes)
+        // Legacy: the sealed-minutes perk was removed in 2.0.
+        "SEALED_MINUTES" -> stringResource(R.string.ledger_perk_sealed_minutes)
         com.infinicada.focuspocus.model.Perk.WELL_CHANNEL.name ->
             stringResource(R.string.ledger_perk_well_channel)
         else -> stringResource(R.string.ledger_perk_extra_break)
@@ -156,48 +155,5 @@ fun TrialRow(
             modifier = Modifier.fillMaxWidth(),
             color = if (trial.completed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
         )
-    }
-}
-
-/** A sigil tile: gold and lit when unlocked, dimmed with its hint when locked. */
-@Composable
-fun SigilTile(
-    sigil: Sigil,
-    unlocked: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val lockedText = stringResource(R.string.sigil_state_locked)
-    val unlockedText = stringResource(R.string.sigil_state_unlocked)
-    GlassCard(
-        modifier = modifier
-            .alpha(if (unlocked) 1f else 0.45f)
-            .semantics(mergeDescendants = true) {
-                stateDescription = if (unlocked) unlockedText else lockedText
-            },
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 14.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Icon(
-                Icons.Filled.AutoAwesome,
-                contentDescription = null,
-                tint = if (unlocked) MaterialTheme.colorScheme.tertiary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                stringResource(sigil.titleRes),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (unlocked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                stringResource(sigil.descriptionRes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
     }
 }

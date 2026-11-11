@@ -1,7 +1,6 @@
 package com.infinicada.focuspocus
 
 import android.content.Context
-import android.net.Uri
 import com.google.gson.Gson
 import com.infinicada.focuspocus.handler.NfcResult
 import com.infinicada.focuspocus.handler.TriggerHandler
@@ -51,14 +50,6 @@ class TriggerHandlerTest {
         talismanId = talismanId,
         tempDurationMinutes = tempDurationMinutes
     )
-
-    private fun mockUri(scheme: String?, host: String?, pathSegments: List<String>): Uri {
-        val uri = Mockito.mock(Uri::class.java)
-        Mockito.`when`(uri.scheme).thenReturn(scheme)
-        Mockito.`when`(uri.host).thenReturn(host)
-        Mockito.`when`(uri.pathSegments).thenReturn(pathSegments)
-        return uri
-    }
 
     @Before
     fun setUp() {
@@ -274,56 +265,5 @@ class TriggerHandlerTest {
         val result = handler.handleNfcTag("tag-1", "sched-1", listOf(schedule), listOf(preset), emptyList(), blockerLists)
 
         assertTrue(result is NfcResult.PresetToggled)
-    }
-
-    // ── resolveDeepLink ──
-
-    @Test
-    fun `resolveDeepLink with preset host returns matching preset`() {
-        val preset = makePreset(id = "abc123")
-        val uri = mockUri("focuspocus", "preset", listOf("abc123"))
-
-        val result = handler.resolveDeepLink(uri, listOf(preset), emptyList())
-
-        assertEquals(preset, result)
-    }
-
-    @Test
-    fun `resolveDeepLink with talisman host returns bound preset`() {
-        val talisman = NamedTag("aaa111", "MyTag")
-        val preset = makePreset(id = "abc1", talismanId = "aaa111")
-        val uri = mockUri("focuspocus", "talisman", listOf("aaa111"))
-
-        val result = handler.resolveDeepLink(uri, listOf(preset), listOf(talisman))
-
-        assertEquals(preset, result)
-    }
-
-    @Test
-    fun `resolveDeepLink with wrong scheme returns null`() {
-        val uri = mockUri("https", "preset", listOf("abc123"))
-        val result = handler.resolveDeepLink(uri, emptyList(), emptyList())
-        assertNull(result)
-    }
-
-    @Test
-    fun `resolveDeepLink with unknown host returns null`() {
-        val uri = mockUri("focuspocus", "unknown", listOf("abc123"))
-        val result = handler.resolveDeepLink(uri, emptyList(), emptyList())
-        assertNull(result)
-    }
-
-    @Test
-    fun `resolveDeepLink with invalid ID returns null`() {
-        val uri = mockUri("focuspocus", "preset", listOf("INVALID!@#"))
-        val result = handler.resolveDeepLink(uri, emptyList(), emptyList())
-        assertNull(result)
-    }
-
-    @Test
-    fun `resolveDeepLink with no path segments returns null`() {
-        val uri = mockUri("focuspocus", "preset", emptyList())
-        val result = handler.resolveDeepLink(uri, emptyList(), emptyList())
-        assertNull(result)
     }
 }

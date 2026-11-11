@@ -195,12 +195,10 @@ class SessionRecorderTest {
 
         val result = SessionRecorder.record(fakePrefs, gson)
 
-        // 25 min * (1 + 0.02 * streak(1)) = 25.5 -> 25
+        // 1 mana per focused minute
         assertEquals(25L, result.manaEarned)
         assertEquals(25L, fakePrefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L))
         assertTrue(fakePrefs.getString(Constants.PrefsKeys.MANA_LEDGER, "")!!.contains("SESSION"))
-        // Activity marker for the wrap-up guard
-        assertTrue(fakePrefs.contains(Constants.PrefsKeys.LAST_SESSION_RECORDED_DATE))
     }
 
     @Test
@@ -227,16 +225,6 @@ class SessionRecorderTest {
         val trialsJson = fakePrefs.getString(Constants.PrefsKeys.TRIALS, "")!!
         assertTrue(trialsJson.isNotEmpty())
         assertTrue(result.completedTrials.all { it.progress >= it.target })
-    }
-
-    @Test
-    fun testRecord_unlocksFirstSpellSigil() {
-        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000)
-
-        val result = SessionRecorder.record(fakePrefs, gson)
-
-        assertTrue(result.unlockedSigils.any { it.id == "first_spell" })
-        assertTrue(fakePrefs.getString(Constants.PrefsKeys.UNLOCKED_SIGILS, "")!!.contains("first_spell"))
     }
 
     @Test

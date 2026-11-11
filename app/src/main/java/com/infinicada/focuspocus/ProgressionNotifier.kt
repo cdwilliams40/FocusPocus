@@ -63,23 +63,6 @@ object ProgressionNotifier {
         )
     }
 
-    /** Posts the evening wrap-up. Gating happens in the caller via ProgressionMath.shouldSendWrapup. */
-    fun postDailyWrapup(context: Context, reclaimedMinutes: Int, manaToday: Long, streak: Int) {
-        val hours = reclaimedMinutes / 60
-        val mins = reclaimedMinutes % 60
-        val time = if (hours > 0) {
-            context.getString(R.string.wrapup_time_hours_minutes, hours, mins)
-        } else {
-            context.getString(R.string.wrapup_time_minutes, mins)
-        }
-        post(
-            context,
-            Constants.DAILY_WRAPUP_NOTIFICATION_ID,
-            context.getString(R.string.wrapup_notification_title),
-            context.getString(R.string.wrapup_notification_text, time, manaToday, streak)
-        )
-    }
-
     private fun post(context: Context, id: Int, title: String, text: String) {
         try {
             if (!canPost(context)) return

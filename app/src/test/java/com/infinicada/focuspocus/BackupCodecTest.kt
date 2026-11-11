@@ -166,7 +166,6 @@ class BackupCodecTest {
             Constants.PrefsKeys.PACT_ALLOWANCES,
             Constants.PrefsKeys.PACT_PENDING_REVISIONS,
             Constants.PrefsKeys.LAST_COOLDOWN_RESET_DATE,
-            Constants.PrefsKeys.LAST_WRAPUP_DATE,
             // The Mana Well's pool, today's draws and any queued loosening —
             // a restore must neither refill the Well nor skip its cooling-off
             Constants.PrefsKeys.WELL_LEVEL_MILLIS,
@@ -182,7 +181,9 @@ class BackupCodecTest {
             // This device's Warden bookkeeping and permission snapshot
             Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES,
             Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS,
-            Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT
+            Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT,
+            // Which migrations this device's data has been through
+            Constants.PrefsKeys.SCHEMA_VERSION
         )
 
         val allKeys = Constants.PrefsKeys::class.java.declaredFields

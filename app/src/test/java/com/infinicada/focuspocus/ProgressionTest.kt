@@ -2,11 +2,9 @@ package com.infinicada.focuspocus
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.infinicada.focuspocus.model.Boon
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
-import com.infinicada.focuspocus.model.SigilCatalog
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
 import com.infinicada.focuspocus.model.TrialType
@@ -144,30 +142,6 @@ class ProgressionTest {
         assertTrue(trials().isNotEmpty())
     }
 
-    // ── boons ──
-
-    @Test
-    fun `redeeming a boon debits and unlocks the first-boon sigil`() {
-        setBalance(500L)
-        val boon = Boon("b1", "Game night", 300L)
-
-        assertTrue(Progression.redeemBoon(prefs, gson, boon))
-        assertEquals(200L, balance())
-        val entry = ledger().last()
-        assertEquals(LedgerKind.BOON, entry.kind)
-        assertEquals(-300L, entry.amount)
-        assertEquals("Game night", entry.title)
-        assertTrue(Progression.loadUnlockedSigilIds(prefs, gson).contains(SigilCatalog.FIRST_BOON))
-    }
-
-    @Test
-    fun `a boon costing more than the balance is refused`() {
-        setBalance(100L)
-        assertFalse(Progression.redeemBoon(prefs, gson, Boon("b1", "Too dear", 300L)))
-        assertEquals(100L, balance())
-        assertTrue(ledger().isEmpty())
-    }
-
     // ── perks ──
 
     @Test
@@ -180,42 +154,6 @@ class ProgressionTest {
         assertTrue(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
         assertEquals(450L, balance())
         assertEquals(1, prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0))
-    }
-
-    @Test
-    fun `sealed minutes perk grants an allowance and clears the cooldown`() {
-        setBalance(500L)
-        // An active cooldown for the sealed app
-        val cooldown = com.infinicada.focuspocus.limit.SessionCooldownManager(prefs, gson)
-        val config = com.infinicada.focuspocus.model.AppTimeLimit(
-            packageName = "com.example.feed", dailyLimitMinutes = 0,
-            sessionLimitMinutes = 10, cooldownMinutes = 60
-        )
-        cooldown.startCooldown("com.example.feed", config)
-        assertTrue(cooldown.isInCooldown("com.example.feed"))
-
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.feed"))
-        assertEquals(350L, balance())
-        assertFalse(cooldown.isInCooldown("com.example.feed"))
-        val pacts = com.infinicada.focuspocus.limit.PactManager(prefs, gson)
-        assertTrue(pacts.getAllowanceExpiry("com.example.feed") != null)
-    }
-
-    @Test
-    fun `sealed minutes perk is once per app per day`() {
-        setBalance(500L)
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.feed"))
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.feed"))
-        assertEquals(350L, balance())
-        // A different app is still allowed
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.other"))
-    }
-
-    @Test
-    fun `sealed minutes perk requires a package`() {
-        setBalance(500L)
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, null))
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, ""))
     }
 
     // ── Mana Well channeling ──
@@ -291,40 +229,6 @@ class ProgressionTest {
         assertEquals(500L, balance())
     }
 
-    @Test
-    fun `sealed minutes perk is refused while the Well is on`() {
-        setBalance(500L)
-        wellWithRoom()
-
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.SEALED_MINUTES, "com.example.feed"))
-        assertEquals(500L, balance())
-        val pacts = com.infinicada.focuspocus.limit.PactManager(prefs, gson)
-        assertTrue(pacts.getAllowanceExpiry("com.example.feed") == null)
-    }
-
-    // ── sigils ──
-
-    @Test
-    fun `sigil unlocks are idempotent`() {
-        val first = Progression.unlockSigils(prefs, gson, listOf(SigilCatalog.WARDEN))
-        assertEquals(1, first.size)
-        val again = Progression.unlockSigils(prefs, gson, listOf(SigilCatalog.WARDEN))
-        assertTrue(again.isEmpty())
-        assertEquals(setOf(SigilCatalog.WARDEN), Progression.loadUnlockedSigilIds(prefs, gson))
-    }
-
-    @Test
-    fun `unknown sigil ids are ignored`() {
-        assertTrue(Progression.unlockSigils(prefs, gson, listOf("not_a_sigil")).isEmpty())
-        assertTrue(Progression.loadUnlockedSigilIds(prefs, gson).isEmpty())
-    }
-
-    @Test
-    fun `sigil unlocks are gated by the master toggle`() {
-        prefs.putBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, false)
-        assertTrue(Progression.unlockSigils(prefs, gson, listOf(SigilCatalog.WARDEN)).isEmpty())
-    }
-
     // ── ledger ──
 
     @Test
@@ -377,10 +281,12 @@ class ProgressionTest {
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 1, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
         ))
+        setBalance(60L)
         Progression.claimTrial(prefs, gson, "t1")
         assertEquals(40L, prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L))
-        assertTrue(Progression.redeemBoon(prefs, gson, Boon("b", "Snack", 10L)))
+        prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
+        assertTrue(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
         assertEquals(40L, prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L))
-        assertEquals(30L, balance())
+        assertEquals(50L, balance())
     }
 }

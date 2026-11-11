@@ -121,7 +121,7 @@ fun PactsHomeScreen(
     onGrantUsageAccess: () -> Unit,
     batteryUnrestricted: Boolean,
     onFixBattery: () -> Unit,
-    onOpenBoons: () -> Unit,
+    onOpenMana: () -> Unit,
     onOpenFocus: () -> Unit,
     onMakePact: () -> Unit,
     onSealAll: () -> Unit,
@@ -247,7 +247,7 @@ fun PactsHomeScreen(
                 progressionEnabled = progressionEnabled,
                 manaBalance = manaBalance,
                 currentStreak = currentStreak,
-                onOpenBoons = onOpenBoons
+                onOpenMana = onOpenMana
             )
         }
 
@@ -539,7 +539,7 @@ private fun DashboardHeader(
     progressionEnabled: Boolean,
     manaBalance: Long,
     currentStreak: Int,
-    onOpenBoons: () -> Unit
+    onOpenMana: () -> Unit
 ) {
     if (anyGuards) {
         val parts = listOfNotNull(
@@ -589,7 +589,7 @@ private fun DashboardHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (progressionEnabled) {
-                ManaChip(balance = manaBalance, onClick = onOpenBoons)
+                ManaChip(balance = manaBalance, onClick = onOpenMana)
             }
             if (currentStreak > 0) {
                 StreakBadge(currentStreak)

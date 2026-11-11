@@ -55,8 +55,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var nfcTriggerCount by mutableIntStateOf(0)
 
     // Deep link confirmation state
-    private var pendingDeepLinkPreset by mutableStateOf<FocusPreset?>(null)
-    private var showDeepLinkConfirmation by mutableStateOf(false)
 
     // Session-state keys the accessibility service can change on its own (ending rituals,
     // expiring timed sessions, starting/ending breaks). These are only written on state
@@ -132,40 +130,15 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     isServiceEnabled = isServiceEnabled,
                     lastScannedTagId = lastScannedTagId,
                     nfcTriggerCount = nfcTriggerCount,
-                    pendingDeepLinkPreset = pendingDeepLinkPreset,
-                    showDeepLinkConfirmation = showDeepLinkConfirmation,
-                    onConfirmDeepLink = { confirmDeepLinkAction() },
-                    onDismissDeepLink = { dismissDeepLinkConfirmation() },
                     onActivateTalismanPreset = { preset -> runPresetToggle(preset) },
                     modifier = Modifier
                 )
             }
         }
-
-        // Only on a fresh launch: re-running this on recreation (rotation,
-        // process death) would re-show the deep-link confirmation for a link
-        // the user already answered. Warm relaunches come in via onNewIntent.
-        if (savedInstanceState == null) {
-            handleIntent(intent)
-        }
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        val data = intent?.data ?: return
-        val container = (application as FocusPocusApplication).container
-        val preset = triggerHandler.resolveDeepLink(
-            data,
-            container.presets.getPresets(),
-            container.talismans.getNamedTags()
-        )
-        if (preset != null) {
-            pendingDeepLinkPreset = preset
-            showDeepLinkConfirmation = true
-        }
     }
 
     /**
-     * Toggles [preset] exactly as an NFC tap or confirmed deep link would —
+     * Toggles [preset] exactly as an NFC tap would —
      * one path, so the ritual-lock gate and session bookkeeping in
      * [TriggerHandler.togglePreset] apply to every trigger source, including
      * the Focus tab's in-app talisman activation.
@@ -189,21 +162,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             }
             else -> {}
         }
-    }
-
-    private fun confirmDeepLinkAction() {
-        pendingDeepLinkPreset?.let { runPresetToggle(it) }
-        dismissDeepLinkConfirmation()
-    }
-
-    private fun dismissDeepLinkConfirmation() {
-        pendingDeepLinkPreset = null
-        showDeepLinkConfirmation = false
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
     }
 
     override fun onResume() {
