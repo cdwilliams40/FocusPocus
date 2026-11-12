@@ -106,6 +106,7 @@
     <string name="home_guard_empty_focus_hint">Vous préférez les sessions minutées ? Lancez-en une depuis l\'onglet Concentration.</string>
     <string name="home_create_enchantment">Créer un enchantement</string>
     <string name="home_request_time_hint">Touchez une appli pour choisir vos minutes et l\'ouvrir.</string>
+    <string name="home_request_blocked_by_session">%1$s est bloqué par votre session de concentration pour le moment</string>
 
     <!-- Puits de mana : une réserve de temps commune aux applis sous pacte, qui se remplit lentement -->
     <string name="well_title">Puits de mana</string>

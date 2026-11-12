@@ -53,6 +53,17 @@ tick is the backstop. Warden Mode greys out Well apps with no running pact.
   (`TriggerHandler.handleNfcTag`).
 - Breaks, auto-breaks, the emergency stop and the talisman lock work for
   every kind of session.
+- A ritual ended before its window closes (its talisman, the stop button,
+  the emergency stop) stays ended for the rest of that window:
+  `SessionManager.stopSession` notes it, and the two paths that catch up on a
+  missed start — the service reconnecting and the alarm backstop — skip it
+  (`findRitualToResume`).
+- `BlockerRepository.sessionBlockerFor` is the one definition of what a
+  running session blocks. The service enforces it; the Well tab uses it to
+  refuse a pact for an app the session would block anyway.
+- Countdowns show whole seconds rounded up (`DisplayTicks.countdownSeconds`),
+  so 0 means the end has passed. Ending sessions and parking the countdown
+  for a break both rely on that.
 
 ## Mana
 

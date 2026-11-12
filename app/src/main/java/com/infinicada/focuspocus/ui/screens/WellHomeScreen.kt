@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -76,9 +77,10 @@ private const val REQUEST_GRID_COLUMNS = 4
 
 /**
  * The app's default screen: the Mana Well and the apps behind it. The Well
- * card shows how much time is left and lets mana top it up; "Request time"
- * offers every Well app without a running pact; running pacts can be ended
- * early to pour the rest back; the app list below leads to the editor.
+ * card shows how much time is left and lets mana top it up; running pacts
+ * can be ended early to pour the rest back; "Request time" offers every Well
+ * app without a running pact; then come the day's trials and the app list,
+ * which leads to the editor.
  */
 @Composable
 fun WellHomeScreen(
@@ -108,7 +110,10 @@ fun WellHomeScreen(
     onChannelMana: () -> Boolean,
     modifier: Modifier = Modifier,
     trials: List<Trial> = emptyList(),
-    onClaimTrial: (Trial) -> Unit = {}
+    onClaimTrial: (Trial) -> Unit = {},
+    /** Well apps the running focus session blocks: no pact is offered for these. */
+    sessionBlockedPackages: Set<String> = emptySet(),
+    onBlockedBySession: (appName: String) -> Unit = {}
 ) {
     // Names come only from the installed-apps scan; a package the scan hasn't
     // reached falls back to its raw name — no PackageManager call here.
@@ -197,21 +202,6 @@ fun WellHomeScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Today's trials: the reasons to earn, next to the Well they pay into.
-        if (progressionEnabled && trials.isNotEmpty()) {
-            item(key = "trials") {
-                SectionHeader(stringResource(R.string.home_trials_header))
-                Spacer(modifier = Modifier.height(8.dp))
-                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-                    trials.forEachIndexed { index, trial ->
-                        TrialRow(trial = trial, onClaim = onClaimTrial)
-                        if (index != trials.lastIndex) Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-
         if (running.isNotEmpty()) {
             item(key = "live-header") {
                 SectionHeader(stringResource(R.string.home_section_live))
@@ -238,8 +228,31 @@ fun WellHomeScreen(
                 RequestTimePanel(
                     packages = requestable,
                     names = names,
-                    onClick = { requestTarget = it }
+                    blockedPackages = sessionBlockedPackages,
+                    onClick = {
+                        // A pact for an app the session blocks would be paid
+                        // for and then blocked anyway.
+                        if (it in sessionBlockedPackages) onBlockedBySession(names[it] ?: it)
+                        else requestTarget = it
+                    }
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        // Today's trials sit below the Well's own actions: spending time is
+        // what this tab is opened for, so running pacts and "Request time"
+        // come first.
+        if (progressionEnabled && trials.isNotEmpty()) {
+            item(key = "trials") {
+                SectionHeader(stringResource(R.string.home_trials_header))
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                    trials.forEachIndexed { index, trial ->
+                        TrialRow(trial = trial, onClaim = onClaimTrial)
+                        if (index != trials.lastIndex) Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -621,12 +634,15 @@ private fun RunningPactCard(
 /**
  * The fast lane: every Well app without a running pact as an icon tile. One
  * tap selects the app; the dialog then holds the same anti-reflex pause as
- * the pact overlay before the minute choice.
+ * the pact overlay before the minute choice. Apps the running focus session
+ * blocks are dimmed and only explain themselves.
  */
 @Composable
 private fun RequestTimePanel(
     packages: List<String>,
     names: Map<String, String>,
+    /** Shown dimmed: the running focus session blocks these. */
+    blockedPackages: Set<String>,
     onClick: (String) -> Unit
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
@@ -649,6 +665,7 @@ private fun RequestTimePanel(
                                 onClick = { onClick(pkg) },
                                 onClickLabel = stringResource(R.string.pacts_request_time)
                             )
+                            .alpha(if (pkg in blockedPackages) 0.38f else 1f)
                             .padding(horizontal = 4.dp, vertical = 8.dp)
                     ) {
                         AppIcon(packageName = pkg, contentDescription = null, modifier = Modifier.size(48.dp))

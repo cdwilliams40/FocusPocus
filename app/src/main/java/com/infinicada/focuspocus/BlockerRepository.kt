@@ -55,6 +55,30 @@ object BlockerRepository {
         return getBlockers(prefs).find { it.name == name }
     }
 
+    /**
+     * The enchantment of the running focus session that blocks [packageName]
+     * right now, or null: no session, a break, or none of them covers it.
+     *
+     * A whitelist may only block apps the picker offers ([whitelistBlockable],
+     * i.e. AppUtils.isWhitelistBlockable) — otherwise unselectable system
+     * surfaces (Android Auto's projection UI, permission dialogs…) would be
+     * blocked with no way to exempt them. Shared by the accessibility service
+     * and the dashboard, so "what a session blocks" has one definition.
+     */
+    fun sessionBlockerFor(
+        prefs: SharedPreferences,
+        packageName: String,
+        whitelistBlockable: (String) -> Boolean
+    ): Blocker? {
+        if (!SessionManager.isFocusActive(prefs)) return null
+        if (prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return null
+        val activeNames = getActiveBlockerNames(prefs)
+        return getBlockers(prefs).firstOrNull { blocker ->
+            blocker.name in activeNames && blocker.shouldBlock(packageName) &&
+                (blocker.mode != BlockerMode.WHITELIST || whitelistBlockable(packageName))
+        }
+    }
+
     private var cachedActiveNamesKey: String? = null
     private var cachedActiveNamesValid = false
     private var cachedActiveNames: List<String> = emptyList()

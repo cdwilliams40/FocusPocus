@@ -3,9 +3,7 @@ package com.infinicada.focuspocus.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.infinicada.focuspocus.FocusPocusApplication
-import com.infinicada.focuspocus.TrialEngine
 import com.infinicada.focuspocus.data.ProgressionRepository
-import com.infinicada.focuspocus.limit.DayKey
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Trial
@@ -31,9 +29,6 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
     private val _extraBreakTokens = MutableStateFlow(repo.getExtraBreakTokens())
     val extraBreakTokens: StateFlow<Int> = _extraBreakTokens.asStateFlow()
 
-    private val _manaEarnedThisWeek = MutableStateFlow(computeWeekEarned())
-    val manaEarnedThisWeek: StateFlow<Long> = _manaEarnedThisWeek.asStateFlow()
-
     // What channeling mana into the Well costs right now; it doubles with
     // every channel bought the same day and falls back at midnight.
     private val _wellChannelCost = MutableStateFlow(repo.getWellChannelCost())
@@ -50,7 +45,6 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
         _trials.value = repo.getTrials()
         _ledger.value = repo.getLedger()
         _extraBreakTokens.value = repo.getExtraBreakTokens()
-        _manaEarnedThisWeek.value = computeWeekEarned()
     }
 
     fun claimTrial(trialId: String): Long {
@@ -63,12 +57,5 @@ class ProgressionViewModel(application: Application) : AndroidViewModel(applicat
         val redeemed = repo.redeemPerk(perk)
         refresh()
         return redeemed
-    }
-
-    private fun computeWeekEarned(): Long {
-        val weekKey = TrialEngine.weekKeyForDay(DayKey.today())
-        return repo.getLedger()
-            .filter { it.amount > 0 && it.dateKey.isNotEmpty() && TrialEngine.weekKeyForDay(it.dateKey) == weekKey }
-            .sumOf { it.amount }
     }
 }

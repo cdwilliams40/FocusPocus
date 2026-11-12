@@ -15,11 +15,20 @@ object DisplayTicks {
     private const val MINUTE = 60_000L
 
     /**
-     * For a countdown shown as whole seconds left, `floor(msLeft / 1000)`
-     * (SessionRepository's effective-remaining math): millis until it drops.
+     * A countdown's whole seconds left, rounded up: 25:00 through the first
+     * second, 0:01 through the last, and 0 only once the end has passed.
+     *
+     * Rounding up is what lets "the countdown reads 0" mean "it is over".
+     * Rounded down it read 0 for the whole last second, so the session was
+     * stopped up to a second early — and parked a part second short at every
+     * break — and the recorder then counted a full 25 minutes as 24.
      */
+    fun countdownSeconds(msLeft: Long): Int =
+        if (msLeft <= 0L) 0 else ((msLeft + SECOND - 1L) / SECOND).toInt()
+
+    /** For a countdown shown as [countdownSeconds]: millis until it drops. */
     fun untilCountdownSecondChanges(msLeft: Long): Long =
-        if (msLeft <= 0L) SECOND else msLeft % SECOND + 1L
+        if (msLeft <= 0L) SECOND else (msLeft - 1L) % SECOND + 1L
 
     /** For an elapsed time shown as whole seconds, `floor(msElapsed / 1000)`: millis until it rises. */
     fun untilElapsedSecondChanges(msElapsed: Long): Long =

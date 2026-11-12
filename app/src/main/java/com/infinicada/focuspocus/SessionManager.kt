@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 object SessionManager {
 
@@ -38,6 +39,8 @@ object SessionManager {
             BreakClock.reset(this)
 
             if (scheduleId != null) {
+                // Running again, so no longer "ended early".
+                writeDismissedRituals(this, dismissedRituals(sharedPreferences, now) - scheduleId)
                 putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, scheduleId)
                 remove(Constants.PrefsKeys.FOCUS_DURATION_MINUTES)
                 remove(Constants.PrefsKeys.FOCUS_TIME_REMAINING)
@@ -69,11 +72,24 @@ object SessionManager {
         sharedPreferences: SharedPreferences,
         gson: Gson
     ): RecordResult {
+        // A ritual ended while its window is still open (its talisman, the
+        // stop button, the emergency stop) stays ended for the rest of that
+        // window. Without the note, anything that brings rituals back in line
+        // with the schedule table — the service reconnecting, the alarm
+        // backstop, a reboot, a clock correction — would start it again.
+        val now = System.currentTimeMillis()
+        val endedScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        val windowEnd = sharedPreferences.getLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, 0L)
+        val dismissed = dismissedRituals(sharedPreferences, now).let {
+            if (endedScheduleId != null && windowEnd > now) it + (endedScheduleId to windowEnd) else it
+        }
+
         // Record completed session (and run the progression award step) before
         // the session prefs it reads are cleared below.
         val result: RecordResult? = SessionRecorder.record(sharedPreferences, gson)
 
         sharedPreferences.edit {
+            writeDismissedRituals(this, dismissed)
             putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
             remove(Constants.PrefsKeys.ACTIVE_BLOCKERS)
             remove(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID)
@@ -110,4 +126,32 @@ object SessionManager {
     /** The talisman that started the running session, if one did. */
     fun activeTalismanId(sharedPreferences: SharedPreferences): String? =
         sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, null)
+
+    /**
+     * True when the ritual [scheduleId] was ended early and the window it was
+     * ended in is still open at [now] — it must not be started again until
+     * its next window.
+     */
+    fun isRitualDismissed(
+        sharedPreferences: SharedPreferences,
+        scheduleId: String,
+        now: Long = System.currentTimeMillis()
+    ): Boolean = scheduleId in dismissedRituals(sharedPreferences, now)
+
+    /** Early-ended rituals whose window is still open at [now]: id → window end. */
+    private fun dismissedRituals(sharedPreferences: SharedPreferences, now: Long): Map<String, Long> {
+        val json = sharedPreferences.getString(Constants.PrefsKeys.DISMISSED_RITUALS, null)
+            ?: return emptyMap()
+        return try {
+            val type = object : TypeToken<Map<String, Long>>() {}.type
+            gson.fromJson<Map<String, Long>?>(json, type).orEmpty().filterValues { it > now }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun writeDismissedRituals(editor: SharedPreferences.Editor, dismissed: Map<String, Long>) {
+        if (dismissed.isEmpty()) editor.remove(Constants.PrefsKeys.DISMISSED_RITUALS)
+        else editor.putString(Constants.PrefsKeys.DISMISSED_RITUALS, gson.toJson(dismissed))
+    }
 }

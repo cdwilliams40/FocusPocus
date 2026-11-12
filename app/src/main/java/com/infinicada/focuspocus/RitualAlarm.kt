@@ -72,9 +72,9 @@ object RitualAlarmScheduler {
 
     /**
      * Brings session state in line with the schedule table right now: ends an
-     * active ritual whose window has closed, then activates any ritual whose
-     * window contains this moment — the same rules the service applies on its
-     * own restart (checkMissedScheduleActivation).
+     * active ritual whose window has closed, then activates a ritual whose
+     * window contains this moment and that wasn't ended early in it — the
+     * same rule the service applies on its own restart ([findRitualToResume]).
      */
     private fun reconcile(context: Context) {
         val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
@@ -97,25 +97,22 @@ object RitualAlarmScheduler {
         }
         if (prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) return
 
-        val blockers = BlockerRepository.getBlockers(prefs)
-        for (schedule in schedules) {
-            if (!isScheduleActiveAt(schedule, now)) continue
-            val validNames = schedule.effectiveBlockerNames
-                .filter { name -> blockers.any { it.name == name } }
-            if (validNames.isEmpty()) continue
-            Log.d(TAG, "Alarm starting ritual ${schedule.name}")
-            SessionManager.startSession(
-                sharedPreferences = prefs,
-                blockerNames = validNames,
-                scheduleId = schedule.id,
-                breaksEnabled = schedule.breaksEnabled,
-                scheduleEndTimeMillis = computeScheduleEndMillis(schedule, now)
-            )
-            DndController.updateDndState(context)
-            DeviceOwnerManager.syncSuspensions(context)
-            RitualNotifier.postStarted(context, schedule)
-            return
-        }
+        // A ritual the user ended early in this window is left alone.
+        val blockerNames = BlockerRepository.getBlockers(prefs).mapTo(mutableSetOf()) { it.name }
+        val schedule = findRitualToResume(schedules, now, blockerNames) {
+            SessionManager.isRitualDismissed(prefs, it, now)
+        } ?: return
+        Log.d(TAG, "Alarm starting ritual ${schedule.name}")
+        SessionManager.startSession(
+            sharedPreferences = prefs,
+            blockerNames = schedule.effectiveBlockerNames.filter { it in blockerNames },
+            scheduleId = schedule.id,
+            breaksEnabled = schedule.breaksEnabled,
+            scheduleEndTimeMillis = computeScheduleEndMillis(schedule, now)
+        )
+        DndController.updateDndState(context)
+        DeviceOwnerManager.syncSuspensions(context)
+        RitualNotifier.postStarted(context, schedule)
     }
 
     private fun loadSchedules(prefs: android.content.SharedPreferences): List<Schedule> {

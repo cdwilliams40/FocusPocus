@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
@@ -356,7 +358,9 @@ fun ScheduleEditorScreen(
         )
     }
 
-    Column(modifier = modifier.padding(16.dp)) {
+    // Scrollable: with the break sliders open the form is taller than a small
+    // screen (or any screen with the keyboard up), and Save sits at the bottom.
+    Column(modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text(if (scheduleToEdit != null) stringResource(R.string.rituals_refine) else stringResource(R.string.rituals_concoct), style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 

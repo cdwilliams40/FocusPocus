@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.infinicada.focuspocus.AppUtils
 import com.infinicada.focuspocus.Blocker
+import com.infinicada.focuspocus.BlockerRepository
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
 import com.infinicada.focuspocus.FocusPocusApplication
@@ -92,6 +93,20 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _pendingRemovals = MutableStateFlow(WellApps.pendingRemovals(appPrefs, gson))
     val pendingRemovals: StateFlow<Map<String, Long>> = _pendingRemovals.asStateFlow()
 
+    /** True when the running focus session blocks [packageName] right now. */
+    private fun isBlockedBySession(packageName: String): Boolean =
+        BlockerRepository.sessionBlockerFor(appPrefs, packageName) {
+            AppUtils.isWhitelistBlockable(getApplication(), it)
+        } != null
+
+    /**
+     * Well apps the running focus session blocks. A pact for one of them
+     * would be paid for and then blocked anyway, so the dashboard doesn't
+     * offer it. Asks the package manager per app: off the main thread.
+     */
+    fun getSessionBlockedWellApps(): Set<String> =
+        WellApps.packages(appPrefs, gson).filterTo(mutableSetOf()) { isBlockedBySession(it) }
+
     private fun reloadWellApps() {
         _wellApps.value = WellApps.load(appPrefs, gson)
         _pendingRemovals.value = WellApps.pendingRemovals(appPrefs, gson)
@@ -151,9 +166,24 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
      * The dashboard's request-time flow: the in-app counterpart of the pact
      * overlay, for apps the OS itself refuses to open under Warden greying.
      * Draws from the Well, starts the pact, lifts the suspension, and opens
-     * the app. False when the Well couldn't pay (drained in between).
+     * the app. False when the Well couldn't pay (drained in between) or the
+     * running focus session blocks the app.
      */
     fun requestPactTime(packageName: String, minutes: Int): Boolean {
+        // The session would close the app the moment it opened: refuse
+        // before anything is drawn rather than spend Well minutes on it.
+        if (isBlockedBySession(packageName)) {
+            Toast.makeText(
+                getApplication(),
+                getApplication<Application>().getString(
+                    R.string.home_request_blocked_by_session,
+                    AppUtils.getAppName(getApplication(), packageName)
+                ),
+                Toast.LENGTH_LONG
+            ).show()
+            _dataVersion.value++
+            return false
+        }
         val now = System.currentTimeMillis()
         pactManager.takeLapsedAllowance(packageName, now)
         if (!ManaWell.tryDraw(appPrefs, minutes, now, packageName = packageName)) {
