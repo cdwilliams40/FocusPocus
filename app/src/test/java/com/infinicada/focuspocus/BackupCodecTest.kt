@@ -156,6 +156,8 @@ class BackupCodecTest {
             Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
             Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS,
             Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS,
+            // Rituals ended early today: a restore must not bring one back
+            Constants.PrefsKeys.DISMISSED_RITUALS,
             Constants.PrefsKeys.SESSION_BREAKS_ENABLED,
             Constants.PrefsKeys.SESSION_START_TIME,
             // Per-session perk tokens: cleared at every session start and stop

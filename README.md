@@ -135,7 +135,7 @@ The app has four tabs, plus Settings and the Mana page reached from the top bar 
 
 ### Well Tab (home)
 - The **Mana Well** card: what's left, when it's full again, minutes drawn today, and a pour button with today's price
-- **Today's trials**, a **Request time** grid of your Well apps (most-opened first), and running pacts with **End pact**
+- Running pacts with **End pact**, a **Request time** grid of your Well apps (most-opened first; apps the running focus session blocks are dimmed), then **today's trials**
 - The Well apps list and **Edit Well apps**: add apps, set substitutes, take apps off (24 hours)
 
 ### Focus Tab

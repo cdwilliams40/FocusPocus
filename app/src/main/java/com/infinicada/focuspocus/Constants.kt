@@ -24,6 +24,9 @@ object Constants {
         // Caps how much focus time a ritual session can be credited with if the
         // service was dead when the window ended (SessionRecorder.record).
         const val SCHEDULE_END_TIME_MILLIS = "scheduleEndTimeMillis"
+        // Rituals ended before their window closed (schedule id -> the epoch
+        // millis that window ends). Until then nothing restarts them.
+        const val DISMISSED_RITUALS = "dismissedRituals"
         const val SESSION_BREAKS_ENABLED = "sessionBreaksEnabled"
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"

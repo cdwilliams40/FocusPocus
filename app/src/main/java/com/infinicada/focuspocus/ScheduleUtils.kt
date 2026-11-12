@@ -114,6 +114,24 @@ fun isScheduleActiveAt(schedule: Schedule, nowMillis: Long): Boolean {
 }
 
 /**
+ * The ritual that should be running at [nowMillis] but isn't: the first whose
+ * window is open, that still has one of its enchantments, and that the user
+ * didn't end early in this window ([isDismissed]). Shared by the two paths
+ * that catch up on a missed start — the accessibility service reconnecting
+ * and the alarm backstop.
+ */
+fun findRitualToResume(
+    schedules: List<Schedule>,
+    nowMillis: Long,
+    existingBlockerNames: Set<String>,
+    isDismissed: (scheduleId: String) -> Boolean
+): Schedule? = schedules.firstOrNull { schedule ->
+    isScheduleActiveAt(schedule, nowMillis) &&
+        schedule.effectiveBlockerNames.any { it in existingBlockerNames } &&
+        !isDismissed(schedule.id)
+}
+
+/**
  * Wall-clock millis when [schedule]'s window ends, resolved from [nowMillis]:
  * the next occurrence of the end time (tomorrow when already passed). Null if
  * the end time is malformed.

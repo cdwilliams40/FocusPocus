@@ -104,6 +104,7 @@
     <string name="home_guard_empty_focus_hint">Prefer timed focus sessions? Cast one from the Focus tab.</string>
     <string name="home_create_enchantment">Create an enchantment</string>
     <string name="home_request_time_hint">Tap an app to choose your minutes and open it.</string>
+    <string name="home_request_blocked_by_session">%1$s is blocked by your focus session right now</string>
 
     <!-- Mana Well: one slowly refilling pool of time shared by pact apps -->
     <string name="well_title">Mana Well</string>

@@ -255,6 +255,28 @@ class SessionRecorderTest {
     }
 
     @Test
+    fun testRecord_timedSessionWithBreakKeepsItsFullLength() {
+        // A 25-minute session with a 5-minute break taken 10 min 0.5 s in. The
+        // countdown is parked for the break (in whole seconds) and restarted
+        // after it; parking it rounded down lost the half second and recorded
+        // 24 minutes.
+        val planned = 25
+        val start = System.currentTimeMillis() - 31 * 60_000L
+        val breakStart = start + 10 * 60_000L + 500L
+        val breakEnd = breakStart + 5 * 60_000L
+        val parkedSeconds = DisplayTicks.countdownSeconds(start + planned * 60_000L - breakStart)
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, start)
+        fakePrefs.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, planned)
+        fakePrefs.putLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, breakEnd - breakStart)
+        fakePrefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, breakEnd + parkedSeconds * 1000L)
+
+        val result = SessionRecorder.record(fakePrefs, gson)
+
+        assertEquals(planned, result.recorded!!.durationMinutes)
+        assertEquals(planned.toLong(), result.manaEarned)
+    }
+
+    @Test
     fun testRecord_notesWhatStartedTheSession() {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 10 * 60_000L)
         fakePrefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag-1")

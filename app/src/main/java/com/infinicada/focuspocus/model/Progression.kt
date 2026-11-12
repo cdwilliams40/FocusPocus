@@ -48,8 +48,7 @@ enum class Perk(val costMana: Long) {
 
     /**
      * Minutes poured into the Mana Well. [costMana] is the day's first price;
-     * every further channel the same day doubles it
-     * (ProgressionMath.wellChannelCost), so banked mana can't buy a binge.
+     * every further channel the same day doubles it (ManaRules.pourCost).
      */
     WELL_CHANNEL(com.infinicada.focuspocus.ManaRules.POUR_BASE_COST);
 

@@ -173,7 +173,6 @@ fun FocusPocusApp(
     val trials by progressionVM.trials.collectAsStateWithLifecycle()
     val manaLedger by progressionVM.ledger.collectAsStateWithLifecycle()
     val extraBreakTokens by progressionVM.extraBreakTokens.collectAsStateWithLifecycle()
-    val manaEarnedThisWeek by progressionVM.manaEarnedThisWeek.collectAsStateWithLifecycle()
     val wellChannelCost by progressionVM.wellChannelCost.collectAsStateWithLifecycle()
     val wellSettingsState by settingsVM.wellSettingsState.collectAsStateWithLifecycle()
     val sessionSummaryMana by sessionVM.sessionSummaryMana.collectAsStateWithLifecycle()
@@ -600,6 +599,12 @@ fun FocusPocusApp(
                         // The Mana Well is a few primitive prefs, so it is
                         // read up front: the card is there on the first frame.
                         var homeWell by remember { mutableStateOf(spellbookVM.getWellSnapshot()) }
+                        var sessionBlocked by remember { mutableStateOf(emptySet<String>()) }
+                        // What a session blocks changes with the session itself
+                        // (start, stop, break), which no data mutation announces.
+                        LaunchedEffect(focusMode, isOnBreak, activeBlockerNames, wellApps) {
+                            sessionBlocked = withContext(Dispatchers.IO) { spellbookVM.getSessionBlockedWellApps() }
+                        }
                         LaunchedEffect(dataVersion, homeTick) {
                             val snapshot = withContext(Dispatchers.IO) {
                                 // A removal coming due while the dashboard is
@@ -688,6 +693,14 @@ fun FocusPocusApp(
                             },
                             onRequestTime = { pkg, minutes ->
                                 spellbookVM.requestPactTime(pkg, minutes)
+                            },
+                            sessionBlockedPackages = sessionBlocked,
+                            onBlockedBySession = { appName ->
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.home_request_blocked_by_session, appName),
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
                             well = homeWell,
                             wellChannelCost = wellChannelCost,
@@ -852,12 +865,15 @@ fun FocusPocusApp(
                         )
 
                         is SpellbookRoute.EnchantmentsList -> {
-                            val activeBlockerForList = if (focusMode) {
-                                activeSchedule?.effectiveBlockerNames?.firstOrNull() ?: activeManualBlockers.firstOrNull()?.name
-                            } else null
+                            // Every enchantment the running session uses, so
+                            // none of them can be edited out from under it.
+                            val activeBlockersForList = if (focusMode) {
+                                (activeSchedule?.effectiveBlockerNames.orEmpty() +
+                                    activeManualBlockers.map { it.name }).toSet()
+                            } else emptySet()
                             BlockerListScreen(
                                 blockerLists = blockerLists,
-                                activeBlockerName = activeBlockerForList,
+                                activeBlockerNames = activeBlockersForList,
                                 onBlockerClick = {
                                     spellbookVM.setSelectedBlocker(it)
                                     spellbookVM.navigateTo(SpellbookRoute.EditEnchantment)

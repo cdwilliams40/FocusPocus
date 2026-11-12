@@ -61,4 +61,49 @@ class BlockerRepositoryTest {
         val result = BlockerRepository.getBlocker(fakePrefs, "Test2")
         assertNull(result)
     }
+
+    // ── sessionBlockerFor ──
+
+    private fun runSession(vararg active: String) {
+        fakePrefs.putString(
+            Constants.PrefsKeys.BLOCKER_LISTS,
+            gson.toJson(
+                listOf(
+                    Blocker("Social", BlockerMode.BLACKLIST, setOf("com.social")),
+                    Blocker("Shield", BlockerMode.WHITELIST, setOf("com.maps")),
+                    Blocker("Games", BlockerMode.BLACKLIST, setOf("com.game"))
+                )
+            )
+        )
+        SessionManager.startSession(fakePrefs, active.toList())
+    }
+
+    @Test
+    fun `sessionBlockerFor names the active enchantment that blocks the app`() {
+        runSession("Social")
+        assertEquals("Social", BlockerRepository.sessionBlockerFor(fakePrefs, "com.social") { true }?.name)
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.other") { true })
+        // "Games" exists but isn't part of this session.
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.game") { true })
+    }
+
+    @Test
+    fun `sessionBlockerFor lets a whitelist block only what the picker offers`() {
+        runSession("Shield")
+        assertEquals("Shield", BlockerRepository.sessionBlockerFor(fakePrefs, "com.social") { true }?.name)
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.maps") { true })
+        // A system surface the picker never listed can't be whitelisted, so it isn't blocked.
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.android.permissioncontroller") { false })
+    }
+
+    @Test
+    fun `sessionBlockerFor blocks nothing on a break or without a session`() {
+        runSession("Social")
+        fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.social") { true })
+
+        fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
+        fakePrefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+        assertNull(BlockerRepository.sessionBlockerFor(fakePrefs, "com.social") { true })
+    }
 }

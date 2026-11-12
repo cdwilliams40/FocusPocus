@@ -14,6 +14,12 @@ import com.infinicada.focuspocus.PrefsHelper
  * when it runs out the app simply goes back behind the Well.
  *
  * Pacts are persisted in SharedPreferences so they survive service restarts.
+ *
+ * Every change is a read-modify-write of one JSON map, and the writers sit on
+ * different threads (the pact screen grants off the main thread while the
+ * service sweeps lapsed pacts on it), so each one runs under [lock]. Without
+ * it a sweep that read the map just before a grant landed would write the
+ * grant away — minutes drawn from the Well for a pact that no longer exists.
  */
 class PactManager(
     private val prefs: SharedPreferences,
@@ -33,7 +39,9 @@ class PactManager(
     ) {
         if (packageNames.isEmpty()) return
         val expiry = now + minutes.toLong() * 60 * 1000
-        saveAllowances(loadAllowances() + packageNames.associateWith { expiry })
+        synchronized(lock) {
+            saveAllowances(loadAllowances() + packageNames.associateWith { expiry })
+        }
         Log.d(tag, "Pact granted for ${packageNames.size} app(s): ${minutes}m")
     }
 
@@ -58,12 +66,14 @@ class PactManager(
      * still active.
      */
     fun takeLapsedAllowance(packageName: String, now: Long = System.currentTimeMillis()): Long? {
-        val allowances = loadAllowances()
-        val expiry = allowances[packageName] ?: return null
-        if (expiry > now) return null
-        saveAllowances(allowances - packageName)
-        Log.d(tag, "Pact lapsed for $packageName")
-        return expiry
+        synchronized(lock) {
+            val allowances = loadAllowances()
+            val expiry = allowances[packageName] ?: return null
+            if (expiry > now) return null
+            saveAllowances(allowances - packageName)
+            Log.d(tag, "Pact lapsed for $packageName")
+            return expiry
+        }
     }
 
     /**
@@ -72,12 +82,14 @@ class PactManager(
      * One store write for the whole sweep.
      */
     fun takeLapsedAllowances(now: Long = System.currentTimeMillis()): Map<String, Long> {
-        val allowances = loadAllowances()
-        val lapsed = allowances.filterValues { it <= now }
-        if (lapsed.isEmpty()) return emptyMap()
-        saveAllowances(allowances - lapsed.keys)
-        Log.d(tag, "Pact lapsed for ${lapsed.size} app(s)")
-        return lapsed
+        synchronized(lock) {
+            val allowances = loadAllowances()
+            val lapsed = allowances.filterValues { it <= now }
+            if (lapsed.isEmpty()) return emptyMap()
+            saveAllowances(allowances - lapsed.keys)
+            Log.d(tag, "Pact lapsed for ${lapsed.size} app(s)")
+            return lapsed
+        }
     }
 
     /**
@@ -88,11 +100,13 @@ class PactManager(
     /** Batch twin of [revokeAllowance]: drops every named allowance in one write. */
     fun revokeAllowances(packageNames: Set<String>) {
         if (packageNames.isEmpty()) return
-        val allowances = loadAllowances()
-        val remaining = allowances - packageNames
-        if (remaining.size == allowances.size) return
-        saveAllowances(remaining)
-        Log.d(tag, "Pact allowance revoked for ${allowances.size - remaining.size} app(s)")
+        synchronized(lock) {
+            val allowances = loadAllowances()
+            val remaining = allowances - packageNames
+            if (remaining.size == allowances.size) return
+            saveAllowances(remaining)
+            Log.d(tag, "Pact allowance revoked for ${allowances.size - remaining.size} app(s)")
+        }
     }
 
     private fun loadAllowances(): Map<String, Long> {
@@ -115,6 +129,9 @@ class PactManager(
     }
 
     companion object {
+        // Guards every read-modify-write of the store, across instances.
+        private val lock = Any()
+
         // Parsed-store caches, shared across instances (the service, ViewModels,
         // and the Warden sync each construct their own manager). Allowances are
         // read on every open attempt of a Well app and on every minute

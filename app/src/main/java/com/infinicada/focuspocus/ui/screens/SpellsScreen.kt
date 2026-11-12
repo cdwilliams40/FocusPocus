@@ -52,7 +52,8 @@ import com.infinicada.focuspocus.ui.components.AppPickerDialog
 @Composable
 fun BlockerListScreen(
     blockerLists: List<Blocker>,
-    activeBlockerName: String?,
+    /** Enchantments the running session uses; these can't be opened for editing. */
+    activeBlockerNames: Set<String>,
     onBlockerClick: (Blocker) -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -95,7 +96,7 @@ fun BlockerListScreen(
             }
 
             items(blockerLists) { blocker ->
-                val isActive = blocker.name == activeBlockerName
+                val isActive = blocker.name in activeBlockerNames
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -179,8 +179,8 @@ object SessionNotifier {
         } else {
             prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
         }
-        // Talisman-only sessions have no recorded start, so they get a plain
-        // notification with no chronometer rather than a bogus elapsed time.
+        // Without a recorded start there is nothing to count up from: a plain
+        // notification, no chronometer, rather than a bogus elapsed time.
         val startMillis = prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
         return CountdownState(
             sessionName = sessionName,

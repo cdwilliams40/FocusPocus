@@ -67,8 +67,8 @@ data class WellSnapshot(
 }
 
 /**
- * Pure Well arithmetic, free of Android types so it unit-tests like
- * GuardStatus and ProgressionMath. Every tuning constant lives here.
+ * Pure Well arithmetic, free of Android types so it unit-tests without a
+ * device. Every tuning constant lives here.
  */
 object WellMath {
     const val MINUTE_MS = 60_000L

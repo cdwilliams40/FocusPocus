@@ -153,9 +153,6 @@ class MyAccessibilityService : AccessibilityService() {
     // Minute ticks since the service started, for the productive-app credit
     private var productiveTicks = 0
 
-    // "yyyyMMdd" of the last minute tick, to clear the day's pact warnings at midnight
-    @Volatile private var lastTickDay: String? = null
-
     // Block event recording
     private val pendingBlockEvents = mutableListOf<BlockEvent>()
     @Volatile private var lastBlockEventWriteTime: Long = 0
@@ -254,11 +251,10 @@ class MyAccessibilityService : AccessibilityService() {
         // the suspension sync, so Warden greying follows.
         WellApps.applyDueRemovals(sharedPreferences, gson)
 
-        val today = TrialEngine.dateKeyOf(System.currentTimeMillis())
-        if (today != lastTickDay) {
-            pactWarnedExpiries.clear()
-            lastTickDay = today
-        }
+        // Forget warnings for pacts that have since ended. (Clearing the lot
+        // at midnight repeated the warning for a pact running across it.)
+        val tickNow = System.currentTimeMillis()
+        pactWarnedExpiries.values.removeAll { it <= tickNow }
 
         // Warn shortly before the foreground app's pact runs out.
         currentForegroundPackage?.let { maybeWarnPactEnding(it) }
@@ -426,18 +422,18 @@ class MyAccessibilityService : AccessibilityService() {
         // isScheduleActiveAt carries the overnight rule: only the evening part
         // counts on the scheduled day itself, while the early-morning hours
         // belong to the previous day's session (a Friday-only 22:00–06:00
-        // ritual is active Saturday 03:00, not Friday 03:00).
+        // ritual is active Saturday 03:00, not Friday 03:00). A ritual the
+        // user ended early in this window is not one that was missed.
         val now = System.currentTimeMillis()
-        for (schedule in schedules) {
-            try {
-                if (isScheduleActiveAt(schedule, now)) {
-                    Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
-                    activateSchedule(schedule)
-                    return
-                }
-            } catch (e: Exception) {
-                Log.e("MyAccessibilityService", "Error checking missed schedule: ${schedule.name}", e)
-            }
+        try {
+            val blockerNames = BlockerRepository.getBlockers(sharedPreferences).mapTo(mutableSetOf()) { it.name }
+            val schedule = findRitualToResume(schedules.filterNotNull(), now, blockerNames) {
+                SessionManager.isRitualDismissed(sharedPreferences, it, now)
+            } ?: return
+            Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
+            activateSchedule(schedule)
+        } catch (e: Exception) {
+            Log.e("MyAccessibilityService", "Error checking missed schedules", e)
         }
     }
 
@@ -536,7 +532,9 @@ class MyAccessibilityService : AccessibilityService() {
             putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
             putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed + 1)
             if (focusEnd > 0L) {
-                val focusRemaining = ((focusEnd - now) / 1000L).toInt().coerceAtLeast(0)
+                // Rounded up, like the countdown itself: a break must not
+                // shave a part second off the session.
+                val focusRemaining = DisplayTicks.countdownSeconds(focusEnd - now)
                 putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
                 remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
             }
@@ -643,7 +641,7 @@ class MyAccessibilityService : AccessibilityService() {
         // Re-read from SharedPreferences in case deactivateSchedule() just cleared it above.
         if (currentDay == null) return
         if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
-        schedules.forEach { schedule ->
+        for (schedule in schedules) {
             try {
                 if (schedule.effectiveDays.contains(currentDay)) {
                     val startMins = parseScheduleMinutes(schedule.effectiveStartTime)
@@ -651,6 +649,9 @@ class MyAccessibilityService : AccessibilityService() {
                         Log.e("MyAccessibilityService", "Invalid schedule start time: ${schedule.effectiveStartTime}")
                     } else if (startMins == currentHour * 60 + currentMinute) {
                         activateSchedule(schedule)
+                        // One ritual at a time: a second one starting this
+                        // same minute would end the first on the spot.
+                        if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
                     }
                 }
             } catch (e: Exception) {
@@ -768,7 +769,6 @@ class MyAccessibilityService : AccessibilityService() {
      * talisman lock, a focus session's enchantments, then the Mana Well.
      */
     private fun blockIfDue(packageName: String, now: Long) {
-        val isOnBreak = sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
         val focusActive = SessionManager.isFocusActive(sharedPreferences)
         val nfcLockMode = sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 
@@ -783,37 +783,20 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Don't block apps during a break (for normal blocking)
-        if (isOnBreak) {
-            // The Well still holds during breaks
-            checkWellAndBlock(packageName)
+        // The session's enchantments: none of them blocks during a break.
+        val blocker = BlockerRepository.sessionBlockerFor(sharedPreferences, packageName, ::isWhitelistBlockable)
+        if (blocker != null) {
+            val appName = AppUtils.getAppName(this, packageName)
+            if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
+            lastAppBlockTimes[packageName] = now
+            currentForegroundPackage = null
+            recordBlockEvent(packageName, blocker.name)
+            closeApp()
+            showOverlay(appName, getActiveBlockerNames().joinToString(", "))
             return
         }
 
-        if (focusActive) {
-            val blockerLists = BlockerRepository.getBlockers(sharedPreferences)
-            val activeBlockerNames = getActiveBlockerNames()
-            val activeBlockers = blockerLists.filter { it.name in activeBlockerNames }
-
-            for (blocker in activeBlockers) {
-                // A whitelist may only block apps the picker offers — otherwise
-                // unselectable system surfaces (Android Auto's projection UI,
-                // permission dialogs…) get blocked with no way to exempt them.
-                if (blocker.mode == BlockerMode.WHITELIST && !isWhitelistBlockable(packageName)) continue
-                if (blocker.shouldBlock(packageName)) {
-                    val appName = AppUtils.getAppName(this, packageName)
-                    if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Blocking app: $appName")
-                    lastAppBlockTimes[packageName] = now
-                    currentForegroundPackage = null
-                    recordBlockEvent(packageName, blocker.name)
-                    closeApp()
-                    showOverlay(appName, activeBlockerNames.joinToString(", "))
-                    return
-                }
-            }
-        }
-
-        // The Mana Well (always active, even outside focus mode)
+        // The Mana Well (always active: outside focus mode and during breaks too)
         checkWellAndBlock(packageName)
     }
 

@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,14 +94,23 @@ class OverlayActivity : ComponentActivity() {
             }
         })
 
-        renderOverlay(intent)
+        // A rotation re-creates the activity for the same block: not a new one.
+        renderOverlay(intent, newBlock = savedInstanceState == null)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        renderOverlay(intent)
+        blocksShown++
+        renderOverlay(intent, newBlock = true)
     }
+
+    /**
+     * Blocks this instance has been reused for (the activity is singleTask).
+     * Keys the composition, so the next block starts its own pause instead of
+     * inheriting a countdown the previous one already finished.
+     */
+    private var blocksShown = 0
 
     override fun onStop() {
         super.onStop()
@@ -124,7 +134,11 @@ class OverlayActivity : ComponentActivity() {
         finishAndRemoveTask()
     }
 
-    private fun renderOverlay(intent: Intent) {
+    /**
+     * [newBlock] is false when the same block is only being drawn again (a
+     * rotation, the offer after a pour), so it isn't counted twice.
+     */
+    private fun renderOverlay(intent: Intent, newBlock: Boolean) {
         // Each rendered overlay gets a fresh grant budget: the activity is
         // singleTask, so onNewIntent re-renders this same instance for the next
         // blocked app, and a leftover flag would leave its buttons dead.
@@ -152,7 +166,7 @@ class OverlayActivity : ComponentActivity() {
             // Too dry for a pact: note it, and offer a pour when mana can buy
             // one and the Well has room for it.
             val pourCost: Long? = if (choices.isEmpty()) {
-                ManaWell.recordDry(prefs)
+                if (newBlock) ManaWell.recordDry(prefs)
                 val cost = Progression.wellChannelCost(prefs, Gson())
                 val hasRoom = well.levelMillisAt(now) + ManaRules.POUR_MINUTES * WellMath.MINUTE_MS <=
                     well.capacityMinutes * WellMath.MINUTE_MS
@@ -162,7 +176,7 @@ class OverlayActivity : ComponentActivity() {
                 }
             } else null
             setContent {
-                FocusPocusTheme(themeMode = themeMode) {
+                FocusPocusTheme(themeMode = themeMode) { key(blocksShown) {
                     if (choices.isEmpty()) {
                         WellDryScreen(
                             appName = appName,
@@ -175,7 +189,7 @@ class OverlayActivity : ComponentActivity() {
                             onPour = {
                                 if (Progression.redeemPerk(prefs, Gson(), com.infinicada.focuspocus.model.Perk.WELL_CHANNEL)) {
                                     // Show the pact offer with the minutes just poured.
-                                    renderOverlay(intent)
+                                    renderOverlay(intent, newBlock = false)
                                 } else {
                                     Toast.makeText(this, R.string.well_channel_failed, Toast.LENGTH_SHORT).show()
                                 }
@@ -196,18 +210,20 @@ class OverlayActivity : ComponentActivity() {
                             onDecline = { closeAndGoHome() }
                         )
                     }
-                }
+                } }
             }
             return
         }
 
         setContent {
             FocusPocusTheme(themeMode = themeMode) {
-                OverlayScreen(
-                    appName = appName,
-                    spellName = spellName,
-                    onClose = { closeAndGoHome() }
-                )
+                key(blocksShown) {
+                    OverlayScreen(
+                        appName = appName,
+                        spellName = spellName,
+                        onClose = { closeAndGoHome() }
+                    )
+                }
             }
         }
     }

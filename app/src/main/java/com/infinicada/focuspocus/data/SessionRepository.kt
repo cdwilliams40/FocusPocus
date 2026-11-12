@@ -9,6 +9,7 @@ import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.BreakClock
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.DeviceOwnerManager
+import com.infinicada.focuspocus.DisplayTicks
 import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.PrefsHelper
@@ -96,12 +97,16 @@ class SessionRepository(
      * The stored countdown only ticks while the UI is alive, so after process
      * death it is stale; the end timestamp is authoritative. During a break the
      * countdown is paused and the stored (frozen) value is correct.
+     *
+     * Rounded up ([DisplayTicks.countdownSeconds]): 0 means the end has passed,
+     * which the view model relies on to end the session, and a break parks
+     * this value without losing a part second.
      */
     fun getEffectiveFocusTimeRemaining(): Int {
         if (getIsOnBreak()) return getFocusTimeRemaining()
         val endTime = getFocusEndTimeMillis()
         if (endTime <= 0L) return getFocusTimeRemaining()
-        return (((endTime - System.currentTimeMillis()) / 1000L).toInt()).coerceAtLeast(0)
+        return DisplayTicks.countdownSeconds(endTime - System.currentTimeMillis())
     }
 
     /** Break seconds remaining derived from the persisted wall-clock end time. */
@@ -109,7 +114,7 @@ class SessionRepository(
         if (!getIsOnBreak()) return 0
         val endTime = getBreakEndTimeMillis()
         if (endTime <= 0L) return getBreakTimeRemaining()
-        return (((endTime - System.currentTimeMillis()) / 1000L).toInt()).coerceAtLeast(0)
+        return DisplayTicks.countdownSeconds(endTime - System.currentTimeMillis())
     }
 
     fun getSessionBreaksEnabled(): Boolean =

@@ -8,12 +8,27 @@ import org.junit.Test
 class DisplayTicksTest {
 
     @Test
-    fun `countdown second wakes just after the floor value drops`() {
-        // 5.300 s left shows 5; it shows 4 once under 5.000 s, i.e. 301 ms on.
-        assertEquals(301L, DisplayTicks.untilCountdownSecondChanges(5_300L))
-        // Exactly on a boundary: one millisecond later it drops.
-        assertEquals(1L, DisplayTicks.untilCountdownSecondChanges(5_000L))
-        assertEquals(1_000L, DisplayTicks.untilCountdownSecondChanges(4_999L))
+    fun `countdown seconds round up and read zero only once the end has passed`() {
+        assertEquals(1_500, DisplayTicks.countdownSeconds(25 * 60_000L))
+        assertEquals(900, DisplayTicks.countdownSeconds(899_500L))
+        assertEquals(1, DisplayTicks.countdownSeconds(999L))
+        assertEquals(1, DisplayTicks.countdownSeconds(1L))
+        assertEquals(0, DisplayTicks.countdownSeconds(0L))
+        assertEquals(0, DisplayTicks.countdownSeconds(-5_000L))
+    }
+
+    @Test
+    fun `countdown second wakes exactly when the shown value drops`() {
+        // 5.300 s left shows 6; it shows 5 at 5.000 s left, 300 ms on.
+        assertEquals(300L, DisplayTicks.untilCountdownSecondChanges(5_300L))
+        // Exactly on a boundary: the value holds for a full second.
+        assertEquals(1_000L, DisplayTicks.untilCountdownSecondChanges(5_000L))
+        assertEquals(999L, DisplayTicks.untilCountdownSecondChanges(4_999L))
+        // The last wake of a countdown lands on its end, never before it.
+        val wait = DisplayTicks.untilCountdownSecondChanges(700L)
+        assertEquals(700L, wait)
+        assertEquals(1, DisplayTicks.countdownSeconds(700L - wait + 1L))
+        assertEquals(0, DisplayTicks.countdownSeconds(700L - wait))
     }
 
     @Test

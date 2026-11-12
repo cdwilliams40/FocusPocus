@@ -199,6 +199,36 @@ class ScheduleUtilsTest {
     }
 
     @Test
+    fun `findRitualToResume picks an open ritual that still has an enchantment`() {
+        val open = schedule(weekdays, "09:00", "17:00")
+        val closed = schedule(weekdays, "18:00", "19:00")
+        val now = wednesdayAt(10, 0).timeInMillis
+
+        org.junit.Assert.assertEquals(
+            open, findRitualToResume(listOf(closed, open), now, setOf("Work")) { false }
+        )
+        // Its only enchantment has been deleted: nothing to enforce.
+        org.junit.Assert.assertNull(findRitualToResume(listOf(open), now, setOf("Other")) { false })
+        org.junit.Assert.assertNull(findRitualToResume(listOf(closed), now, setOf("Work")) { false })
+    }
+
+    @Test
+    fun `findRitualToResume leaves a ritual ended early in this window alone`() {
+        val shield = schedule(weekdays, "06:00", "12:00")
+        val later = schedule(weekdays, "09:00", "17:00")
+        val now = wednesdayAt(10, 0).timeInMillis
+
+        // Shield was ended with its talisman at some point this morning.
+        org.junit.Assert.assertNull(
+            findRitualToResume(listOf(shield), now, setOf("Work")) { it == shield.id }
+        )
+        // Another ritual whose window is open is still caught up on.
+        org.junit.Assert.assertEquals(
+            later, findRitualToResume(listOf(shield, later), now, setOf("Work")) { it == shield.id }
+        )
+    }
+
+    @Test
     fun `computeScheduleEndMillis resolves to the next end occurrence`() {
         val s = schedule(weekdays, "09:00", "17:00")
         val beforeEnd = wednesdayAt(10, 0)
