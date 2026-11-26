@@ -19,8 +19,28 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing for CI (see .github/workflows/release.yml). Only set up when
+    // the environment provides a keystore, so local builds and Android Studio's
+    // "Generate Signed Bundle" wizard work as before.
+    val uploadStoreFile = System.getenv("SIGNING_STORE_FILE")
+    if (uploadStoreFile != null) {
+        signingConfigs {
+            create("upload") {
+                storeFile = file(uploadStoreFile)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "upload"
+                // PKCS12 keystores use the store password for the key as well.
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")?.takeIf { it.isNotEmpty() }
+                    ?: System.getenv("SIGNING_STORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (uploadStoreFile != null) {
+                signingConfig = signingConfigs.getByName("upload")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

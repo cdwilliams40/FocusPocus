@@ -209,3 +209,7 @@ This project is licensed under the MIT License.
 
 - Built with [Jetpack Compose](https://developer.android.com/jetpack/compose)
 - Material Design 3 components from [Material Components Android](https://github.com/material-components/material-components-android)
+
+## Releasing
+
+Merging a PR to `master` that raises `versionCode` in `app/build.gradle.kts` publishes a signed bundle to the Play **internal testing** track (`.github/workflows/release.yml`), tags the commit `vX.Y.Z`, and keeps the bundle and R8 mapping as a workflow artifact. The Play "What's new" text comes from `distribution/whatsnew/whatsnew-en-US` (500 characters max). Promote a build to production from Play Console. The Actions tab's "Run workflow" button (from `master` only) publishes `master`'s current `versionCode`. Play refuses a `versionCode` it has already received, so this is for retrying a run that failed before the upload, not for republishing. To use a key alias other than `upload`, set the `UPLOAD_KEY_ALIAS` repository variable.
