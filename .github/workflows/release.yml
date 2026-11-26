@@ -1,6 +1,6 @@
 name: Release to Google Play
 
-# Publishes a signed release bundle to the Play internal testing track when a
+# Publishes a signed release bundle to the Play closed testing (alpha) track when a
 # push to master changes versionCode (that is, when a PR carrying a
 # "Bump to X (versionCode N)" commit is merged). Merges without a versionCode
 # bump build nothing here. "Run workflow" in the Actions tab (master only)
@@ -75,7 +75,7 @@ jobs:
           fi
 
   publish:
-    name: Build and upload to Play (internal)
+    name: Build and upload to Play (closed testing)
     needs: check-version
     if: needs.check-version.outputs.publish == 'true' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
@@ -128,14 +128,14 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Upload to Play internal track
+      - name: Upload to Play closed testing (alpha) track
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.infinicada.focuspocus
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
-          track: internal
+          track: alpha
           status: completed
           mappingFile: app/build/outputs/mapping/release/mapping.txt
           whatsNewDirectory: distribution/whatsnew
