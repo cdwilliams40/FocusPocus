@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.data.BlockerListRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,7 +11,6 @@ class BlockerListRepositoryTest {
 
     private lateinit var prefs: FakeSharedPreferences
     private lateinit var repo: BlockerListRepository
-    private val gson = Gson()
 
     private fun makeBlocker(
         name: String = "TestBlocker",
@@ -21,21 +19,19 @@ class BlockerListRepositoryTest {
 
     /** Writes [blockers] straight to prefs, bypassing the repo (simulates existing state). */
     private fun storeDirectly(blockers: List<Blocker>) {
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.BLOCKER_LISTS, blockers)
+        PrefsHelper.save(prefs, Constants.PrefsKeys.BLOCKER_LISTS, blockers)
     }
 
     @Before
     fun setUp() {
         prefs = FakeSharedPreferences()
-        repo = BlockerListRepository(prefs, gson)
+        repo = BlockerListRepository(prefs)
     }
 
     @Test
-    fun `getBlockers returns default when nothing stored`() {
+    fun `getBlockers returns empty list when nothing stored`() {
         val blockers = repo.getBlockers()
-        assertEquals(1, blockers.size)
-        assertEquals("Default", blockers[0].name)
-        assertTrue(blockers[0].effectiveApps.contains("com.google.android.youtube"))
+        assertTrue(blockers.isEmpty())
     }
 
     @Test

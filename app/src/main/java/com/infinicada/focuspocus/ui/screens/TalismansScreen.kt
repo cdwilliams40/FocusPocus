@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,7 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,16 +52,22 @@ import com.infinicada.focuspocus.R
 @Composable
 fun TalismansScreen(
     lastScannedTagId: String?,
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     blockerLists: List<Blocker>,
     onSaveTag: (String) -> Unit,
     onSaveSetup: (Talisman) -> Unit,
     onDeleteTag: (Talisman) -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Talismans locking the running session; neither editable nor disenchantable. */
+    lockedTalismanIds: Set<String> = emptySet()
 ) {
-    var tagName by remember { mutableStateOf("") }
-    var editing by remember { mutableStateOf<Talisman?>(null) }
+    var tagName by rememberSaveable { mutableStateOf("") }
+    var editingTagId by rememberSaveable { mutableStateOf<String?>(null) }
+    var deletingTagId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editing = talismans.find { it.id == editingTagId && it.id !in lockedTalismanIds }
+    val deleting = talismans.find { it.id == deletingTagId && it.id !in lockedTalismanIds }
+    val scannedExisting = lastScannedTagId?.let { id -> talismans.find { it.id == id } }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -84,12 +91,26 @@ fun TalismansScreen(
         ) {
             // NFC Scan Section
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                val isFreshUnknownTag = lastScannedTagId != null && scannedExisting == null
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = if (isFreshUnknownTag) {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    } else {
+                        CardDefaults.cardColors()
+                    }
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.talismans_bind_new), style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         lastScannedTagId?.let {
-                            Text(stringResource(R.string.talismans_last_scanned, it))
+                            Text(
+                                if (scannedExisting != null) {
+                                    stringResource(R.string.talismans_last_scanned_known, scannedExisting.name, it)
+                                } else {
+                                    stringResource(R.string.talismans_last_scanned, it)
+                                }
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
                             TextField(
                                 value = tagName,
@@ -119,18 +140,26 @@ fun TalismansScreen(
             }
 
             // Enchanted Items Header
-            if (namedTags.isNotEmpty()) {
+            if (talismans.isNotEmpty()) {
                 item {
                     Text(stringResource(R.string.talismans_enchanted_items), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
-            items(namedTags) { tag ->
+            items(talismans) { tag ->
+                val isLocked = tag.id in lockedTalismanIds
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
+                    colors = if (isLocked) {
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    } else {
+                        CardDefaults.elevatedCardColors()
+                    }
                 ) {
                     Row(
                         modifier = Modifier
@@ -140,19 +169,42 @@ fun TalismansScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(tag.name, style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(tag.name, style = MaterialTheme.typography.titleMedium)
+                                if (isLocked) {
+                                    Text(
+                                        stringResource(R.string.label_active),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                             Text(
                                 talismanSummary(tag, blockerLists),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (isLocked) {
+                                Text(
+                                    stringResource(R.string.talismans_cannot_edit_active),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            TextButton(onClick = { editing = tag }) {
+                            TextButton(
+                                onClick = { editingTagId = tag.id },
+                                enabled = !isLocked
+                            ) {
                                 Text(stringResource(R.string.talisman_setup_edit))
                             }
                             Button(
-                                onClick = { onDeleteTag(tag) },
+                                onClick = { deletingTagId = tag.id },
+                                enabled = !isLocked,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
                                 Text(stringResource(R.string.talismans_disenchant))
@@ -162,7 +214,7 @@ fun TalismansScreen(
                 }
             }
 
-            if (namedTags.isEmpty()) {
+            if (talismans.isEmpty()) {
                 item {
                     Text(
                         stringResource(R.string.talismans_none_bound),
@@ -180,9 +232,33 @@ fun TalismansScreen(
             blockerLists = blockerLists,
             onSave = {
                 onSaveSetup(it)
-                editing = null
+                editingTagId = null
             },
-            onDismiss = { editing = null }
+            onDismiss = { editingTagId = null }
+        )
+    }
+
+    deleting?.let { talisman ->
+        AlertDialog(
+            onDismissRequest = { deletingTagId = null },
+            title = { Text(stringResource(R.string.talismans_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.talismans_delete_confirm_message, talisman.name)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deletingTagId = null
+                        onDeleteTag(talisman)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.talismans_disenchant))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingTagId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
         )
     }
 }
@@ -210,10 +286,11 @@ private fun TalismanSetupDialog(
     onSave: (Talisman) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selected by remember { mutableStateOf(talisman.enchantments.toSet()) }
-    var minutes by remember { mutableIntStateOf(talisman.timedMinutes ?: 0) }
-    var breaks by remember { mutableStateOf(talisman.breaksAllowed) }
-    var locked by remember { mutableStateOf(talisman.locksSession) }
+    var selectedList by rememberSaveable(talisman.id) { mutableStateOf(talisman.enchantments) }
+    val selected = selectedList.toSet()
+    var minutes by rememberSaveable(talisman.id) { mutableIntStateOf(talisman.timedMinutes ?: 0) }
+    var breaks by rememberSaveable(talisman.id) { mutableStateOf(talisman.breaksAllowed) }
+    var locked by rememberSaveable(talisman.id) { mutableStateOf(talisman.locksSession) }
     val durationChoices = (DURATION_CHOICES + minutes).distinct().sorted()
 
     AlertDialog(
@@ -235,7 +312,7 @@ private fun TalismanSetupDialog(
                         FilterChip(
                             selected = blocker.name in selected,
                             onClick = {
-                                selected = if (blocker.name in selected) selected - blocker.name else selected + blocker.name
+                                selectedList = if (blocker.name in selected) selectedList - blocker.name else selectedList + blocker.name
                             },
                             label = { Text(blocker.name) }
                         )

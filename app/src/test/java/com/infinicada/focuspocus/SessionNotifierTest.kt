@@ -1,7 +1,7 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.model.Schedule
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -13,7 +13,6 @@ import org.junit.Test
 class SessionNotifierTest {
 
     private lateinit var prefs: FakeSharedPreferences
-    private val gson = Gson()
     private val now = 1_700_000_000_000L
 
     @Before
@@ -23,26 +22,26 @@ class SessionNotifierTest {
 
     @Test
     fun `no active session resolves to null`() {
-        assertNull(SessionNotifier.resolveState(prefs, gson, now))
+        assertNull(SessionNotifier.resolveState(prefs, now))
     }
 
     @Test
     fun `active blockers alone without a session anchor resolve to null`() {
         // Selecting enchantments on the Focus tab persists them before any
         // session starts; that alone must not surface a notification.
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
-        assertNull(SessionNotifier.resolveState(prefs, gson, now))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
+        assertNull(SessionNotifier.resolveState(prefs, now))
     }
 
     @Test
     fun `timed manual session counts down to focus end and names blockers`() {
         val end = now + 25 * 60_000L
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social", "Games")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social", "Games")))
         prefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 60_000L)
         prefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, end)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertEquals("Social, Games", state!!.sessionName)
@@ -55,10 +54,10 @@ class SessionNotifierTest {
     fun `untimed session counts up from session start`() {
         val start = now - 10 * 60_000L
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
         prefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, start)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertNull(state!!.countdownEndMillis)
@@ -72,7 +71,7 @@ class SessionNotifierTest {
         prefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, start)
         prefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now - 5_000L)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertNull(state!!.countdownEndMillis)
@@ -84,15 +83,15 @@ class SessionNotifierTest {
         val schedule = Schedule(id = "sched-1", name = "Evening Ritual")
         val windowEnd = now + 2 * 60 * 60_000L
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.SCHEDULES, gson.toJson(listOf(schedule)))
+        prefs.putString(Constants.PrefsKeys.SCHEDULES, AppJson.json.encodeToString(listOf(schedule)))
         prefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "sched-1")
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
         prefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 60_000L)
         prefs.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, windowEnd)
         // A leftover manual end time must not drive a ritual's countdown.
         prefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + 60_000L)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertEquals("Evening Ritual", state!!.sessionName)
@@ -104,10 +103,10 @@ class SessionNotifierTest {
     fun `dangling schedule id falls back to blocker names as a plain spell`() {
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
         prefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "deleted-id")
-        prefs.putString(Constants.PrefsKeys.SCHEDULES, gson.toJson(listOf(Schedule(id = "other", name = "Other"))))
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.SCHEDULES, AppJson.json.encodeToString(listOf(Schedule(id = "other", name = "Other"))))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertEquals("Social", state!!.sessionName)
@@ -118,14 +117,14 @@ class SessionNotifierTest {
     fun `break counts down to break end and keeps the session name`() {
         val breakEnd = now + 5 * 60_000L
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
         prefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
         prefs.putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, breakEnd)
         // During a break the focus end is parked; even if a stale one lingers
         // the break end must win.
         prefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + 60 * 60_000L)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertTrue(state!!.onBreak)
@@ -140,7 +139,7 @@ class SessionNotifierTest {
         prefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
         prefs.putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now - 1_000L)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertTrue(state!!.onBreak)
@@ -151,9 +150,9 @@ class SessionNotifierTest {
     fun `open-ended talisman session is active with no chronometer anchors`() {
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
         prefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag-1")
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertEquals("Social", state!!.sessionName)
@@ -165,7 +164,7 @@ class SessionNotifierTest {
     fun `no blockers and no schedule leaves the session unnamed`() {
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertNull(state!!.sessionName)
@@ -179,7 +178,7 @@ class SessionNotifierTest {
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
         prefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now + 60_000L)
 
-        val state = SessionNotifier.resolveState(prefs, gson, now)
+        val state = SessionNotifier.resolveState(prefs, now)
 
         assertNotNull(state)
         assertNull(state!!.countUpStartMillis)

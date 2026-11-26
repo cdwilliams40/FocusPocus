@@ -1,11 +1,13 @@
 package com.infinicada.focuspocus
 
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
@@ -32,18 +34,21 @@ object ProtectionHealth {
         /** Notifications — ritual alerts, countdowns, trial completions. */
         val notificationsEnabled: Boolean,
         /** Battery optimization exemption — OEM optimizers kill the service. */
-        val batteryUnrestricted: Boolean
+        val batteryUnrestricted: Boolean,
+        /** Exact alarms — timely ritual/session/pact transitions even in Doze. */
+        val exactAlarmsAllowed: Boolean = true
     ) {
         val allHealthy: Boolean
             get() = accessibilityEnabled && usageAccessGranted &&
-                notificationsEnabled && batteryUnrestricted
+                notificationsEnabled && batteryUnrestricted && exactAlarmsAllowed
     }
 
     fun check(context: Context): Status = Status(
         accessibilityEnabled = isAccessibilityServiceEnabled(context),
         usageAccessGranted = UsageStatsHelper.hasUsageStatsPermission(context),
         notificationsEnabled = areNotificationsEnabled(context),
-        batteryUnrestricted = isIgnoringBatteryOptimizations(context)
+        batteryUnrestricted = isIgnoringBatteryOptimizations(context),
+        exactAlarmsAllowed = canScheduleExactAlarms(context)
     )
 
     /** Same settings-string walk MainActivity uses for its service gate. */
@@ -90,7 +95,37 @@ object ProtectionHealth {
         true
     }
 
+    fun canScheduleExactAlarms(context: Context): Boolean = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager)
+                ?.canScheduleExactAlarms() ?: true
+        } else {
+            true
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error checking exact alarm permission", e)
+        true
+    }
+
     // ── Fix-it intents (each falls back to the app-details screen) ──
+
+    fun openExactAlarmSettings(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            startSafely(
+                context,
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    .setData(Uri.fromParts("package", context.packageName, null))
+            )
+        } else {
+            startSafely(
+                context,
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null)
+                )
+            )
+        }
+    }
 
     fun openAccessibilitySettings(context: Context) =
         startSafely(context, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))

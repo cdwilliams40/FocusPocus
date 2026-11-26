@@ -1,18 +1,15 @@
 package com.infinicada.focuspocus
 
 import android.content.SharedPreferences
+import com.infinicada.focuspocus.data.SessionStore
+import com.infinicada.focuspocus.model.Schedule
 
 /**
  * When the next timed session transition is due: a break ending, a timed
  * (non-ritual) session expiring, or a Pomodoro auto-break starting.
  *
- * The accessibility service acts on these on its minute tick, which used to
- * leave each one up to a minute late — the notification chronometer ran past
- * zero, blocking stayed off after a break, and the UI (when not in front)
- * lagged by the same amount. The service now also arms a one-shot wakeup for
- * this instant. The minute tick stays as the backstop, so this only has to
- * be a close-enough prediction: a wakeup whose conditions turn out not to
- * hold (e.g. auto-break quota spent) is a harmless no-op.
+ * Delegates to the pure [SessionRules.nextDueMillis] so the accessibility
+ * service's handler wakeup and the unified AlarmManager scheduler always agree.
  */
 object SessionTransitions {
 
@@ -26,44 +23,22 @@ object SessionTransitions {
         Constants.PrefsKeys.ACTIVE_SCHEDULE_ID,
         Constants.PrefsKeys.SESSION_BREAKS_ENABLED,
         Constants.PrefsKeys.AUTO_BREAK_ENABLED,
-        Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES
+        Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES,
+        Constants.PrefsKeys.BREAKS_USED_THIS_SESSION,
+        Constants.PrefsKeys.MAX_BREAKS_PER_SESSION,
+        Constants.PrefsKeys.EXTRA_BREAK_TOKENS
     )
 
     /**
-     * Earliest transition strictly after [now], or null when nothing is
-     * pending. Past-due instants are deliberately skipped: the wakeup that
-     * covers them has already run (or the minute tick will), and returning
-     * one whose conditions don't hold would spin.
+     * Earliest transition strictly after [now], or null when nothing is pending.
      */
-    fun nextDueMillis(prefs: SharedPreferences, now: Long): Long? {
-        if (prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) {
-            // On a break the focus countdown is frozen; only the break end matters.
-            return prefs.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
-                .takeIf { it > now }
-        }
-
-        val candidates = mutableListOf<Long>()
-
-        // Timed manual session end (rituals end via checkSchedules / the ritual alarm).
-        if (prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false) &&
-            prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) == null
-        ) {
-            candidates += prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        }
-
-        // Pomodoro auto-break, mirroring the cheap gates of maybeStartAutoBreak.
-        if (prefs.getBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, false) &&
-            prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true) &&
-            SessionManager.isFocusActive(prefs)
-        ) {
-            val segmentStart = prefs.getLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, 0L)
-            if (segmentStart > 0L) {
-                val interval = prefs.getInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, 25)
-                    .coerceIn(5, 60)
-                candidates += segmentStart + interval * 60_000L
-            }
-        }
-
-        return candidates.filter { it > now }.minOrNull()
+    fun nextDueMillis(
+        prefs: SharedPreferences,
+        now: Long,
+        activeSchedule: Schedule? = null
+    ): Long? {
+        val state = SessionStore.read(prefs)
+        val policy = SessionStore.readBreakPolicy(prefs, activeSchedule)
+        return SessionRules.nextDueMillis(state, policy, now)
     }
 }

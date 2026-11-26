@@ -75,10 +75,6 @@
         <item quantity="one">Emergency stop available in %d day</item>
         <item quantity="other">Emergency stop available in %d days</item>
     </plurals>
-    <plurals name="home_day_streak">
-        <item quantity="one">%d day streak</item>
-        <item quantity="other">%d day streak</item>
-    </plurals>
     <string name="home_dispel_content_desc">Dispel spell</string>
     <string name="home_cast_content_desc">Cast spell</string>
     <string name="home_button_bound">Bound</string>
@@ -95,7 +91,10 @@
         <item quantity="other">%d pacts active</item>
     </plurals>
     <string name="home_guard_all_quiet">All quiet</string>
-    <string name="home_guard_rollup">Today: %1$d opens · %2$d reflexes caught</string>
+    <plurals name="home_guard_rollup_opens">
+        <item quantity="one">Today: %d open</item>
+        <item quantity="other">Today: %d opens</item>
+    </plurals>
     <string name="home_session_banner_detail">%1$s · %2$s left</string>
     <string name="home_session_banner_time_left">%1$s left</string>
     <string name="home_session_banner_hint">Tap to manage on the Focus tab</string>
@@ -116,14 +115,14 @@
     <string name="well_refill_off">Refills only when you channel mana into it</string>
     <string name="well_drawn_today">Drawn today: %1$d min</string>
     <string name="well_draw_refused_toast">The Mana Well no longer holds that much</string>
-    <string name="well_channel_cta">Channel mana: +%1$d min for %2$d mana</string>
+    <string name="well_channel_cta" tools:ignore="PluralsCandidate">Channel mana: +%1$d min for %2$d mana</string>
     <string name="well_channel_title">Channel mana into the Well</string>
-    <string name="well_channel_message">Spend %1$d mana to add %2$d minutes to the Well.</string>
+    <string name="well_channel_message" tools:ignore="PluralsCandidate">Spend %1$d mana to add %2$d minutes to the Well.</string>
     <string name="well_channel_doubling_note">Each channel costs double the one before it, until tomorrow.</string>
-    <string name="well_channel_no_room">The Well needs room for %1$d more minutes first.</string>
+    <string name="well_channel_no_room" tools:ignore="PluralsCandidate">The Well needs room for %1$d more minutes first.</string>
     <string name="well_channel_balance">Not enough mana — you have %1$d.</string>
     <string name="well_channel_confirm">Channel</string>
-    <string name="well_channel_done">+%1$d minutes in the Well</string>
+    <string name="well_channel_done" tools:ignore="PluralsCandidate">+%1$d minutes in the Well</string>
     <string name="well_channel_failed">Couldn\'t channel — check your mana and the room left in the Well</string>
     <string name="overlay_well_dry_title">The Mana Well is dry</string>
     <string name="overlay_well_dry_body">%s draws on the time your Well apps share, and there isn\'t enough left.</string>
@@ -139,9 +138,11 @@
     <string name="settings_well_terms">holds %1$d min, +1 min every %2$d min</string>
     <string name="settings_well_terms_no_refill">holds %1$d min, no refill over time</string>
     <string name="settings_well_pending_change">Looser terms take effect in %1$s. Until then the Well %2$s.</string>
+    <string name="settings_well_gate_pending_change">Looser quiet hours or morning focus take effect in %1$s. Until then the current settings still pause refill.</string>
+    <string name="settings_well_gate_keep">Keep current refill pauses</string>
     <string name="settings_well_cooling_note">Tightening applies at once. Loosening — or turning the Well off — takes 24 hours.</string>
     <string name="perk_well_channel_title">Channel into the Mana Well</string>
-    <string name="perk_well_channel_desc">%1$d more minutes of shared pact time. The price doubles with each channel in a day.</string>
+    <string name="perk_well_channel_desc" tools:ignore="PluralsCandidate">%1$d more minutes of shared pact time. The price doubles with each channel in a day.</string>
     <string name="ledger_perk_well_channel">Perk: channeled into the Mana Well</string>
     <string name="home_end_pact">End pact</string>
     <plurals name="home_end_pact_result">
@@ -191,6 +192,8 @@
     <string name="spells_auto_add_new_apps_desc">Automatically add newly installed apps to this enchantment</string>
     <string name="spells_select_apps_title">Select Apps</string>
     <string name="spells_select_enchantment_title">Select Enchantment</string>
+    <string name="spells_delete_confirm_title">Delete enchantment?</string>
+    <string name="spells_delete_confirm_message">Delete \"%1$s\"? Any rituals using only this enchantment will also be removed.</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">Settings</string>
@@ -222,7 +225,7 @@
     <string name="settings_notification_required">Required to mute notifications during focus sessions</string>
     <string name="settings_security">Security</string>
     <string name="settings_talisman_lock">Talisman Lock Mode</string>
-    <string name="settings_talisman_lock_desc">Require NFC talisman or QR code to stop focus sessions</string>
+    <string name="settings_talisman_lock_desc">Require a bound NFC talisman to stop focus sessions and block Settings while focusing</string>
     <string name="settings_add_talisman_first">Add a talisman first to enable lock mode</string>
     <string name="settings_device_owner">Warden Mode (Device Owner)</string>
     <string name="settings_device_owner_suspend">Grey Out Blocked Apps</string>
@@ -265,8 +268,6 @@
 
     <!-- InsightsScreen -->
     <string name="insights_avg_session">Avg Session</string>
-    <string name="insights_opens_row_count">%1$d \u00b7 %2$d rfx</string>
-    <string name="insights_reflex_hint">Reflex = abandoned within 30 seconds of opening</string>
     <string name="insights_session_history">Session History</string>
     <string name="insights_usage_access_desc">To view your app usage statistics, please grant usage access permission.</string>
     <string name="insights_grant_usage_access">Grant Usage Access</string>
@@ -284,7 +285,7 @@
     <string name="onboarding_accessibility_enabled">Accessibility enabled</string>
     <string name="onboarding_pact_title">Choose Your Well Apps</string>
     <string name="onboarding_pact_desc">Pick the apps that eat your attention. They\'ll stay closed — opening one asks how much time you truly need, and the minutes come out of the Mana Well.</string>
-    <string name="onboarding_pact_pick">Choose Well apps (%d selected)</string>
+    <string name="onboarding_pact_pick" tools:ignore="PluralsCandidate">Choose Well apps (%d selected)</string>
     <string name="onboarding_pact_defaults_note">Each pact draws from the Mana Well: pick 2 to 30 minutes when you open the app. Change the list any time on the Well tab.</string>
     <string name="onboarding_notification_title">Notification Access</string>
     <string name="onboarding_notification_desc">Grant notification access to block notifications from distracting apps and enable Do Not Disturb during focus.</string>
@@ -329,23 +330,32 @@
     <string name="rituals_conflict_warning">Warning: Overlaps with \"%1$s\"</string>
     <string name="rituals_overnight_info">This ritual runs overnight. It will start in the evening and end the next morning.</string>
     <string name="rituals_save">Save Ritual</string>
+    <string name="rituals_delete_confirm_title">Delete ritual?</string>
+    <string name="rituals_delete_confirm_message">Delete \"%1$s\"?</string>
 
     <!-- TalismansScreen -->
     <string name="talismans_title">Talismans</string>
     <string name="talismans_bind_new">Bind New Talisman</string>
     <string name="talismans_last_scanned">Last Scanned Talisman: %s</string>
+    <string name="talismans_last_scanned_known">Scanned \"%1$s\" (%2$s) — enter a new name to rename it</string>
     <string name="talismans_name_label">Talisman Name</string>
     <string name="talismans_enchant">Enchant Talisman</string>
     <string name="talismans_scan_nfc">Scan an NFC tag to bind it as a talisman.</string>
     <string name="talismans_enchanted_items">Enchanted Items</string>
     <string name="talismans_disenchant">Disenchant</string>
     <string name="talismans_none_bound">No talismans bound yet.</string>
+    <string name="talismans_cannot_edit_active">Cannot edit or disenchant while locking an active session</string>
+    <string name="talismans_delete_confirm_title">Disenchant talisman?</string>
+    <string name="talismans_delete_confirm_message">Disenchant \"%1$s\"? You\'ll need to scan it again to re-bind it.</string>
 
     <!-- Guard fields (shared by the editor and the Pacts dashboard) -->
     <string name="time_limits_no_apps_found">No apps found</string>
 
     <!-- Pact fields (shared by the editor and the Pacts dashboard) -->
-    <string name="pacts_today_stats">Today: %1$d opens \u00b7 %2$d reflexes</string>
+    <plurals name="pacts_today_opens">
+        <item quantity="one">%d open today</item>
+        <item quantity="other">%d opens today</item>
+    </plurals>
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Spell: %s</string>
@@ -355,10 +365,12 @@
     <string name="overlay_pact_prompt">%s is behind the Mana Well. Make a pact: how much time do you truly need?</string>
     <string name="overlay_pact_well_desc">These minutes come out of the Mana Well. When they run out, %s closes again.</string>
     <string name="overlay_pact_wait">You can choose in %d…</string>
-    <string name="overlay_pact_choice">%d minutes</string>
+    <plurals name="overlay_pact_choice_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
     <string name="overlay_pact_decline">Never mind — I don\'t need it</string>
-    <string name="overlay_pact_stats">This is open #%d today</string>
-    <string name="overlay_pact_stats_reflex">Open #%1$d today — %2$d were under-30-second reflexes</string>
+    <string name="overlay_pact_stats" tools:ignore="PluralsCandidate">This is open #%d today</string>
     <string name="overlay_pact_alternative">Open %s instead</string>
     <string name="pact_ending_no_seal_toast">Your pact is ending — %s closes in under a minute</string>
 
@@ -397,6 +409,7 @@
     <string name="toast_max_enchantments" tools:ignore="PluralsCandidate">Maximum of %d enchantments reached</string>
     <string name="toast_max_talismans" tools:ignore="PluralsCandidate">Maximum of %d talismans reached</string>
     <string name="toast_ritual_dispelled">Ritual Dispelled!</string>
+    <string name="toast_session_dispelled">Focus Session Dispelled!</string>
     <string name="toast_wrong_talisman">Wrong Talisman!</string>
     <string name="toast_emergency_stop">Emergency Stop activated</string>
 
@@ -430,7 +443,7 @@
     <!-- Progression: general -->
     <string name="progression_channel_name">Progression</string>
     <string name="progression_channel_desc">Mana, trials and daily wrap-ups</string>
-    <string name="mana_chip">%1$d mana</string>
+    <string name="mana_chip" tools:ignore="PluralsCandidate">%1$d mana</string>
     <string name="mana_chip_desc">Mana balance: %1$d. Opens the mana page.</string>
 
     <!-- Progression: notifications -->
@@ -441,18 +454,17 @@
     </plurals>
 
     <!-- Progression: trials -->
-    <string name="home_trials_title">Today\'s Trials</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Cast %1$d spell today</item>
         <item quantity="other">Cast %1$d spells today</item>
     </plurals>
     <string name="trial_ritual_daily">Complete a scheduled ritual today</string>
     <string name="trial_under_limits_daily">Stay under every app limit today</string>
-    <string name="trial_reflex_weekly">Keep reflex opens under %1$d this week</string>
+    <string name="trial_legacy_retired">Completed trial</string>
     <string name="trial_progress">%1$d/%2$d</string>
     <string name="trial_claim">Claim</string>
     <string name="trial_claimed">Claimed</string>
-    <string name="trial_reward">+%1$d mana</string>
+    <string name="trial_reward" tools:ignore="PluralsCandidate">+%1$d mana</string>
     <string name="trial_judged_day_end">Judged at day\'s end</string>
     <string name="trial_judged_week_end">Judged at week\'s end</string>
 
@@ -474,7 +486,7 @@
     <string name="mana_screen_title">Mana</string>
     <string name="mana_screen_subtitle">Spend mana on Well time and extra breaks</string>
     <string name="mana_balance_header">Your mana</string>
-    <string name="mana_cost_format">%1$d mana</string>
+    <string name="mana_cost_format" tools:ignore="PluralsCandidate">%1$d mana</string>
 
     <!-- Progression: perks -->
     <string name="perks_header">Spend mana</string>
@@ -484,10 +496,10 @@
     <string name="perk_extra_break_inactive">Available during a focus session</string>
     <string name="perk_extra_break_no_breaks">Breaks are disabled for this session</string>
     <string name="perk_not_enough_mana">Not enough mana</string>
-    <string name="home_extra_break_button">Use %1$d mana for an extra break</string>
+    <string name="home_extra_break_button" tools:ignore="PluralsCandidate">Use %1$d mana for an extra break</string>
 
     <!-- Progression: session summary additions -->
-    <string name="summary_mana_earned">+%1$d mana earned</string>
+    <string name="summary_mana_earned" tools:ignore="PluralsCandidate">+%1$d mana earned</string>
     <string name="summary_trial_complete">Trial complete: %1$s — claim in Insights</string>
 
     <!-- Progression: settings -->
@@ -513,6 +525,17 @@
     <string name="settings_protection_notifications_off">Ritual alerts and countdowns won\'t show.</string>
     <string name="settings_protection_battery">Unrestricted battery</string>
     <string name="settings_protection_battery_off">Battery optimization can kill enforcement in the background.</string>
+    <string name="settings_protection_exact_alarms">Exact alarms</string>
+    <string name="settings_protection_exact_alarms_off">Needed for punctual rituals, timed sessions, breaks, and pacts in Doze mode.</string>
+    <string name="settings_enforcement_log_button">Enforcement log</string>
+    <string name="settings_enforcement_log_title">Enforcement log</string>
+    <string name="settings_enforcement_log_empty">No enforcement events recorded yet.</string>
+    <string name="settings_enforcement_log_clear">Clear log</string>
+    <string name="protection_alert_channel_name">Protection Alerts</string>
+    <string name="protection_alert_channel_description">Alerts when Android disables Focus Pocus protection while blocking is active</string>
+    <string name="protection_alert_title">Focus Pocus protection is off</string>
+    <string name="protection_alert_body_session">A focus session is active, but the accessibility service is disabled. Tap to re-enable blocking.</string>
+    <string name="protection_alert_body_well">Your Mana Well apps are unprotected because the accessibility service is disabled. Tap to re-enable it.</string>
     <string name="settings_protection_fix">Fix</string>
     <string name="settings_protection_ok_desc">In place</string>
     <string name="settings_protection_problem_desc">Needs attention</string>
@@ -578,7 +601,7 @@
 
     <!-- Mana rules and productive apps (2.0) -->
     <string name="productive_title">Productive apps</string>
-    <string name="productive_intro" tools:ignore="PluralsCandidate">Time in these apps earns mana: 1 for every %1$d minutes, up to %2$d a day. It\'s counted every few minutes.</string>
+    <string name="productive_intro" tools:ignore="PluralsCandidate">Time in these apps earns mana: %1$d per minute, up to %2$d a day. Your Well apps\' substitutes earn the same way without being listed here. It\'s counted every few minutes.</string>
     <string name="productive_needs_usage">Productive time is read from usage access. Grant it to start earning.</string>
     <string name="productive_grant_usage">Grant usage access</string>
     <string name="productive_today" tools:ignore="PluralsCandidate">Today: %1$d min · +%2$d mana</string>
@@ -589,7 +612,6 @@
     <string name="trial_start_timed">Start a timed focus session today</string>
     <string name="trial_well_under_daily" tools:ignore="PluralsCandidate">Draw at most %1$d minutes from the Well today</string>
     <string name="trial_well_under_weekly" tools:ignore="PluralsCandidate">Draw at most %1$d minutes from the Well this week</string>
-    <string name="trial_reflex_daily">Keep reflex opens to %1$d or fewer today</string>
     <string name="trial_productive_daily" tools:ignore="PluralsCandidate">Spend %1$d minutes in productive apps today</string>
     <string name="trial_productive_weekly" tools:ignore="PluralsCandidate">Spend %1$d minutes in productive apps this week</string>
     <string name="ledger_open_ended_reason">Open-ended session · %1$d min</string>
@@ -600,7 +622,8 @@
     <string name="mana_how_spend">Spend</string>
     <string name="mana_rule_timed" tools:ignore="PluralsCandidate">Timed focus session: %1$d per minute, up to %2$d a day</string>
     <string name="mana_rule_open_ended" tools:ignore="PluralsCandidate">Ritual or untimed talisman session: %1$d once a day, after %2$d minutes</string>
-    <string name="mana_rule_productive" tools:ignore="PluralsCandidate">Productive apps: 1 per %1$d minutes, up to %2$d a day</string>
+    <string name="mana_rule_productive" tools:ignore="PluralsCandidate">Productive apps and substitutes: %1$d per minute, up to %2$d a day</string>
+    <string name="mana_rule_substitute" tools:ignore="PluralsCandidate">Opening the substitute from a block screen: %1$d, the first %2$d times a day</string>
     <string name="mana_rule_trials" tools:ignore="PluralsCandidate">Daily trials: %1$d–%2$d each · weekly trial: %3$d–%4$d</string>
     <string name="mana_rule_pour" tools:ignore="PluralsCandidate">Pour %1$d minutes into the Well: %2$d, doubling with each pour that day</string>
     <string name="mana_rule_break" tools:ignore="PluralsCandidate">Extra break in a session: %1$d</string>
@@ -627,11 +650,9 @@
     <string name="insights_well_pours">Mana pours</string>
     <string name="insights_well_dry">Opens with the Well dry</string>
     <string name="insights_well_by_app">By app</string>
-    <string name="insights_reflex_header">Reflexes</string>
-    <string name="insights_reflex_opens">Opens of Well apps</string>
-    <string name="insights_reflex_reflexes">Reflex opens</string>
-    <string name="insights_reflex_share">%1$d (%2$d%%)</string>
-    <string name="insights_reflex_by_app">Most opened</string>
+    <string name="insights_opens_header">App opens</string>
+    <string name="insights_opens_total">Opens of Well apps</string>
+    <string name="insights_opens_by_app">Most opened</string>
     <string name="insights_source_manual">By hand</string>
     <string name="insights_source_ritual">Rituals</string>
     <string name="insights_source_talisman">Talismans</string>
@@ -653,4 +674,71 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <!-- Ongoing Pact Notification -->
+    <string name="pact_channel_name">Active Pacts</string>
+    <string name="pact_channel_description">Ongoing countdown while a Mana Well pact is active, with one-tap early refund</string>
+    <string name="pact_notification_title_single">Pact active: %s</string>
+    <string name="pact_notification_title_multi">%d pacts active</string>
+    <string name="pact_notification_text_single">Tap End pact to return unused minutes to the Well</string>
+    <string name="pact_notification_action_end">End pact &amp; refund</string>
+
+    <!-- Powerful Substitutes & Pact Intentions -->
+    <string name="overlay_pact_alternative_mana">Open %1$s instead (+%2$d mana)</string>
+    <string name="substitute_win_toast_mana">+%d mana — nice swap!</string>
+    <string name="substitute_win_toast">Nice swap!</string>
+    <string name="overlay_pact_intention_prompt">Why are you opening this? (optional)</string>
+    <string name="pact_intention_quick_reply">Quick reply</string>
+    <string name="pact_intention_specific_task">Specific task</string>
+    <string name="pact_intention_unwinding">Unwinding</string>
+    <string name="trial_substitute_wins_daily">Choose a substitute %d times today</string>
+    <string name="trial_substitute_wins_weekly">Choose a substitute %d times this week</string>
+    <string name="ledger_substitute_win_reason">Healthier substitute chosen</string>
+
+    <!-- Insights Enhancements -->
+    <string name="insights_well_substitutes">Substitute wins</string>
+    <string name="insights_well_intentions">Pact intentions</string>
+    <string name="insights_time_of_day">By time of day</string>
+    <string name="insights_tod_morning">Morning (5–11)</string>
+    <string name="insights_tod_afternoon">Afternoon (12–16)</string>
+    <string name="insights_tod_evening">Evening (17–21)</string>
+    <string name="insights_tod_late_night">Late night (22–4)</string>
+    <string name="insights_delta_vs_yesterday">%s vs. yesterday</string>
+    <string name="insights_delta_vs_prior_days">%1$s vs. prior %2$d days</string>
+    <string name="insights_mana_from_substitutes">Substitute wins</string>
+
+    <!-- Custom Focus Durations -->
+    <string name="duration_custom">Custom…</string>
+    <string name="duration_custom_title">Custom focus duration</string>
+    <string name="duration_custom_minutes_label">Minutes (1–480)</string>
+    <string name="duration_custom_hint">Enter any length up to 8 hours (480 minutes).</string>
+
+    <!-- Planned Ritual Exceptions (24h Ahead) -->
+    <string name="rituals_skip_day_button">Skip a day</string>
+    <string name="rituals_skip_chip">Skipping %s</string>
+    <string name="rituals_skip_dialog_title">Skip %s</string>
+    <string name="rituals_skip_dialog_desc">Plan a one-day skip at least 24 hours in advance. Today\'s ritual cannot be skipped impulsively.</string>
+    <string name="rituals_skip_none_available">No upcoming scheduled days available to skip.</string>
+
+    <!-- Quiet Well Hours & Morning Focus Unlock -->
+    <string name="settings_well_quiet_hours">Quiet Well hours</string>
+    <string name="settings_well_quiet_hours_desc">Pause passive refill overnight (%1$s–%2$s) to prevent morning windfalls.</string>
+    <string name="settings_well_quiet_start">Quiet hours start: %s</string>
+    <string name="settings_well_quiet_end">Quiet hours end: %s</string>
+    <string name="settings_well_morning_focus">Require morning focus</string>
+    <string name="settings_well_morning_focus_desc">Keep passive refill paused each day until you complete a %d min focus session.</string>
+    <string name="settings_well_morning_focus_minutes">Morning focus threshold: %d min</string>
+    <string name="well_paused_quiet_hours">Passive refill paused during quiet hours</string>
+    <string name="well_paused_morning_focus">Complete a %d min focus session to resume refill today</string>
+
+    <!-- Auto-Backup to Folder -->
+    <string name="settings_auto_backup_title">Automatic folder backup</string>
+    <string name="settings_auto_backup_desc">Pick a folder (e.g. synced by Syncthing, Nextcloud, or Drive) to save a fresh backup automatically.</string>
+    <string name="settings_auto_backup_pick_folder">Choose backup folder</string>
+    <string name="settings_auto_backup_change_folder">Change backup folder</string>
+    <string name="auto_backup_off">Off</string>
+    <string name="auto_backup_daily">Daily</string>
+    <string name="auto_backup_weekly">Weekly</string>
+    <string name="settings_auto_backup_last">Last automatic backup: %s</string>
+    <string name="settings_auto_backup_now">Back up now</string>
+    <string name="auto_backup_folder_saved">Backup folder saved</string>
 </resources>

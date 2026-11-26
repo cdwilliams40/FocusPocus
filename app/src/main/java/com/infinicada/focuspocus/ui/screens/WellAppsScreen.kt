@@ -62,7 +62,8 @@ fun WellAppsScreen(
     onRequestRemoval: (String) -> Unit,
     onCancelRemoval: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    productiveApps: List<String> = emptyList()
 ) {
     val names = remember(installedApps) { installedApps.associate { it.packageName to it.name } }
     val wellPackages = remember(wellApps) { wellApps.mapTo(mutableSetOf()) { it.packageName } }
@@ -138,8 +139,14 @@ fun WellAppsScreen(
     }
 
     substituteFor?.let { pkg ->
+        val productiveSet = remember(productiveApps) { productiveApps.toSet() }
+        val candidates = remember(installedApps, wellPackages, productiveSet) {
+            installedApps
+                .filter { it.packageName !in wellPackages }
+                .sortedWith(compareByDescending<AppInfo> { it.packageName in productiveSet }.thenBy { it.name.lowercase() })
+        }
         SingleAppPickerDialog(
-            installedApps = installedApps.filter { it.packageName !in wellPackages },
+            installedApps = candidates,
             title = stringResource(R.string.well_apps_pick_substitute),
             selectedPackage = wellApps.firstOrNull { it.packageName == pkg }?.substitutePackage,
             onPick = { substitute ->

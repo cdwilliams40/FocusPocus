@@ -1,10 +1,10 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.WellApp
 import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellSettings
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,7 +14,6 @@ import org.junit.Test
 class BackupCodecTest {
 
     private lateinit var prefs: FakeSharedPreferences
-    private val gson = Gson()
     private val t0 = 1_000_000_000_000L
 
     @Before
@@ -34,10 +33,10 @@ class BackupCodecTest {
     @Test
     fun `export and import round-trip restores every exported key with its type`() {
         seedTypicalData()
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 30, now = t0)
+        val json = BackupCodec.export(prefs, appVersionCode = 30, now = t0)
 
         val fresh = FakeSharedPreferences()
-        val result = BackupCodec.import(fresh, gson, json)
+        val result = BackupCodec.import(fresh, json)
 
         assertTrue(result is BackupCodec.ImportResult.Success)
         assertEquals(6, (result as BackupCodec.ImportResult.Success).restoredKeys)
@@ -55,7 +54,7 @@ class BackupCodecTest {
     @Test
     fun `import replaces existing exported keys but leaves live state alone`() {
         seedTypicalData()
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 30, now = t0)
+        val json = BackupCodec.export(prefs, appVersionCode = 30, now = t0)
 
         val target = FakeSharedPreferences()
         // Pre-existing config that the backup does not contain must be removed…
@@ -65,7 +64,7 @@ class BackupCodecTest {
         target.putString(Constants.PrefsKeys.WELL_APP_REMOVALS, """{"com.x":123}""")
         target.putString(Constants.PrefsKeys.PACT_ALLOWANCES, """{"com.x":123}""")
 
-        BackupCodec.import(target, gson, json)
+        BackupCodec.import(target, json)
 
         assertFalse(target.contains(Constants.PrefsKeys.SCHEDULES))
         assertTrue(target.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false))
@@ -81,7 +80,7 @@ class BackupCodecTest {
         prefs.putString(Constants.PrefsKeys.PACT_ALLOWANCES, """{"com.x":123}""")
         prefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-id")
 
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 30, now = t0)
+        val json = BackupCodec.export(prefs, appVersionCode = 30, now = t0)
 
         assertFalse(json.contains(Constants.PrefsKeys.MANUAL_FOCUS_MODE))
         assertFalse(json.contains(Constants.PrefsKeys.WELL_APP_REMOVALS))
@@ -93,11 +92,11 @@ class BackupCodecTest {
     fun `garbage and wrong-format files are rejected without touching prefs`() {
         prefs.putString(Constants.PrefsKeys.THEME_MODE, "DARK")
 
-        assertEquals(BackupCodec.ImportResult.InvalidFormat, BackupCodec.import(prefs, gson, "not json"))
-        assertEquals(BackupCodec.ImportResult.InvalidFormat, BackupCodec.import(prefs, gson, "{}"))
+        assertEquals(BackupCodec.ImportResult.InvalidFormat, BackupCodec.import(prefs, "not json"))
+        assertEquals(BackupCodec.ImportResult.InvalidFormat, BackupCodec.import(prefs, "{}"))
         assertEquals(
             BackupCodec.ImportResult.InvalidFormat,
-            BackupCodec.import(prefs, gson, """{"format":"something-else","formatVersion":1,"prefs":{}}""")
+            BackupCodec.import(prefs, """{"format":"something-else","formatVersion":1,"prefs":{}}""")
         )
         // Rejections must not have wiped anything.
         assertEquals("DARK", prefs.getString(Constants.PrefsKeys.THEME_MODE, null))
@@ -106,7 +105,7 @@ class BackupCodecTest {
     @Test
     fun `a newer format version is refused`() {
         val json = """{"format":"${BackupCodec.FORMAT}","formatVersion":${BackupCodec.FORMAT_VERSION + 1},"prefs":{}}"""
-        assertEquals(BackupCodec.ImportResult.UnsupportedVersion, BackupCodec.import(prefs, gson, json))
+        assertEquals(BackupCodec.ImportResult.UnsupportedVersion, BackupCodec.import(prefs, json))
     }
 
     @Test
@@ -120,7 +119,7 @@ class BackupCodecTest {
             }}
         """.trimIndent()
 
-        val result = BackupCodec.import(prefs, gson, json)
+        val result = BackupCodec.import(prefs, json)
 
         assertEquals(BackupCodec.ImportResult.Success(1), result)
         assertEquals("LIGHT", prefs.getString(Constants.PrefsKeys.THEME_MODE, null))
@@ -176,10 +175,25 @@ class BackupCodecTest {
             Constants.PrefsKeys.WELL_PENDING_ENABLED,
             Constants.PrefsKeys.WELL_PENDING_CAPACITY_MINUTES,
             Constants.PrefsKeys.WELL_PENDING_REFILL_INTERVAL_MINUTES,
-            // This device's Warden bookkeeping and permission snapshot
+            // This device's Warden bookkeeping, DND restoration, and permission snapshot
+            Constants.PrefsKeys.DND_ENABLED_BY_APP,
+            Constants.PrefsKeys.DND_PREVIOUS_FILTER,
             Constants.PrefsKeys.DEVICE_OWNER_SUSPENDED_PACKAGES,
             Constants.PrefsKeys.WARDEN_REMOVAL_REQUEST_MILLIS,
             Constants.PrefsKeys.USAGE_PERMISSION_SNAPSHOT,
+            // Today's morning focus unlock date, local enforcement log, and device-local SAF backup URI
+            Constants.PrefsKeys.WELL_MORNING_UNLOCK_DATE,
+            Constants.PrefsKeys.ENFORCEMENT_LOG,
+            Constants.PrefsKeys.AUTO_BACKUP_TREE_URI,
+            Constants.PrefsKeys.AUTO_BACKUP_CADENCE,
+            Constants.PrefsKeys.AUTO_BACKUP_LAST_MILLIS,
+            Constants.PrefsKeys.AUTO_BACKUP_LAST_FAILURE_MILLIS,
+            Constants.PrefsKeys.WELL_GATE_PENDING_APPLIES_AT_MILLIS,
+            Constants.PrefsKeys.WELL_GATE_PENDING_QUIET_HOURS_ENABLED,
+            Constants.PrefsKeys.WELL_GATE_PENDING_QUIET_START_MINUTE,
+            Constants.PrefsKeys.WELL_GATE_PENDING_QUIET_END_MINUTE,
+            Constants.PrefsKeys.WELL_GATE_PENDING_MORNING_FOCUS_REQUIRED,
+            Constants.PrefsKeys.WELL_GATE_PENDING_MORNING_FOCUS_MINUTES,
             // Which migrations this device's data has been through
             Constants.PrefsKeys.SCHEMA_VERSION
         )
@@ -214,13 +228,13 @@ class BackupCodecTest {
     fun `mana well terms travel in a backup but its pool does not`() {
         ManaWell.requestSettings(prefs, wellOn.copy(capacityMinutes = 45), t0)
         ManaWell.tryDraw(prefs, 20, t0, "20261109")
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 39, now = t0)
+        val json = BackupCodec.export(prefs, appVersionCode = 39, now = t0)
 
         assertFalse(json.contains(Constants.PrefsKeys.WELL_LEVEL_MILLIS))
         assertFalse(json.contains(Constants.PrefsKeys.WELL_DRAWN_MILLIS))
 
         val fresh = FakeSharedPreferences()
-        BackupCodec.import(fresh, gson, json, t0)
+        BackupCodec.import(fresh, json, t0)
         assertEquals(wellOn.copy(capacityMinutes = 45), ManaWell.settings(fresh, t0))
         // A device that never had the Well gets a full one, not the drained one.
         assertEquals(45, ManaWell.snapshot(fresh, t0, "20261109").availableMinutesAt(t0))
@@ -229,11 +243,11 @@ class BackupCodecTest {
     @Test
     fun `restore never switches the Well off or refills it`() {
         // The backup predates the Well entirely, so it says nothing about it.
-        val json = BackupCodec.export(FakeSharedPreferences(), gson, appVersionCode = 38, now = t0)
+        val json = BackupCodec.export(FakeSharedPreferences(), appVersionCode = 38, now = t0)
 
         ManaWell.requestSettings(prefs, wellOn, t0)
         ManaWell.tryDraw(prefs, 30, t0, "20261109")
-        BackupCodec.import(prefs, gson, json, t0)
+        BackupCodec.import(prefs, json, t0)
 
         assertEquals(wellOn, ManaWell.settings(prefs, t0))
         assertEquals(0, ManaWell.snapshot(prefs, t0, "20261109").availableMinutesAt(t0))
@@ -244,10 +258,10 @@ class BackupCodecTest {
     fun `restore applies a stricter mana well at once`() {
         val backup = FakeSharedPreferences()
         ManaWell.requestSettings(backup, wellOn.copy(capacityMinutes = 15, refillIntervalMinutes = 40), t0)
-        val json = BackupCodec.export(backup, gson, appVersionCode = 39, now = t0)
+        val json = BackupCodec.export(backup, appVersionCode = 39, now = t0)
 
         ManaWell.requestSettings(prefs, wellOn, t0)
-        BackupCodec.import(prefs, gson, json, t0)
+        BackupCodec.import(prefs, json, t0)
 
         assertEquals(
             wellOn.copy(capacityMinutes = 15, refillIntervalMinutes = 40),
@@ -258,29 +272,29 @@ class BackupCodecTest {
 
     // ── Well apps ──
 
-    private fun wellPackages(p: FakeSharedPreferences) = WellApps.packages(p, gson)
+    private fun wellPackages(p: FakeSharedPreferences) = WellApps.packages(p)
 
     @Test
     fun `well apps travel in a backup`() {
-        WellApps.save(prefs, gson, listOf(WellApp("com.a", substitutePackage = "com.read"), WellApp("com.b")))
+        WellApps.save(prefs, listOf(WellApp("com.a", substitutePackage = "com.read"), WellApp("com.b")))
         val fresh = FakeSharedPreferences()
-        BackupCodec.import(fresh, gson, BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0), now = t0)
-        assertEquals(WellApps.load(prefs, gson), WellApps.load(fresh, gson))
+        BackupCodec.import(fresh, BackupCodec.export(prefs, appVersionCode = 43, now = t0), now = t0)
+        assertEquals(WellApps.load(prefs), WellApps.load(fresh))
     }
 
     @Test
     fun `restore keeps the device's well apps and queues the removal of ones the backup leaves out`() {
         prefs.putString(Constants.PrefsKeys.THEME_MODE, "DARK")
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0)
+        val json = BackupCodec.export(prefs, appVersionCode = 43, now = t0)
 
         val device = FakeSharedPreferences()
-        WellApps.save(device, gson, listOf(WellApp("com.a")))
-        BackupCodec.import(device, gson, json, now = t0)
+        WellApps.save(device, listOf(WellApp("com.a")))
+        BackupCodec.import(device, json, now = t0)
 
         assertEquals(setOf("com.a"), wellPackages(device))
         assertEquals(
             mapOf("com.a" to t0 + WellApps.REMOVAL_DELAY_MS),
-            WellApps.pendingRemovals(device, gson)
+            WellApps.pendingRemovals(device)
         )
         // Everything else still restores normally.
         assertEquals("DARK", device.getString(Constants.PrefsKeys.THEME_MODE, null))
@@ -288,26 +302,24 @@ class BackupCodecTest {
 
     @Test
     fun `restore adds the backup's well apps at once and queues nothing for shared ones`() {
-        WellApps.save(prefs, gson, listOf(WellApp("com.a"), WellApp("com.b")))
-        val json = BackupCodec.export(prefs, gson, appVersionCode = 43, now = t0)
+        WellApps.save(prefs, listOf(WellApp("com.a"), WellApp("com.b")))
+        val json = BackupCodec.export(prefs, appVersionCode = 43, now = t0)
 
         val device = FakeSharedPreferences()
-        WellApps.save(device, gson, listOf(WellApp("com.a")))
-        BackupCodec.import(device, gson, json, now = t0)
+        WellApps.save(device, listOf(WellApp("com.a")))
+        BackupCodec.import(device, json, now = t0)
 
         assertEquals(setOf("com.a", "com.b"), wellPackages(device))
-        assertTrue(WellApps.pendingRemovals(device, gson).isEmpty())
+        assertTrue(WellApps.pendingRemovals(device).isEmpty())
     }
 
     @Test
     fun `a version 1 backup's pacts and circles become well apps and its wards are dropped`() {
-        val configs = gson.toJson(gson.toJson(mapOf(
-            "com.pact" to mapOf("packageName" to "com.pact", "pactModeEnabled" to true,
-                "pactAlternativePackage" to "com.read"),
-            "com.ward" to mapOf("packageName" to "com.ward", "dailyLimitMinutes" to 30)
-        )))
-        val groups = gson.toJson(gson.toJson(listOf(mapOf("blockerName" to "Social"))))
-        val blockers = gson.toJson("""[{"name":"Social","mode":"BLACKLIST","apps":["com.circle"]}]""")
+        val configs = AppJson.json.encodeToString(
+            """{"com.pact":{"packageName":"com.pact","pactModeEnabled":true,"pactAlternativePackage":"com.read"},"com.ward":{"packageName":"com.ward","dailyLimitMinutes":30}}"""
+        )
+        val groups = AppJson.json.encodeToString("""[{"blockerName":"Social"}]""")
+        val blockers = AppJson.json.encodeToString("""[{"name":"Social","mode":"BLACKLIST","apps":["com.circle"]}]""")
         val json = """
             {"format":"${BackupCodec.FORMAT}","formatVersion":1,"prefs":{
                 "appTimeLimitConfigs":{"type":"string","value":$configs},
@@ -317,13 +329,34 @@ class BackupCodecTest {
         """.trimIndent()
 
         val device = FakeSharedPreferences()
-        val result = BackupCodec.import(device, gson, json, now = t0)
+        val result = BackupCodec.import(device, json, now = t0)
 
         assertTrue(result is BackupCodec.ImportResult.Success)
         assertEquals(setOf("com.pact", "com.circle"), wellPackages(device))
-        assertEquals("com.read", WellApps.find(device, gson, "com.pact")?.substitutePackage)
+        assertEquals("com.read", WellApps.find(device, "com.pact")?.substitutePackage)
         assertFalse(device.contains("appTimeLimitConfigs"))
         assertFalse(device.contains("pactGroups"))
         assertTrue(device.getBoolean(Constants.PrefsKeys.WELL_ENABLED, false))
+    }
+
+    @Test
+    fun `restoring a pre-v4 backup drops unfinished trials and any restore drops unfinished reflex trials`() {
+        val trials = AppJson.json.encodeToString(
+            """[
+                {"id":"legacy","type":"COMPLETE_SESSIONS","target":2,"progress":0,"period":"DAILY","periodKey":"20261111","rewardMana":40,"claimed":false},
+                {"id":"reflex","type":"NO_REFLEX_OPENS","target":1,"progress":0,"period":"DAILY","periodKey":"20261111","rewardMana":40,"claimed":false},
+                {"id":"done","type":"FOCUS_MINUTES","target":30,"progress":30,"period":"DAILY","periodKey":"20261111","rewardMana":50,"claimed":false}
+            ]"""
+        )
+        val json = """
+            {"format":"${BackupCodec.FORMAT}","formatVersion":3,"prefs":{
+                "${Constants.PrefsKeys.TRIALS}":{"type":"string","value":$trials}
+            }}
+        """.trimIndent()
+
+        val device = FakeSharedPreferences()
+        val result = BackupCodec.import(device, json, now = t0)
+        assertTrue(result is BackupCodec.ImportResult.Success)
+        assertEquals(listOf("done"), Progression.loadTrials(device).map { it.id })
     }
 }

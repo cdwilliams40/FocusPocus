@@ -2,46 +2,40 @@ package com.infinicada.focuspocus.limit
 
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.google.gson.Gson
+import com.infinicada.focuspocus.AppJson
 import com.infinicada.focuspocus.Constants
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-/** One day's open counts for one app. */
+/** One day's open count for one app. */
+@Serializable
 data class AppOpenStats(
-    val opens: Int = 0,
-    /** Opens the user abandoned within [OpenReflexTracker.REFLEX_THRESHOLD_MS]. */
-    val reflexOpens: Int = 0
+    val opens: Int = 0
 )
 
 /**
- * Counts how many times each tracked app was opened per day and how many of those
- * opens were "reflexes" — abandoned in under 30 seconds. Today's numbers are
- * surfaced on the pact overlay ("this is open #14 today..."); the retained
- * [RETENTION_DAYS]-day history feeds the Insights screen.
- *
- * Dwell times are measured by the accessibility service from foreground
- * transitions, so they're approximate (e.g. screen-off time inside an app counts
- * as dwell) — good enough for awareness, not billing.
+ * Counts how many times each tracked app was opened per day. Today's numbers are
+ * surfaced on the pact overlay ("This is open #14 today") and sort the Well's
+ * Request Time grid; the retained [RETENTION_DAYS]-day history feeds Insights.
  */
 class OpenReflexTracker(
     private val prefs: SharedPreferences,
-    private val gson: Gson,
     private val today: () -> String = { DayKey.today() }
 ) {
-
     /**
      * Persisted shape: [days] maps "yyyyMMdd" to per-package stats. The [date] and
      * [stats] fields exist only to migrate the original single-day shape.
      */
+    @Serializable
     private data class Store(
         val days: Map<String, Map<String, AppOpenStats>>? = null,
         val date: String? = null,
         val stats: Map<String, AppOpenStats>? = null
     )
 
-    /** Call when a tracked app comes to the foreground. */
     fun recordOpen(packageName: String) {
         val days = loadDays()
         val todayStr = today()
@@ -50,49 +44,24 @@ class OpenReflexTracker(
         save(days + (todayStr to (todayStats + (packageName to current.copy(opens = current.opens + 1)))))
     }
 
-    /**
-     * Call when a tracked app leaves the foreground after [dwellMs] in it.
-     * Counts a reflex open when the dwell was under [REFLEX_THRESHOLD_MS].
-     * No-op for apps with no opens recorded today (e.g. an open that straddled
-     * midnight), so reflex counts can never exceed open counts.
-     */
-    fun recordClose(packageName: String, dwellMs: Long) {
-        if (dwellMs < 0 || dwellMs >= REFLEX_THRESHOLD_MS) return
-        val days = loadDays()
-        val todayStr = today()
-        val todayStats = days[todayStr] ?: return
-        val current = todayStats[packageName] ?: return
-        if (current.opens <= 0) return
-        save(days + (todayStr to (todayStats + (packageName to current.copy(reflexOpens = current.reflexOpens + 1)))))
-    }
-
-    /** Today's stats for [packageName]; zeros if it hasn't been opened today. */
     fun getStats(packageName: String): AppOpenStats =
         loadDays()[today()]?.get(packageName) ?: AppOpenStats()
 
-    /** Today's stats for every tracked app that has been opened today. */
     fun getAllStats(): Map<String, AppOpenStats> = loadDays()[today()] ?: emptyMap()
 
-    /** Full retained history: "yyyyMMdd" date -> package -> stats. */
     fun getDailyStats(): Map<String, Map<String, AppOpenStats>> = loadDays()
 
     private fun loadDays(): Map<String, Map<String, AppOpenStats>> {
         val json = prefs.getString(Constants.PrefsKeys.APP_OPEN_STATS, null) ?: return emptyMap()
         cachedDaysJson?.let { if (it == json) return cachedDays }
         val days = try {
-            val store = gson.fromJson(json, Store::class.java)
-            val parsed = when {
-                store?.days != null -> store.days
-                // Migration from the original single-day shape
-                store?.date != null && store.stats != null -> mapOf(store.date to store.stats)
+            val store = AppJson.json.decodeFromString<Store>(json)
+            when {
+                store.days != null -> store.days
+                store.date != null && store.stats != null -> mapOf(store.date to store.stats)
                 else -> emptyMap()
             }
-            // If R8 strips the generic signatures of Store's fields (as in release
-            // 1.4), Gson fills these maps with LinkedTreeMap instead of AppOpenStats
-            // and the cast only explodes later, mid-composition on the Insights and
-            // Spellbook screens. Treat such data as corrupt rather than crash.
-            if (parsed.values.any(::hasPoisonedValues)) emptyMap() else parsed
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyMap()
         }
         cachedDaysJson = json
@@ -100,47 +69,27 @@ class OpenReflexTracker(
         return days
     }
 
-    /**
-     * True when a per-day stats map deserialized by Gson doesn't actually contain
-     * [AppOpenStats] values (generic type info lost — see [loadDays]). Takes [Any]?
-     * so the check happens before any implicit cast to the declared map type.
-     */
-    private fun hasPoisonedValues(stats: Any?): Boolean =
-        stats !is Map<*, *> || stats.values.any { it !is AppOpenStats }
-
     private fun save(days: Map<String, Map<String, AppOpenStats>>) {
         val cutoff = retentionCutoff(today())
         val pruned = days.filterKeys { it >= cutoff }
-        val json = gson.toJson(Store(days = pruned))
+        val json = AppJson.json.encodeToString(Store(days = pruned))
         prefs.edit { putString(Constants.PrefsKeys.APP_OPEN_STATS, json) }
         cachedDaysJson = json
         cachedDays = pruned
     }
 
-    /** Oldest "yyyyMMdd" date to retain, relative to [todayStr] (lexicographic compare is safe). */
     private fun retentionCutoff(todayStr: String): String = try {
         val format = SimpleDateFormat("yyyyMMdd", Locale.US)
         val cal = Calendar.getInstance()
         cal.time = format.parse(todayStr)!!
         cal.add(Calendar.DAY_OF_YEAR, -(RETENTION_DAYS - 1))
         format.format(cal.time)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         todayStr
     }
 
     companion object {
-        /** An open shorter than this counts as a reflex check rather than real use. */
-        const val REFLEX_THRESHOLD_MS = 30_000L
-
-        /** How many days of per-app open history to retain. */
         const val RETENTION_DAYS = 30
-
-        // Parsed-store cache, shared across instances (the service and the
-        // ViewModels each construct their own tracker): recordOpen/recordClose
-        // run on every foreground transition of a tracked app, and re-parsing
-        // the full retained history there costs the accessibility service's
-        // main thread. Keyed on the raw stored JSON, like the service's other
-        // caches; a racing writer just costs one redundant parse.
         @Volatile private var cachedDaysJson: String? = null
         @Volatile private var cachedDays: Map<String, Map<String, AppOpenStats>> = emptyMap()
     }

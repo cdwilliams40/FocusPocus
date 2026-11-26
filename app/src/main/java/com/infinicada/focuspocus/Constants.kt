@@ -28,6 +28,15 @@ object Constants {
         // millis that window ends). Until then nothing restarts them.
         const val DISMISSED_RITUALS = "dismissedRituals"
         const val SESSION_BREAKS_ENABLED = "sessionBreaksEnabled"
+        // Remembered hand-made setup on the Focus tab — kept separate from the
+        // running session's keys so rituals, talismans, and session stops never
+        // wipe the user's preferred manual setup.
+        const val LAST_MANUAL_BLOCKERS = "lastManualBlockers"
+        const val LAST_MANUAL_DURATION_MINUTES = "lastManualDurationMinutes"
+        const val LAST_MANUAL_BREAKS_ENABLED = "lastManualBreaksEnabled"
+        // DND restoration bookkeeping (device-local)
+        const val DND_ENABLED_BY_APP = "dndEnabledByApp"
+        const val DND_PREVIOUS_FILTER = "dndPreviousFilter"
         const val MUTE_BLOCKED_NOTIFICATIONS = "muteBlockedNotifications"
         const val BREAK_DURATION_MINUTES = "breakDurationMinutes"
         const val BREAK_END_TIME_MILLIS = "breakEndTimeMillis"
@@ -143,24 +152,34 @@ object Constants {
         const val WELL_PENDING_ENABLED = "wellPendingEnabled"
         const val WELL_PENDING_CAPACITY_MINUTES = "wellPendingCapacityMinutes"
         const val WELL_PENDING_REFILL_INTERVAL_MINUTES = "wellPendingRefillIntervalMinutes"
-    }
 
-    object Defaults {
-        object FocusPresets {
-            const val DEEP_WORK_NAME = "Deep Work"
-            const val DEEP_WORK_DURATION = 240
-            const val DEEP_WORK_BREAKS = true
+        // Quiet Well hours & morning focus refill gate ("No Morning Windfall")
+        const val WELL_QUIET_HOURS_ENABLED = "wellQuietHoursEnabled"
+        const val WELL_QUIET_START_MINUTE = "wellQuietStartMinute"
+        const val WELL_QUIET_END_MINUTE = "wellQuietEndMinute"
+        const val WELL_MORNING_FOCUS_REQUIRED = "wellMorningFocusRequired"
+        const val WELL_MORNING_FOCUS_MINUTES = "wellMorningFocusMinutes"
+        const val WELL_MORNING_UNLOCK_DATE = "wellMorningUnlockDate"
+        // A queued loosening of the refill gate; applies-at 0/absent = none.
+        const val WELL_GATE_PENDING_APPLIES_AT_MILLIS = "wellGatePendingAppliesAtMillis"
+        const val WELL_GATE_PENDING_QUIET_HOURS_ENABLED = "wellGatePendingQuietHoursEnabled"
+        const val WELL_GATE_PENDING_QUIET_START_MINUTE = "wellGatePendingQuietStartMinute"
+        const val WELL_GATE_PENDING_QUIET_END_MINUTE = "wellGatePendingQuietEndMinute"
+        const val WELL_GATE_PENDING_MORNING_FOCUS_REQUIRED = "wellGatePendingMorningFocusRequired"
+        const val WELL_GATE_PENDING_MORNING_FOCUS_MINUTES = "wellGatePendingMorningFocusMinutes"
 
-            const val QUICK_FOCUS_NAME = "Quick Focus"
-            const val QUICK_FOCUS_DURATION = 25
-            const val QUICK_FOCUS_BREAKS = true
+        // Planned ritual exceptions (scheduleId -> list of yyyyMMdd skipped dates, requested >=24h ahead)
+        const val RITUAL_EXCEPTIONS = "ritualExceptions"
 
-            const val SLEEP_MODE_NAME = "Sleep Mode"
-            const val SLEEP_MODE_DURATION = 480
-            const val SLEEP_MODE_BREAKS = false
+        // Local enforcement diagnostics ring buffer (device-local)
+        const val ENFORCEMENT_LOG = "enforcementLog"
 
-            const val DEFAULT_BLOCKER_NAME = "Default"
-        }
+        // Automatic SAF folder backup settings (device-local)
+        const val AUTO_BACKUP_TREE_URI = "autoBackupTreeUri"
+        const val AUTO_BACKUP_CADENCE = "autoBackupCadence"
+        const val AUTO_BACKUP_LAST_MILLIS = "autoBackupLastMillis"
+        // Last failed automatic attempt; retries back off from it.
+        const val AUTO_BACKUP_LAST_FAILURE_MILLIS = "autoBackupLastFailureMillis"
     }
 
     // List size limits
@@ -175,9 +194,13 @@ object Constants {
     const val RITUALS_CHANNEL_ID = "focus_pocus_rituals"
     const val PROGRESSION_CHANNEL_ID = "focus_pocus_progression"
     const val FOCUS_SESSION_CHANNEL_ID = "focus_pocus_focus_session"
+    const val PACT_CHANNEL_ID = "focus_pocus_pacts"
+    const val PROTECTION_ALERT_CHANNEL_ID = "focus_pocus_protection_alerts"
 
     // Notification IDs
     const val FOCUS_SESSION_NOTIFICATION_ID = 9001
     const val TRIAL_COMPLETION_NOTIFICATION_ID = 9002
     const val SESSION_COUNTDOWN_NOTIFICATION_ID = 9004
+    const val PACT_NOTIFICATION_ID = 9005
+    const val PROTECTION_ALERT_NOTIFICATION_ID = 9006
 }

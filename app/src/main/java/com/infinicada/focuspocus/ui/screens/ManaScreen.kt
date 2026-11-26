@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.infinicada.focuspocus.ManaRules
@@ -64,6 +65,7 @@ fun ManaScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     ArcaneBackground(modifier = modifier) {
         Scaffold(
@@ -147,9 +149,9 @@ fun ManaScreen(
                             Toast.makeText(
                                 context,
                                 if (onChannelWell()) {
-                                    context.getString(R.string.well_channel_done, Perk.WELL_CHANNEL_GRANT)
+                                    resources.getString(R.string.well_channel_done, Perk.WELL_CHANNEL_GRANT)
                                 } else {
-                                    context.getString(R.string.well_channel_failed)
+                                    resources.getString(R.string.well_channel_failed)
                                 },
                                 Toast.LENGTH_SHORT
                             ).show()
@@ -172,7 +174,7 @@ fun ManaScreen(
                         if (!onBuyExtraBreak()) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.perk_not_enough_mana),
+                                resources.getString(R.string.perk_not_enough_mana),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -201,7 +203,8 @@ private fun HowManaWorks() {
         Spacer(modifier = Modifier.height(4.dp))
         RuleLine(stringResource(R.string.mana_rule_timed, ManaRules.TIMED_MANA_PER_MINUTE, ManaRules.TIMED_DAILY_CAP))
         RuleLine(stringResource(R.string.mana_rule_open_ended, ManaRules.OPEN_ENDED_MANA, ManaRules.OPEN_ENDED_MIN_MINUTES))
-        RuleLine(stringResource(R.string.mana_rule_productive, ManaRules.PRODUCTIVE_MINUTES_PER_MANA, ManaRules.PRODUCTIVE_DAILY_CAP))
+        RuleLine(stringResource(R.string.mana_rule_productive, ManaRules.PRODUCTIVE_MANA_PER_MINUTE, ManaRules.PRODUCTIVE_DAILY_CAP))
+        RuleLine(stringResource(R.string.mana_rule_substitute, ManaRules.SUBSTITUTE_WIN_MANA, ManaRules.SUBSTITUTE_WINS_PAID_PER_DAY))
         RuleLine(
             stringResource(
                 R.string.mana_rule_trials,

@@ -6,12 +6,8 @@ import android.content.SharedPreferences
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 class FocusNotificationListenerService : NotificationListenerService() {
-
-    private val gson = Gson()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)

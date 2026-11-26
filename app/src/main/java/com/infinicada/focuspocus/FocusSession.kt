@@ -1,5 +1,8 @@
 package com.infinicada.focuspocus
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class FocusSession(
     val startTimeMillis: Long,
     val endTimeMillis: Long,

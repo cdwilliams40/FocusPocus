@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -36,6 +37,8 @@ import com.infinicada.focuspocus.UsageStatsHelper
 import com.infinicada.focuspocus.insights.FocusSource
 import com.infinicada.focuspocus.insights.InsightsRange
 import com.infinicada.focuspocus.insights.InsightsReport
+import com.infinicada.focuspocus.insights.TimeOfDayBucket
+import com.infinicada.focuspocus.model.PactIntention
 import com.infinicada.focuspocus.ui.components.GlassCard
 import com.infinicada.focuspocus.ui.components.SectionHeader
 import kotlinx.coroutines.Dispatchers
@@ -72,12 +75,30 @@ fun WellSection(
         if (refillIntervalMinutes > 0) {
             Note(stringResource(R.string.insights_well_refill_per_day, 24 * 60 / refillIntervalMinutes))
         }
+        well.deltaMinutes?.let { delta ->
+            Note(periodDeltaText(delta, days.size))
+        }
         Line(stringResource(R.string.insights_well_drawn), minutesText(well.totalMinutes))
         Line(stringResource(R.string.insights_well_pacts), "${well.pacts}")
         if (well.pacts > 0) Line(stringResource(R.string.insights_well_average_pact), minutesText(well.averagePactMinutes))
         Line(stringResource(R.string.insights_well_returned), minutesText(well.refundedMinutes))
+        Line(stringResource(R.string.insights_well_substitutes), "${well.substituteWins}")
         Line(stringResource(R.string.insights_well_pours), "${well.pours}")
         Line(stringResource(R.string.insights_well_dry), "${well.dryOpens}")
+        if (well.intentions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Subhead(stringResource(R.string.insights_well_intentions))
+            val sorted = well.intentions.entries.sortedByDescending { it.value }
+            val max = sorted.first().value
+            sorted.forEach { (intention, count) ->
+                RankedBarRow(intentionLabel(intention), "$count", count, max, MaterialTheme.colorScheme.secondary)
+            }
+        }
+        if (well.minutesByTimeOfDay.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Subhead(stringResource(R.string.insights_time_of_day))
+            TimeOfDayBars(well.minutesByTimeOfDay, MaterialTheme.colorScheme.tertiary)
+        }
         if (well.perApp.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Subhead(stringResource(R.string.insights_well_by_app))
@@ -90,42 +111,39 @@ fun WellSection(
 }
 
 // ────────────────────────────────────────────────────────────
-//  REFLEXES
+//  APP OPENS
 // ────────────────────────────────────────────────────────────
 
 @Composable
-fun ReflexSection(
-    reflexes: InsightsReport.Reflexes,
+fun OpensSection(
+    opens: InsightsReport.Opens,
     days: List<String>,
     showChart: Boolean,
     names: Map<String, String>
 ) {
-    SectionHeader(stringResource(R.string.insights_reflex_header))
+    SectionHeader(stringResource(R.string.insights_opens_header))
     Spacer(modifier = Modifier.height(8.dp))
     GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-        val percent = if (reflexes.opens == 0) 0 else reflexes.reflexOpens * 100 / reflexes.opens
-        Line(stringResource(R.string.insights_reflex_opens), "${reflexes.opens}")
-        Line(stringResource(R.string.insights_reflex_reflexes), stringResource(R.string.insights_reflex_share, reflexes.reflexOpens, percent))
-        Note(stringResource(R.string.insights_reflex_hint))
-        if (showChart && reflexes.opens > 0) {
+        Line(stringResource(R.string.insights_opens_total), "${opens.totalOpens}")
+        if (showChart && opens.totalOpens > 0) {
             Spacer(modifier = Modifier.height(12.dp))
             DayBarChart(
                 days = days,
-                values = reflexes.reflexesPerDay.map { intArrayOf(it) },
-                seriesNames = listOf(stringResource(R.string.insights_reflex_reflexes)),
+                values = opens.opensPerDay.map { intArrayOf(it) },
+                seriesNames = listOf(stringResource(R.string.insights_opens_total)),
                 colors = listOf(MaterialTheme.colorScheme.primary),
                 format = { "$it" }
             )
         }
-        if (reflexes.perApp.isNotEmpty()) {
+        if (opens.perApp.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
-            Subhead(stringResource(R.string.insights_reflex_by_app))
-            val max = reflexes.perApp.first().opens
-            reflexes.perApp.take(5).forEach { app ->
+            Subhead(stringResource(R.string.insights_opens_by_app))
+            val max = opens.perApp.first().second
+            opens.perApp.take(5).forEach { (pkg, count) ->
                 RankedBarRow(
-                    names[app.packageName] ?: app.packageName,
-                    stringResource(R.string.insights_opens_row_count, app.opens, app.reflexOpens),
-                    app.opens, max, MaterialTheme.colorScheme.primary
+                    names[pkg] ?: pkg,
+                    "$count",
+                    count, max, MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -157,6 +175,9 @@ fun FocusSection(
     SectionHeader(stringResource(R.string.insights_focus_header))
     Spacer(modifier = Modifier.height(8.dp))
     GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+        focus.deltaMinutes?.let { delta ->
+            Note(periodDeltaText(delta, days.size))
+        }
         Line(stringResource(R.string.insights_focus_sessions), "${focus.sessions}")
         if (focus.sessions > 0) Line(stringResource(R.string.insights_avg_session), minutesText(focus.averageSessionMinutes))
         Spacer(modifier = Modifier.height(8.dp))
@@ -173,6 +194,11 @@ fun FocusSection(
                 LegendRow(colors[src.ordinal], sourceNames[src.ordinal], minutesText(focus.minutesBySource[src] ?: 0))
             }
         }
+        if (focus.minutesByTimeOfDay.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Subhead(stringResource(R.string.insights_time_of_day))
+            TimeOfDayBars(focus.minutesByTimeOfDay, MaterialTheme.colorScheme.primary)
+        }
         Spacer(modifier = Modifier.height(12.dp))
         Line(stringResource(R.string.insights_focus_blocked), "${focus.blockedAttempts}")
         if (focus.mostBlocked.isNotEmpty()) {
@@ -184,7 +210,7 @@ fun FocusSection(
         if (focus.recentSessions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Subhead(stringResource(R.string.insights_session_history))
-            val format = SimpleDateFormat("EEE d MMM, HH:mm", Locale.getDefault())
+            val format = SimpleDateFormat("EEE d MMM, HH:mm", LocalLocale.current.platformLocale)
             focus.recentSessions.take(5).forEach { s -> SessionRow(s, format) }
         }
     }
@@ -238,13 +264,14 @@ fun ManaSection(
         Line(stringResource(R.string.insights_mana_from_timed), "+${mana.timedSessions}")
         Line(stringResource(R.string.insights_mana_from_open_ended), "+${mana.openEndedSessions}")
         Line(stringResource(R.string.insights_mana_from_productive), "+${mana.productive}")
+        Line(stringResource(R.string.insights_mana_from_substitutes), "+${mana.substitutes}")
         Line(stringResource(R.string.insights_mana_from_trials, mana.trialsCompleted), "+${mana.trials}")
         Spacer(modifier = Modifier.height(12.dp))
         Subhead(stringResource(R.string.insights_mana_went))
         Line(stringResource(R.string.insights_mana_pours, mana.pours.size), spentText(mana.pourMana))
         Line(stringResource(R.string.insights_mana_breaks), spentText(mana.breakMana))
         if (mana.pours.isNotEmpty()) {
-            val format = SimpleDateFormat("EEE d MMM, HH:mm", Locale.getDefault())
+            val format = SimpleDateFormat("EEE d MMM, HH:mm", LocalLocale.current.platformLocale)
             mana.pours.take(5).forEach { pour ->
                 Note("${format.format(Date(pour.timestampMillis))} · ${-pour.amount}")
             }
@@ -346,4 +373,44 @@ private fun Note(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(vertical = 2.dp)
     )
+}
+
+@Composable
+private fun periodDeltaText(deltaMinutes: Int, periodDays: Int): String {
+    val sign = if (deltaMinutes > 0) "+" else if (deltaMinutes < 0) "−" else ""
+    val absText = minutesText(kotlin.math.abs(deltaMinutes))
+    return if (periodDays == 1) {
+        stringResource(R.string.insights_delta_vs_yesterday, "$sign$absText")
+    } else {
+        stringResource(R.string.insights_delta_vs_prior_days, "$sign$absText", periodDays)
+    }
+}
+
+@Composable
+private fun intentionLabel(intention: PactIntention): String = stringResource(
+    when (intention) {
+        PactIntention.QUICK_REPLY -> R.string.pact_intention_quick_reply
+        PactIntention.SPECIFIC_TASK -> R.string.pact_intention_specific_task
+        PactIntention.UNWINDING -> R.string.pact_intention_unwinding
+    }
+)
+
+@Composable
+private fun TimeOfDayBars(
+    minutesByBucket: Map<TimeOfDayBucket, Int>,
+    color: androidx.compose.ui.graphics.Color
+) {
+    val max = (minutesByBucket.values.maxOrNull() ?: 0).coerceAtLeast(1)
+    TimeOfDayBucket.entries.forEach { bucket ->
+        val mins = minutesByBucket[bucket] ?: 0
+        val label = stringResource(
+            when (bucket) {
+                TimeOfDayBucket.MORNING -> R.string.insights_tod_morning
+                TimeOfDayBucket.AFTERNOON -> R.string.insights_tod_afternoon
+                TimeOfDayBucket.EVENING -> R.string.insights_tod_evening
+                TimeOfDayBucket.LATE_NIGHT -> R.string.insights_tod_late_night
+            }
+        )
+        RankedBarRow(label, minutesText(mins), mins, max, color)
+    }
 }

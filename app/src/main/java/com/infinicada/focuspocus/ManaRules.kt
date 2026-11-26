@@ -18,10 +18,19 @@ object ManaRules {
     /** …once a day, once a session has run this long. */
     const val OPEN_ENDED_MIN_MINUTES = 60
 
-    /** Time in a productive app: one mana per this many minutes… */
-    const val PRODUCTIVE_MINUTES_PER_MANA = 2
+    /**
+     * Time in a productive app, or in a Well app's substitute: mana per
+     * minute (double a timed session's, so picking the substitute is the
+     * best-paying way to spend time on the phone)…
+     */
+    const val PRODUCTIVE_MANA_PER_MINUTE = 2L
     /** …up to this much a day. */
-    const val PRODUCTIVE_DAILY_CAP = 60L
+    const val PRODUCTIVE_DAILY_CAP = 120L
+
+    /** Picking the substitute on a block or pact screen pays this… */
+    const val SUBSTITUTE_WIN_MANA = 10L
+    /** …for the first this-many picks a day; later picks still count for trials. */
+    const val SUBSTITUTE_WINS_PAID_PER_DAY = 3
 
     // ── Spending ──
 
@@ -68,9 +77,13 @@ object ManaRules {
     fun isTimed(session: FocusSession): Boolean =
         session.source != FocusSession.SOURCE_RITUAL && (session.plannedMinutes ?: 0) > 0
 
+    /** Mana a pick of the substitute pays, given how many were already made today. */
+    fun substituteWinMana(winsBeforeToday: Int): Long =
+        if (winsBeforeToday < SUBSTITUTE_WINS_PAID_PER_DAY) SUBSTITUTE_WIN_MANA else 0L
+
     /** Mana a day's productive minutes are worth, before anything already paid. */
     fun productiveMana(minutesToday: Int): Long =
-        minOf(PRODUCTIVE_DAILY_CAP, (minutesToday / PRODUCTIVE_MINUTES_PER_MANA).toLong())
+        minOf(PRODUCTIVE_DAILY_CAP, minutesToday * PRODUCTIVE_MANA_PER_MINUTE)
 
     /**
      * Price of the next pour today, given how many were already bought: the

@@ -13,7 +13,7 @@ A mystical focus app for Android built on three ideas: your most distracting app
 - The Well holds 30 minutes by default and **refills on its own** (one minute every 20 by default); there is no midnight reset to binge against
 - When a pact runs out the app simply closes; a toast warns you a minute before
 - **End pact** closes a running pact early and pours the unused minutes back
-- The pact screen shows today's opens and quick "reflex" opens, and can offer a **healthier substitute** ("Open Kindle instead") first
+- The pact screen shows today's opens, and can offer a **healthier substitute** ("Open Kindle instead") first
 - When the Well is dry, the screen says when time will be back and offers a **pour** of mana
 - **Taking an app off the Well waits 24 hours**, and loosening the Well's capacity or refill rate does too; adding apps and tightening are instant
 
@@ -40,10 +40,10 @@ Every number lives in one place (`ManaRules.kt`) and the app shows the same rule
 | Pour 5 minutes into the Well | 75, doubling with each pour that day |
 | One extra break in a session | 50 |
 
-Trials include focusing in timed sessions, starting one by hand, keeping Well draws or reflex opens under a limit, and time in productive apps.
+Trials include focusing in timed sessions, starting one by hand, keeping Well draws under a limit, and time in productive apps.
 
 ### Insights
-One switch — today, 7 days, 30 days — for every section: minutes drawn from the Well (per day, per app, pacts, pours, dry opens), reflex opens, focus minutes by source (by hand, rituals, talismans) with blocked attempts and session history, mana earned by source and spent on pours, your streak, and screen time. Tap any bar to read its day.
+One switch — today, 7 days, 30 days — for every section: minutes drawn from the Well (per day, per app, pacts, pours, dry opens), app opens, focus minutes by source (by hand, rituals, talismans) with blocked attempts and session history, mana earned by source and spent on pours, your streak, and screen time. Tap any bar to read its day.
 
 ### Protection Health
 - A Settings card answers "am I actually protected right now?": accessibility service alive, usage access granted, notifications allowed, battery optimization exempted — each with a one-tap fix

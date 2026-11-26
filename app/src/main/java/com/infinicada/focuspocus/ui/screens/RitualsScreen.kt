@@ -5,6 +5,8 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,8 +19,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
@@ -47,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,8 +64,11 @@ import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.model.Schedule
+import com.infinicada.focuspocus.parseScheduleMinutes
+import com.infinicada.focuspocus.schedulesOverlap
 import java.util.UUID
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ScheduleListScreen(
     schedules: List<Schedule>,
@@ -68,7 +77,25 @@ fun ScheduleListScreen(
     onDeleteSchedule: (Schedule) -> Unit,
     modifier: Modifier = Modifier,
     activeScheduleId: String? = null,
+    ritualExceptions: Map<String, Set<String>> = emptyMap(),
+    onRequestSkip: (Schedule, String) -> Unit = { _, _ -> },
+    onCancelSkip: (String, String) -> Unit = { _, _ -> }
 ) {
+    var deletingScheduleId by rememberSaveable { mutableStateOf<String?>(null) }
+    var skippingScheduleId by rememberSaveable { mutableStateOf<String?>(null) }
+    val deletingSchedule = schedules.find { it.id == deletingScheduleId && it.id != activeScheduleId }
+    val skippingSchedule = schedules.find { it.id == skippingScheduleId }
+    val locale = androidx.compose.ui.platform.LocalLocale.current.platformLocale
+    val dayDisplayFormat = remember(locale) {
+        java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d", locale)
+    }
+    fun formatDayKey(dayKey: String): String = try {
+        java.time.LocalDate.parse(dayKey, java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+            .format(dayDisplayFormat)
+    } catch (_: Exception) {
+        dayKey
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         modifier = modifier,
@@ -142,13 +169,44 @@ fun ScheduleListScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                     )
                                 }
+                                // Yesterday's skip is kept for overnight windows; only list upcoming ones.
+                                val todayKey = com.infinicada.focuspocus.limit.DayKey.today()
+                                val skipped = ritualExceptions[schedule.id].orEmpty().filter { it >= todayKey }.sorted()
+                                if (skipped.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        skipped.forEach { dayKey ->
+                                            AssistChip(
+                                                onClick = { onCancelSkip(schedule.id, dayKey) },
+                                                label = {
+                                                    Text(
+                                                        stringResource(R.string.rituals_skip_chip, formatDayKey(dayKey)),
+                                                        style = MaterialTheme.typography.labelSmall
+                                                    )
+                                                },
+                                                trailingIcon = {
+                                                    Icon(
+                                                        Icons.Default.Close,
+                                                        contentDescription = stringResource(R.string.action_cancel),
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
-                            Button(
-                                onClick = { onDeleteSchedule(schedule) },
-                                enabled = !isActive,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Text(stringResource(R.string.action_delete))
+                            Column(horizontalAlignment = Alignment.End) {
+                                TextButton(onClick = { skippingScheduleId = schedule.id }) {
+                                    Text(stringResource(R.string.rituals_skip_day_button))
+                                }
+                                Button(
+                                    onClick = { deletingScheduleId = schedule.id },
+                                    enabled = !isActive,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text(stringResource(R.string.action_delete))
+                                }
                             }
                         }
                     }
@@ -159,39 +217,117 @@ fun ScheduleListScreen(
             }
         }
     }
+
+    deletingSchedule?.let { schedule ->
+        AlertDialog(
+            onDismissRequest = { deletingScheduleId = null },
+            title = { Text(stringResource(R.string.rituals_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.rituals_delete_confirm_message, schedule.name)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deletingScheduleId = null
+                        onDeleteSchedule(schedule)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingScheduleId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    skippingSchedule?.let { schedule ->
+        val alreadySkipped = ritualExceptions[schedule.id].orEmpty()
+        val candidates = remember(schedule.id, alreadySkipped) {
+            com.infinicada.focuspocus.RitualExceptions.upcomingSkippableDates(schedule)
+                .filterNot { it in alreadySkipped }
+        }
+        AlertDialog(
+            onDismissRequest = { skippingScheduleId = null },
+            title = { Text(stringResource(R.string.rituals_skip_dialog_title, schedule.name)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.rituals_skip_dialog_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (candidates.isEmpty()) {
+                        Text(
+                            stringResource(R.string.rituals_skip_none_available),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            candidates.take(8).forEach { dayKey ->
+                                OutlinedButton(
+                                    onClick = {
+                                        onRequestSkip(schedule, dayKey)
+                                        skippingScheduleId = null
+                                    }
+                                ) {
+                                    Text(formatDayKey(dayKey))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { skippingScheduleId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleEditorScreen(
     blockerLists: List<Blocker>,
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     onSaveSchedule: (Schedule) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     scheduleToEdit: Schedule? = null,
     existingSchedules: List<Schedule> = emptyList()
 ) {
-    var name by remember { mutableStateOf(scheduleToEdit?.name ?: "") }
-    var selectedBlockerNames by remember {
-        mutableStateOf(
-            scheduleToEdit?.effectiveBlockerNames?.toSet() ?: emptySet()
-        )
+    val editorKey = scheduleToEdit?.id ?: "new"
+    var name by rememberSaveable(editorKey) { mutableStateOf(scheduleToEdit?.name ?: "") }
+    var selectedBlockerList by rememberSaveable(editorKey) {
+        mutableStateOf(scheduleToEdit?.effectiveBlockerNames ?: emptyList())
     }
-    var showBlockerDialog by remember { mutableStateOf(false) }
+    val selectedBlockerNames = selectedBlockerList.toSet()
+    var showBlockerDialog by rememberSaveable(editorKey) { mutableStateOf(false) }
 
-    var selectedTalisman by remember {
-        mutableStateOf(
-             if (scheduleToEdit?.unbindingTalismanId != null) namedTags.find { it.id == scheduleToEdit.unbindingTalismanId } else null
-        )
+    var selectedTalismanId by rememberSaveable(editorKey) {
+        mutableStateOf(scheduleToEdit?.unbindingTalismanId)
     }
-    var showTalismanDialog by remember { mutableStateOf(false) }
+    val selectedTalisman = selectedTalismanId?.let { id -> talismans.find { it.id == id } }
+    var showTalismanDialog by rememberSaveable(editorKey) { mutableStateOf(false) }
 
-    var breaksEnabled by remember { mutableStateOf(scheduleToEdit?.breaksEnabled ?: true) }
-    var breakDurationMinutes by remember { mutableIntStateOf((scheduleToEdit?.breakDurationMinutes ?: 5).coerceIn(1, 30)) }
-    var maxBreaksPerSession by remember { mutableIntStateOf((scheduleToEdit?.maxBreaksPerSession ?: 3).coerceIn(1, 10)) }
+    var breaksEnabled by rememberSaveable(editorKey) { mutableStateOf(scheduleToEdit?.breaksEnabled ?: true) }
+    var breakDurationMinutes by rememberSaveable(editorKey) {
+        mutableIntStateOf((scheduleToEdit?.breakDurationMinutes ?: 5).coerceIn(1, 30))
+    }
+    var maxBreaksPerSession by rememberSaveable(editorKey) {
+        mutableIntStateOf((scheduleToEdit?.maxBreaksPerSession ?: 3).coerceIn(1, 10))
+    }
 
-    var selectedDays by remember { mutableStateOf(scheduleToEdit?.effectiveDays ?: emptySet()) }
+    var selectedDayNames by rememberSaveable(editorKey) {
+        mutableStateOf<List<String>>(scheduleToEdit?.effectiveDays?.map { it.name } ?: emptyList())
+    }
+    val selectedDays = selectedDayNames.mapNotNull { runCatching { DayOfWeek.valueOf(it) }.getOrNull() }.toSet()
 
     // Initial times
     val (startHour, startMinute) = remember(scheduleToEdit) {
@@ -214,38 +350,24 @@ fun ScheduleEditorScreen(
     }
     val endTimeState = rememberTimePickerState(initialHour = endHour, initialMinute = endMinute)
 
-    var showStartTimePicker by remember { mutableStateOf(false) }
-    var showEndTimePicker by remember { mutableStateOf(false) }
+    var showStartTimePicker by rememberSaveable(editorKey) { mutableStateOf(false) }
+    var showEndTimePicker by rememberSaveable(editorKey) { mutableStateOf(false) }
 
     // Validate times - allow overnight schedules (end time before start time)
     val startTimeMinutes = startTimeState.hour * 60 + startTimeState.minute
     val endTimeMinutes = endTimeState.hour * 60 + endTimeState.minute
     val isOvernightSchedule = endTimeMinutes <= startTimeMinutes
     val isTimeValid = startTimeMinutes != endTimeMinutes  // Only invalid if times are identical
-    // timeValidationError removed: stringResource used inline below
 
-    // Check for schedule conflicts with existing schedules
+    // Check for schedule conflicts with existing schedules (including overnight wrap)
     val conflictingSchedule = remember(selectedDays, startTimeMinutes, endTimeMinutes, existingSchedules) {
         existingSchedules.filter { it.id != (scheduleToEdit?.id ?: "") }.find { existing ->
-            // Check if any days overlap
-            val daysOverlap = selectedDays.any { it in existing.effectiveDays }
-            if (!daysOverlap) return@find false
-
-            // Parse existing schedule times
-            val existParts = existing.effectiveStartTime.split(":")
-            val existEndParts = existing.effectiveEndTime.split(":")
-            if (existParts.size != 2 || existEndParts.size != 2) return@find false
-            val existStart = (existParts[0].toIntOrNull() ?: 0) * 60 + (existParts[1].toIntOrNull() ?: 0)
-            val existEnd = (existEndParts[0].toIntOrNull() ?: 0) * 60 + (existEndParts[1].toIntOrNull() ?: 0)
-
-            // Check time overlap (simplified - same-day only for now)
-            if (endTimeMinutes > startTimeMinutes && existEnd > existStart) {
-                // Both same-day: ranges overlap if one starts before other ends
-                startTimeMinutes < existEnd && endTimeMinutes > existStart
-            } else {
-                // Overnight schedules involved - just warn if any time overlap possible
-                true
-            }
+            val existStart = parseScheduleMinutes(existing.effectiveStartTime) ?: return@find false
+            val existEnd = parseScheduleMinutes(existing.effectiveEndTime) ?: return@find false
+            schedulesOverlap(
+                selectedDays, startTimeMinutes, endTimeMinutes,
+                existing.effectiveDays, existStart, existEnd
+            )
         }
     }
 
@@ -261,10 +383,10 @@ fun ScheduleEditorScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedBlockerNames = if (isSelected) {
-                                        selectedBlockerNames - blocker.name
+                                    selectedBlockerList = if (isSelected) {
+                                        selectedBlockerList - blocker.name
                                     } else {
-                                        selectedBlockerNames + blocker.name
+                                        selectedBlockerList + blocker.name
                                     }
                                 }
                                 .padding(vertical = 8.dp),
@@ -273,10 +395,10 @@ fun ScheduleEditorScreen(
                             androidx.compose.material3.Checkbox(
                                 checked = isSelected,
                                 onCheckedChange = {
-                                    selectedBlockerNames = if (isSelected) {
-                                        selectedBlockerNames - blocker.name
+                                    selectedBlockerList = if (isSelected) {
+                                        selectedBlockerList - blocker.name
                                     } else {
-                                        selectedBlockerNames + blocker.name
+                                        selectedBlockerList + blocker.name
                                     }
                                 }
                             )
@@ -299,12 +421,12 @@ fun ScheduleEditorScreen(
             title = { Text(stringResource(R.string.rituals_select_unbinding_talisman)) },
             text = {
                 LazyColumn {
-                    items(namedTags) { tag ->
+                    items(talismans) { tag ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedTalisman = tag
+                                    selectedTalismanId = tag.id
                                     showTalismanDialog = false
                                 }
                                 .padding(vertical = 12.dp),
@@ -319,7 +441,7 @@ fun ScheduleEditorScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedTalisman = null
+                                    selectedTalismanId = null
                                     showTalismanDialog = false
                                 }
                                 .padding(vertical = 12.dp),
@@ -435,10 +557,10 @@ fun ScheduleEditorScreen(
                 FilterChip(
                     selected = selectedDays.contains(day),
                     onClick = {
-                        selectedDays = if (selectedDays.contains(day)) {
-                            selectedDays - day
+                        selectedDayNames = if (selectedDays.contains(day)) {
+                            selectedDayNames - day.name
                         } else {
-                            selectedDays + day
+                            selectedDayNames + day.name
                         }
                     },
                     label = { Text(day.name.take(1)) }

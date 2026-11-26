@@ -3,11 +3,8 @@ package com.infinicada.focuspocus
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 object BlockerRepository {
-    private val gson = Gson()
     private var cachedBlockerListsJson: String? = null
     private var cachedBlockerLists: List<Blocker> = emptyList()
 
@@ -31,10 +28,7 @@ object BlockerRepository {
             }
 
             return try {
-                val type = object : TypeToken<List<Blocker>>() {}.type
-                // Drop records Gson (Unsafe) left with a null name/mode — a null mode
-                // makes shouldBlock throw, which silently disables all blocking here.
-                val parsed: List<Blocker> = Blocker.sanitize(gson.fromJson(json, type))
+                val parsed: List<Blocker> = Blocker.sanitize(AppJson.decodeListLenient(json))
                 cachedBlockerListsJson = json
                 cachedBlockerLists = parsed
                 parsed
@@ -47,24 +41,6 @@ object BlockerRepository {
         }
     }
 
-    fun getBlocker(context: Context, name: String): Blocker? {
-        return getBlockers(context).find { it.name == name }
-    }
-
-    fun getBlocker(prefs: SharedPreferences, name: String): Blocker? {
-        return getBlockers(prefs).find { it.name == name }
-    }
-
-    /**
-     * The enchantment of the running focus session that blocks [packageName]
-     * right now, or null: no session, a break, or none of them covers it.
-     *
-     * A whitelist may only block apps the picker offers ([whitelistBlockable],
-     * i.e. AppUtils.isWhitelistBlockable) — otherwise unselectable system
-     * surfaces (Android Auto's projection UI, permission dialogs…) would be
-     * blocked with no way to exempt them. Shared by the accessibility service
-     * and the dashboard, so "what a session blocks" has one definition.
-     */
     fun sessionBlockerFor(
         prefs: SharedPreferences,
         packageName: String,
@@ -83,13 +59,6 @@ object BlockerRepository {
     private var cachedActiveNamesValid = false
     private var cachedActiveNames: List<String> = emptyList()
 
-    /**
-     * Names of the blockers active in the current session, from the
-     * ACTIVE_BLOCKERS JSON list. Shared by the accessibility service, the Warden sync, the
-     * session notification, and the notification listener — all of which
-     * previously each re-parsed the JSON on their own hot paths. Cached on
-     * the raw stored strings, same as [getBlockers] above.
-     */
     fun getActiveBlockerNames(prefs: SharedPreferences): List<String> {
         synchronized(this) {
             val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
@@ -98,8 +67,7 @@ object BlockerRepository {
 
             val parsed: List<String>? = if (json != null) {
                 try {
-                    val type = object : TypeToken<List<String>>() {}.type
-                    gson.fromJson(json, type)
+                    AppJson.decodeListLenient(json)
                 } catch (e: Exception) {
                     Log.e("BlockerRepository", "Error parsing active blockers JSON", e)
                     null

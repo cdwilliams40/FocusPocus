@@ -1,7 +1,7 @@
 package com.infinicada.focuspocus
 
 import android.content.Context
-import com.google.gson.Gson
+import kotlinx.serialization.encodeToString
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,7 +17,6 @@ class SessionManagerTest {
     private lateinit var mockContext: Context
     private lateinit var sessionRecorderMock: MockedStatic<SessionRecorder>
     private lateinit var dndControllerMock: MockedStatic<DndController>
-    private val gson = Gson()
 
     @Before
     fun setUp() {
@@ -47,7 +46,7 @@ class SessionManagerTest {
         )
 
         assertTrue(sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false))
-        assertEquals(gson.toJson(listOf(blockerName)), sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
+        assertEquals(AppJson.json.encodeToString(listOf(blockerName)), sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
         assertTrue(sharedPreferences.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L) > 0)
         assertTrue(sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, false))
 
@@ -123,7 +122,7 @@ class SessionManagerTest {
         SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         assertTrue(SessionManager.isSessionActive(sharedPreferences))
 
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
 
         assertFalse(sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true))
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.ACTIVE_BLOCKERS))
@@ -141,7 +140,7 @@ class SessionManagerTest {
         SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         assertTrue(SessionManager.isSessionActive(sharedPreferences))
 
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
         assertFalse(SessionManager.isSessionActive(sharedPreferences))
     }
 
@@ -159,7 +158,7 @@ class SessionManagerTest {
         SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
         sharedPreferences.putInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 1)
 
-        val result = SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        val result = SessionManager.stopSession(mockContext, sharedPreferences)
 
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.EXTRA_BREAK_TOKENS))
         // SessionRecorder is static-mocked in this test, so the tolerant
@@ -176,7 +175,7 @@ class SessionManagerTest {
         assertEquals("tag-1", SessionManager.activeTalismanId(sharedPreferences))
         assertTrue(SessionManager.isFocusActive(sharedPreferences))
 
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
         assertEquals(null, SessionManager.activeTalismanId(sharedPreferences))
     }
 
@@ -200,7 +199,7 @@ class SessionManagerTest {
         startRitual("shield", windowEnd)
         assertFalse(SessionManager.isRitualDismissed(sharedPreferences, "shield", now))
 
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
 
         assertTrue(SessionManager.isRitualDismissed(sharedPreferences, "shield", now))
         assertTrue(SessionManager.isRitualDismissed(sharedPreferences, "shield", windowEnd - 1))
@@ -212,7 +211,7 @@ class SessionManagerTest {
     fun `a ritual that ran to the end of its window is not dismissed`() {
         startRitual("shield", System.currentTimeMillis() - 1_000L)
 
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
 
         assertFalse(SessionManager.isRitualDismissed(sharedPreferences, "shield"))
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.DISMISSED_RITUALS))
@@ -221,7 +220,7 @@ class SessionManagerTest {
     @Test
     fun `ending a manual session dismisses nothing`() {
         SessionManager.startSession(sharedPreferences, listOf("TestBlocker"), durationMinutes = 25)
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
         assertFalse(sharedPreferences.contains(Constants.PrefsKeys.DISMISSED_RITUALS))
     }
 
@@ -229,7 +228,7 @@ class SessionManagerTest {
     fun `a ritual that starts again is no longer dismissed`() {
         val windowEnd = System.currentTimeMillis() + 60 * 60_000L
         startRitual("shield", windowEnd)
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
         assertTrue(SessionManager.isRitualDismissed(sharedPreferences, "shield"))
 
         startRitual("shield", windowEnd)
@@ -241,9 +240,9 @@ class SessionManagerTest {
     fun `two rituals ended early are both remembered`() {
         val windowEnd = System.currentTimeMillis() + 60 * 60_000L
         startRitual("shield", windowEnd)
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
         startRitual("evening", windowEnd)
-        SessionManager.stopSession(mockContext, sharedPreferences, gson)
+        SessionManager.stopSession(mockContext, sharedPreferences)
 
         assertTrue(SessionManager.isRitualDismissed(sharedPreferences, "shield"))
         assertTrue(SessionManager.isRitualDismissed(sharedPreferences, "evening"))
@@ -253,5 +252,25 @@ class SessionManagerTest {
     fun `an unreadable dismissal note counts as none`() {
         sharedPreferences.putString(Constants.PrefsKeys.DISMISSED_RITUALS, "not json")
         assertFalse(SessionManager.isRitualDismissed(sharedPreferences, "shield"))
+    }
+
+    @Test
+    fun `starting and stopping sessions preserves the remembered manual focus setup`() {
+        val repo = com.infinicada.focuspocus.data.SessionRepository(mockContext, sharedPreferences)
+        repo.setLastManualBlockerNames(listOf("Social", "Games"))
+        repo.setLastManualDurationMinutes(45)
+        repo.setLastManualBreaksEnabled(false)
+
+        // Start a talisman session with different params, then stop it
+        SessionManager.startSession(sharedPreferences, listOf("Work"), durationMinutes = 90, breaksEnabled = true, talismanId = "tag-1")
+        SessionManager.stopSession(mockContext, sharedPreferences)
+
+        // Start a ritual session, then stop it
+        SessionManager.startSession(sharedPreferences, listOf("Night"), scheduleId = "s1")
+        SessionManager.stopSession(mockContext, sharedPreferences)
+
+        assertEquals(listOf("Social", "Games"), repo.getLastManualBlockerNames())
+        assertEquals(45, repo.getLastManualDurationMinutes())
+        assertFalse(repo.getLastManualBreaksEnabled())
     }
 }

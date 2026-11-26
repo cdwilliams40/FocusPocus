@@ -75,11 +75,6 @@
         <item quantity="many">Arrêt d\'urgence disponible dans %d jours</item>
         <item quantity="other">Arrêt d\'urgence disponible dans %d jours</item>
     </plurals>
-    <plurals name="home_day_streak">
-        <item quantity="one">Série de %d jour</item>
-        <item quantity="many">Série de %d jours</item>
-        <item quantity="other">Série de %d jours</item>
-    </plurals>
     <string name="home_dispel_content_desc">Dissiper le sort</string>
     <string name="home_cast_content_desc">Lancer le sort</string>
     <string name="home_button_bound">Lié</string>
@@ -97,7 +92,11 @@
         <item quantity="other">%d pactes actifs</item>
     </plurals>
     <string name="home_guard_all_quiet">Tout est calme</string>
-    <string name="home_guard_rollup">Aujourd\'hui : %1$d ouvertures · %2$d réflexes attrapés</string>
+    <plurals name="home_guard_rollup_opens">
+        <item quantity="one">Aujourd\'hui : %d ouverture</item>
+        <item quantity="many">Aujourd\'hui : %d ouvertures</item>
+        <item quantity="other">Aujourd\'hui : %d ouvertures</item>
+    </plurals>
     <string name="home_session_banner_detail">%1$s · %2$s restantes</string>
     <string name="home_session_banner_time_left">%1$s restantes</string>
     <string name="home_session_banner_hint">Touchez pour gérer dans l\'onglet Concentration</string>
@@ -141,6 +140,8 @@
     <string name="settings_well_terms">contient %1$d min, +1 min toutes les %2$d min</string>
     <string name="settings_well_terms_no_refill">contient %1$d min, sans remplissage avec le temps</string>
     <string name="settings_well_pending_change">Les termes assouplis prendront effet dans %1$s. D\'ici là, le Puits %2$s.</string>
+    <string name="settings_well_gate_pending_change">Les heures calmes ou la concentration matinale assouplies prendront effet dans %1$s. D\'ici là, les réglages actuels suspendent toujours le remplissage.</string>
+    <string name="settings_well_gate_keep">Garder les pauses actuelles</string>
     <string name="settings_well_cooling_note">Un resserrement s\'applique aussitôt. Un assouplissement — ou la désactivation du Puits — prend 24 heures.</string>
     <string name="perk_well_channel_title">Canaliser dans le Puits de mana</string>
     <string name="perk_well_channel_desc">%1$d minutes de plus de temps de pacte partagé. Le prix double à chaque canalisation d\'une même journée.</string>
@@ -195,6 +196,8 @@
     <string name="spells_auto_add_new_apps_desc">Ajoute automatiquement les applications nouvellement installées à cet enchantement</string>
     <string name="spells_select_apps_title">Sélectionner les applications</string>
     <string name="spells_select_enchantment_title">Sélectionner un enchantement</string>
+    <string name="spells_delete_confirm_title">Supprimer l\'enchantement ?</string>
+    <string name="spells_delete_confirm_message">Supprimer « %1$s » ? Les rituels qui n\'utilisent que cet enchantement seront également supprimés.</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">Paramètres</string>
@@ -228,7 +231,7 @@
     <string name="settings_notification_required">Requis pour désactiver les notifications pendant les sessions de concentration</string>
     <string name="settings_security">Sécurité</string>
     <string name="settings_talisman_lock">Mode verrouillage par talisman</string>
-    <string name="settings_talisman_lock_desc">Exiger un talisman NFC ou un code QR pour arrêter les sessions</string>
+    <string name="settings_talisman_lock_desc">Exiger un talisman NFC lié pour arrêter les sessions et bloquer les Paramètres pendant la concentration</string>
     <string name="settings_add_talisman_first">Ajoutez d\'abord un talisman pour activer le mode verrouillage</string>
     <string name="settings_device_owner">Mode Gardien (propriétaire de l\'appareil)</string>
     <string name="settings_device_owner_suspend">Griser les applications bloquées</string>
@@ -331,20 +334,30 @@
     <string name="rituals_end_time_next_day">Fin : %1$s (lendemain)</string>
     <string name="rituals_time_same_error">Les heures de début et de fin ne peuvent pas être identiques</string>
     <string name="rituals_save">Enregistrer le rituel</string>
+    <string name="rituals_delete_confirm_title">Supprimer le rituel ?</string>
+    <string name="rituals_delete_confirm_message">Supprimer « %1$s » ?</string>
 
     <!-- TalismansScreen -->
     <string name="talismans_title">Talismans</string>
     <string name="talismans_bind_new">Lier un nouveau talisman</string>
     <string name="talismans_last_scanned">Dernier talisman scanné : %s</string>
+    <string name="talismans_last_scanned_known">« %1$s » scanné (%2$s) — entrez un nom pour le renommer</string>
     <string name="talismans_name_label">Nom du talisman</string>
     <string name="talismans_enchant">Enchanter le talisman</string>
     <string name="talismans_scan_nfc">Scannez une puce NFC pour la lier en tant que talisman.</string>
     <string name="talismans_enchanted_items">Objets enchantés</string>
     <string name="talismans_disenchant">Désenchanter</string>
     <string name="talismans_none_bound">Aucun talisman lié.</string>
+    <string name="talismans_cannot_edit_active">Modification ou désenchantement impossible pendant qu\'une session est verrouillée</string>
+    <string name="talismans_delete_confirm_title">Désenchanter le talisman ?</string>
+    <string name="talismans_delete_confirm_message">Désenchanter « %1$s » ? Vous devrez le scanner à nouveau pour le lier.</string>
 
     <!-- Champs de pacte (partagés par l'éditeur et le tableau de bord) -->
-    <string name="pacts_today_stats">Aujourd\'hui : %1$d ouvertures \u00b7 %2$d r\u00e9flexes</string>
+    <plurals name="pacts_today_opens">
+        <item quantity="one">%d ouverture aujourd\'hui</item>
+        <item quantity="many">%d ouvertures aujourd\'hui</item>
+        <item quantity="other">%d ouvertures aujourd\'hui</item>
+    </plurals>
 
     <!-- OverlayActivity -->
     <string name="overlay_spell_name">Sort : %s</string>
@@ -354,10 +367,13 @@
     <string name="overlay_pact_prompt">%s est derrière le Puits de mana. Faites un pacte : de combien de temps avez-vous vraiment besoin ?</string>
     <string name="overlay_pact_well_desc">Ces minutes sont puisées dans le Puits de mana. Une fois écoulées, %s se referme.</string>
     <string name="overlay_pact_wait">Vous pourrez choisir dans %d…</string>
-    <string name="overlay_pact_choice">%d minutes</string>
+    <plurals name="overlay_pact_choice_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="many">%d minutes</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
     <string name="overlay_pact_decline">Finalement, non — je n\'en ai pas besoin</string>
     <string name="overlay_pact_stats">Ouverture n°%d aujourd\'hui</string>
-    <string name="overlay_pact_stats_reflex">Ouverture n°%1$d aujourd\'hui — %2$d réflexes de moins de 30 secondes</string>
     <string name="overlay_pact_alternative">Ouvrir %s à la place</string>
     <string name="pact_ending_no_seal_toast">Votre pacte se termine — %s se ferme dans moins d\'une minute</string>
 
@@ -396,6 +412,7 @@
     <string name="toast_max_enchantments">Maximum de %d enchantements atteint</string>
     <string name="toast_max_talismans">Maximum de %d talismans atteint</string>
     <string name="toast_ritual_dispelled">Rituel dissipé !</string>
+    <string name="toast_session_dispelled">Session de concentration dissipée !</string>
     <string name="toast_wrong_talisman">Mauvais talisman !</string>
     <string name="toast_emergency_stop">Arrêt d\'urgence activé</string>
 
@@ -419,8 +436,6 @@
 
     <!-- Ajouts récents (traductions) -->
     <string name="settings_device_owner_testonly_warning">Cette version a été déployée depuis Android Studio et est marquée test-only — Android autorise la suppression des propriétaires d\'appareil test-only, la protection contre la désinstallation n\'est donc PAS active. Installez avec adb (gradlew assembleDebug) pour une protection complète.</string>
-    <string name="insights_opens_row_count">%1$d · %2$d rfx</string>
-    <string name="insights_reflex_hint">Réflexe = abandonnée dans les 30 secondes suivant l\'ouverture</string>
 
     <!-- Progression : général -->
     <string name="progression_channel_name">Progression</string>
@@ -437,7 +452,6 @@
     </plurals>
 
     <!-- Progression : épreuves -->
-    <string name="home_trials_title">Épreuves du jour</string>
     <plurals name="trial_sessions_daily">
         <item quantity="one">Lancez %1$d sortilège aujourd\'hui</item>
         <item quantity="many">Lancez %1$d sortilèges aujourd\'hui</item>
@@ -445,7 +459,7 @@
     </plurals>
     <string name="trial_ritual_daily">Terminez un rituel programmé aujourd\'hui</string>
     <string name="trial_under_limits_daily">Restez sous toutes vos limites d\'applications aujourd\'hui</string>
-    <string name="trial_reflex_weekly">Moins de %1$d ouvertures réflexes cette semaine</string>
+    <string name="trial_legacy_retired">Épreuve accomplie</string>
     <string name="trial_progress">%1$d/%2$d</string>
     <string name="trial_claim">Réclamer</string>
     <string name="trial_claimed">Réclamé</string>
@@ -529,6 +543,17 @@
     <string name="settings_protection_notifications_off">Les alertes de rituels et les comptes à rebours ne s\'afficheront pas.</string>
     <string name="settings_protection_battery">Batterie sans restriction</string>
     <string name="settings_protection_battery_off">L\'optimisation de la batterie peut tuer l\'application en arrière-plan.</string>
+    <string name="settings_protection_exact_alarms">Alarmes exactes</string>
+    <string name="settings_protection_exact_alarms_off">Nécessaire pour déclencher les rituels, séances, pauses et pactes à l\'heure en mode veille.</string>
+    <string name="settings_enforcement_log_button">Journal de protection</string>
+    <string name="settings_enforcement_log_title">Journal de protection</string>
+    <string name="settings_enforcement_log_empty">Aucun événement enregistré pour l\'instant.</string>
+    <string name="settings_enforcement_log_clear">Effacer</string>
+    <string name="protection_alert_channel_name">Alertes de protection</string>
+    <string name="protection_alert_channel_description">Alertes lorsque Android désactive la protection Focus Pocus alors qu\'un blocage est actif</string>
+    <string name="protection_alert_title">La protection Focus Pocus est désactivée</string>
+    <string name="protection_alert_body_session">Une séance est active mais le service d\'accessibilité est désactivé. Appuyez pour réactiver le blocage.</string>
+    <string name="protection_alert_body_well">Vos applis du Puits de Mana ne sont plus protégées car le service d\'accessibilité est désactivé. Appuyez pour le réactiver.</string>
     <string name="settings_protection_fix">Corriger</string>
     <string name="settings_protection_ok_desc">En place</string>
     <string name="settings_protection_problem_desc">Attention requise</string>
@@ -594,7 +619,7 @@
 
     <!-- Mana rules and productive apps (2.0) -->
     <string name="productive_title">Applis productives</string>
-    <string name="productive_intro">Le temps passé dans ces applis rapporte du mana : 1 toutes les %1$d minutes, jusqu\'à %2$d par jour. Il est compté toutes les quelques minutes.</string>
+    <string name="productive_intro">Le temps passé dans ces applis rapporte du mana : %1$d par minute, jusqu\'à %2$d par jour. Les substituts de vos applis du Puits rapportent de la même façon sans figurer ici. Il est compté toutes les quelques minutes.</string>
     <string name="productive_needs_usage">Le temps productif est lu via l\'accès aux données d\'utilisation. Accordez-le pour commencer à gagner.</string>
     <string name="productive_grant_usage">Accorder l\'accès aux données d\'utilisation</string>
     <string name="productive_today">Aujourd\'hui : %1$d min · +%2$d mana</string>
@@ -605,7 +630,6 @@
     <string name="trial_start_timed">Lancez une session de concentration minutée aujourd\'hui</string>
     <string name="trial_well_under_daily">Puisez au plus %1$d minutes dans le Puits aujourd\'hui</string>
     <string name="trial_well_under_weekly">Puisez au plus %1$d minutes dans le Puits cette semaine</string>
-    <string name="trial_reflex_daily">Limitez les ouvertures réflexes à %1$d aujourd\'hui</string>
     <string name="trial_productive_daily">Passez %1$d minutes dans des applis productives aujourd\'hui</string>
     <string name="trial_productive_weekly">Passez %1$d minutes dans des applis productives cette semaine</string>
     <string name="ledger_open_ended_reason">Session ouverte · %1$d min</string>
@@ -616,7 +640,8 @@
     <string name="mana_how_spend">Dépenser</string>
     <string name="mana_rule_timed">Session minutée : %1$d par minute, jusqu\'à %2$d par jour</string>
     <string name="mana_rule_open_ended">Rituel ou session de talisman sans durée : %1$d une fois par jour, après %2$d minutes</string>
-    <string name="mana_rule_productive">Applis productives : 1 toutes les %1$d minutes, jusqu\'à %2$d par jour</string>
+    <string name="mana_rule_productive">Applis productives et substituts : %1$d par minute, jusqu\'à %2$d par jour</string>
+    <string name="mana_rule_substitute">Ouvrir le substitut depuis un écran de blocage : %1$d, les %2$d premières fois par jour</string>
     <string name="mana_rule_trials">Épreuves quotidiennes : %1$d–%2$d chacune · épreuve hebdomadaire : %3$d–%4$d</string>
     <string name="mana_rule_pour">Verser %1$d minutes dans le Puits : %2$d, le prix double à chaque versement de la journée</string>
     <string name="mana_rule_break">Pause supplémentaire : %1$d</string>
@@ -643,11 +668,9 @@
     <string name="insights_well_pours">Versements de mana</string>
     <string name="insights_well_dry">Ouvertures avec le Puits à sec</string>
     <string name="insights_well_by_app">Par appli</string>
-    <string name="insights_reflex_header">Réflexes</string>
-    <string name="insights_reflex_opens">Ouvertures d\'applis du Puits</string>
-    <string name="insights_reflex_reflexes">Ouvertures réflexes</string>
-    <string name="insights_reflex_share">%1$d (%2$d %%)</string>
-    <string name="insights_reflex_by_app">Les plus ouvertes</string>
+    <string name="insights_opens_header">Ouvertures d\'applis</string>
+    <string name="insights_opens_total">Ouvertures d\'applis du Puits</string>
+    <string name="insights_opens_by_app">Les plus ouvertes</string>
     <string name="insights_source_manual">À la main</string>
     <string name="insights_source_ritual">Rituels</string>
     <string name="insights_source_talisman">Talismans</string>
@@ -670,4 +693,71 @@
         <item quantity="many">%d jours</item>
         <item quantity="other">%d jours</item>
     </plurals>
+    <!-- Ongoing Pact Notification -->
+    <string name="pact_channel_name">Pactes actifs</string>
+    <string name="pact_channel_description">Compte à rebours discret pendant un pacte du Puits, avec remboursement en un geste</string>
+    <string name="pact_notification_title_single">Pacte actif : %s</string>
+    <string name="pact_notification_title_multi">%d pactes actifs</string>
+    <string name="pact_notification_text_single">Appuyez sur Terminer pour rendre les minutes inutilisées au Puits</string>
+    <string name="pact_notification_action_end">Terminer et rembourser</string>
+
+    <!-- Powerful Substitutes & Pact Intentions -->
+    <string name="overlay_pact_alternative_mana">Ouvrir %1$s à la place (+%2$d mana)</string>
+    <string name="substitute_win_toast_mana">+%d mana — bon choix !</string>
+    <string name="substitute_win_toast">Bon choix !</string>
+    <string name="overlay_pact_intention_prompt">Pourquoi ouvrir cette appli ? (facultatif)</string>
+    <string name="pact_intention_quick_reply">Réponse rapide</string>
+    <string name="pact_intention_specific_task">Tâche précise</string>
+    <string name="pact_intention_unwinding">Détente</string>
+    <string name="trial_substitute_wins_daily">Choisir une alternative %d fois aujourd\'hui</string>
+    <string name="trial_substitute_wins_weekly">Choisir une alternative %d fois cette semaine</string>
+    <string name="ledger_substitute_win_reason">Alternative plus saine choisie</string>
+
+    <!-- Insights Enhancements -->
+    <string name="insights_well_substitutes">Alternatives choisies</string>
+    <string name="insights_well_intentions">Intentions des pactes</string>
+    <string name="insights_time_of_day">Selon le moment de la journée</string>
+    <string name="insights_tod_morning">Matin (5h–11h)</string>
+    <string name="insights_tod_afternoon">Après-midi (12h–16h)</string>
+    <string name="insights_tod_evening">Soirée (17h–21h)</string>
+    <string name="insights_tod_late_night">Nuit (22h–4h)</string>
+    <string name="insights_delta_vs_yesterday">%s par rapport à hier</string>
+    <string name="insights_delta_vs_prior_days">%1$s par rapport aux %2$d jours précédents</string>
+    <string name="insights_mana_from_substitutes">Alternatives choisies</string>
+
+    <!-- Custom Focus Durations -->
+    <string name="duration_custom">Personnalisée…</string>
+    <string name="duration_custom_title">Durée personnalisée</string>
+    <string name="duration_custom_minutes_label">Minutes (1–480)</string>
+    <string name="duration_custom_hint">Entrez une durée jusqu\'à 8 heures (480 minutes).</string>
+
+    <!-- Planned Ritual Exceptions (24h Ahead) -->
+    <string name="rituals_skip_day_button">Passer un jour</string>
+    <string name="rituals_skip_chip">Passé : %s</string>
+    <string name="rituals_skip_dialog_title">Passer %s</string>
+    <string name="rituals_skip_dialog_desc">Planifiez une exception au moins 24 heures à l\'avance. Le rituel du jour ne peut pas être annulé sur un coup de tête.</string>
+    <string name="rituals_skip_none_available">Aucun jour planifié disponible à passer.</string>
+
+    <!-- Quiet Well Hours & Morning Focus Unlock -->
+    <string name="settings_well_quiet_hours">Heures calmes du Puits</string>
+    <string name="settings_well_quiet_hours_desc">Met en pause la recharge passive la nuit (%1$s–%2$s) pour éviter un Puits plein au réveil.</string>
+    <string name="settings_well_quiet_start">Début des heures calmes : %s</string>
+    <string name="settings_well_quiet_end">Fin des heures calmes : %s</string>
+    <string name="settings_well_morning_focus">Séance matinale requise</string>
+    <string name="settings_well_morning_focus_desc">Laisse la recharge passive en pause chaque matin jusqu\'à une séance de %d min.</string>
+    <string name="settings_well_morning_focus_minutes">Seuil matinal : %d min</string>
+    <string name="well_paused_quiet_hours">Recharge passive en pause pendant les heures calmes</string>
+    <string name="well_paused_morning_focus">Terminez une séance de %d min pour reprendre la recharge</string>
+
+    <!-- Auto-Backup to Folder -->
+    <string name="settings_auto_backup_title">Sauvegarde automatique dans un dossier</string>
+    <string name="settings_auto_backup_desc">Choisissez un dossier (ex. synchronisé par Syncthing, Nextcloud ou Drive) pour sauvegarder automatiquement.</string>
+    <string name="settings_auto_backup_pick_folder">Choisir un dossier</string>
+    <string name="settings_auto_backup_change_folder">Changer de dossier</string>
+    <string name="auto_backup_off">Désactivée</string>
+    <string name="auto_backup_daily">Quotidienne</string>
+    <string name="auto_backup_weekly">Hebdomadaire</string>
+    <string name="settings_auto_backup_last">Dernière sauvegarde auto : %s</string>
+    <string name="settings_auto_backup_now">Sauvegarder maintenant</string>
+    <string name="auto_backup_folder_saved">Dossier de sauvegarde enregistré</string>
 </resources>

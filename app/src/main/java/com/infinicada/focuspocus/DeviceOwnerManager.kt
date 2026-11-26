@@ -7,8 +7,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.WellApps
 
@@ -59,8 +57,6 @@ object DeviceOwnerManager {
      */
     fun isRemovalUnlocked(requestMillis: Long, now: Long = System.currentTimeMillis()): Boolean =
         requestMillis > 0 && now - requestMillis >= REMOVAL_COOLDOWN_MS
-
-    private val gson = Gson()
 
     fun getAdminComponent(context: Context): ComponentName =
         ComponentName(context, FocusDeviceAdminReceiver::class.java)
@@ -250,11 +246,11 @@ object DeviceOwnerManager {
         exemptPackages: Set<String>
     ): Set<String> {
         if (!prefs.getBoolean(Constants.PrefsKeys.DEVICE_OWNER_SUSPEND_PACTS, true)) return emptySet()
-        val gated = WellApps.packages(prefs, gson)
+        val gated = WellApps.packages(prefs)
         if (gated.isEmpty()) return emptySet()
         return computePactSuspendedPackages(
             pactGated = gated,
-            allowedPackages = PactManager(prefs, gson).getActiveAllowances().keys,
+            allowedPackages = PactManager(prefs).getActiveAllowances().keys,
             launchablePackages = launchablePackages,
             exemptPackages = exemptPackages
         )

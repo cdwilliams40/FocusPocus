@@ -12,8 +12,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.model.Schedule
 import java.util.Date
 
@@ -70,8 +68,6 @@ object SessionNotifier {
         /** Count-up anchor for untimed sessions; null = no chronometer at all. */
         val countUpStartMillis: Long?
     )
-
-    private val gson = Gson()
 
     // Lazy so unit tests can exercise resolveState without an Android Looper.
     private val handler by lazy { Handler(Looper.getMainLooper()) }
@@ -130,7 +126,7 @@ object SessionNotifier {
         try {
             val prefs = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-            val state = resolveState(prefs, gson, System.currentTimeMillis())
+            val state = resolveState(prefs, System.currentTimeMillis())
             if (state == null) {
                 nm.cancel(Constants.SESSION_COUNTDOWN_NOTIFICATION_ID)
                 return
@@ -154,12 +150,12 @@ object SessionNotifier {
      * reap it, falls back to counting elapsed time rather than showing a
      * negative countdown).
      */
-    fun resolveState(prefs: SharedPreferences, gson: Gson, nowMillis: Long): CountdownState? {
+    fun resolveState(prefs: SharedPreferences, nowMillis: Long): CountdownState? {
         val manualFocus = prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
         if (!manualFocus) return null
 
         val scheduleId = prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
-        val scheduleName = scheduleId?.let { loadScheduleName(prefs, gson, it) }
+        val scheduleName = scheduleId?.let { loadScheduleName(prefs, it) }
         val sessionName = scheduleName
             ?: BlockerRepository.getActiveBlockerNames(prefs).joinToString(", ").ifEmpty { null }
 
@@ -191,11 +187,10 @@ object SessionNotifier {
         )
     }
 
-    private fun loadScheduleName(prefs: SharedPreferences, gson: Gson, scheduleId: String): String? {
+    private fun loadScheduleName(prefs: SharedPreferences, scheduleId: String): String? {
         val json = prefs.getString(Constants.PrefsKeys.SCHEDULES, null) ?: return null
         return try {
-            val type = object : TypeToken<List<Schedule>>() {}.type
-            gson.fromJson<List<Schedule>?>(json, type)?.find { it.id == scheduleId }?.name
+            AppJson.decodeListLenient<Schedule>(json).find { it.id == scheduleId }?.name
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing schedules JSON", e)
             null
@@ -244,8 +239,10 @@ object SessionNotifier {
             .setContentIntent(pending)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setCategory(Notification.CATEGORY_STOPWATCH)
             .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setCategory(Notification.CATEGORY_STOPWATCH)
+                }
                 when {
                     state.countdownEndMillis != null -> {
                         // The system chronometer ticks down to `when` live.

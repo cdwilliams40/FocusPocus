@@ -37,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -44,7 +45,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -79,17 +79,15 @@ import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.R
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.Schedule
-import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.ui.components.GlassCard
-import com.infinicada.focuspocus.ui.components.TrialRow
 import com.infinicada.focuspocus.ui.components.formatClock
 
 @Composable
-fun Greeting(
+fun FocusScreen(
     focusMode: Boolean,
     /** The talisman that started the running session, if one did. */
     activeTalismanId: String?,
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     activeBlockers: List<Blocker>,
     activeSchedule: Schedule?,
     blockerLists: List<Blocker>,
@@ -109,7 +107,6 @@ fun Greeting(
     emergencyBreakAvailable: Boolean = false,
     emergencyBreakDaysRemaining: Int = 0,
     progressionEnabled: Boolean = false,
-    trials: List<Trial> = emptyList(),
     canAffordExtraBreak: Boolean = false,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
@@ -119,14 +116,13 @@ fun Greeting(
     onTakeBreak: () -> Unit,
     onEndBreak: () -> Unit,
     onEmergencyStop: () -> Unit = {},
-    onClaimTrial: (Trial) -> Unit = {},
     onBuyExtraBreak: () -> Unit = {},
     onCreateEnchantment: () -> Unit = {}
 ) {
-    val activeTalisman = namedTags.find { it.id == activeTalismanId }
+    val activeTalisman = talismans.find { it.id == activeTalismanId }
     val activeTagName = activeTalisman?.name
     val boundTalismanName = if (activeSchedule != null && activeSchedule.unbindingTalismanId != null) {
-        namedTags.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
+        talismans.find { it.id == activeSchedule.unbindingTalismanId }?.name ?: stringResource(R.string.label_unknown_talisman)
     } else null
     // A session a talisman started, and that only it may end.
     val lockingTalismanName = activeTalisman?.takeIf { it.locksSession }?.name
@@ -177,13 +173,10 @@ fun Greeting(
                     blockerLists = blockerLists,
                     focusDurationMinutes = focusDurationMinutes,
                     sessionBreaksEnabled = sessionBreaksEnabled,
-                    progressionEnabled = progressionEnabled,
-                    trials = trials,
                     onBlockerToggled = onBlockerToggled,
                     onDurationSelected = onDurationSelected,
                     onSessionBreaksToggled = onSessionBreaksToggled,
                     onStartClicked = onStartClicked,
-                    onClaimTrial = onClaimTrial,
                     onCreateEnchantment = onCreateEnchantment
                 )
             }
@@ -202,13 +195,10 @@ private fun IdleContent(
     blockerLists: List<Blocker>,
     focusDurationMinutes: Int,
     sessionBreaksEnabled: Boolean,
-    progressionEnabled: Boolean,
-    trials: List<Trial>,
     onBlockerToggled: (Blocker) -> Unit,
     onDurationSelected: (Int) -> Unit,
     onSessionBreaksToggled: (Boolean) -> Unit,
     onStartClicked: () -> Unit,
-    onClaimTrial: (Trial) -> Unit,
     onCreateEnchantment: () -> Unit
 ) {
     Text(
@@ -292,25 +282,6 @@ private fun IdleContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-    }
-
-    // Today's trials — the daily carrot, right where the casting happens
-    if (progressionEnabled && trials.isNotEmpty()) {
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(R.string.home_trials_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.tertiary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            trials.forEachIndexed { index, trial ->
-                TrialRow(trial = trial, onClaim = onClaimTrial)
-                if (index != trials.lastIndex) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-        }
         Spacer(modifier = Modifier.height(20.dp))
     }
 
@@ -947,7 +918,7 @@ fun SpellSelectorMultiDropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth()
         )
         ExposedDropdownMenu(
@@ -994,6 +965,8 @@ fun DurationSelectorDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showCustomDialog by remember { mutableStateOf(false) }
+    var customInput by remember { mutableStateOf(if (selectedDuration > 0) selectedDuration.toString() else "90") }
 
     val durations = listOf(
         15 to stringResource(R.string.duration_15_min),
@@ -1004,7 +977,9 @@ fun DurationSelectorDropdown(
         0 to stringResource(R.string.duration_unlimited)
     )
 
-    val selectedLabel = durations.find { it.first == selectedDuration }?.second ?: stringResource(R.string.duration_select)
+    val selectedLabel = durations.find { it.first == selectedDuration }?.second
+        ?: if (selectedDuration > 0) com.infinicada.focuspocus.ui.formatDuration(selectedDuration)
+        else stringResource(R.string.duration_select)
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -1020,7 +995,7 @@ fun DurationSelectorDropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth()
         )
         ExposedDropdownMenu(
@@ -1036,6 +1011,58 @@ fun DurationSelectorDropdown(
                     }
                 )
             }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.duration_custom)) },
+                onClick = {
+                    expanded = false
+                    customInput = if (selectedDuration > 0) selectedDuration.toString() else "90"
+                    showCustomDialog = true
+                }
+            )
         }
+    }
+
+    if (showCustomDialog) {
+        val parsed = customInput.trim().toIntOrNull()
+        val isValid = parsed != null && parsed in 1..480
+        AlertDialog(
+            onDismissRequest = { showCustomDialog = false },
+            title = { Text(stringResource(R.string.duration_custom_title)) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = customInput,
+                        onValueChange = { input ->
+                            customInput = input.filter { it.isDigit() }.take(3)
+                        },
+                        label = { Text(stringResource(R.string.duration_custom_minutes_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.duration_custom_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        parsed?.let { onDurationSelected(it) }
+                        showCustomDialog = false
+                    },
+                    enabled = isValid
+                ) {
+                    Text(stringResource(R.string.action_save))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showCustomDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }

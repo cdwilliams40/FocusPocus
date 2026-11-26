@@ -28,7 +28,12 @@ class FocusPocusApplication : Application() {
         // but the alarm backstop can fire ritual notifications when the
         // service has never run this boot, so the channel must exist here too.
         RitualNotifier.createChannel(this)
-        // Arm the AlarmManager backstop for the next ritual transition.
+        // Protection-off alert channel for boot/alarm checks when accessibility is disabled.
+        ProtectionAlertNotifier.createChannel(this)
+        // Ongoing pact notification channel with one-tap "End pact & refund".
+        PactNotifier.createChannel(this)
+        PactNotifier.update(this)
+        // Arm the unified AlarmManager scheduler for the next transition.
         RitualAlarmScheduler.scheduleNext(this)
         // Session-countdown notification: create its channel, then start the
         // prefs observer that keeps the notification in sync with session

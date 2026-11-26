@@ -68,7 +68,7 @@ import com.infinicada.focuspocus.ui.components.ArcaneBackground
 
 @Composable
 fun OnboardingScreen(
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     installedApps: List<AppInfo>,
     isServiceEnabled: Boolean,
     analyticsConsent: Boolean,

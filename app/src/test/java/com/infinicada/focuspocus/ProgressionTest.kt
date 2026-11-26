@@ -1,7 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaLedgerEntry
 import com.infinicada.focuspocus.model.Perk
@@ -16,7 +14,6 @@ import org.junit.Test
 
 class ProgressionTest {
 
-    private val gson = Gson()
     private lateinit var prefs: FakeSharedPreferences
 
     @Before
@@ -30,14 +27,12 @@ class ProgressionTest {
         prefs.putLong(Constants.PrefsKeys.MANA_BALANCE, value)
     }
 
-    private fun ledger(): List<ManaLedgerEntry> =
-        PrefsHelper.load(prefs, gson, Constants.PrefsKeys.MANA_LEDGER,
-            object : TypeToken<List<ManaLedgerEntry>>() {}.type) ?: emptyList()
+    private fun ledger(): List<ManaLedgerEntry> = Progression.loadLedger(prefs)
 
-    private fun trials(): List<Trial> = Progression.loadTrials(prefs, gson)
+    private fun trials(): List<Trial> = Progression.loadTrials(prefs)
 
     private fun saveTrials(list: List<Trial>) {
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.TRIALS, list)
+        PrefsHelper.save(prefs, Constants.PrefsKeys.TRIALS, list)
     }
 
     // ── claimTrial ──
@@ -50,13 +45,13 @@ class ProgressionTest {
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
         ))
 
-        assertEquals(40L, Progression.claimTrial(prefs, gson, "t1"))
+        assertEquals(40L, Progression.claimTrial(prefs, "t1"))
         assertEquals(40L, balance())
         assertTrue(trials().first().claimed)
         assertEquals(LedgerKind.TRIAL, ledger().last().kind)
 
         // Second claim is a no-op
-        assertEquals(0L, Progression.claimTrial(prefs, gson, "t1"))
+        assertEquals(0L, Progression.claimTrial(prefs, "t1"))
         assertEquals(40L, balance())
     }
 
@@ -67,8 +62,8 @@ class ProgressionTest {
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 3, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
         ))
-        assertEquals(0L, Progression.claimTrial(prefs, gson, "t1"))
-        assertEquals(0L, Progression.claimTrial(prefs, gson, "missing"))
+        assertEquals(0L, Progression.claimTrial(prefs, "t1"))
+        assertEquals(0L, Progression.claimTrial(prefs, "missing"))
         assertEquals(0L, balance())
     }
 
@@ -80,7 +75,7 @@ class ProgressionTest {
             Trial("t1", TrialType.COMPLETE_SESSIONS, target = 1, progress = 1,
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
         ))
-        assertEquals(0L, Progression.claimTrial(prefs, gson, "t1"))
+        assertEquals(0L, Progression.claimTrial(prefs, "t1"))
         assertEquals(0L, balance())
     }
 
@@ -88,7 +83,7 @@ class ProgressionTest {
 
     @Test
     fun `rollover draws an initial slate`() {
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         val slate = trials()
         assertEquals(2, slate.count { it.period == TrialPeriod.DAILY })
         assertEquals(1, slate.count { it.period == TrialPeriod.WEEKLY })
@@ -96,9 +91,9 @@ class ProgressionTest {
 
     @Test
     fun `rollover is idempotent within a day`() {
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         val first = trials()
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         assertEquals(first, trials())
     }
 
@@ -108,7 +103,7 @@ class ProgressionTest {
             Trial("old", TrialType.COMPLETE_SESSIONS, target = 2, progress = 2,
                 period = TrialPeriod.DAILY, periodKey = "20200101", rewardMana = 40L)
         ))
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         assertEquals(40L, balance())
         assertEquals("old", ledger().last().refId)
         // The stale trial is gone, replaced by a fresh slate
@@ -122,7 +117,7 @@ class ProgressionTest {
             Trial("ul", TrialType.STAY_UNDER_LIMITS, target = 1, progress = 0,
                 period = TrialPeriod.DAILY, periodKey = "20200101", rewardMana = 60L)
         ))
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         assertEquals(0L, balance())
         assertTrue(trials().none { it.type == TrialType.STAY_UNDER_LIMITS })
     }
@@ -134,7 +129,7 @@ class ProgressionTest {
             Trial("old", TrialType.COMPLETE_SESSIONS, target = 2, progress = 2,
                 period = TrialPeriod.DAILY, periodKey = "20200101", rewardMana = 40L)
         ))
-        Progression.rolloverIfNeeded(prefs, gson)
+        Progression.rolloverIfNeeded(prefs)
         assertEquals(0L, balance())
         assertTrue(trials().none { it.id == "old" })
         assertTrue(trials().isNotEmpty())
@@ -145,11 +140,11 @@ class ProgressionTest {
     @Test
     fun `extra break perk needs an active manual session`() {
         setBalance(500L)
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
+        assertFalse(Progression.redeemPerk(prefs, Perk.EXTRA_BREAK))
         assertEquals(500L, balance())
 
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
+        assertTrue(Progression.redeemPerk(prefs, Perk.EXTRA_BREAK))
         assertEquals(450L, balance())
         assertEquals(1, prefs.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0))
     }
@@ -176,7 +171,7 @@ class ProgressionTest {
         setBalance(500L)
         wellWithRoom()
 
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertTrue(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
         assertEquals(425L, balance())
         assertEquals(Perk.WELL_CHANNEL_GRANT, wellMinutes())
         val entry = ledger().last()
@@ -190,14 +185,14 @@ class ProgressionTest {
         setBalance(1000L)
         wellWithRoom()
 
-        assertEquals(75L, Progression.wellChannelCost(prefs, gson))
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
-        assertEquals(150L, Progression.wellChannelCost(prefs, gson))
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
-        assertEquals(300L, Progression.wellChannelCost(prefs, gson))
+        assertEquals(75L, Progression.wellChannelCost(prefs))
+        assertTrue(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
+        assertEquals(150L, Progression.wellChannelCost(prefs))
+        assertTrue(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
+        assertEquals(300L, Progression.wellChannelCost(prefs))
         assertEquals(1000L - 75L - 150L, balance())
         // Yesterday's channels don't count against today's price.
-        assertEquals(75L, Progression.wellChannelCost(prefs, gson, todayKey = "19990101"))
+        assertEquals(75L, Progression.wellChannelCost(prefs, todayKey = "19990101"))
     }
 
     @Test
@@ -205,7 +200,7 @@ class ProgressionTest {
         setBalance(74L)
         wellWithRoom()
 
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertFalse(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
         assertEquals(74L, balance())
         assertEquals(0, wellMinutes())
     }
@@ -215,7 +210,7 @@ class ProgressionTest {
         setBalance(500L)
         wellWithRoom(drawn = 4)
 
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertFalse(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
         assertEquals(500L, balance())
         assertEquals(26, wellMinutes())
     }
@@ -223,7 +218,7 @@ class ProgressionTest {
     @Test
     fun `channeling needs the Well to be on`() {
         setBalance(500L)
-        assertFalse(Progression.redeemPerk(prefs, gson, Perk.WELL_CHANNEL))
+        assertFalse(Progression.redeemPerk(prefs, Perk.WELL_CHANNEL))
         assertEquals(500L, balance())
     }
 
@@ -236,17 +231,16 @@ class ProgressionTest {
         val big = (1..Constants.MAX_MANA_LEDGER + 5).map {
             ManaLedgerEntry(it.toLong(), 1L, LedgerKind.SESSION, dateKey = "20200101")
         }
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.MANA_LEDGER, big)
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
+        PrefsHelper.save(prefs, Constants.PrefsKeys.MANA_LEDGER, big)
+        assertTrue(Progression.redeemPerk(prefs, Perk.EXTRA_BREAK))
         assertEquals(Constants.MAX_MANA_LEDGER, ledger().size)
         assertEquals(LedgerKind.PERK, ledger().last().kind)
     }
 
     // ── stored-data corruption guards ──
     // Records written by a build with broken R8 keep rules (v1.4) carry
-    // obfuscated enum constant names; Gson maps those to null even in fields
-    // whose Kotlin types are non-null. Loaders must drop such records instead
-    // of letting the null NPE later (e.g. TrialEngine.isEnded on trial.period).
+    // obfuscated enum constant names. Loaders must drop such records instead
+    // of failing the whole list.
 
     @Test
     fun `trials with unmappable enum names are dropped on load`() {
@@ -269,7 +263,7 @@ class ProgressionTest {
               {"timestampMillis":2,"amount":50,"kind":"SESSION","minutes":25,"title":"","refId":"","packageName":"","dateKey":"20260713"}
             ]"""
         )
-        assertEquals(listOf(50L), Progression.loadLedger(prefs, gson).map { it.amount })
+        assertEquals(listOf(50L), Progression.loadLedger(prefs).map { it.amount })
     }
 
     @Test
@@ -280,10 +274,10 @@ class ProgressionTest {
                 period = TrialPeriod.DAILY, periodKey = today, rewardMana = 40L)
         ))
         setBalance(60L)
-        Progression.claimTrial(prefs, gson, "t1")
+        Progression.claimTrial(prefs, "t1")
         assertEquals(40L, prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L))
         prefs.putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, true)
-        assertTrue(Progression.redeemPerk(prefs, gson, Perk.EXTRA_BREAK))
+        assertTrue(Progression.redeemPerk(prefs, Perk.EXTRA_BREAK))
         assertEquals(40L, prefs.getLong(Constants.PrefsKeys.MANA_LIFETIME_EARNED, 0L))
         assertEquals(50L, balance())
     }
@@ -292,27 +286,27 @@ class ProgressionTest {
 
     @Test
     fun `productive credit pays only what is newly owed`() {
-        Progression.creditProductive(prefs, gson, 20)
-        assertEquals(10L, balance())
-        Progression.creditProductive(prefs, gson, 20)
-        assertEquals(10L, balance())
-        Progression.creditProductive(prefs, gson, 31)
-        assertEquals(15L, balance())
+        Progression.creditProductive(prefs, 20)
+        assertEquals(40L, balance())
+        Progression.creditProductive(prefs, 20)
+        assertEquals(40L, balance())
+        Progression.creditProductive(prefs, 31)
+        assertEquals(62L, balance())
         val day = com.infinicada.focuspocus.limit.DailyHistory.manaDay(prefs, com.infinicada.focuspocus.limit.DayKey.today())
-        assertEquals(15L, day.productive)
+        assertEquals(62L, day.productive)
         assertEquals(31, day.productiveMinutes)
     }
 
     @Test
     fun `productive credit stops at the daily cap`() {
-        Progression.creditProductive(prefs, gson, 1_000)
+        Progression.creditProductive(prefs, 1_000)
         assertEquals(ManaRules.PRODUCTIVE_DAILY_CAP, balance())
     }
 
     @Test
     fun `timed session mana is capped across the day and recorded by source`() {
         fun record(minutes: Int, planned: Int?) = Progression.awardForSession(
-            prefs, gson,
+            prefs,
             FocusSession(0L, 1L, minutes, "Social", 0, FocusSession.SOURCE_MANUAL, planned)
         )
         assertEquals(200L, record(200, 200).manaEarned)

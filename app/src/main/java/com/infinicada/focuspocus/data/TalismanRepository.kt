@@ -1,37 +1,28 @@
 package com.infinicada.focuspocus.data
 
 import android.content.SharedPreferences
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.Constants
-import com.infinicada.focuspocus.Talisman
 import com.infinicada.focuspocus.PrefsHelper
+import com.infinicada.focuspocus.Talisman
 
 class TalismanRepository(
-    private val prefs: SharedPreferences,
-    private val gson: Gson
+    private val prefs: SharedPreferences
 ) {
-    fun getNamedTags(): List<Talisman> {
-        val type = object : TypeToken<List<Talisman>>() {}.type
-        return PrefsHelper.load<List<Talisman>>(prefs, gson, Constants.PrefsKeys.NAMED_TAGS, type)
-            ?: emptyList()
-    }
+    fun getTalismans(): List<Talisman> =
+        PrefsHelper.loadListLenient<Talisman>(prefs, Constants.PrefsKeys.NAMED_TAGS) ?: emptyList()
 
-    /**
-     * @return true if saved successfully, false if at max capacity
-     */
-    fun saveNamedTag(tag: Talisman, currentList: List<Talisman>): Boolean {
-        val isUpdate = currentList.any { it.id == tag.id }
+    fun saveTalisman(talisman: Talisman, currentList: List<Talisman>): Boolean {
+        val isUpdate = currentList.any { it.id == talisman.id }
         if (!isUpdate && currentList.size >= Constants.MAX_NAMED_TAGS) return false
 
-        val updated = currentList.filterNot { it.id == tag.id } + tag
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.NAMED_TAGS, updated)
+        val updated = currentList.filterNot { it.id == talisman.id } + talisman
+        PrefsHelper.save(prefs, Constants.PrefsKeys.NAMED_TAGS, updated)
         return true
     }
 
-    fun deleteNamedTag(tag: Talisman, currentList: List<Talisman>): List<Talisman> {
-        val updated = currentList.filterNot { it.id == tag.id }
-        PrefsHelper.save(prefs, gson, Constants.PrefsKeys.NAMED_TAGS, updated)
+    fun deleteTalisman(talisman: Talisman, currentList: List<Talisman>): List<Talisman> {
+        val updated = currentList.filterNot { it.id == talisman.id }
+        PrefsHelper.save(prefs, Constants.PrefsKeys.NAMED_TAGS, updated)
         return updated
     }
 }

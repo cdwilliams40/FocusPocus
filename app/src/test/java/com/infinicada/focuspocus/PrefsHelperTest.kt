@@ -1,8 +1,8 @@
 package com.infinicada.focuspocus
 
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -12,7 +12,6 @@ import org.mockito.Mockito
 
 class PrefsHelperTest {
 
-    private val gson = Gson()
     private val prefs = FakeSharedPreferences()
     private lateinit var mockedLog: MockedStatic<Log>
 
@@ -26,25 +25,23 @@ class PrefsHelperTest {
         mockedLog.close()
     }
 
+    @Serializable
     data class TestItem(val id: Int, val name: String)
 
     @Test
     fun `load returns parsed list when json is valid`() {
         val items = listOf(TestItem(1, "A"), TestItem(2, "B"))
-        val json = gson.toJson(items)
+        val json = AppJson.json.encodeToString(items)
         prefs.edit().putString("test_key", json).apply()
 
-        val type = object : TypeToken<List<TestItem>>() {}.type
-        val result = PrefsHelper.load<List<TestItem>>(prefs, gson, "test_key", type)
+        val result = PrefsHelper.load<List<TestItem>>(prefs, "test_key")
 
         assertEquals(items, result)
     }
 
     @Test
     fun `load returns null when key is missing`() {
-        val type = object : TypeToken<List<TestItem>>() {}.type
-        val result = PrefsHelper.load<List<TestItem>>(prefs, gson, "missing_key", type)
-
+        val result = PrefsHelper.load<List<TestItem>>(prefs, "missing_key")
         assertNull(result)
     }
 
@@ -52,33 +49,27 @@ class PrefsHelperTest {
     fun `load returns null and clears key when json is invalid`() {
         prefs.edit().putString("test_key", "invalid json").apply()
 
-        val type = object : TypeToken<List<TestItem>>() {}.type
         var corruptionCallbackCalled = false
-        val result = PrefsHelper.load<List<TestItem>>(prefs, gson, "test_key", type) {
+        val result = PrefsHelper.load<List<TestItem>>(prefs, "test_key") {
             corruptionCallbackCalled = true
         }
 
         assertNull(result)
         assertTrue(corruptionCallbackCalled)
         assertFalse(prefs.contains("test_key"))
-        // The unparseable payload is preserved, not silently discarded: callers
-        // treat a missing key as first-run and would otherwise re-seed defaults
-        // over the user's (recoverable) data.
         assertEquals(
             "invalid json",
             prefs.getString("test_key" + PrefsHelper.CORRUPT_BACKUP_SUFFIX, null)
         )
-
-        // Verify Log.e was called (PrefsHelper logs with the throwable overload)
         mockedLog.verify { Log.e(Mockito.anyString(), Mockito.anyString(), Mockito.any()) }
     }
 
     @Test
     fun `save stores object as json`() {
         val items = listOf(TestItem(1, "A"))
-        PrefsHelper.save(prefs, gson, "save_key", items)
+        PrefsHelper.save(prefs, "save_key", items)
 
         val json = prefs.getString("save_key", null)
-        assertEquals(gson.toJson(items), json)
+        assertEquals(AppJson.json.encodeToString(items), json)
     }
 }

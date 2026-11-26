@@ -1,8 +1,8 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.WellApp
 import com.infinicada.focuspocus.limit.WellApps
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -57,27 +57,23 @@ class MigrationsTest {
 
     // ── Step 2: the Well becomes the only limit ──
 
-    private val gson = Gson()
-
     private fun seedLegacyLimits() {
         prefs.putString(
             Constants.PrefsKeys.BLOCKER_LISTS,
             """[{"name":"Social","mode":"BLACKLIST","apps":["com.circle1","com.circle2"]}]"""
         )
-        prefs.putString(Migrations.LegacyKeys.APP_TIME_LIMIT_CONFIGS, gson.toJson(mapOf(
-            "com.pact" to mapOf("packageName" to "com.pact", "pactModeEnabled" to true,
-                "pactAlternativePackage" to "com.read", "wellExempt" to true),
-            "com.ward" to mapOf("packageName" to "com.ward", "dailyLimitMinutes" to 30),
-            "com.leaving" to mapOf("packageName" to "com.leaving", "pactModeEnabled" to true)
-        )))
-        prefs.putString(Migrations.LegacyKeys.PACT_GROUPS, gson.toJson(listOf(
-            mapOf("blockerName" to "Social", "pactAlternativePackage" to "com.walk")
-        )))
-        prefs.putString(Migrations.LegacyKeys.PACT_PENDING_REVISIONS, gson.toJson(listOf(
-            mapOf("packageName" to "com.leaving", "appliesAtMillis" to 5_000L),
-            mapOf("packageName" to "com.pact", "appliesAtMillis" to 6_000L,
-                "newConfig" to mapOf("packageName" to "com.pact", "pactModeEnabled" to true))
-        )))
+        prefs.putString(
+            Migrations.LegacyKeys.APP_TIME_LIMIT_CONFIGS,
+            """{"com.pact":{"packageName":"com.pact","pactModeEnabled":true,"pactAlternativePackage":"com.read","wellExempt":true},"com.ward":{"packageName":"com.ward","dailyLimitMinutes":30},"com.leaving":{"packageName":"com.leaving","pactModeEnabled":true}}"""
+        )
+        prefs.putString(
+            Migrations.LegacyKeys.PACT_GROUPS,
+            """[{"blockerName":"Social","pactAlternativePackage":"com.walk"}]"""
+        )
+        prefs.putString(
+            Migrations.LegacyKeys.PACT_PENDING_REVISIONS,
+            """[{"packageName":"com.leaving","appliesAtMillis":5000},{"packageName":"com.pact","appliesAtMillis":6000,"newConfig":{"packageName":"com.pact","pactModeEnabled":true}}]"""
+        )
         prefs.putString(Migrations.LegacyKeys.APP_COOLDOWN_STATES, "{}")
         prefs.putBoolean(Migrations.LegacyKeys.GROUP_SEAL_ENABLED, true)
         prefs.putBoolean(Constants.PrefsKeys.WELL_ENABLED, false)
@@ -96,7 +92,7 @@ class MigrationsTest {
                 WellApp("com.circle1", "com.walk"),
                 WellApp("com.circle2", "com.walk")
             ),
-            WellApps.load(prefs, gson)
+            WellApps.load(prefs)
         )
     }
 
@@ -104,7 +100,7 @@ class MigrationsTest {
     fun `a pending pact removal keeps its date and a pending edit is dropped`() {
         seedLegacyLimits()
         Migrations.run(prefs)
-        assertEquals(mapOf("com.leaving" to 5_000L), WellApps.pendingRemovals(prefs, gson))
+        assertEquals(mapOf("com.leaving" to 5_000L), WellApps.pendingRemovals(prefs))
     }
 
     @Test
@@ -126,26 +122,23 @@ class MigrationsTest {
         prefs.putString(Migrations.LegacyKeys.APP_TIME_LIMIT_CONFIGS, "{not json")
         prefs.putString(Migrations.LegacyKeys.PACT_GROUPS, "[1, \"x\", null]")
         Migrations.run(prefs)
-        assertTrue(WellApps.load(prefs, gson).isEmpty())
+        assertTrue(WellApps.load(prefs).isEmpty())
         assertEquals(Migrations.CURRENT_VERSION, prefs.getInt(Constants.PrefsKeys.SCHEMA_VERSION, 0))
     }
 
     // ── Step 3: talismans carry their own setup ──
 
     private fun talismans() = PrefsHelper.load<List<Talisman>>(
-        prefs, gson, Constants.PrefsKeys.NAMED_TAGS,
-        object : com.google.gson.reflect.TypeToken<List<Talisman>>() {}.type
+        prefs, Constants.PrefsKeys.NAMED_TAGS
     ).orEmpty()
 
     @Test
     fun `a talisman takes its bound quick spell's setup`() {
         prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Desk"},{"id":"t2","name":"Timer"}]""")
-        prefs.putString(Migrations.LegacyKeys.FOCUS_PRESETS, gson.toJson(listOf(
-            mapOf("id" to "p1", "name" to "Deep", "blockerNames" to listOf("Social", "Games"),
-                "durationMinutes" to 45, "breaksEnabled" to false, "talismanId" to "t1", "action" to "TOGGLE"),
-            mapOf("id" to "p2", "name" to "Quick", "blockerName" to "Social", "durationMinutes" to 0,
-                "breaksEnabled" to true, "talismanId" to "t2", "action" to "TEMP_ENABLE", "tempDurationMinutes" to 20)
-        )))
+        prefs.putString(
+            Migrations.LegacyKeys.FOCUS_PRESETS,
+            """[{"id":"p1","name":"Deep","blockerNames":["Social","Games"],"durationMinutes":45,"breaksEnabled":false,"talismanId":"t1","action":"TOGGLE"},{"id":"p2","name":"Quick","blockerName":"Social","durationMinutes":0,"breaksEnabled":true,"talismanId":"t2","action":"TEMP_ENABLE","tempDurationMinutes":20}]"""
+        )
         Migrations.run(prefs)
 
         assertEquals(
@@ -161,7 +154,7 @@ class MigrationsTest {
     @Test
     fun `a talisman without a spell takes the focus tab's enchantments`() {
         prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Shield"}]""")
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Shield list")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Shield list")))
         Migrations.run(prefs)
         assertEquals(listOf("Shield list"), talismans().single().enchantments)
         assertTrue(talismans().single().locksSession)
@@ -170,7 +163,7 @@ class MigrationsTest {
     @Test
     fun `a running tag-only session becomes a recorded talisman session`() {
         prefs.putString(Constants.PrefsKeys.NAMED_TAGS, """[{"id":"t1","name":"Shield"}]""")
-        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("Social")))
+        prefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("Social")))
         prefs.putString(Migrations.LegacyKeys.FOCUS_TAG_ID, "t1")
         Migrations.run(prefs)
 
@@ -184,7 +177,7 @@ class MigrationsTest {
     fun `the single-enchantment key folds into the list`() {
         prefs.putString(Migrations.LegacyKeys.ACTIVE_BLOCKER, "Social")
         Migrations.run(prefs)
-        assertEquals(gson.toJson(listOf("Social")), prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
+        assertEquals(AppJson.json.encodeToString(listOf("Social")), prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null))
         assertFalse(prefs.contains(Migrations.LegacyKeys.ACTIVE_BLOCKER))
     }
 
@@ -192,27 +185,37 @@ class MigrationsTest {
 
     @Test
     fun `each rule's required app becomes a productive app`() {
-        prefs.putString(Migrations.LegacyKeys.CONDITIONAL_UNLOCKS, gson.toJson(listOf(
-            mapOf("name" to "Duo", "requiredAppPackage" to "com.duo", "requiredMinutes" to 10),
-            mapOf("name" to "Read", "requiredAppPackage" to "com.read", "requiredMinutes" to 20)
-        )))
+        prefs.putString(
+            Migrations.LegacyKeys.CONDITIONAL_UNLOCKS,
+            """[{"name":"Duo","requiredAppPackage":"com.duo","requiredMinutes":10},{"name":"Read","requiredAppPackage":"com.read","requiredMinutes":20}]"""
+        )
         prefs.putString(Migrations.LegacyKeys.WELL_UNLOCK_CREDIT_DATE, "20261110")
         Migrations.run(prefs)
-        assertEquals(listOf("com.duo", "com.read"), ProductiveApps.load(prefs, gson))
+        assertEquals(listOf("com.duo", "com.read"), ProductiveApps.load(prefs))
         assertFalse(prefs.contains(Migrations.LegacyKeys.CONDITIONAL_UNLOCKS))
         assertFalse(prefs.contains(Migrations.LegacyKeys.WELL_UNLOCK_CREDIT_DATE))
     }
 
     @Test
     fun `unfinished trials are dropped and finished unclaimed ones kept`() {
-        prefs.putString(Constants.PrefsKeys.TRIALS, gson.toJson(listOf(
-            mapOf("id" to "a", "type" to "COMPLETE_SESSIONS", "target" to 2, "progress" to 1, "period" to "DAILY",
-                "periodKey" to "20261111", "rewardMana" to 40, "claimed" to false),
-            mapOf("id" to "b", "type" to "FOCUS_MINUTES", "target" to 60, "progress" to 60, "period" to "DAILY",
-                "periodKey" to "20261111", "rewardMana" to 50, "claimed" to false)
-        )))
+        prefs.putString(
+            Constants.PrefsKeys.TRIALS,
+            """[{"id":"a","type":"COMPLETE_SESSIONS","target":2,"progress":1,"period":"DAILY","periodKey":"20261111","rewardMana":40,"claimed":false},{"id":"b","type":"FOCUS_MINUTES","target":60,"progress":60,"period":"DAILY","periodKey":"20261111","rewardMana":50,"claimed":false}]"""
+        )
         Migrations.run(prefs)
-        val ids = Progression.loadTrials(prefs, gson).map { it.id }
+        val ids = Progression.loadTrials(prefs).map { it.id }
         assertEquals(listOf("b"), ids)
+    }
+
+    @Test
+    fun `step 5 drops unfinished reflex trials while keeping other active trials`() {
+        prefs.putInt(Constants.PrefsKeys.SCHEMA_VERSION, 4)
+        prefs.putString(
+            Constants.PrefsKeys.TRIALS,
+            """[{"id":"r1","type":"NO_REFLEX_OPENS","target":1,"progress":0,"period":"DAILY","periodKey":"20261111","rewardMana":40,"claimed":false},{"id":"r2","type":"NO_REFLEX_OPENS","target":1,"progress":1,"period":"DAILY","periodKey":"20261111","rewardMana":40,"claimed":false},{"id":"f1","type":"FOCUS_MINUTES","target":60,"progress":10,"period":"DAILY","periodKey":"20261111","rewardMana":50,"claimed":false}]"""
+        )
+        Migrations.run(prefs)
+        val ids = Progression.loadTrials(prefs).map { it.id }
+        assertEquals(listOf("r2", "f1"), ids)
     }
 }

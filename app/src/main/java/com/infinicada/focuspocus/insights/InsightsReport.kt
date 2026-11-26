@@ -7,16 +7,35 @@ import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.model.LedgerKind
 import com.infinicada.focuspocus.model.ManaDay
 import com.infinicada.focuspocus.model.ManaLedgerEntry
+import com.infinicada.focuspocus.model.PactIntention
 import com.infinicada.focuspocus.model.Perk
 import com.infinicada.focuspocus.model.WellDay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 /** The ranges Insights offers; [days] counts today. */
 enum class InsightsRange(val days: Int) { TODAY(1), WEEK(7), MONTH(30) }
 
 /** What started a focus session, as Insights groups it. */
 enum class FocusSource { MANUAL, RITUAL, TALISMAN }
+
+/** Coarse 4-bucket time-of-day breakdown for Well draws and focus minutes. */
+enum class TimeOfDayBucket {
+    MORNING,    // 05:00–11:59
+    AFTERNOON,  // 12:00–16:59
+    EVENING,    // 17:00–21:59
+    LATE_NIGHT; // 22:00–04:59
+
+    companion object {
+        fun forHour(hour: Int): TimeOfDayBucket = when (hour) {
+            in 5..11 -> MORNING
+            in 12..16 -> AFTERNOON
+            in 17..21 -> EVENING
+            else -> LATE_NIGHT
+        }
+    }
+}
 
 /**
  * Everything the Insights screen shows for one range, computed from stored
@@ -26,7 +45,7 @@ enum class FocusSource { MANUAL, RITUAL, TALISMAN }
 data class InsightsReport(
     val days: List<String>,
     val well: Well,
-    val reflexes: Reflexes,
+    val opens: Opens,
     val focus: Focus,
     val mana: Mana
 ) {
@@ -38,19 +57,22 @@ data class InsightsReport(
         val dryOpens: Int,
         val pours: Int,
         /** Package → minutes, most first. */
-        val perApp: List<Pair<String, Int>>
+        val perApp: List<Pair<String, Int>>,
+        val substituteWins: Int = 0,
+        val intentions: Map<PactIntention, Int> = emptyMap(),
+        val minutesByTimeOfDay: Map<TimeOfDayBucket, Int> = emptyMap(),
+        /** Total Well minutes in the immediately preceding equal-length period, if any data existed. */
+        val previousPeriodMinutes: Int? = null
     ) {
         val averagePactMinutes: Int get() = if (pacts == 0) 0 else (totalMinutes + refundedMinutes) / pacts
+        val deltaMinutes: Int? get() = previousPeriodMinutes?.let { totalMinutes - it }
     }
 
-    data class AppOpens(val packageName: String, val opens: Int, val reflexOpens: Int)
-
-    data class Reflexes(
-        val opens: Int,
-        val reflexOpens: Int,
-        val reflexesPerDay: List<Int>,
-        /** Most opened first. */
-        val perApp: List<AppOpens>
+    data class Opens(
+        val totalOpens: Int,
+        val opensPerDay: List<Int>,
+        /** Package → opens, most opened first. */
+        val perApp: List<Pair<String, Int>>
     )
 
     data class Focus(
@@ -62,10 +84,14 @@ data class InsightsReport(
         /** Package → blocked attempts, most first, top five. */
         val mostBlocked: List<Pair<String, Int>>,
         /** Newest first, at most ten. */
-        val recentSessions: List<FocusSession>
+        val recentSessions: List<FocusSession>,
+        val minutesByTimeOfDay: Map<TimeOfDayBucket, Int> = emptyMap(),
+        /** Total focus minutes in the immediately preceding equal-length period, if any data existed. */
+        val previousPeriodMinutes: Int? = null
     ) {
         val totalMinutes: Int get() = minutesBySource.values.sum()
         val averageSessionMinutes: Int get() = if (sessions == 0) 0 else totalMinutes / sessions
+        val deltaMinutes: Int? get() = previousPeriodMinutes?.let { totalMinutes - it }
     }
 
     data class Mana(
@@ -76,6 +102,7 @@ data class InsightsReport(
         val openEndedSessions: Long,
         val productive: Long,
         val trials: Long,
+        val substitutes: Long = 0L,
         val pourMana: Long,
         val breakMana: Long,
         val trialsCompleted: Int,
@@ -90,6 +117,17 @@ data class InsightsReport(
         fun daysFor(range: InsightsRange, today: String): List<String> {
             val end = LocalDate.parse(today, BASIC)
             return (range.days - 1 downTo 0).map { end.minusDays(it.toLong()).format(BASIC) }
+        }
+
+        /** The immediately preceding equal-length period before [days]. */
+        fun previousPeriodDays(days: List<String>): List<String> {
+            if (days.isEmpty()) return emptyList()
+            val first = try {
+                LocalDate.parse(days.first(), BASIC)
+            } catch (_: Exception) {
+                return emptyList()
+            }
+            return (days.size downTo 1).map { first.minusDays(it.toLong()).format(BASIC) }
         }
 
         fun sourceOf(session: FocusSession): FocusSource = when (session.source) {
@@ -109,10 +147,32 @@ data class InsightsReport(
             ledger: List<ManaLedgerEntry>
         ): InsightsReport {
             val inRange = days.toSet()
+            val priorDays = previousPeriodDays(days)
+            val priorSet = priorDays.toSet()
 
             val wellInRange = days.map { wellDays[it] ?: WellDay() }
             val perApp = HashMap<String, Long>()
-            wellInRange.forEach { day -> day.perApp.orEmpty().forEach { (pkg, ms) -> perApp.merge(pkg, ms, Long::plus) } }
+            val intentionCounts = HashMap<PactIntention, Int>()
+            val wellByBucket = HashMap<TimeOfDayBucket, Int>()
+            wellInRange.forEach { day ->
+                day.perApp.orEmpty().forEach { (pkg, ms) -> perApp.merge(pkg, ms, Long::plus) }
+                day.intentions.orEmpty().forEach { (name, count) ->
+                    val parsed = PactIntention.entries.find { it.name == name }
+                    if (parsed != null && count > 0) {
+                        intentionCounts.merge(parsed, count, Int::plus)
+                    }
+                }
+                day.drawsByHour.orEmpty().forEach { (hour, mins) ->
+                    if (mins > 0) {
+                        wellByBucket.merge(TimeOfDayBucket.forHour(hour), mins, Int::plus)
+                    }
+                }
+            }
+            val priorWellHasData = priorDays.any { it in wellDays }
+            val priorWellMinutes = if (priorWellHasData) {
+                minutes(priorDays.sumOf { wellDays[it]?.drawnMillis ?: 0L })
+            } else null
+
             val well = Well(
                 minutesPerDay = wellInRange.map { minutes(it.drawnMillis) },
                 totalMinutes = minutes(wellInRange.sumOf { it.drawnMillis }),
@@ -122,34 +182,44 @@ data class InsightsReport(
                 pours = wellInRange.sumOf { it.pours },
                 perApp = perApp.map { (pkg, ms) -> pkg to minutes(ms) }
                     .filter { it.second > 0 }
-                    .sortedByDescending { it.second }
+                    .sortedByDescending { it.second },
+                substituteWins = wellInRange.sumOf { it.substituteWins },
+                intentions = intentionCounts,
+                minutesByTimeOfDay = wellByBucket,
+                previousPeriodMinutes = priorWellMinutes
             )
 
             val opensInRange = days.map { openStats[it].orEmpty() }
-            val opensPerApp = HashMap<String, AppOpenStats>()
+            val opensPerApp = HashMap<String, Int>()
             opensInRange.forEach { day ->
                 day.forEach { (pkg, s) ->
-                    val prev = opensPerApp[pkg] ?: AppOpenStats()
-                    opensPerApp[pkg] = prev.copy(opens = prev.opens + s.opens, reflexOpens = prev.reflexOpens + s.reflexOpens)
+                    opensPerApp.merge(pkg, s.opens, Int::plus)
                 }
             }
-            val reflexes = Reflexes(
-                opens = opensPerApp.values.sumOf { it.opens },
-                reflexOpens = opensPerApp.values.sumOf { it.reflexOpens },
-                reflexesPerDay = opensInRange.map { day -> day.values.sumOf { it.reflexOpens } },
-                perApp = opensPerApp.map { (pkg, s) -> AppOpens(pkg, s.opens, s.reflexOpens) }
-                    .filter { it.opens > 0 }
-                    .sortedByDescending { it.opens }
+            val opens = Opens(
+                totalOpens = opensPerApp.values.sum(),
+                opensPerDay = opensInRange.map { day -> day.values.sumOf { it.opens } },
+                perApp = opensPerApp.map { (pkg, count) -> pkg to count }
+                    .filter { it.second > 0 }
+                    .sortedByDescending { it.second }
             )
 
             val sessionsInRange = sessions.filter { TrialEngine.dateKeyOf(it.endTimeMillis) in inRange }
+            val priorSessions = sessions.filter { TrialEngine.dateKeyOf(it.endTimeMillis) in priorSet }
             val index = days.withIndex().associate { (i, d) -> d to i }
             val perDay = List(days.size) { IntArray(FocusSource.entries.size) }
+            val focusByBucket = HashMap<TimeOfDayBucket, Int>()
             sessionsInRange.forEach { s ->
                 val i = index[TrialEngine.dateKeyOf(s.endTimeMillis)] ?: return@forEach
                 perDay[i][sourceOf(s).ordinal] += s.durationMinutes
+                val startHour = Calendar.getInstance().apply { timeInMillis = s.startTimeMillis }
+                    .get(Calendar.HOUR_OF_DAY)
+                focusByBucket.merge(TimeOfDayBucket.forHour(startHour), s.durationMinutes, Int::plus)
             }
-            val blocks = blockEvents.filter { TrialEngine.dateKeyOf(it.timestamp) in inRange }
+            val blocks = blockEvents.filter {
+                it.blockerName != BlockEvent.PACT_GATE_BLOCKER_NAME &&
+                    TrialEngine.dateKeyOf(it.timestamp) in inRange
+            }
             val focus = Focus(
                 minutesPerDay = perDay,
                 minutesBySource = FocusSource.entries.associateWith { src -> perDay.sumOf { it[src.ordinal] } },
@@ -157,7 +227,9 @@ data class InsightsReport(
                 blockedAttempts = blocks.size,
                 mostBlocked = blocks.groupingBy { it.packageName }.eachCount().toList()
                     .sortedByDescending { it.second }.take(5),
-                recentSessions = sessionsInRange.sortedByDescending { it.endTimeMillis }.take(10)
+                recentSessions = sessionsInRange.sortedByDescending { it.endTimeMillis }.take(10),
+                minutesByTimeOfDay = focusByBucket,
+                previousPeriodMinutes = if (priorSessions.isNotEmpty()) priorSessions.sumOf { it.durationMinutes } else null
             )
 
             val manaInRange = days.map { manaDays[it] ?: ManaDay() }
@@ -170,6 +242,7 @@ data class InsightsReport(
                 openEndedSessions = manaInRange.sumOf { it.openEndedSession },
                 productive = manaInRange.sumOf { it.productive },
                 trials = manaInRange.sumOf { it.trials },
+                substitutes = manaInRange.sumOf { it.substitute },
                 pourMana = manaInRange.sumOf { it.pours },
                 breakMana = manaInRange.sumOf { it.breaks },
                 trialsCompleted = ledgerInRange.count { it.kind == LedgerKind.TRIAL },
@@ -178,7 +251,7 @@ data class InsightsReport(
                     .sortedByDescending { it.timestampMillis }
             )
 
-            return InsightsReport(days, well, reflexes, focus, mana)
+            return InsightsReport(days, well, opens, focus, mana)
         }
 
         private fun minutes(millis: Long): Int = (millis / 60_000L).toInt()

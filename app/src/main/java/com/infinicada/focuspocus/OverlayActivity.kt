@@ -2,8 +2,13 @@ package com.infinicada.focuspocus
 
 import android.content.Intent
 import android.content.SharedPreferences
+import android.nfc.NfcAdapter
+import android.nfc.Tag
 import android.os.Bundle
 import android.widget.Toast
+import com.infinicada.focuspocus.handler.NfcForegroundHelper
+import com.infinicada.focuspocus.handler.NfcResult
+import com.infinicada.focuspocus.handler.NfcTapDebouncer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,14 +31,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
-import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.ManaWell
 import com.infinicada.focuspocus.limit.PactManager
+import com.infinicada.focuspocus.limit.RefillPauseReason
 import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.limit.WellMath
 import com.infinicada.focuspocus.limit.WellSnapshot
+import com.infinicada.focuspocus.model.PactIntention
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -62,7 +71,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class OverlayActivity : ComponentActivity() {
+class OverlayActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
+
+    private var nfcAdapter: NfcAdapter? = null
+    private val nfcDebouncer = NfcTapDebouncer()
+    private var isPactOverlay: Boolean = false
 
     companion object {
         /**
@@ -86,6 +99,7 @@ class OverlayActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
         // Disable back button
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -96,6 +110,42 @@ class OverlayActivity : ComponentActivity() {
 
         // A rotation re-creates the activity for the same block: not a new one.
         renderOverlay(intent, newBlock = savedInstanceState == null)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Foreground-only NFC reader mode so tapping a talisman while looking at
+        // a block screen can dispel/toggle the session immediately without leaving the overlay.
+        NfcForegroundHelper.enableReaderMode(this, nfcAdapter, this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        NfcForegroundHelper.disableReaderMode(this, nfcAdapter)
+    }
+
+    override fun onTagDiscovered(tag: Tag?) {
+        val tagIdBytes = tag?.id ?: return
+        if (tagIdBytes.isEmpty()) return
+        val tagId = tagIdBytes.joinToString("") { "%02x".format(it) }
+        if (!nfcDebouncer.shouldAccept(tagId, System.currentTimeMillis())) return
+
+        runOnUiThread {
+            val container = (application as FocusPocusApplication).container
+            val result = NfcForegroundHelper.handleTag(
+                activity = this,
+                container = container,
+                tagId = tagId,
+                emitForegroundSummary = false
+            )
+            // If this was a focus-session block and the talisman just ended the session, dismiss the overlay.
+            val endedSession = result is NfcResult.DispelSchedule ||
+                result is NfcResult.DispelSession ||
+                result is NfcResult.StopTalismanSession
+            if (endedSession && !isPactOverlay) {
+                finishAndRemoveTask()
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -147,31 +197,33 @@ class OverlayActivity : ComponentActivity() {
 
         val appName = intent.getStringExtra("appName")?.take(200) ?: "App"
         val spellName = intent.getStringExtra("spellName")?.take(200)
+        val alternativePackage = intent.getStringExtra("pactAlternativePackage")
+        val alternativeName = intent.getStringExtra("pactAlternativeName")?.take(200)
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        val progressionEnabled = Progression.isEnabled(prefs)
+        val substituteMana = Progression.nextSubstituteWinMana(prefs)
 
         // A Well app: instead of a plain block, offer a pact paid from the
         // Mana Well, limited to what the Well holds right now. Read here
         // rather than passed in, so the overlay and the draw it leads to see
         // the same store. (A few primitive prefs — fine on the main thread.)
         val pactPackageName = intent.getStringExtra("pactPackageName")
+        isPactOverlay = pactPackageName != null
         if (pactPackageName != null) {
             val now = System.currentTimeMillis()
-            val well = ManaWell.snapshot(getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE), now)
+            val well = ManaWell.snapshot(prefs, now)
             val wellMinutes = well.availableMinutesAt(now)
             val todayOpens = intent.getIntExtra("pactTodayOpens", 0)
-            val todayReflexOpens = intent.getIntExtra("pactTodayReflexOpens", 0)
-            val alternativePackage = intent.getStringExtra("pactAlternativePackage")
-            val alternativeName = intent.getStringExtra("pactAlternativeName")?.take(200)
             val choices = WellMath.limitChoices(WellApps.PACT_CHOICES, wellMinutes)
-            val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
             // Too dry for a pact: note it, and offer a pour when mana can buy
             // one and the Well has room for it.
             val pourCost: Long? = if (choices.isEmpty()) {
                 if (newBlock) ManaWell.recordDry(prefs)
-                val cost = Progression.wellChannelCost(prefs, Gson())
+                val cost = Progression.wellChannelCost(prefs)
                 val hasRoom = well.levelMillisAt(now) + ManaRules.POUR_MINUTES * WellMath.MINUTE_MS <=
                     well.capacityMinutes * WellMath.MINUTE_MS
                 cost.takeIf {
-                    Progression.isEnabled(prefs) && hasRoom &&
+                    progressionEnabled && hasRoom &&
                         prefs.getLong(Constants.PrefsKeys.MANA_BALANCE, 0L) >= it
                 }
             } else null
@@ -184,10 +236,13 @@ class OverlayActivity : ComponentActivity() {
                             neededMinutes = WellApps.PACT_CHOICES.min(),
                             nowMillis = now,
                             alternativeName = if (alternativePackage != null) alternativeName else null,
-                            onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
+                            substituteMana = substituteMana,
+                            onOpenAlternative = {
+                                alternativePackage?.let { openSubstituteWithReward(it) }
+                            },
                             pourCost = pourCost,
                             onPour = {
-                                if (Progression.redeemPerk(prefs, Gson(), com.infinicada.focuspocus.model.Perk.WELL_CHANNEL)) {
+                                if (Progression.redeemPerk(prefs, com.infinicada.focuspocus.model.Perk.WELL_CHANNEL)) {
                                     // Show the pact offer with the minutes just poured.
                                     renderOverlay(intent, newBlock = false)
                                 } else {
@@ -201,12 +256,16 @@ class OverlayActivity : ComponentActivity() {
                             appName = appName,
                             choicesMinutes = choices,
                             todayOpens = todayOpens,
-                            todayReflexOpens = todayReflexOpens,
                             alternativeName = if (alternativePackage != null) alternativeName else null,
+                            substituteMana = substituteMana,
                             wellMinutes = wellMinutes,
                             wellCapacityMinutes = well.capacityMinutes,
-                            onOpenAlternative = { alternativePackage?.let { launchApp(it) } },
-                            onPactChosen = { minutes -> grantPactAndLaunch(pactPackageName, minutes) },
+                            onOpenAlternative = {
+                                alternativePackage?.let { openSubstituteWithReward(it) }
+                            },
+                            onPactChosen = { minutes, intention ->
+                                grantPactAndLaunch(pactPackageName, minutes, intention)
+                            },
                             onDecline = { closeAndGoHome() }
                         )
                     }
@@ -221,6 +280,11 @@ class OverlayActivity : ComponentActivity() {
                     OverlayScreen(
                         appName = appName,
                         spellName = spellName,
+                        alternativeName = if (alternativePackage != null) alternativeName else null,
+                        substituteMana = substituteMana,
+                        onOpenAlternative = {
+                            alternativePackage?.let { openSubstituteWithReward(it) }
+                        },
                         onClose = { closeAndGoHome() }
                     )
                 }
@@ -234,40 +298,49 @@ class OverlayActivity : ComponentActivity() {
      */
     private var granting = false
 
-    /**
-     * Grants the chosen allowance and opens the app. The store writes and the
-     * Warden sync run off the main thread: on a provisioned device the sync
-     * enumerates launchable packages and queries usage stats, and this is the
-     * overlay the user meets on every pact app's open.
-     */
-    private fun grantPactAndLaunch(packageName: String, minutes: Int) =
-        grantAndLaunch(packageName) { prefs, gson, now ->
-            // Draw first: a pact the Well couldn't pay for is never granted.
-            if (!ManaWell.tryDraw(prefs, minutes, now, packageName = packageName)) return@grantAndLaunch false
-            PactManager(prefs, gson).grantAllowance(packageName, minutes, now)
+    private fun openSubstituteWithReward(substitutePackage: String) {
+        if (granting) return
+        granting = true
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        val award = Progression.awardSubstituteWin(prefs, substitutePackage)
+        ProgressionNotifier.postTrialCompletions(this, prefs, award.completedTrials)
+        val message = if (award.manaEarned > 0L) {
+            getString(R.string.substitute_win_toast_mana, award.manaEarned)
+        } else {
+            getString(R.string.substitute_win_toast)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        launchApp(substitutePackage)
+    }
+
+    private fun grantPactAndLaunch(
+        packageName: String,
+        minutes: Int,
+        intention: PactIntention? = null
+    ) =
+        grantAndLaunch(packageName) { prefs, now ->
+            if (!ManaWell.tryDraw(prefs, minutes, now, packageName = packageName, intention = intention)) {
+                return@grantAndLaunch false
+            }
+            PactManager(prefs).grantAllowance(packageName, minutes, now)
             true
         }
 
-    /**
-     * Runs [grant] off the main thread, lifts any Warden suspension it just
-     * made stale, then opens [packageName] — under Warden greying the app is
-     * OS-suspended, and the system refuses to open it until the sync lands.
-     *
-     * [grant] returns false when it refused — the Mana Well was drained
-     * between this overlay appearing and the choice (a second overlay, the
-     * dashboard). Nothing was granted, so the app stays shut.
-     */
     private fun grantAndLaunch(
         packageName: String,
-        grant: (SharedPreferences, Gson, Long) -> Boolean
+        grant: (SharedPreferences, Long) -> Boolean
     ) {
         if (granting) return
         granting = true
         lifecycleScope.launch {
             val granted = withContext(Dispatchers.Default) {
                 val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
-                val granted = grant(prefs, Gson(), System.currentTimeMillis())
-                if (granted) DeviceOwnerManager.syncSuspensions(this@OverlayActivity)
+                val granted = grant(prefs, System.currentTimeMillis())
+                if (granted) {
+                    DeviceOwnerManager.syncSuspensions(this@OverlayActivity)
+                    PactNotifier.update(this@OverlayActivity)
+                    RitualAlarmScheduler.scheduleNext(this@OverlayActivity)
+                }
                 granted
             }
             if (granted) {
@@ -295,7 +368,11 @@ class OverlayActivity : ComponentActivity() {
 fun OverlayScreen(
     appName: String,
     spellName: String?,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    alternativeName: String? = null,
+    /** What picking the substitute pays now; 0 hides the mana from its label. */
+    substituteMana: Long = 0L,
+    onOpenAlternative: () -> Unit = {}
 ) {
     val delaySeconds = 3
 
@@ -379,6 +456,26 @@ fun OverlayScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (alternativeName != null) {
+                    Button(
+                        onClick = onOpenAlternative,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (substituteMana > 0L) {
+                                stringResource(
+                                    R.string.overlay_pact_alternative_mana,
+                                    alternativeName,
+                                    substituteMana
+                                )
+                            } else {
+                                stringResource(R.string.overlay_pact_alternative, alternativeName)
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 Button(
                     onClick = { if (isCloseEnabled) onClose() },
                     enabled = isCloseEnabled
@@ -402,23 +499,26 @@ fun OverlayScreen(
  * long to open it, paid from the Mana Well, or walks away. The choice buttons stay disabled for a few seconds so
  * muscle memory can't grant a pact before the urge has a chance to pass.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PactOfferScreen(
     appName: String,
     choicesMinutes: List<Int>,
     todayOpens: Int = 0,
-    todayReflexOpens: Int = 0,
     alternativeName: String? = null,
+    /** What picking the substitute pays now; 0 hides the mana from its label. */
+    substituteMana: Long = 0L,
     /** Minutes in the Mana Well right now. */
     wellMinutes: Int,
     wellCapacityMinutes: Int,
     onOpenAlternative: () -> Unit = {},
-    onPactChosen: (Int) -> Unit,
+    onPactChosen: (Int, PactIntention?) -> Unit,
     onDecline: () -> Unit
 ) {
     val delaySeconds = 3
     var remainingSeconds by rememberSaveable { mutableIntStateOf(delaySeconds) }
     var countdownDone by rememberSaveable { mutableStateOf(false) }
+    var selectedIntention by rememberSaveable { mutableStateOf<PactIntention?>(null) }
 
     LaunchedEffect(Unit) {
         while (remainingSeconds > 0) {
@@ -479,20 +579,12 @@ fun PactOfferScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    // Awareness counter: the shape of today's habit, shown at the
-                    // exact moment the urge fires. Hidden on the first open of the
-                    // day — there's no pattern to show yet.
+                    // Awareness counter: how many times this app has been opened
+                    // today. Hidden on the first open — there's no pattern yet.
                     if (todayOpens > 1) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (todayReflexOpens > 0) {
-                                stringResource(
-                                    R.string.overlay_pact_stats_reflex,
-                                    todayOpens, todayReflexOpens
-                                )
-                            } else {
-                                stringResource(R.string.overlay_pact_stats, todayOpens)
-                            },
+                            text = stringResource(R.string.overlay_pact_stats, todayOpens),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.tertiary,
                             textAlign = TextAlign.Center
@@ -515,7 +607,17 @@ fun PactOfferScreen(
                             onClick = onOpenAlternative,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.overlay_pact_alternative, alternativeName))
+                            Text(
+                                if (substituteMana > 0L) {
+                                    stringResource(
+                                        R.string.overlay_pact_alternative_mana,
+                                        alternativeName,
+                                        substituteMana
+                                    )
+                                } else {
+                                    stringResource(R.string.overlay_pact_alternative, alternativeName)
+                                }
+                            )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -523,6 +625,38 @@ fun PactOfferScreen(
                     // The price, right where it is paid: these minutes come
                     // out of the pool every Well app shares.
                     WellStatusLine(wellMinutes, wellCapacityMinutes)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Optional 1-tap intention chips usable right during the 3s pause.
+                    Text(
+                        text = stringResource(R.string.overlay_pact_intention_prompt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        PactIntention.entries.forEach { intention ->
+                            FilterChip(
+                                selected = selectedIntention == intention,
+                                onClick = {
+                                    selectedIntention = if (selectedIntention == intention) null else intention
+                                },
+                                label = {
+                                    Text(
+                                        text = when (intention) {
+                                            PactIntention.QUICK_REPLY -> stringResource(R.string.pact_intention_quick_reply)
+                                            PactIntention.SPECIFIC_TASK -> stringResource(R.string.pact_intention_specific_task)
+                                            PactIntention.UNWINDING -> stringResource(R.string.pact_intention_unwinding)
+                                        },
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if (!countdownDone) {
@@ -536,11 +670,15 @@ fun PactOfferScreen(
 
                     choicesMinutes.forEach { minutes ->
                         OutlinedButton(
-                            onClick = { onPactChosen(minutes) },
+                            onClick = { onPactChosen(minutes, selectedIntention) },
                             enabled = countdownDone,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.overlay_pact_choice, minutes))
+                            Text(
+                                androidx.compose.ui.res.pluralStringResource(
+                                    R.plurals.overlay_pact_choice_minutes, minutes, minutes
+                                )
+                            )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                     }
@@ -583,6 +721,8 @@ fun WellDryScreen(
     neededMinutes: Int,
     nowMillis: Long,
     alternativeName: String? = null,
+    /** What picking the substitute pays now; 0 hides the mana from its label. */
+    substituteMana: Long = 0L,
     onOpenAlternative: () -> Unit = {},
     /** Today's pour price when a pour is possible and affordable; null otherwise. */
     pourCost: Long? = null,
@@ -590,6 +730,7 @@ fun WellDryScreen(
     onDecline: () -> Unit
 ) {
     val waitMillis = well.millisUntilMinutes(neededMinutes, nowMillis)
+    val pauseReason = well.refillPauseReasonAt(nowMillis)
 
     ArcaneBackground(modifier = Modifier.fillMaxSize(), starCount = 72) {
         Box(
@@ -646,14 +787,17 @@ fun WellDryScreen(
                     WellStatusLine(well.availableMinutesAt(nowMillis), well.capacityMinutes)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (waitMillis != null) {
-                            stringResource(
+                        text = when {
+                            pauseReason == RefillPauseReason.MORNING_FOCUS ->
+                                stringResource(R.string.well_paused_morning_focus, well.refillGate.morningFocusMinutes)
+                            pauseReason == RefillPauseReason.QUIET_HOURS ->
+                                stringResource(R.string.well_paused_quiet_hours)
+                            waitMillis != null -> stringResource(
                                 R.string.overlay_well_dry_eta,
                                 neededMinutes,
                                 formatDuration(WellMath.wholeMinutesCeil(waitMillis))
                             )
-                        } else {
-                            stringResource(R.string.overlay_well_dry_no_refill)
+                            else -> stringResource(R.string.overlay_well_dry_no_refill)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -666,7 +810,17 @@ fun WellDryScreen(
                             onClick = onOpenAlternative,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.overlay_pact_alternative, alternativeName))
+                            Text(
+                                if (substituteMana > 0L) {
+                                    stringResource(
+                                        R.string.overlay_pact_alternative_mana,
+                                        alternativeName,
+                                        substituteMana
+                                    )
+                                } else {
+                                    stringResource(R.string.overlay_pact_alternative, alternativeName)
+                                }
+                            )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }

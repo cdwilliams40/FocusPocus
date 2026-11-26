@@ -1,9 +1,12 @@
 package com.infinicada.focuspocus.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * What a mana ledger entry was for. Entries are structured (not display strings)
  * so history renders in the current locale and perks can query past redemptions.
  */
+@Serializable
 enum class LedgerKind {
     /** A timed session, paid per minute. */
     SESSION,
@@ -14,6 +17,8 @@ enum class LedgerKind {
     OPEN_ENDED,
     /** Time in productive apps. */
     PRODUCTIVE,
+    /** Chose a healthier substitute app on a block or pact screen. */
+    SUBSTITUTE_WIN,
 
 
     /** Legacy kinds from before 2.0 (boons, streak milestones, sigils). Never
@@ -21,6 +26,7 @@ enum class LedgerKind {
     BOON, MILESTONE, SIGIL
 }
 
+@Serializable
 data class ManaLedgerEntry(
     val timestampMillis: Long,
     /** Positive when earned, negative when spent. */

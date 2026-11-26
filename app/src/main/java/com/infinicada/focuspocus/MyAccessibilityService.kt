@@ -1,8 +1,6 @@
 package com.infinicada.focuspocus
 
 import android.accessibilityservice.AccessibilityService
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,15 +13,13 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.infinicada.focuspocus.limit.BlockDebounce
 import com.infinicada.focuspocus.limit.OpenReflexTracker
 import com.infinicada.focuspocus.limit.PactManager
 import com.infinicada.focuspocus.limit.WellApps
 import com.infinicada.focuspocus.model.Schedule
+import kotlinx.serialization.encodeToString
 import java.util.Calendar
 
 class MyAccessibilityService : AccessibilityService() {
@@ -38,7 +34,6 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private lateinit var sharedPreferences: SharedPreferences
-    private val gson = Gson()
     private var receiverRegistered = false
 
     private var packageReceiverRegistered = false
@@ -75,7 +70,7 @@ class MyAccessibilityService : AccessibilityService() {
             } else blocker
         }
         if (updated != blockers) {
-            sharedPreferences.edit { putString(Constants.PrefsKeys.BLOCKER_LISTS, gson.toJson(updated)) }
+            sharedPreferences.edit { putString(Constants.PrefsKeys.BLOCKER_LISTS, AppJson.json.encodeToString(updated)) }
             Log.d("MyAccessibilityService", "Auto-added new app to opted-in enchantments")
         }
     }
@@ -84,6 +79,7 @@ class MyAccessibilityService : AccessibilityService() {
         launcherCacheResolved = false
         cachedLauncherPackageName = null
         cachedInputMethodPackageNames = null
+        cachedSettingsPackages = null
         whitelistBlockableCache.clear()
         DeviceOwnerManager.invalidatePackageCaches()
     }
@@ -141,14 +137,13 @@ class MyAccessibilityService : AccessibilityService() {
     // In-memory only; a duplicate toast after a service restart is harmless.
     private val pactWarnedExpiries = HashMap<String, Long>()
 
-    // Open/reflex counter shown on the pact overlay
+    // Open counter shown on the pact overlay
     private lateinit var openReflexTracker: OpenReflexTracker
 
-    // Which tracked-or-untracked app the open/reflex bookkeeping considers foreground,
-    // and since when. Separate from currentForegroundPackage, which the launcher,
-    // keyboard and system UI deliberately leave alone.
+    // Which app the open bookkeeping considers foreground. Separate from
+    // currentForegroundPackage, which the launcher, keyboard and system UI
+    // deliberately leave alone.
     @Volatile private var openTrackingPackage: String? = null
-    @Volatile private var openTrackingSince: Long = 0L
 
     // Minute ticks since the service started, for the productive-app credit
     private var productiveTicks = 0
@@ -162,14 +157,32 @@ class MyAccessibilityService : AccessibilityService() {
     @Volatile private var cachedBlockEventsJson: String? = null
     @Volatile private var cachedBlockEvents: List<BlockEvent> = emptyList()
 
-    // Settings packages to block in NFC lock mode
-    private val SETTINGS_PACKAGES = setOf(
+    // Base settings/installer/permission packages to block in Talisman Lock Mode,
+    // augmented at runtime with the resolved ACTION_SETTINGS package.
+    private val BASE_SETTINGS_PACKAGES = setOf(
         "com.android.settings",
         "com.android.packageinstaller",
         "com.google.android.permissioncontroller",
         "com.google.android.packageinstaller",
-        "com.samsung.android.permissioncontroller"
+        "com.samsung.android.permissioncontroller",
+        "com.miui.securitycenter",
+        "com.oplus.safecenter",
+        "com.coloros.safecenter"
     )
+    private var cachedSettingsPackages: Set<String>? = null
+
+    private fun getSettingsPackages(): Set<String> {
+        cachedSettingsPackages?.let { return it }
+        val resolved = try {
+            packageManager.resolveActivity(Intent(android.provider.Settings.ACTION_SETTINGS), 0)
+                ?.activityInfo?.packageName
+        } catch (e: Exception) {
+            null
+        }
+        val combined = if (resolved != null) BASE_SETTINGS_PACKAGES + resolved else BASE_SETTINGS_PACKAGES
+        cachedSettingsPackages = combined
+        return combined
+    }
 
     private val timeTickReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -201,8 +214,7 @@ class MyAccessibilityService : AccessibilityService() {
     private val transitionHandler = Handler(Looper.getMainLooper())
     private val transitionRunnable = Runnable {
         try {
-            enforceTimedSessionExpiry()
-            maybeStartAutoBreak()
+            SessionManager.advance(this, sharedPreferences, loadSchedulesCached())
             dropLapsedPacts()
             // A pact that has just run out must also close the app the user is
             // still inside: no window event fires while they stay in it, and
@@ -228,8 +240,10 @@ class MyAccessibilityService : AccessibilityService() {
         transitionHandler.removeCallbacks(transitionRunnable)
         if (!::sharedPreferences.isInitialized) return
         val now = System.currentTimeMillis()
+        val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        val activeSchedule = activeScheduleId?.let { id -> loadSchedulesCached().find { it.id == id } }
         val due = listOfNotNull(
-            SessionTransitions.nextDueMillis(sharedPreferences, now),
+            SessionTransitions.nextDueMillis(sharedPreferences, now, activeSchedule),
             pactManager.getActiveAllowances(now).values.minOrNull()
         ).minOrNull() ?: return
         // Small slack so the wakeup lands just after the due instant, never before it.
@@ -243,13 +257,12 @@ class MyAccessibilityService : AccessibilityService() {
         launcherCacheResolved = false
         cachedInputMethodPackageNames = null
 
-        enforceTimedSessionExpiry()
+        SessionManager.advance(this, sharedPreferences, loadSchedulesCached())
         checkSchedules()
-        maybeStartAutoBreak()
 
         // Take apps off the Well whose 24 h removal delay has passed. Before
         // the suspension sync, so Warden greying follows.
-        WellApps.applyDueRemovals(sharedPreferences, gson)
+        WellApps.applyDueRemovals(sharedPreferences)
 
         // Forget warnings for pacts that have since ended. (Clearing the lot
         // at midnight repeated the warning for a pact running across it.)
@@ -268,7 +281,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (++productiveTicks % PRODUCTIVE_CREDIT_EVERY_TICKS == 0) {
             blockEventWriter.execute {
                 try {
-                    ProductiveApps.creditToday(this, sharedPreferences, gson)
+                    ProductiveApps.creditToday(this, sharedPreferences)
                 } catch (e: Exception) {
                     Log.e("MyAccessibilityService", "Error crediting productive apps", e)
                 }
@@ -308,20 +321,22 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         sharedPreferences = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        pactManager = PactManager(sharedPreferences, gson)
-        openReflexTracker = OpenReflexTracker(sharedPreferences, gson)
+        pactManager = PactManager(sharedPreferences)
+        openReflexTracker = OpenReflexTracker(sharedPreferences)
         Log.d("MyAccessibilityService", "Service connected")
+        ProtectionAlertNotifier.cancel(this)
+        EnforcementLog.record(sharedPreferences, EnforcementLog.CAT_SERVICE, "Accessibility service connected")
 
         // Clean up any break or timed session that expired while the service was down
         // (e.g. after a reboot), then activate any schedule that should currently be
         // running but wasn't started. Guarded so a bad persisted state can never
         // prevent the service from finishing its startup wiring below.
         try {
-            enforceTimedSessionExpiry()
+            SessionManager.advance(this, sharedPreferences, loadSchedulesCached())
             checkMissedScheduleActivation()
             // Well-app removals that came due while the service was down
             // apply before the suspension sync reads the stores.
-            WellApps.applyDueRemovals(sharedPreferences, gson)
+            WellApps.applyDueRemovals(sharedPreferences)
             DeviceOwnerManager.syncSuspensions(this)
             // Re-assert uninstall protection on every service start: provisioning
             // can happen while the app is already running (adb), in which case
@@ -388,7 +403,10 @@ class MyAccessibilityService : AccessibilityService() {
         }
         // Flush pending block events (prefs are only wired once the service
         // connected); shutdown() still runs every queued write.
-        if (::sharedPreferences.isInitialized) flushBlockEvents()
+        if (::sharedPreferences.isInitialized) {
+            flushBlockEvents()
+            EnforcementLog.record(sharedPreferences, EnforcementLog.CAT_SERVICE, "Accessibility service stopped")
+        }
         blockEventWriter.shutdown()
     }
 
@@ -410,8 +428,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         val json = sharedPreferences.getString(Constants.PrefsKeys.SCHEDULES, null) ?: return
         val schedules: List<Schedule> = try {
-            val type = object : com.google.gson.reflect.TypeToken<List<Schedule>>() {}.type
-            gson.fromJson(json, type) ?: return
+            AppJson.decodeListLenient(json)
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error parsing schedules in checkMissedScheduleActivation", e)
             return
@@ -427,7 +444,13 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         try {
             val blockerNames = BlockerRepository.getBlockers(sharedPreferences).mapTo(mutableSetOf()) { it.name }
-            val schedule = findRitualToResume(schedules.filterNotNull(), now, blockerNames) {
+            val exceptions = RitualExceptions.loadAll(sharedPreferences)
+            val schedule = findRitualToResume(
+                schedules = schedules.filterNotNull(),
+                nowMillis = now,
+                existingBlockerNames = blockerNames,
+                skippedDatesFor = { exceptions[it].orEmpty() }
+            ) {
                 SessionManager.isRitualDismissed(sharedPreferences, it, now)
             } ?: return
             Log.d("MyAccessibilityService", "Activating missed schedule on service start: ${schedule.name}")
@@ -437,136 +460,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Ends breaks and timed manual sessions whose wall-clock end time has passed.
-     *
-     * The per-second countdowns live in the UI's ViewModel and stop when the activity
-     * is destroyed, leaving IS_ON_BREAK / MANUAL_FOCUS_MODE stuck in SharedPreferences.
-     * The service outlives the UI, so it enforces expiry from the persisted end
-     * timestamps (BREAK_END_TIME_MILLIS / FOCUS_END_TIME_MILLIS).
-     */
-    private fun enforceTimedSessionExpiry() {
-        val now = System.currentTimeMillis()
-
-        if (sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) {
-            val breakEnd = sharedPreferences.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
-            if (breakEnd in 1..now) {
-                // The focus countdown was frozen at break start; restart its end-time
-                // clock from the frozen remaining value so expiry keeps being enforced.
-                val focusRemaining = sharedPreferences.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-                sharedPreferences.edit {
-                    BreakClock.markEnded(sharedPreferences, this, now)
-                    putBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-                    putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
-                    remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
-                    // A fresh focus stretch begins now that the break is over
-                    putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, now)
-                    if (focusRemaining > 0) {
-                        putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now + focusRemaining * 1000L)
-                    }
-                }
-                Log.d("MyAccessibilityService", "Break expired while UI was away — resuming focus mode")
-                DndController.updateDndState(this)
-                DeviceOwnerManager.syncSuspensions(this)
-            }
-            // Still on break (or just resumed this instant) — no session expiry to enforce.
-            return
-        }
-
-        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)) return
-        // Scheduled sessions end via checkSchedules(), not a duration timer.
-        if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
-
-        val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        if (focusEnd in 1..now) {
-            Log.d("MyAccessibilityService", "Timed session expired while UI was away — stopping session")
-            SessionManager.stopSession(this, sharedPreferences, gson)
-        }
-    }
-
-    /**
-     * Pomodoro auto-break: when enabled in settings, starts a break automatically once
-     * the current uninterrupted focus stretch reaches the configured interval. Runs on
-     * the minute tick so it works whether or not the UI is alive. Mirrors the break
-     * bookkeeping in SessionRepository.writeBreakState: the focus countdown is frozen
-     * (FOCUS_END_TIME_MILLIS parked as remaining seconds) for the length of the break.
-     */
-    private fun maybeStartAutoBreak() {
-        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.AUTO_BREAK_ENABLED, false)) return
-        if (sharedPreferences.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)) return
-
-        if (!SessionManager.isFocusActive(sharedPreferences)) return
-        if (!sharedPreferences.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)) return
-
-        // Respect schedule-level break overrides when a ritual is running.
-        val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
-        val activeSchedule = if (activeScheduleId != null) loadSchedulesCached().find { it.id == activeScheduleId } else null
-        if (activeSchedule?.breaksEnabled == false) return
-
-        // Extra-break perk tokens raise the session's effective quota, exactly
-        // as the UI computes it — otherwise auto-breaks stop one break early
-        // for users who bought one.
-        val extraTokens = sharedPreferences.getInt(Constants.PrefsKeys.EXTRA_BREAK_TOKENS, 0)
-        val maxBreaks = (activeSchedule?.maxBreaksPerSession
-            ?: sharedPreferences.getInt(Constants.PrefsKeys.MAX_BREAKS_PER_SESSION, 3)).coerceAtLeast(1) +
-            extraTokens
-        val breaksUsed = sharedPreferences.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-        if (breaksUsed >= maxBreaks) return
-
-        val now = System.currentTimeMillis()
-        val segmentStart = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, 0L)
-        if (segmentStart <= 0L) return
-        val intervalMinutes = sharedPreferences.getInt(Constants.PrefsKeys.AUTO_BREAK_INTERVAL_MINUTES, 25)
-            .coerceIn(5, 60)
-        if (now - segmentStart < intervalMinutes * 60_000L) return
-
-        val breakDuration = (activeSchedule?.breakDurationMinutes
-            ?: sharedPreferences.getInt(Constants.PrefsKeys.BREAK_DURATION_MINUTES, 5)).coerceAtLeast(1)
-
-        // Freeze the focus countdown for the duration of the break.
-        val focusEnd = sharedPreferences.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
-        sharedPreferences.edit {
-            BreakClock.markStarted(sharedPreferences, this, now)
-            putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
-            putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakDuration * 60)
-            putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, now + breakDuration * 60_000L)
-            putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed + 1)
-            if (focusEnd > 0L) {
-                // Rounded up, like the countdown itself: a break must not
-                // shave a part second off the session.
-                val focusRemaining = DisplayTicks.countdownSeconds(focusEnd - now)
-                putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusRemaining)
-                remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
-            }
-        }
-
-        DndController.updateDndState(this)
-        DeviceOwnerManager.syncSuspensions(this)
-        Log.d("MyAccessibilityService", "Auto-break started after ${intervalMinutes}m of focus")
-        sendAutoBreakNotification(intervalMinutes, breakDuration)
-    }
-
-    private fun sendAutoBreakNotification(focusedMinutes: Int, breakMinutes: Int) {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val builder = NotificationCompat.Builder(this, Constants.RITUALS_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.fplogo_round)
-            .setContentTitle(getString(R.string.auto_break_started_title))
-            .setContentText(getString(R.string.auto_break_started_message, focusedMinutes, breakMinutes))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-
-        try {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-            notificationManager.notify(Constants.FOCUS_SESSION_NOTIFICATION_ID, builder.build())
-        } catch (e: Exception) {
-            Log.e("MyAccessibilityService", "Failed to send auto-break notification", e)
-        }
-    }
+    // Timed session expiry, break expiry, and Pomodoro auto-breaks are handled
+    // uniformly by SessionManager.advance (backed by pure SessionRules).
 
     /** Parsed schedules, re-parsed only when the stored JSON changes. */
     private fun loadSchedulesCached(): List<Schedule> {
@@ -579,17 +474,10 @@ class MyAccessibilityService : AccessibilityService() {
         }
         if (json == cachedSchedulesJson) return cachedSchedules
         return try {
-            val type = object : TypeToken<List<Schedule>>() {}.type
-            val parsed: List<Schedule>? = gson.fromJson(json, type)
-            if (parsed == null) {
-                cachedSchedulesJson = null
-                cachedSchedules = emptyList()
-                emptyList()
-            } else {
-                cachedSchedulesJson = json
-                cachedSchedules = parsed
-                parsed
-            }
+            val parsed: List<Schedule> = AppJson.decodeListLenient(json)
+            cachedSchedulesJson = json
+            cachedSchedules = parsed
+            parsed
         } catch (e: Exception) {
             Log.e("MyAccessibilityService", "Error parsing schedules JSON", e)
             cachedSchedulesJson = null
@@ -607,6 +495,9 @@ class MyAccessibilityService : AccessibilityService() {
         val currentMinute = now.get(Calendar.MINUTE)
         val currentDay = calendarDayToDayOfWeek(now.get(Calendar.DAY_OF_WEEK))
 
+        val exceptions = RitualExceptions.loadAll(sharedPreferences)
+        val todayKey = TrialEngine.dateKeyOf(now.timeInMillis)
+
         // Check if an active schedule has ended (handles missed end times and overnight schedules)
         val activeScheduleId = sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
         if (activeScheduleId != null) {
@@ -617,7 +508,7 @@ class MyAccessibilityService : AccessibilityService() {
                         parseScheduleMinutes(activeSchedule.effectiveEndTime) == null
                     ) {
                         Log.e("MyAccessibilityService", "Invalid schedule time: ${activeSchedule.effectiveStartTime}-${activeSchedule.effectiveEndTime}")
-                    } else if (!isScheduleActiveAt(activeSchedule, now.timeInMillis)) {
+                    } else if (!isScheduleActiveAt(activeSchedule, now.timeInMillis, exceptions[activeSchedule.id].orEmpty())) {
                         // Day-aware, like the alarm backstop's reconcile: a
                         // time-of-day-only check kept a ritual running through
                         // the *next* day's window when its end was missed (phone
@@ -633,7 +524,7 @@ class MyAccessibilityService : AccessibilityService() {
                 // session: only clearing the id left MANUAL_FOCUS_MODE on as an
                 // endless untimed session, stuck if the stop button is hidden.
                 Log.w("MyAccessibilityService", "Active schedule $activeScheduleId no longer exists, ending its session")
-                SessionManager.stopSession(this, sharedPreferences, gson)
+                SessionManager.stopSession(this, sharedPreferences)
             }
         }
 
@@ -643,6 +534,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (sharedPreferences.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null) return
         for (schedule in schedules) {
             try {
+                if (todayKey in exceptions[schedule.id].orEmpty()) continue
                 if (schedule.effectiveDays.contains(currentDay)) {
                     val startMins = parseScheduleMinutes(schedule.effectiveStartTime)
                     if (startMins == null) {
@@ -672,19 +564,17 @@ class MyAccessibilityService : AccessibilityService() {
         // Record any manual session in progress before the ritual replaces
         // it — the bare overwrite discarded its accrued focus time.
         if (SessionManager.isSessionActive(sharedPreferences)) {
-            SessionManager.stopSession(this, sharedPreferences, gson)
+            SessionManager.stopSession(this, sharedPreferences)
         }
 
         SessionManager.startSession(
+            context = this,
             sharedPreferences = sharedPreferences,
             blockerNames = validNames,
             scheduleId = schedule.id,
             breaksEnabled = schedule.breaksEnabled,
             scheduleEndTimeMillis = computeScheduleEndMillis(schedule)
         )
-
-        DndController.updateDndState(this)
-        DeviceOwnerManager.syncSuspensions(this)
 
         RitualNotifier.postStarted(this, schedule)
     }
@@ -693,7 +583,7 @@ class MyAccessibilityService : AccessibilityService() {
     // used by both this service and the RitualAlarmScheduler backstop.
 
     private fun deactivateSchedule(schedule: Schedule) {
-        SessionManager.stopSession(this, sharedPreferences, gson)
+        SessionManager.stopSession(this, sharedPreferences)
 
         RitualNotifier.postEnded(this, schedule)
     }
@@ -745,7 +635,7 @@ class MyAccessibilityService : AccessibilityService() {
         // End expired breaks / timed sessions before reading focus state below, so
         // blocking resumes (or stops) immediately on an app switch rather than
         // waiting for the next minute tick.
-        enforceTimedSessionExpiry()
+        SessionManager.advance(this, sharedPreferences, loadSchedulesCached())
 
         // Track which real app is currently in the foreground so the minute-tick receiver can
         // close it when its pact runs out while the user stays inside (no window-state events fire then).
@@ -773,7 +663,7 @@ class MyAccessibilityService : AccessibilityService() {
         val nfcLockMode = sharedPreferences.getBoolean(Constants.PrefsKeys.NFC_LOCK_MODE, false)
 
         // NFC lock mode: block settings apps when focus is active (regardless of break)
-        if (focusActive && nfcLockMode && packageName in SETTINGS_PACKAGES) {
+        if (focusActive && nfcLockMode && packageName in getSettingsPackages()) {
             val appName = AppUtils.getAppName(this, packageName)
             if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "NFC Lock: Blocking settings app: $appName")
             lastAppBlockTimes[packageName] = now
@@ -791,8 +681,13 @@ class MyAccessibilityService : AccessibilityService() {
             lastAppBlockTimes[packageName] = now
             currentForegroundPackage = null
             recordBlockEvent(packageName, blocker.name)
+            val substitutePackage = WellApps.find(sharedPreferences, packageName)?.substitutePackage
+                ?.takeIf { sub ->
+                    isPackageInstalled(sub) &&
+                        BlockerRepository.sessionBlockerFor(sharedPreferences, sub, ::isWhitelistBlockable) == null
+                }
             closeApp()
-            showOverlay(appName, getActiveBlockerNames().joinToString(", "))
+            showOverlay(appName, getActiveBlockerNames().joinToString(", "), substitutePackage)
             return
         }
 
@@ -809,7 +704,7 @@ class MyAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (BlockDebounce.isRecent(lastAppBlockTimes[packageName], now)) return
 
-        val wellApp = WellApps.find(sharedPreferences, gson, packageName) ?: return
+        val wellApp = WellApps.find(sharedPreferences, packageName) ?: return
         if (pactManager.getAllowanceExpiry(packageName, now) != null) return
         // A pact that has run out is just dropped: the app goes back behind the Well.
         pactManager.takeLapsedAllowance(packageName, now)
@@ -818,7 +713,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (BuildConfig.DEBUG) Log.d("MyAccessibilityService", "Well: $appName blocked until a pact")
         lastAppBlockTimes[packageName] = now
         currentForegroundPackage = null
-        recordBlockEvent(packageName, "Pact Gate")
+        recordBlockEvent(packageName, BlockEvent.PACT_GATE_BLOCKER_NAME)
         closeApp()
         showPactOverlay(appName, packageName, wellApp.substitutePackage)
     }
@@ -866,8 +761,7 @@ class MyAccessibilityService : AccessibilityService() {
             json == null -> mutableListOf()
             json == cachedBlockEventsJson -> cachedBlockEvents.toMutableList()
             else -> try {
-                val type = object : TypeToken<MutableList<BlockEvent>>() {}.type
-                gson.fromJson<MutableList<BlockEvent>>(json, type) ?: mutableListOf()
+                AppJson.decodeListLenient<BlockEvent>(json).toMutableList()
             } catch (e: Exception) {
                 Log.e("MyAccessibilityService", "Error parsing block events JSON", e)
                 mutableListOf()
@@ -877,7 +771,7 @@ class MyAccessibilityService : AccessibilityService() {
         val pruned = if (existing.size > Constants.MAX_BLOCK_EVENTS) {
             existing.drop(existing.size - Constants.MAX_BLOCK_EVENTS)
         } else existing
-        val prunedJson = gson.toJson(pruned)
+        val prunedJson = AppJson.json.encodeToString(pruned)
         cachedBlockEventsJson = prunedJson
         cachedBlockEvents = pruned
         sharedPreferences.edit { putString(Constants.PrefsKeys.BLOCK_EVENTS, prunedJson) }
@@ -929,11 +823,19 @@ class MyAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
-    private fun showOverlay(appName: String, spellName: String? = null) {
+    private fun showOverlay(
+        appName: String,
+        spellName: String? = null,
+        substitutePackage: String? = null
+    ) {
         val intent = Intent(this, OverlayActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra("appName", appName)
         intent.putExtra("spellName", spellName)
+        if (substitutePackage != null && isPackageInstalled(substitutePackage)) {
+            intent.putExtra("pactAlternativePackage", substitutePackage)
+            intent.putExtra("pactAlternativeName", AppUtils.getAppName(this, substitutePackage))
+        }
         startActivity(intent)
     }
 
@@ -946,7 +848,6 @@ class MyAccessibilityService : AccessibilityService() {
         // Awareness counter: this attempt is already counted, so opens is "open #N".
         val stats = openReflexTracker.getStats(packageName)
         intent.putExtra("pactTodayOpens", stats.opens)
-        intent.putExtra("pactTodayReflexOpens", stats.reflexOpens)
 
         // Optional healthier substitute ("Open X instead")
         if (substitutePackage != null && isPackageInstalled(substitutePackage)) {
@@ -964,37 +865,27 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Open/reflex bookkeeping for the pact overlay's awareness counter. Runs before
-     * the launcher/IME/system filter because going home is what ends an "open" —
-     * while our own overlay, the keyboard, and system UI appearing don't mean the
-     * user left the app.
+     * Open bookkeeping for the pact overlay's awareness counter. Runs before
+     * the launcher/IME/system filter because going home ends the foreground
+     * stay — while our own overlay, the keyboard, and system UI appearing
+     * don't mean the user left the app.
      */
     private fun trackOpenTransition(packageName: String) {
         if (packageName == this.packageName || isInputMethod(packageName) || isSystemUI(packageName)) return
-        val now = System.currentTimeMillis()
         if (isLauncher(packageName)) {
-            openTrackingPackage?.let { finishOpenTracking(it, now) }
+            openTrackingPackage = null
             return
         }
         if (packageName == openTrackingPackage) return
-        openTrackingPackage?.let { finishOpenTracking(it, now) }
         if (isOpenTracked(packageName)) {
             openReflexTracker.recordOpen(packageName)
         }
         openTrackingPackage = packageName
-        openTrackingSince = now
     }
 
-    private fun finishOpenTracking(packageName: String, now: Long) {
-        if (isOpenTracked(packageName)) {
-            openReflexTracker.recordClose(packageName, now - openTrackingSince)
-        }
-        openTrackingPackage = null
-    }
-
-    /** Apps whose opens/reflexes we count: the Well apps. */
+    /** Apps whose opens we count: the Well apps. */
     private fun isOpenTracked(packageName: String): Boolean =
-        packageName in WellApps.packages(sharedPreferences, gson)
+        packageName in WellApps.packages(sharedPreferences)
 
     /**
      * Fires a one-time toast when the foreground app's pact is about to run
@@ -1017,7 +908,10 @@ class MyAccessibilityService : AccessibilityService() {
      * path is harmless; one store write for the whole sweep.
      */
     private fun dropLapsedPacts(now: Long = System.currentTimeMillis()) {
-        pactManager.takeLapsedAllowances(now)
+        val lapsed = pactManager.takeLapsedAllowances(now)
+        if (lapsed.isNotEmpty()) {
+            PactNotifier.update(this)
+        }
     }
 
     override fun onInterrupt() {

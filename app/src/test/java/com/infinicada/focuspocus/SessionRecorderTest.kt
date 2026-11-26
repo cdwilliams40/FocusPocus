@@ -1,6 +1,6 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,7 +10,6 @@ import java.util.Calendar
 
 class SessionRecorderTest {
 
-    private val gson = Gson()
     private lateinit var fakePrefs: FakeSharedPreferences
 
     @Before
@@ -36,10 +35,10 @@ class SessionRecorderTest {
     @Test
     fun testRecord_basic() {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000) // 2 mins ago
-        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("TestBlocker")))
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("TestBlocker")))
         fakePrefs.putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 1)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
         val sessions = result.sessions
 
         assertEquals(1, sessions.size)
@@ -60,7 +59,7 @@ class SessionRecorderTest {
     @Test
     fun testRecord_noStartTime() {
         // No start time set in prefs
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
         assertEquals(0, result.sessions.size)
         assertEquals(null, result.recorded)
     }
@@ -71,7 +70,7 @@ class SessionRecorderTest {
         val startTime = System.currentTimeMillis() - 30000
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, startTime)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
         assertEquals(0, result.sessions.size)
         assertEquals(null, result.recorded)
 
@@ -87,7 +86,7 @@ class SessionRecorderTest {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000)
         fakePrefs.putInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(1, result.sessions.size)
         assertEquals(1, fakePrefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0))
@@ -99,7 +98,7 @@ class SessionRecorderTest {
         fakePrefs.putInt(Constants.PrefsKeys.LONGEST_STREAK, 5)
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000)
 
-        SessionRecorder.record(fakePrefs, gson)
+        SessionRecorder.record(fakePrefs)
 
         // New streak is 1 (just today). 1 <= 5, so no update.
         assertEquals(5, fakePrefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0))
@@ -120,10 +119,10 @@ class SessionRecorderTest {
             ))
         }
 
-        fakePrefs.putString(Constants.PrefsKeys.FOCUS_SESSIONS, gson.toJson(manySessions))
+        fakePrefs.putString(Constants.PrefsKeys.FOCUS_SESSIONS, AppJson.json.encodeToString(manySessions))
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         // Should have 500 sessions.
         assertEquals(500, result.sessions.size)
@@ -137,7 +136,7 @@ class SessionRecorderTest {
         fakePrefs.putString(Constants.PrefsKeys.FOCUS_SESSIONS, "{ corrupted json }")
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         // Should ignore corrupted json, start fresh list
         assertEquals(1, result.sessions.size)
@@ -154,7 +153,7 @@ class SessionRecorderTest {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 180 * 60000)
         fakePrefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, now - 120 * 60000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(60, result.recorded!!.durationMinutes)
     }
@@ -168,7 +167,7 @@ class SessionRecorderTest {
         fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-schedule-id")
         fakePrefs.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, now - 120 * 60000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(60, result.recorded!!.durationMinutes)
     }
@@ -182,7 +181,7 @@ class SessionRecorderTest {
         fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "some-schedule-id")
         fakePrefs.putLong(Constants.PrefsKeys.SCHEDULE_END_TIME_MILLIS, now + 60 * 60000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(30, result.recorded!!.durationMinutes)
     }
@@ -194,7 +193,7 @@ class SessionRecorderTest {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 25 * 60000)
         fakePrefs.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 25)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         // A timed session: 1 mana per focused minute
         assertEquals(25L, result.manaEarned)
@@ -207,7 +206,7 @@ class SessionRecorderTest {
         fakePrefs.putBoolean(Constants.PrefsKeys.PROGRESSION_ENABLED, false)
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 25 * 60000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(1, result.sessions.size)
         assertEquals(0L, result.manaEarned)
@@ -218,7 +217,7 @@ class SessionRecorderTest {
     fun testRecord_advancesTrialsAndReportsCompletions() {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 120 * 60000)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         // The deterministic daily slate always contains at least one
         // session-driven trial; a 120-minute session completes any
@@ -232,13 +231,13 @@ class SessionRecorderTest {
     fun testRecord_excludesBankedAndRunningBreakTime() {
         val now = System.currentTimeMillis()
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, now - 30 * 60_000L)
-        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(listOf("TestBlocker")))
+        fakePrefs.putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf("TestBlocker")))
         // 5 minutes of earlier breaks, plus a break running for the last 10.
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, 5 * 60_000L)
         fakePrefs.putBoolean(Constants.PrefsKeys.IS_ON_BREAK, true)
         fakePrefs.putLong(Constants.PrefsKeys.BREAK_START_TIME_MILLIS, now - 10 * 60_000L)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(15, result.recorded?.durationMinutes)
     }
@@ -270,7 +269,7 @@ class SessionRecorderTest {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_BREAK_MILLIS, breakEnd - breakStart)
         fakePrefs.putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, breakEnd + parkedSeconds * 1000L)
 
-        val result = SessionRecorder.record(fakePrefs, gson)
+        val result = SessionRecorder.record(fakePrefs)
 
         assertEquals(planned, result.recorded!!.durationMinutes)
         assertEquals(planned.toLong(), result.manaEarned)
@@ -281,14 +280,14 @@ class SessionRecorderTest {
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 10 * 60_000L)
         fakePrefs.putString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, "tag-1")
         fakePrefs.putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 30)
-        val talisman = SessionRecorder.record(fakePrefs, gson).recorded!!
+        val talisman = SessionRecorder.record(fakePrefs).recorded!!
         assertEquals(FocusSession.SOURCE_TALISMAN, talisman.source)
         assertEquals(30, talisman.plannedMinutes)
 
         fakePrefs.putLong(Constants.PrefsKeys.SESSION_START_TIME, System.currentTimeMillis() - 10 * 60_000L)
         fakePrefs.edit().remove(Constants.PrefsKeys.ACTIVE_TALISMAN_ID).commit()
         fakePrefs.putString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, "sched")
-        val ritual = SessionRecorder.record(fakePrefs, gson).recorded!!
+        val ritual = SessionRecorder.record(fakePrefs).recorded!!
         assertEquals(FocusSession.SOURCE_RITUAL, ritual.source)
         assertEquals(null, ritual.plannedMinutes)
     }

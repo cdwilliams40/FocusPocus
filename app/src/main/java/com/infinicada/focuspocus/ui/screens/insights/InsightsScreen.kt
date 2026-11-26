@@ -116,7 +116,7 @@ fun InsightsScreen(
 
         item { SummaryTiles(report, currentStreak, longestStreak, progressionEnabled) }
         item { WellSection(report.well, report.days, showCharts, wellRefillIntervalMinutes, names) }
-        item { ReflexSection(report.reflexes, report.days, showCharts, names) }
+        item { OpensSection(report.opens, report.days, showCharts, names) }
         item { FocusSection(report.focus, report.days, showCharts, names) }
         if (progressionEnabled) {
             item { ManaSection(report.mana, report.days, showCharts, manaBalance, onOpenMana) }

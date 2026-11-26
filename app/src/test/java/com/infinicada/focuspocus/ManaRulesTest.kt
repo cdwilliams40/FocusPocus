@@ -34,9 +34,10 @@ class ManaRulesTest {
     }
 
     @Test
-    fun `productive minutes pay one per two minutes up to the cap`() {
-        assertEquals(0L, ManaRules.productiveMana(1))
-        assertEquals(15L, ManaRules.productiveMana(31))
+    fun `productive minutes pay two per minute up to the cap`() {
+        assertEquals(2L, ManaRules.productiveMana(1))
+        assertEquals(62L, ManaRules.productiveMana(31))
+        assertEquals(120L, ManaRules.productiveMana(60))
         assertEquals(ManaRules.PRODUCTIVE_DAILY_CAP, ManaRules.productiveMana(10_000))
     }
 

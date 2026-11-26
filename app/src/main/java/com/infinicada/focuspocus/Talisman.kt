@@ -1,15 +1,14 @@
 package com.infinicada.focuspocus
 
+import kotlinx.serialization.Serializable
+
 /**
  * An NFC tag the user has named. A tap starts this talisman's session (its
  * enchantments, for [durationMinutes] or open-ended) and, when [requireToEnd]
  * holds, only another tap of the same tag ends it. A ritual can also name a
  * talisman as its key (Schedule.unbindingTalismanId).
- *
- * The setup fields are nullable on purpose: talismans stored before 2.0 have
- * none, and Gson leaves absent fields null rather than applying Kotlin
- * defaults. Read them through the accessors below.
  */
+@Serializable
 data class Talisman(
     val id: String,
     val name: String,

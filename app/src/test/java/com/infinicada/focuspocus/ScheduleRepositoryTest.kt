@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.model.DayOfWeek
 import com.infinicada.focuspocus.model.Schedule
@@ -15,7 +14,6 @@ class ScheduleRepositoryTest {
 
     private lateinit var prefs: FakeSharedPreferences
     private lateinit var repo: ScheduleRepository
-    private val gson = Gson()
 
     private fun makeSchedule(
         id: String = "sched-1",
@@ -35,7 +33,7 @@ class ScheduleRepositoryTest {
     @Before
     fun setUp() {
         prefs = FakeSharedPreferences()
-        repo = ScheduleRepository(prefs, gson)
+        repo = ScheduleRepository(prefs)
     }
 
     @Test

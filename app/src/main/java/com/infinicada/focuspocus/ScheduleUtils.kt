@@ -5,60 +5,45 @@ import com.infinicada.focuspocus.model.Schedule
 import java.util.Calendar
 
 /**
- * Determines if the schedule should deactivate at the current time.
- * Handles both same-day schedules (start < end) and overnight schedules (start > end).
- * Uses "at or past" logic so missed end times are caught on service restart.
+ * Returns true if two schedules overlap at any minute during the week.
+ * Correctly accounts for overnight windows (including Sunday-night → Monday-morning wrap).
  */
-fun shouldDeactivateSchedule(
-    currentHour: Int, currentMinute: Int,
-    startHour: Int, startMinute: Int,
-    endHour: Int, endMinute: Int
+fun schedulesOverlap(
+    daysA: Set<DayOfWeek>, startMinsA: Int, endMinsA: Int,
+    daysB: Set<DayOfWeek>, startMinsB: Int, endMinsB: Int
 ): Boolean {
-    if (currentHour !in 0..23 || currentMinute !in 0..59) return false
-    if (startHour !in 0..23 || startMinute !in 0..59) return false
-    if (endHour !in 0..23 || endMinute !in 0..59) return false
-
-    val currentMins = currentHour * 60 + currentMinute
-    val startMins = startHour * 60 + startMinute
-    val endMins = endHour * 60 + endMinute
-
-    return if (endMins > startMins) {
-        // Same-day schedule: deactivate whenever we're outside the active
-        // window. This check only runs while the schedule is active, so a
-        // current time before the start means the end was missed across
-        // midnight (phone off overnight) — without the second clause the
-        // block would persist until the *next* day's end time.
-        currentMins >= endMins || currentMins < startMins
-    } else {
-        // Overnight schedule: deactivate when past end time AND before start time
-        // (i.e., in the "morning after" window, not the "active evening" window)
-        currentMins >= endMins && currentMins < startMins
+    if (daysA.isEmpty() || daysB.isEmpty()) return false
+    if (startMinsA == endMinsA || startMinsB == endMinsB) return false
+    val intervalsA = weeklyIntervals(daysA, startMinsA, endMinsA)
+    val intervalsB = weeklyIntervals(daysB, startMinsB, endMinsB)
+    return intervalsA.any { (s1, e1) ->
+        intervalsB.any { (s2, e2) -> s1 < e2 && s2 < e1 }
     }
 }
 
-/**
- * Returns true when the current time falls inside a schedule's active window.
- * Handles both same-day schedules (startMins < endMins) and overnight schedules
- * (startMins > endMins, e.g. 22:00–06:00).
- */
-fun isWithinScheduleWindow(
-    currentHour: Int, currentMinute: Int,
-    startHour: Int, startMinute: Int,
-    endHour: Int, endMinute: Int
-): Boolean {
-    if (currentHour !in 0..23 || currentMinute !in 0..59) return false
-    if (startHour !in 0..23 || startMinute !in 0..59) return false
-    if (endHour !in 0..23 || endMinute !in 0..59) return false
+private const val MINUTES_PER_DAY = 24 * 60
+private const val MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY
 
-    val currentMins = currentHour * 60 + currentMinute
-    val startMins = startHour * 60 + startMinute
-    val endMins = endHour * 60 + endMinute
-
-    return when {
-        endMins > startMins -> currentMins >= startMins && currentMins < endMins
-        endMins < startMins -> currentMins >= startMins || currentMins < endMins
-        else -> false // startMins == endMins: treat as zero-duration, never active
+private fun weeklyIntervals(days: Set<DayOfWeek>, startMins: Int, endMins: Int): List<Pair<Int, Int>> {
+    val result = ArrayList<Pair<Int, Int>>(days.size * 2)
+    val overnight = endMins < startMins
+    for (day in days) {
+        val base = day.ordinal * MINUTES_PER_DAY
+        val start = base + startMins
+        if (!overnight) {
+            result += start to (base + endMins)
+        } else {
+            val end = base + MINUTES_PER_DAY + endMins
+            if (end <= MINUTES_PER_WEEK) {
+                result += start to end
+            } else {
+                // Sunday night wrapping into Monday morning
+                result += start to MINUTES_PER_WEEK
+                if (endMins > 0) result += 0 to endMins
+            }
+        }
     }
+    return result
 }
 
 /** "HH:mm" → minutes since midnight, or null when absent/malformed. */
@@ -89,7 +74,11 @@ fun calendarDayToDayOfWeek(calendarDay: Int): DayOfWeek? = when (calendarDay) {
  * 03:00 but not Friday at 03:00 — the same semantics the accessibility
  * service applies on restart (checkMissedScheduleActivation).
  */
-fun isScheduleActiveAt(schedule: Schedule, nowMillis: Long): Boolean {
+fun isScheduleActiveAt(
+    schedule: Schedule,
+    nowMillis: Long,
+    skippedDates: Set<String> = emptySet()
+): Boolean {
     val startMins = parseScheduleMinutes(schedule.effectiveStartTime) ?: return false
     val endMins = parseScheduleMinutes(schedule.effectiveEndTime) ?: return false
     if (startMins == endMins) return false
@@ -106,10 +95,13 @@ fun isScheduleActiveAt(schedule: Schedule, nowMillis: Long): Boolean {
     val currentMins = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
     val overnight = endMins < startMins
 
-    val activeFromToday = currentDay in days &&
+    val todayKey = TrialEngine.dateKeyOf(cal.timeInMillis)
+    val prevKey = TrialEngine.dateKeyOf(prevCal.timeInMillis)
+
+    val activeFromToday = currentDay in days && todayKey !in skippedDates &&
         if (overnight) currentMins >= startMins
         else currentMins >= startMins && currentMins < endMins
-    val activeFromYesterday = overnight && previousDay in days && currentMins < endMins
+    val activeFromYesterday = overnight && previousDay in days && prevKey !in skippedDates && currentMins < endMins
     return activeFromToday || activeFromYesterday
 }
 
@@ -124,9 +116,10 @@ fun findRitualToResume(
     schedules: List<Schedule>,
     nowMillis: Long,
     existingBlockerNames: Set<String>,
+    skippedDatesFor: (scheduleId: String) -> Set<String> = { emptySet() },
     isDismissed: (scheduleId: String) -> Boolean
 ): Schedule? = schedules.firstOrNull { schedule ->
-    isScheduleActiveAt(schedule, nowMillis) &&
+    isScheduleActiveAt(schedule, nowMillis, skippedDatesFor(schedule.id)) &&
         schedule.effectiveBlockerNames.any { it in existingBlockerNames } &&
         !isDismissed(schedule.id)
 }
@@ -156,7 +149,11 @@ fun computeScheduleEndMillis(schedule: Schedule, nowMillis: Long = System.curren
  * [nowMillis], or null when no schedule has a complete day+time definition.
  * Drives the AlarmManager backstop: one exact alarm per next transition.
  */
-fun nextRitualTransitionMillis(schedules: List<Schedule>, nowMillis: Long): Long? {
+fun nextRitualTransitionMillis(
+    schedules: List<Schedule>,
+    nowMillis: Long,
+    skippedDatesFor: (scheduleId: String) -> Set<String> = { emptySet() }
+): Long? {
     var best: Long? = null
     for (schedule in schedules) {
         val startMins = parseScheduleMinutes(schedule.effectiveStartTime) ?: continue
@@ -165,15 +162,17 @@ fun nextRitualTransitionMillis(schedules: List<Schedule>, nowMillis: Long): Long
         val days = schedule.effectiveDays
         if (days.isEmpty()) continue
         val overnight = endMins < startMins
+        val skipped = skippedDatesFor(schedule.id)
 
-        // Walk the coming week (8 offsets cover today's already-passed times).
-        for (offset in 0..7) {
+        // Walk the coming 14 days so a skipped week still finds the next occurrence.
+        for (offset in 0..14) {
             val dayCal = Calendar.getInstance().apply {
                 timeInMillis = nowMillis
                 add(Calendar.DAY_OF_YEAR, offset)
             }
             val day = calendarDayToDayOfWeek(dayCal.get(Calendar.DAY_OF_WEEK)) ?: continue
             if (day !in days) continue
+            if (TrialEngine.dateKeyOf(dayCal.timeInMillis) in skipped) continue
 
             val start = dayCal.atMinutesOfDay(startMins)
             val endCal = if (overnight) {
@@ -182,7 +181,7 @@ fun nextRitualTransitionMillis(schedules: List<Schedule>, nowMillis: Long): Long
             val end = endCal.atMinutesOfDay(endMins)
 
             for (candidate in longArrayOf(start, end)) {
-                if (candidate > nowMillis && (best == null || candidate < best!!)) {
+                if (candidate > nowMillis && (best == null || candidate < best)) {
                     best = candidate
                 }
             }
