@@ -3,14 +3,17 @@ name: Release to Google Play
 # Publishes a signed release bundle to the Play internal testing track when a
 # push to master changes versionCode (that is, when a PR carrying a
 # "Bump to X (versionCode N)" commit is merged). Merges without a versionCode
-# bump build nothing here. "Run workflow" in the Actions tab publishes the
-# current master on demand; Play refuses a versionCode it has already seen.
+# bump build nothing here. "Run workflow" in the Actions tab (master only)
+# publishes master's current versionCode, which only succeeds if Play has not
+# seen it yet, for example to retry a run that failed before the upload.
 #
 # Required repository secrets:
 #   GOOGLE_SERVICES_JSON         real Firebase config (app/google-services.json)
 #   UPLOAD_KEYSTORE_BASE64       base64 of the upload keystore (.jks)
 #   UPLOAD_KEYSTORE_PASSWORD     keystore password
 #   UPLOAD_KEY_PASSWORD          optional; defaults to the keystore password
+# Optional repository variable:
+#   UPLOAD_KEY_ALIAS             key alias in the keystore; defaults to "upload"
 #   PLAY_SERVICE_ACCOUNT_JSON    Google Cloud service account key with release
 #                                permission for this app in Play Console
 
@@ -25,7 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # to push the vX.Y.Z tag
+  contents: read
 
 jobs:
   check-version:
@@ -53,6 +56,10 @@ jobs:
           echo "version_name=$name" >> "$GITHUB_OUTPUT"
 
           if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+              echo "::error::Manual releases must run from master, not $GITHUB_REF."
+              exit 1
+            fi
             echo "Manual run: publishing $name ($code)"
             echo "publish=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -70,8 +77,10 @@ jobs:
   publish:
     name: Build and upload to Play (internal)
     needs: check-version
-    if: needs.check-version.outputs.publish == 'true'
+    if: needs.check-version.outputs.publish == 'true' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the release tag
     timeout-minutes: 45
     environment: play
     env:
@@ -104,8 +113,20 @@ jobs:
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
-          SIGNING_KEY_ALIAS: upload
+          SIGNING_KEY_ALIAS: ${{ vars.UPLOAD_KEY_ALIAS || 'upload' }}
         run: ./gradlew bundleRelease --stacktrace
+
+      # Archived before the upload so the mapping for any build Play accepts is
+      # kept even if a later step fails.
+      - name: Keep the bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: focuspocus-${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Upload to Play internal track
         uses: r0adkll/upload-google-play@v1
@@ -119,24 +140,21 @@ jobs:
           mappingFile: app/build/outputs/mapping/release/mapping.txt
           whatsNewDirectory: distribution/whatsnew
 
+      # Tags vX.Y.Z. If that tag already marks another commit (versionCode
+      # raised without a new versionName), tags vX.Y.Z-N instead.
       - name: Tag the release
         run: |
           tag="v$VERSION_NAME"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
-            echo "Tag $tag already exists; skipping."
-          else
-            git tag "$tag"
-            git push origin "$tag"
+          existing=$(git ls-remote --tags origin "refs/tags/$tag" | cut -f1)
+          if [ "$existing" = "$GITHUB_SHA" ]; then
+            echo "Tag $tag already marks this commit; skipping."
+            exit 0
+          elif [ -n "$existing" ]; then
+            echo "::warning::$tag already marks $existing; tagging $tag-$VERSION_CODE instead."
+            tag="$tag-$VERSION_CODE"
           fi
-
-      - name: Keep the bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: focuspocus-${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
-          path: |
-            app/build/outputs/bundle/release/app-release.aab
-            app/build/outputs/mapping/release/mapping.txt
-          retention-days: 90
+          git tag "$tag"
+          git push origin "$tag"
 
       - name: Remove keystore
         if: always()
