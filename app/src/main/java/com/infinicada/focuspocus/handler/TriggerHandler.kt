@@ -25,7 +25,8 @@ object TriggerHandler {
         sessionActive: Boolean,
         schedules: List<Schedule>,
         talismans: List<Talisman>,
-        blockerLists: List<Blocker>
+        blockerLists: List<Blocker>,
+        nfcLockMode: Boolean = false
     ): NfcResult {
         // A running ritual bound to a talisman only answers to that talisman.
         if (activeScheduleId != null) {
@@ -42,8 +43,24 @@ object TriggerHandler {
         val talisman = talismans.find { it.id == tagId } ?: return NfcResult.UnknownTag
 
         if (activeTalismanId == tagId) return NfcResult.StopTalismanSession(talisman)
-        // Another session is running: a tap never replaces it.
-        if (sessionActive) return NfcResult.Toast(R.string.toast_session_already_running)
+        // Another session is running.
+        if (sessionActive) {
+            // A session locked to another talisman only answers to that talisman.
+            val lockingTalisman = activeTalismanId?.let { id -> talismans.find { it.id == id } }
+            if (lockingTalisman?.locksSession == true) {
+                return NfcResult.Toast(R.string.toast_wrong_talisman)
+            }
+            // Under Talisman Lock Mode, any bound talisman can end a session
+            // that has no talisman key of its own (manual session or keyless ritual).
+            if (nfcLockMode) {
+                return if (activeScheduleId != null) {
+                    NfcResult.DispelSchedule(R.string.toast_ritual_dispelled)
+                } else {
+                    NfcResult.DispelSession(R.string.toast_session_dispelled)
+                }
+            }
+            return NfcResult.Toast(R.string.toast_session_already_running)
+        }
 
         val enchantments = talisman.enchantments.filter { name -> blockerLists.any { it.name == name } }
         if (enchantments.isEmpty()) return NfcResult.Toast(R.string.toast_talisman_no_setup)
@@ -53,6 +70,7 @@ object TriggerHandler {
 
 sealed class NfcResult {
     data class DispelSchedule(val messageResId: Int) : NfcResult()
+    data class DispelSession(val messageResId: Int) : NfcResult()
     data class Toast(val messageResId: Int) : NfcResult()
     /** Start [talisman]'s session on [enchantments] (its setup, minus any since deleted). */
     data class StartTalismanSession(val talisman: Talisman, val enchantments: List<String>) : NfcResult()

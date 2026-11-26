@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.limit.DayKey
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
@@ -15,10 +14,10 @@ import java.util.Locale
 class TrialEngineTest {
 
     private val allEligible = TrialEngine.Eligibility(
-        hasWellApps = true, canMeasureProductive = true, hasReflexHistory = true
+        hasWellApps = true, canMeasureProductive = true
     )
     private val noneExtra = TrialEngine.Eligibility(
-        hasWellApps = false, canMeasureProductive = false, hasReflexHistory = false
+        hasWellApps = false, canMeasureProductive = false
     )
 
     // ── locale-independent date keys ──
@@ -125,7 +124,12 @@ class TrialEngineTest {
             val key = "202607%02d".format(day)
             val slate = TrialEngine.drawSlate(key, TrialEngine.weekKeyForDay(key), emptyList(), allEligible)
             assertTrue(slate.none {
-                it.type in setOf(TrialType.COMPLETE_SESSIONS, TrialType.COMPLETE_RITUAL, TrialType.STAY_UNDER_LIMITS)
+                it.type in setOf(
+                    TrialType.COMPLETE_SESSIONS,
+                    TrialType.COMPLETE_RITUAL,
+                    TrialType.STAY_UNDER_LIMITS,
+                    TrialType.NO_REFLEX_OPENS
+                )
             })
         }
     }
@@ -173,47 +177,15 @@ class TrialEngineTest {
     @Test
     fun `well-under is judged from the period's net draws`() {
         val day = trial(TrialType.WELL_UNDER, target = 1, param = 15)
-        assertTrue(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 15, "20260714" to 90), emptyMap()).completed)
-        assertFalse(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 16), emptyMap()).completed)
+        assertTrue(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 15, "20260714" to 90)).completed)
+        assertFalse(TrialEngine.judgeEndedTrial(day, mapOf("20260713" to 16)).completed)
 
         val week = Trial(
             "w", TrialType.WELL_UNDER, target = 1, period = TrialPeriod.WEEKLY,
             periodKey = TrialEngine.weekKeyForDay("20260713"), rewardMana = 200L, param = 60
         )
-        assertTrue(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 30), emptyMap()).completed)
-        assertFalse(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 31), emptyMap()).completed)
-    }
-
-    @Test
-    fun `daily reflex trial counts its own day only`() {
-        val day = trial(TrialType.NO_REFLEX_OPENS, target = 1, param = 3)
-        val history = mapOf(
-            "20260713" to mapOf("a" to AppOpenStats(opens = 9, reflexOpens = 3)),
-            "20260714" to mapOf("a" to AppOpenStats(opens = 9, reflexOpens = 9))
-        )
-        assertTrue(TrialEngine.judgeEndedTrial(day, emptyMap(), history).completed)
-    }
-
-    @Test
-    fun `no-reflex-opens sums the trial week only`() {
-        val inWeekDay = "20260713"
-        val nextDay = "20260714"
-        val farOffDay = "20260601"
-        val weekKey = TrialEngine.weekKeyForDay(inWeekDay)
-        val t = Trial(
-            "t", TrialType.NO_REFLEX_OPENS, target = 1, progress = 0,
-            period = TrialPeriod.WEEKLY, periodKey = weekKey, rewardMana = 150L, param = 10
-        )
-        val history = mapOf(
-            inWeekDay to mapOf("a" to AppOpenStats(opens = 20, reflexOpens = 8)),
-            farOffDay to mapOf("a" to AppOpenStats(opens = 30, reflexOpens = 30))
-        )
-        assertTrue(TrialEngine.judgeEndedTrial(t, emptyMap(), history).completed)
-        val overHistory = mapOf(
-            inWeekDay to mapOf("a" to AppOpenStats(opens = 20, reflexOpens = 8)),
-            nextDay to mapOf("b" to AppOpenStats(opens = 10, reflexOpens = 3))
-        )
-        assertFalse(TrialEngine.judgeEndedTrial(t, emptyMap(), overHistory).completed)
+        assertTrue(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 30)).completed)
+        assertFalse(TrialEngine.judgeEndedTrial(week, mapOf("20260713" to 30, "20260714" to 31)).completed)
     }
 
     // ── date keys ──

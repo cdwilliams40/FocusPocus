@@ -113,10 +113,6 @@ object UsageStatsHelper {
         return queryUsageStats(context, calendar.timeInMillis, System.currentTimeMillis())
     }
 
-    fun getPackageUsageToday(context: Context, packageName: String): Long {
-        return getTodayForegroundUsage(context)[packageName] ?: 0L
-    }
-
     fun startOfTodayMillis(): Long {
         return Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -271,17 +267,6 @@ object UsageStatsHelper {
         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         })
-    }
-
-    fun formatDuration(millis: Long): String {
-        val totalMinutes = millis / 1000 / 60
-        val hours = totalMinutes / 60
-        val minutes = totalMinutes % 60
-        return if (hours > 0) {
-            "${hours}h ${minutes}m"
-        } else {
-            "${minutes}m"
-        }
     }
 
     private fun queryUsageStats(context: Context, startTime: Long, endTime: Long): List<AppUsage> {

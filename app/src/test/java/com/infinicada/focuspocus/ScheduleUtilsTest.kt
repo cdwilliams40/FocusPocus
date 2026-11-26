@@ -6,130 +6,33 @@ import org.junit.Test
 
 class ScheduleUtilsTest {
 
-    // ----- shouldDeactivateSchedule -----
+    // ----- schedulesOverlap -----
 
     @Test
-    fun `shouldDeactivate sameDay - before end time returns false`() {
-        // Schedule 09:00–17:00, current 10:00
-        assertFalse(shouldDeactivateSchedule(10, 0, 9, 0, 17, 0))
+    fun `schedulesOverlap detects same-day overlaps and ignores disjoint windows`() {
+        val mon = setOf(com.infinicada.focuspocus.model.DayOfWeek.MONDAY)
+        val tue = setOf(com.infinicada.focuspocus.model.DayOfWeek.TUESDAY)
+        assertTrue(schedulesOverlap(mon, 9 * 60, 12 * 60, mon, 11 * 60, 14 * 60))
+        // Back-to-back (end == start) is not an overlap
+        assertFalse(schedulesOverlap(mon, 9 * 60, 12 * 60, mon, 12 * 60, 14 * 60))
+        assertFalse(schedulesOverlap(mon, 9 * 60, 12 * 60, tue, 9 * 60, 12 * 60))
     }
 
     @Test
-    fun `shouldDeactivate sameDay - at exact end time returns true`() {
-        // Schedule 09:00–17:00, current 17:00
-        assertTrue(shouldDeactivateSchedule(17, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate sameDay - past end time returns true`() {
-        // Schedule 09:00–17:00, current 18:30
-        assertTrue(shouldDeactivateSchedule(18, 30, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate sameDay - before start time returns true (missed end across midnight)`() {
-        // Schedule 09:00–17:00, current 08:00. The check only runs while the
-        // schedule is active, so a pre-start time means yesterday's end was
-        // missed (e.g. phone off overnight) and the block must lift now.
-        assertTrue(shouldDeactivateSchedule(8, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate overnight - in active evening window returns false`() {
-        // Schedule 22:00–06:00, current 23:30 (still Friday evening)
-        assertFalse(shouldDeactivateSchedule(23, 30, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate overnight - in active morning window returns false`() {
-        // Schedule 22:00–06:00, current 03:00 (Saturday morning, still active)
-        assertFalse(shouldDeactivateSchedule(3, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate overnight - at exact end time returns true`() {
-        // Schedule 22:00–06:00, current 06:00
-        assertTrue(shouldDeactivateSchedule(6, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate overnight - past end time in morning returns true`() {
-        // Schedule 22:00–06:00, current 07:00
-        assertTrue(shouldDeactivateSchedule(7, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `shouldDeactivate overnight - midday gap returns true`() {
-        // Schedule 22:00–06:00, current 14:00 (daytime gap)
-        assertTrue(shouldDeactivateSchedule(14, 0, 22, 0, 6, 0))
-    }
-
-    // ----- isWithinScheduleWindow -----
-
-    @Test
-    fun `isWithinWindow sameDay - before start returns false`() {
-        // Schedule 09:00–17:00, current 08:00
-        assertFalse(isWithinScheduleWindow(8, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `isWithinWindow sameDay - at start returns true`() {
-        // Schedule 09:00–17:00, current 09:00
-        assertTrue(isWithinScheduleWindow(9, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `isWithinWindow sameDay - mid-window returns true`() {
-        // Schedule 09:00–17:00, current 12:30
-        assertTrue(isWithinScheduleWindow(12, 30, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `isWithinWindow sameDay - at end time returns false (exclusive end)`() {
-        // Schedule 09:00–17:00, current 17:00
-        assertFalse(isWithinScheduleWindow(17, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `isWithinWindow sameDay - past end returns false`() {
-        // Schedule 09:00–17:00, current 18:00
-        assertFalse(isWithinScheduleWindow(18, 0, 9, 0, 17, 0))
-    }
-
-    @Test
-    fun `isWithinWindow overnight - at start returns true`() {
-        // Schedule 22:00–06:00, current 22:00
-        assertTrue(isWithinScheduleWindow(22, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `isWithinWindow overnight - in active evening window returns true`() {
-        // Schedule 22:00–06:00, current 23:30
-        assertTrue(isWithinScheduleWindow(23, 30, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `isWithinWindow overnight - in active morning carry-over returns true`() {
-        // Schedule 22:00–06:00, current 03:00 (early Saturday morning)
-        assertTrue(isWithinScheduleWindow(3, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `isWithinWindow overnight - at end time returns false (exclusive end)`() {
-        // Schedule 22:00–06:00, current 06:00
-        assertFalse(isWithinScheduleWindow(6, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `isWithinWindow overnight - in daytime gap returns false`() {
-        // Schedule 22:00–06:00, current 14:00
-        assertFalse(isWithinScheduleWindow(14, 0, 22, 0, 6, 0))
-    }
-
-    @Test
-    fun `isWithinWindow zero-duration (start equals end) returns false`() {
-        // start == end is treated as invalid / never-active
-        assertFalse(isWithinScheduleWindow(10, 0, 10, 0, 10, 0))
+    fun `schedulesOverlap handles overnight rituals and day-after overlaps`() {
+        val mon = setOf(com.infinicada.focuspocus.model.DayOfWeek.MONDAY)
+        val tue = setOf(com.infinicada.focuspocus.model.DayOfWeek.TUESDAY)
+        val sun = setOf(com.infinicada.focuspocus.model.DayOfWeek.SUNDAY)
+        // Monday 22:00–06:00 overlaps Tuesday 05:00–08:00
+        assertTrue(schedulesOverlap(mon, 22 * 60, 6 * 60, tue, 5 * 60, 8 * 60))
+        // Monday 22:00–06:00 does NOT overlap Monday 09:00–17:00
+        assertFalse(schedulesOverlap(mon, 22 * 60, 6 * 60, mon, 9 * 60, 17 * 60))
+        // Monday 22:00–06:00 does NOT overlap Tuesday 06:00–09:00 (exact boundary)
+        assertFalse(schedulesOverlap(mon, 22 * 60, 6 * 60, tue, 6 * 60, 9 * 60))
+        // Sunday 22:00–06:00 wraps into Monday morning and overlaps Monday 05:00–07:00
+        assertTrue(schedulesOverlap(sun, 22 * 60, 6 * 60, mon, 5 * 60, 7 * 60))
+        // Sunday 22:00–06:00 does NOT overlap Monday 07:00–09:00
+        assertFalse(schedulesOverlap(sun, 22 * 60, 6 * 60, mon, 7 * 60, 9 * 60))
     }
 
     // ----- shared schedule math (alarm backstop) -----

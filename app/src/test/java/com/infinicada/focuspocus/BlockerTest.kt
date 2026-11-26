@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -55,26 +54,18 @@ class BlockerTest {
     }
 
     @Test
-    fun `sanitize drops a Gson record left with a null mode`() {
-        // Gson instantiates via Unsafe, so a record whose "mode" is missing (or an
-        // obfuscated enum name from a v1.4 build) deserializes with a null mode
-        // despite the non-null Kotlin type — and shouldBlock's when(mode) would then
-        // throw. The valid blocker beside it must survive.
+    fun `lenient decode drops a record missing mode while preserving valid neighbors`() {
         val json = """[{"name":"Broken","apps":["com.x"]},{"name":"Good","mode":"BLACKLIST","apps":["com.y"]}]"""
-        val parsed = Gson().fromJson(json, Array<Blocker>::class.java).toList()
-
-        val sanitized = Blocker.sanitize(parsed)
+        val sanitized = Blocker.sanitize(AppJson.decodeListLenient(json))
 
         assertEquals(listOf("Good"), sanitized.map { it.name })
-        // The survivor is fully usable — no throw from shouldBlock.
         assertTrue(sanitized.single().shouldBlock("com.y"))
     }
 
     @Test
-    fun `sanitize drops a record with an unknown mode value`() {
-        // An unknown enum string also deserializes to a null mode in Gson.
+    fun `lenient decode drops a record with an unknown mode value`() {
         val json = """[{"name":"Weird","mode":"PURPLE","apps":["com.z"]}]"""
-        val parsed = Gson().fromJson(json, Array<Blocker>::class.java).toList()
+        val parsed = AppJson.decodeListLenient<Blocker>(json)
 
         assertEquals(emptyList<Blocker>(), Blocker.sanitize(parsed))
     }

@@ -7,8 +7,6 @@ import androidx.core.content.edit
 
 object DndController {
     private const val TAG = "DndController"
-    private const val PREFS_DND_ENABLED_BY_APP = "dndEnabledByApp"
-    private const val PREFS_DND_PREVIOUS_FILTER = "dndPreviousFilter"
 
     /**
      * Updates the Do Not Disturb state based on current focus mode settings.
@@ -42,7 +40,7 @@ object DndController {
 
         val focusModeActive = manualFocusMode || activeScheduleId != null
         val shouldEnableDnd = focusModeActive && muteEnabled && !isOnBreak
-        val appEnabledDnd = sharedPreferences.getBoolean(PREFS_DND_ENABLED_BY_APP, false)
+        val appEnabledDnd = sharedPreferences.getBoolean(Constants.PrefsKeys.DND_ENABLED_BY_APP, false)
 
         try {
             if (shouldEnableDnd) {
@@ -53,8 +51,8 @@ object DndController {
                     val previousFilter = notificationManager.currentInterruptionFilter
                     notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
                     sharedPreferences.edit {
-                        putInt(PREFS_DND_PREVIOUS_FILTER, previousFilter)
-                        putBoolean(PREFS_DND_ENABLED_BY_APP, true)
+                        putInt(Constants.PrefsKeys.DND_PREVIOUS_FILTER, previousFilter)
+                        putBoolean(Constants.PrefsKeys.DND_ENABLED_BY_APP, true)
                     }
                 } else {
                     notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
@@ -63,13 +61,13 @@ object DndController {
             } else if (appEnabledDnd) {
                 // Restore the user's previous DND state
                 val previousFilter = sharedPreferences.getInt(
-                    PREFS_DND_PREVIOUS_FILTER,
+                    Constants.PrefsKeys.DND_PREVIOUS_FILTER,
                     NotificationManager.INTERRUPTION_FILTER_ALL
                 )
                 notificationManager.setInterruptionFilter(previousFilter)
                 sharedPreferences.edit {
-                    remove(PREFS_DND_PREVIOUS_FILTER)
-                    putBoolean(PREFS_DND_ENABLED_BY_APP, false)
+                    remove(Constants.PrefsKeys.DND_PREVIOUS_FILTER)
+                    putBoolean(Constants.PrefsKeys.DND_ENABLED_BY_APP, false)
                 }
                 Log.d(TAG, "DND restored to previous filter: $previousFilter")
             }

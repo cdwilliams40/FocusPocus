@@ -3,7 +3,6 @@ package com.infinicada.focuspocus.viewmodel
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
-import com.google.gson.Gson
 import com.infinicada.focuspocus.BlockEvent
 import com.infinicada.focuspocus.Constants
 import com.infinicada.focuspocus.FocusPocusApplication
@@ -38,7 +37,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
     val blockEvents: StateFlow<List<BlockEvent>> = _blockEvents.asStateFlow()
 
     private val prefs = application.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-    private val openReflexTracker = OpenReflexTracker(prefs, Gson())
+    private val openReflexTracker = OpenReflexTracker(prefs)
 
     /** Per-day history of the Well and of mana ("yyyyMMdd" -> day). */
     private val _wellDays = MutableStateFlow(DailyHistory.wellDays(prefs))

@@ -3,26 +3,29 @@ package com.infinicada.focuspocus.data
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.infinicada.focuspocus.AdvanceOutcome
+import com.infinicada.focuspocus.AppJson
 import com.infinicada.focuspocus.BlockEvent
-import com.infinicada.focuspocus.BreakClock
 import com.infinicada.focuspocus.Constants
-import com.infinicada.focuspocus.DeviceOwnerManager
-import com.infinicada.focuspocus.DisplayTicks
-import com.infinicada.focuspocus.DndController
 import com.infinicada.focuspocus.FocusSession
 import com.infinicada.focuspocus.PrefsHelper
 import com.infinicada.focuspocus.RecordResult
 import com.infinicada.focuspocus.SessionManager
+import com.infinicada.focuspocus.SessionRules
+import com.infinicada.focuspocus.SessionState
 import com.infinicada.focuspocus.calculateCurrentStreak
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.encodeToString
 
 class SessionRepository(
     private val context: Context,
     private val prefs: SharedPreferences,
-    private val gson: Gson
+    val store: SessionStore = SessionStore(prefs)
 ) {
-    // Session lifecycle
+    val state: StateFlow<SessionState> get() = store.state
+    val foregroundSummaries: SharedFlow<RecordResult> get() = store.foregroundSummaries
+
     fun startSession(
         blockerNames: List<String>,
         durationMinutes: Int = 0,
@@ -30,247 +33,124 @@ class SessionRepository(
         talismanId: String? = null
     ) {
         SessionManager.startSession(
-            prefs, blockerNames,
-            durationMinutes = durationMinutes, breaksEnabled = breaksEnabled, talismanId = talismanId
+            context = context,
+            sharedPreferences = prefs,
+            blockerNames = blockerNames,
+            durationMinutes = durationMinutes,
+            breaksEnabled = breaksEnabled,
+            talismanId = talismanId
         )
-        DndController.updateDndState(context)
-        DeviceOwnerManager.syncSuspensions(context)
+        store.refresh()
     }
 
-    fun stopSession(): RecordResult = SessionManager.stopSession(context, prefs, gson)
+    fun stopSession(): RecordResult {
+        val result = SessionManager.stopSession(context, prefs)
+        store.refresh()
+        return result
+    }
+
+    fun takeBreak(breakDurationMinutes: Int): Boolean {
+        val started = SessionManager.takeBreak(context, prefs, breakDurationMinutes)
+        if (started) store.refresh()
+        return started
+    }
+
+    fun endBreak(): Boolean {
+        val ended = SessionManager.endBreak(context, prefs)
+        if (ended) store.refresh()
+        return ended
+    }
+
+    fun emergencyStop(): RecordResult {
+        val result = SessionManager.emergencyStop(context, prefs)
+        store.refresh()
+        return result
+    }
+
+    fun advance(): AdvanceOutcome {
+        val outcome = SessionManager.advance(context, prefs)
+        if (outcome.changed) store.refresh()
+        return outcome
+    }
+
+    fun refreshState() {
+        store.refresh()
+    }
 
     fun isSessionActive(): Boolean = SessionManager.isSessionActive(prefs)
 
-    // Session state
-    fun getManualFocusMode(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
-
-    fun setManualFocusMode(active: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, active) }
-    }
-
-    fun getActiveBlockerNames(): List<String> {
-        val json = prefs.getString(Constants.PrefsKeys.ACTIVE_BLOCKERS, null)
-        if (json != null) {
-            return try {
-                val type = object : TypeToken<List<String>>() {}.type
-                gson.fromJson(json, type) ?: emptyList()
-            } catch (e: Exception) {
-                android.util.Log.e("SessionRepository", "Error parsing active blockers JSON", e)
-                emptyList()
-            }
-        }
-        return emptyList()
-    }
-
-    fun setActiveBlockerNames(names: List<String>) {
-        prefs.edit {
-            putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(names))
-        }
-    }
-
     fun getActiveScheduleId(): String? =
-        prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
+        (store.state.value as? SessionState.Active)?.scheduleId
+            ?: prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null)
 
-    fun getFocusDurationMinutes(): Int =
-        prefs.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
+    fun getActiveTalismanId(): String? = SessionManager.activeTalismanId(prefs)
 
-    fun setFocusDurationMinutes(minutes: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, minutes) }
+    fun getActiveBlockerNames(): List<String> =
+        (SessionStore.read(prefs) as? SessionState.Active)?.blockerNames ?: emptyList()
+
+    fun getEffectiveFocusTimeRemaining(nowMillis: Long = System.currentTimeMillis()): Int =
+        SessionRules.effectiveFocusTimeRemainingSeconds(SessionStore.read(prefs), nowMillis)
+
+    fun getEffectiveBreakTimeRemaining(nowMillis: Long = System.currentTimeMillis()): Int =
+        SessionRules.effectiveBreakTimeRemainingSeconds(SessionStore.read(prefs), nowMillis)
+
+    fun getLastManualBlockerNames(): List<String> {
+        val json = prefs.getString(Constants.PrefsKeys.LAST_MANUAL_BLOCKERS, null) ?: return emptyList()
+        return try {
+            AppJson.decodeListLenient(json)
+        } catch (e: Exception) {
+            android.util.Log.e("SessionRepository", "Error parsing last manual blockers JSON", e)
+            emptyList()
+        }
     }
 
-    fun getFocusTimeRemaining(): Int =
-        prefs.getInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, 0)
-
-    fun setFocusTimeRemaining(seconds: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, seconds) }
+    fun setLastManualBlockerNames(names: List<String>) {
+        prefs.edit { putString(Constants.PrefsKeys.LAST_MANUAL_BLOCKERS, AppJson.json.encodeToString(names)) }
     }
 
-    fun getFocusEndTimeMillis(): Long =
-        prefs.getLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS, 0L)
+    fun getLastManualDurationMinutes(): Int =
+        prefs.getInt(Constants.PrefsKeys.LAST_MANUAL_DURATION_MINUTES, 0)
 
-    fun getBreakEndTimeMillis(): Long =
-        prefs.getLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS, 0L)
-
-    /**
-     * Focus seconds remaining derived from the persisted wall-clock end time.
-     * The stored countdown only ticks while the UI is alive, so after process
-     * death it is stale; the end timestamp is authoritative. During a break the
-     * countdown is paused and the stored (frozen) value is correct.
-     *
-     * Rounded up ([DisplayTicks.countdownSeconds]): 0 means the end has passed,
-     * which the view model relies on to end the session, and a break parks
-     * this value without losing a part second.
-     */
-    fun getEffectiveFocusTimeRemaining(): Int {
-        if (getIsOnBreak()) return getFocusTimeRemaining()
-        val endTime = getFocusEndTimeMillis()
-        if (endTime <= 0L) return getFocusTimeRemaining()
-        return DisplayTicks.countdownSeconds(endTime - System.currentTimeMillis())
+    fun setLastManualDurationMinutes(minutes: Int) {
+        prefs.edit { putInt(Constants.PrefsKeys.LAST_MANUAL_DURATION_MINUTES, minutes) }
     }
 
-    /** Break seconds remaining derived from the persisted wall-clock end time. */
-    fun getEffectiveBreakTimeRemaining(): Int {
-        if (!getIsOnBreak()) return 0
-        val endTime = getBreakEndTimeMillis()
-        if (endTime <= 0L) return getBreakTimeRemaining()
-        return DisplayTicks.countdownSeconds(endTime - System.currentTimeMillis())
+    fun getLastManualBreaksEnabled(): Boolean =
+        prefs.getBoolean(Constants.PrefsKeys.LAST_MANUAL_BREAKS_ENABLED, true)
+
+    fun setLastManualBreaksEnabled(enabled: Boolean) {
+        prefs.edit { putBoolean(Constants.PrefsKeys.LAST_MANUAL_BREAKS_ENABLED, enabled) }
     }
 
-    fun getSessionBreaksEnabled(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
-
-    fun setSessionBreaksEnabled(enabled: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, enabled) }
-    }
-
-    fun getSessionStartTime(): Long =
-        prefs.getLong(Constants.PrefsKeys.SESSION_START_TIME, 0L)
-
-    // Break state
-    fun getIsOnBreak(): Boolean =
-        prefs.getBoolean(Constants.PrefsKeys.IS_ON_BREAK, false)
-
-    fun setIsOnBreak(isOnBreak: Boolean) {
-        prefs.edit { putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak) }
-    }
-
-    fun getBreaksUsedThisSession(): Int =
-        prefs.getInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, 0)
-
-    fun setBreaksUsedThisSession(count: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, count) }
-    }
-
-    fun getBreakTimeRemaining(): Int =
-        prefs.getInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, 0)
-
-    fun setBreakTimeRemaining(seconds: Int) {
-        prefs.edit { putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, seconds) }
-    }
-
-    // Emergency break
     fun getLastEmergencyBreakMillis(): Long =
         prefs.getLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, 0L)
 
-    fun setLastEmergencyBreakMillis(millis: Long) {
-        prefs.edit { putLong(Constants.PrefsKeys.LAST_EMERGENCY_BREAK_MILLIS, millis) }
-    }
+    fun getFocusSessions(): List<FocusSession> =
+        PrefsHelper.loadListLenient<FocusSession>(prefs, Constants.PrefsKeys.FOCUS_SESSIONS) ?: emptyList()
 
-    /** The talisman that started the running session, if one did. */
-    fun getActiveTalismanId(): String? = SessionManager.activeTalismanId(prefs)
-
-    // Session history
-    fun getFocusSessions(): List<FocusSession> {
-        val type = object : TypeToken<List<FocusSession>>() {}.type
-        return PrefsHelper.load<List<FocusSession>>(prefs, gson, Constants.PrefsKeys.FOCUS_SESSIONS, type)
-            ?: emptyList()
-    }
-
-    fun getLongestStreak(): Int =
-        prefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
+    fun getLongestStreak(): Int = prefs.getInt(Constants.PrefsKeys.LONGEST_STREAK, 0)
 
     fun getCurrentStreak(): Int = calculateCurrentStreak(getFocusSessions())
 
-    // Block events
-    fun getBlockEvents(): List<BlockEvent> {
-        val type = object : TypeToken<List<BlockEvent>>() {}.type
-        return PrefsHelper.load<List<BlockEvent>>(prefs, gson, Constants.PrefsKeys.BLOCK_EVENTS, type)
-            ?: emptyList()
-    }
+    fun getBlockEvents(): List<BlockEvent> =
+        PrefsHelper.loadListLenient<BlockEvent>(prefs, Constants.PrefsKeys.BLOCK_EVENTS) ?: emptyList()
 
-    // Batch write for focus mode state changes.
-    // [sessionActive] distinguishes "manual mode off" from "no session at all":
-    // a talisman can hold a session open with manual mode off, and its break
-    // bookkeeping must survive this write.
-    fun writeFocusModeState(
-        manualFocusMode: Boolean,
-        activeBlockerNames: List<String>,
-        activeScheduleId: String?,
-        sessionActive: Boolean = manualFocusMode,
-        isOnBreak: Boolean = false,
-        breakTimeRemaining: Int = 0,
-        breaksUsedThisSession: Int = 0,
-        focusTimeRemaining: Int = 0
-    ) {
-        prefs.edit {
-            putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, manualFocusMode)
-
-            if (activeScheduleId == null) {
-                putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, gson.toJson(activeBlockerNames))
-            }
-
-            if (!sessionActive) {
-                putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsedThisSession)
-                putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
-                putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
-                putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-                remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
-                remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
-                remove(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS)
-                BreakClock.reset(this)
-            }
-        }
-        DndController.updateDndState(context)
-        DeviceOwnerManager.syncSuspensions(context)
-    }
-
-    // Break state batch write.
-    // The focus countdown pauses during a break, so the focus end time is removed
-    // when a break starts and recomputed from [focusTimeRemaining] when it ends.
-    fun writeBreakState(
-        isOnBreak: Boolean,
-        breakTimeRemaining: Int,
-        breaksUsed: Int,
-        focusTimeRemaining: Int = 0
-    ) {
-        val now = System.currentTimeMillis()
-        prefs.edit {
-            if (isOnBreak && breakTimeRemaining > 0) {
-                BreakClock.markStarted(prefs, this, now)
-            } else {
-                BreakClock.markEnded(prefs, this, now)
-            }
-            putBoolean(Constants.PrefsKeys.IS_ON_BREAK, isOnBreak)
-            putInt(Constants.PrefsKeys.BREAK_TIME_REMAINING, breakTimeRemaining)
-            putInt(Constants.PrefsKeys.BREAKS_USED_THIS_SESSION, breaksUsed)
-            if (isOnBreak && breakTimeRemaining > 0) {
-                putLong(Constants.PrefsKeys.BREAK_END_TIME_MILLIS,
-                    System.currentTimeMillis() + breakTimeRemaining * 1000L)
-                // Park the focus countdown at its frozen value while the break runs;
-                // the end timestamp is re-derived from it when the break ends.
-                putInt(Constants.PrefsKeys.FOCUS_TIME_REMAINING, focusTimeRemaining)
-                remove(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS)
-            } else {
-                remove(Constants.PrefsKeys.BREAK_END_TIME_MILLIS)
-                if (focusTimeRemaining > 0) {
-                    putLong(Constants.PrefsKeys.FOCUS_END_TIME_MILLIS,
-                        System.currentTimeMillis() + focusTimeRemaining * 1000L)
-                }
-                // A fresh focus stretch begins when the break ends
-                putLong(Constants.PrefsKeys.FOCUS_SEGMENT_START_MILLIS, System.currentTimeMillis())
-            }
-        }
-        DndController.updateDndState(context)
-        DeviceOwnerManager.syncSuspensions(context)
-    }
-
-    // Clean up dangling references
     fun clearDanglingActiveBlocker(blockerNames: Set<String>) {
         val activeNames = getActiveBlockerNames()
         if (activeNames.isEmpty()) return
         if (activeNames.none { it in blockerNames }) {
-            prefs.edit {
-                remove(Constants.PrefsKeys.ACTIVE_BLOCKERS)
-                putBoolean(Constants.PrefsKeys.MANUAL_FOCUS_MODE, false)
+            if (isSessionActive()) {
+                // Nothing it blocked exists any more: clear it without
+                // recording or crediting it, and without dismissing its ritual.
+                SessionManager.discardSession(context, prefs)
+                store.refresh()
+            } else {
+                prefs.edit { remove(Constants.PrefsKeys.ACTIVE_BLOCKERS) }
+                store.refresh()
             }
         }
     }
 
-    /**
-     * Ends a ritual session whose schedule no longer exists. Clearing only the
-     * id would leave manual focus mode on as an endless untimed session.
-     */
     fun clearDanglingActiveSchedule(scheduleIds: Set<String>): String? {
         val activeId = getActiveScheduleId() ?: return null
         if (activeId !in scheduleIds) {
@@ -278,18 +158,5 @@ class SessionRepository(
             return null
         }
         return activeId
-    }
-
-    // Listener for accessibility service changes to active schedule
-    fun registerScheduleIdChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener
-    ) {
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-    }
-
-    fun unregisterScheduleIdChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener
-    ) {
-        prefs.unregisterOnSharedPreferenceChangeListener(listener)
     }
 }

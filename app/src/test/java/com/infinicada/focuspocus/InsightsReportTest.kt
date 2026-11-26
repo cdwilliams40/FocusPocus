@@ -78,28 +78,27 @@ class InsightsReportTest {
     }
 
     @Test
-    fun `blocked attempts rank apps within the range`() {
+    fun `blocked attempts count focus blocks only and exclude Pact Gate`() {
         val blocks = listOf(
             BlockEvent("feed", millisOn("20261111"), "Social"),
-            BlockEvent("feed", millisOn("20261110"), "Pact Gate"),
+            BlockEvent("feed", millisOn("20261110"), BlockEvent.PACT_GATE_BLOCKER_NAME),
             BlockEvent("tube", millisOn("20261110"), "Social"),
             BlockEvent("feed", millisOn("20261001"), "Social")
         )
         val focus = build(blocks = blocks).focus
-        assertEquals(3, focus.blockedAttempts)
-        assertEquals(listOf("feed" to 2, "tube" to 1), focus.mostBlocked)
+        assertEquals(2, focus.blockedAttempts)
+        assertEquals(listOf("feed" to 1, "tube" to 1), focus.mostBlocked)
     }
 
     @Test
-    fun `reflexes sum opens per app and per day`() {
-        val reflexes = build(openStats = mapOf(
-            "20261110" to mapOf("feed" to AppOpenStats(5, 2)),
-            "20261111" to mapOf("feed" to AppOpenStats(3, 1), "tube" to AppOpenStats(4, 0))
-        )).reflexes
-        assertEquals(12, reflexes.opens)
-        assertEquals(3, reflexes.reflexOpens)
-        assertEquals(listOf(0, 0, 0, 0, 0, 2, 1), reflexes.reflexesPerDay)
-        assertEquals(listOf("feed", "tube"), reflexes.perApp.map { it.packageName })
+    fun `opens sum opens per app and per day`() {
+        val opens = build(openStats = mapOf(
+            "20261110" to mapOf("feed" to AppOpenStats(5)),
+            "20261111" to mapOf("feed" to AppOpenStats(3), "tube" to AppOpenStats(4))
+        )).opens
+        assertEquals(12, opens.totalOpens)
+        assertEquals(listOf(0, 0, 0, 0, 0, 5, 7), opens.opensPerDay)
+        assertEquals(listOf("feed" to 8, "tube" to 4), opens.perApp)
     }
 
     @Test

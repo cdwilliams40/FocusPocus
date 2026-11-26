@@ -52,7 +52,7 @@ import com.infinicada.focuspocus.ui.components.GlassCard
 fun SpellbookScreen(
     blockerLists: List<Blocker>,
     schedules: List<Schedule>,
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     productiveAppCount: Int,
     onNavigateToProductiveApps: () -> Unit,
     onNavigateToEnchantments: () -> Unit,
@@ -138,7 +138,7 @@ fun SpellbookScreen(
         SpellbookCompactRow(
             title = stringResource(R.string.spellbook_talismans),
             icon = Icons.Filled.Nfc,
-            count = namedTags.size,
+            count = talismans.size,
             onClick = onNavigateToTalismans
         )
 

@@ -28,7 +28,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val appPrefs = application.getSharedPreferences(
         Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE
     )
-    private val gson = com.google.gson.Gson()
 
     private val _themeMode = MutableStateFlow(repo.getThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -93,6 +92,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _wellSettingsState = MutableStateFlow(ManaWell.settingsState(appPrefs))
     val wellSettingsState: StateFlow<WellSettingsState> = _wellSettingsState.asStateFlow()
 
+    // Quiet Well hours & morning focus refill gate ("No Morning Windfall")
+    private val _wellRefillGate = MutableStateFlow(ManaWell.refillGateState(appPrefs))
+    val wellRefillGate: StateFlow<com.infinicada.focuspocus.limit.WellGateState> = _wellRefillGate.asStateFlow()
+
+    // Automatic SAF folder backup state
+    private val _autoBackupState = MutableStateFlow(com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs))
+    val autoBackupState: StateFlow<com.infinicada.focuspocus.AutoBackupState> = _autoBackupState.asStateFlow()
+
     // One-time "focusing now earns mana" intro for existing users (the
     // analytics-consent dialog pattern). New users learn about it organically;
     // the flag is set on onboarding completion too.
@@ -132,11 +139,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAutoBreakEnabled(enabled: Boolean) {
         _autoBreakEnabled.value = enabled
         repo.setAutoBreakEnabled(enabled)
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun setAutoBreakInterval(minutes: Int) {
         _autoBreakIntervalMinutes.value = minutes
         repo.setAutoBreakIntervalMinutes(minutes)
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     fun setHideStopButton(enabled: Boolean) {
@@ -258,17 +267,83 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun requestWellSettings(requested: WellSettings) {
         _wellSettingsState.value = ManaWell.requestSettings(appPrefs, requested)
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     /** "Keep current terms": withdraws the queued loosening. */
     fun cancelWellRevision() {
         ManaWell.cancelPendingRevision(appPrefs)
         refreshWellSettings()
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
     /** Re-reads the terms; a queued loosening that came due applies on this read. */
     fun refreshWellSettings() {
         _wellSettingsState.value = ManaWell.settingsState(appPrefs)
+        _wellRefillGate.value = ManaWell.refillGateState(appPrefs)
+        _autoBackupState.value = com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs)
+    }
+
+    /** "Keep current settings": withdraws the queued loosening of the refill gate. */
+    fun cancelWellGateRevision() {
+        ManaWell.cancelPendingGateRevision(appPrefs)
+        refreshWellSettings()
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
+    }
+
+    /** Asks for new refill-gate settings; loosening waits 24 hours, like the terms. */
+    fun updateWellRefillGate(
+        quietHoursEnabled: Boolean,
+        quietStartMinute: Int,
+        quietEndMinute: Int,
+        morningFocusRequired: Boolean,
+        morningFocusMinutes: Int
+    ) {
+        _wellRefillGate.value = ManaWell.updateRefillGate(
+            prefs = appPrefs,
+            quietHoursEnabled = quietHoursEnabled,
+            quietStartMinute = quietStartMinute,
+            quietEndMinute = quietEndMinute,
+            morningFocusRequired = morningFocusRequired,
+            morningFocusMinutes = morningFocusMinutes
+        )
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
+    }
+
+    // ── Auto-backup (SAF folder) ──
+
+    fun setAutoBackupFolder(uri: android.net.Uri) {
+        val app = getApplication<Application>()
+        try {
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            app.contentResolver.takePersistableUriPermission(uri, flags)
+        } catch (e: Exception) {
+            Log.w("SettingsViewModel", "Could not persist SAF tree URI permission", e)
+        }
+        com.infinicada.focuspocus.AutoBackupManager.setTreeUri(appPrefs, uri.toString())
+        if (com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs).cadence ==
+            com.infinicada.focuspocus.AutoBackupCadence.OFF
+        ) {
+            com.infinicada.focuspocus.AutoBackupManager.setCadence(
+                appPrefs,
+                com.infinicada.focuspocus.AutoBackupCadence.DAILY
+            )
+        }
+        _autoBackupState.value = com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs)
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(app)
+    }
+
+    fun setAutoBackupCadence(cadence: com.infinicada.focuspocus.AutoBackupCadence) {
+        com.infinicada.focuspocus.AutoBackupManager.setCadence(appPrefs, cadence)
+        _autoBackupState.value = com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs)
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
+    }
+
+    fun runAutoBackupNow(): Boolean {
+        val ok = com.infinicada.focuspocus.AutoBackupManager.runNow(getApplication())
+        _autoBackupState.value = com.infinicada.focuspocus.AutoBackupManager.readState(appPrefs)
+        return ok
     }
 
     // ── Backup / restore ──
@@ -276,11 +351,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Writes the grimoire export to [uri]. Returns false on any failure. */
     fun exportBackup(uri: android.net.Uri): Boolean = try {
         val json = BackupCodec.export(
-            appPrefs, gson, com.infinicada.focuspocus.BuildConfig.VERSION_CODE
+            appPrefs, com.infinicada.focuspocus.BuildConfig.VERSION_CODE
         )
         val resolver = getApplication<Application>().contentResolver
-        // "wt" truncates — overwriting a longer previous backup must not leave
-        // a stale JSON tail. Some providers only support "w"; fall back.
         val stream = try {
             resolver.openOutputStream(uri, "wt")
         } catch (e: Exception) {
@@ -292,11 +365,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         false
     }
 
-    /**
-     * Reads and replace-restores a backup from [uri]. Null = unreadable file.
-     * Refused while a session runs: a restore swaps enchantments and pacts
-     * wholesale, which would be a one-tap escape from the session's blocks.
-     */
     fun importBackup(uri: android.net.Uri): BackupCodec.ImportResult? {
         if (SessionManager.isFocusActive(appPrefs)) {
             return BackupCodec.ImportResult.SessionActive
@@ -304,7 +372,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         return try {
             getApplication<Application>().contentResolver.openInputStream(uri)
                 ?.use { it.readBytes().toString(Charsets.UTF_8) }
-                ?.let { BackupCodec.import(appPrefs, gson, it) }
+                ?.let { BackupCodec.import(appPrefs, it) }
         } catch (e: Exception) {
             Log.e("SettingsViewModel", "Backup import failed", e)
             null

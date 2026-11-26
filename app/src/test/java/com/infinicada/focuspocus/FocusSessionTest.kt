@@ -1,13 +1,11 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
+import kotlinx.serialization.encodeToString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class FocusSessionTest {
-
-    private val gson = Gson()
 
     @Test
     fun testSerializationAndDeserialization() {
@@ -19,8 +17,8 @@ class FocusSessionTest {
             breaksUsed = 2
         )
 
-        val json = gson.toJson(originalSession)
-        val deserializedSession = gson.fromJson(json, FocusSession::class.java)
+        val json = AppJson.json.encodeToString(originalSession)
+        val deserializedSession = AppJson.json.decodeFromString<FocusSession>(json)
 
         assertEquals(originalSession, deserializedSession)
         assertEquals(originalSession.startTimeMillis, deserializedSession.startTimeMillis)
@@ -40,9 +38,8 @@ class FocusSessionTest {
             breaksUsed = 0
         )
 
-        val json = gson.toJson(session)
+        val json = AppJson.json.encodeToString(session)
 
-        // Verify key fields are present in the JSON string
         assert(json.contains("\"startTimeMillis\":123456789"))
         assert(json.contains("\"endTimeMillis\":987654321"))
         assert(json.contains("\"durationMinutes\":60"))
@@ -56,12 +53,12 @@ class FocusSessionTest {
             startTimeMillis = Long.MAX_VALUE,
             endTimeMillis = Long.MIN_VALUE,
             durationMinutes = Int.MAX_VALUE,
-            blockerName = "", // Empty string
+            blockerName = "",
             breaksUsed = Int.MIN_VALUE
         )
 
-        val json = gson.toJson(session)
-        val deserializedSession = gson.fromJson(json, FocusSession::class.java)
+        val json = AppJson.json.encodeToString(session)
+        val deserializedSession = AppJson.json.decodeFromString<FocusSession>(json)
 
         assertEquals(session, deserializedSession)
         assertEquals(Long.MAX_VALUE, deserializedSession.startTimeMillis)
@@ -73,21 +70,8 @@ class FocusSessionTest {
 
     @Test
     fun testInequality() {
-        val session1 = FocusSession(
-            startTimeMillis = 100L,
-            endTimeMillis = 200L,
-            durationMinutes = 10,
-            blockerName = "A",
-            breaksUsed = 0
-        )
-        val session2 = FocusSession(
-            startTimeMillis = 100L,
-            endTimeMillis = 200L,
-            durationMinutes = 10,
-            blockerName = "B",
-            breaksUsed = 0
-        ) // Different blockerName
-
+        val session1 = FocusSession(100L, 200L, 10, "A", 0)
+        val session2 = FocusSession(100L, 200L, 10, "B", 0)
         assertNotEquals(session1, session2)
     }
 }

@@ -22,11 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -97,7 +94,6 @@ fun WellHomeScreen(
     breakTimeRemaining: Int,
     progressionEnabled: Boolean,
     manaBalance: Long,
-    currentStreak: Int,
     batteryUnrestricted: Boolean,
     onFixBattery: () -> Unit,
     onOpenMana: () -> Unit,
@@ -121,7 +117,7 @@ fun WellHomeScreen(
     val running = remember(wellApps, activePacts, nowMillis) {
         wellApps.map { it.packageName }.filter { (activePacts[it] ?: 0L) > nowMillis }
     }
-    // Most-opened first, so the reflex apps sit where the thumb lands.
+    // Most-opened first, so the apps opened most sit where the thumb lands.
     val requestable = remember(wellApps, running, todayOpenStats) {
         wellApps.map { it.packageName }
             .filter { it !in running }
@@ -131,7 +127,6 @@ fun WellHomeScreen(
     // draw; never read the Well at an instant before it was taken.
     val wellNow = maxOf(nowMillis, well.takenAtMillis)
     val opensToday = wellApps.sumOf { todayOpenStats[it.packageName]?.opens ?: 0 }
-    val reflexesToday = wellApps.sumOf { todayOpenStats[it.packageName]?.reflexOpens ?: 0 }
 
     var requestTarget by remember { mutableStateOf<String?>(null) }
 
@@ -144,11 +139,9 @@ fun WellHomeScreen(
             DashboardHeader(
                 runningCount = running.size,
                 opensToday = opensToday,
-                reflexesToday = reflexesToday,
                 anyApps = wellApps.isNotEmpty(),
                 progressionEnabled = progressionEnabled,
                 manaBalance = manaBalance,
-                currentStreak = currentStreak,
                 onOpenMana = onOpenMana
             )
         }
@@ -299,18 +292,16 @@ fun WellHomeScreen(
 }
 
 // ────────────────────────────────────────────────────────────
-//  HEADER: status headline, today rollup, mana/streak chips
+//  HEADER: status headline, today rollup, mana chip
 // ────────────────────────────────────────────────────────────
 
 @Composable
 private fun DashboardHeader(
     runningCount: Int,
     opensToday: Int,
-    reflexesToday: Int,
     anyApps: Boolean,
     progressionEnabled: Boolean,
     manaBalance: Long,
-    currentStreak: Int,
     onOpenMana: () -> Unit
 ) {
     if (anyApps) {
@@ -326,53 +317,24 @@ private fun DashboardHeader(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = stringResource(R.string.home_guard_rollup, opensToday, reflexesToday),
+            text = pluralStringResource(R.plurals.home_guard_rollup_opens, opensToday, opensToday),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.fillMaxWidth()
         )
     }
 
-    // Chips never share a row with the headline, so narrow screens don't
-    // squeeze their labels into tall bars.
-    if (progressionEnabled || currentStreak > 0) {
+    if (progressionEnabled) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (progressionEnabled) ManaChip(balance = manaBalance, onClick = onOpenMana)
-            if (currentStreak > 0) StreakBadge(currentStreak)
+            ManaChip(balance = manaBalance, onClick = onOpenMana)
         }
     }
     Spacer(modifier = Modifier.height(16.dp))
-}
-
-@Composable
-private fun StreakBadge(streak: Int) {
-    AssistChip(
-        onClick = {},
-        label = {
-            Text(
-                pluralStringResource(R.plurals.home_day_streak, streak, streak),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1
-            )
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.LocalFireDepartment,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(18.dp)
-            )
-        },
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            labelColor = MaterialTheme.colorScheme.onTertiaryContainer
-        )
-    )
 }
 
 // ────────────────────────────────────────────────────────────
@@ -496,10 +458,15 @@ private fun WellPanel(
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             strokeCap = StrokeCap.Round
         )
+        val pauseReason = well.refillPauseReasonAt(nowMillis)
         Text(
             text = when {
                 full -> stringResource(R.string.well_full)
                 well.refillIntervalMinutes <= 0 -> stringResource(R.string.well_refill_off)
+                pauseReason == com.infinicada.focuspocus.limit.RefillPauseReason.MORNING_FOCUS ->
+                    stringResource(R.string.well_paused_morning_focus, well.refillGate.morningFocusMinutes)
+                pauseReason == com.infinicada.focuspocus.limit.RefillPauseReason.QUIET_HOURS ->
+                    stringResource(R.string.well_paused_quiet_hours)
                 else -> stringResource(
                     R.string.well_refill_line,
                     well.refillIntervalMinutes,
@@ -708,8 +675,9 @@ private fun WellAppRow(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(appName, style = MaterialTheme.typography.titleSmall)
+                val opens = stats?.opens ?: 0
                 Text(
-                    stringResource(R.string.pacts_today_stats, stats?.opens ?: 0, stats?.reflexOpens ?: 0),
+                    pluralStringResource(R.plurals.pacts_today_opens, opens, opens),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -827,7 +795,7 @@ private fun PactRequestDialog(
                             enabled = countdownDone,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.overlay_pact_choice, minutes))
+                            Text(pluralStringResource(R.plurals.overlay_pact_choice_minutes, minutes, minutes))
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                     }

@@ -26,9 +26,10 @@ class TriggerHandlerTest {
         sessionActive: Boolean = false,
         schedules: List<Schedule> = emptyList(),
         talismans: List<Talisman> = listOf(shield),
-        blockers: List<Blocker> = listOf(social)
+        blockers: List<Blocker> = listOf(social),
+        nfcLockMode: Boolean = false
     ) = TriggerHandler.handleNfcTag(
-        tagId, activeScheduleId, activeTalismanId, sessionActive, schedules, talismans, blockers
+        tagId, activeScheduleId, activeTalismanId, sessionActive, schedules, talismans, blockers, nfcLockMode
     )
 
     // ── ritual keys ──
@@ -70,7 +71,53 @@ class TriggerHandlerTest {
     fun `a tap never replaces a session something else started`() {
         val other = Talisman("tag-2", "Desk", blockerNames = listOf("Social"))
         val result = tap("tag-2", activeTalismanId = "tag-1", sessionActive = true, talismans = listOf(shield, other))
-        assertEquals(NfcResult.Toast(R.string.toast_session_already_running), result)
+        assertEquals(NfcResult.Toast(R.string.toast_wrong_talisman), result)
+    }
+
+    // ── Talisman Lock Mode (option a) ──
+
+    @Test
+    fun `under talisman lock mode, any bound talisman ends a manual session`() {
+        val result = tap("tag-1", sessionActive = true, nfcLockMode = true)
+        assertEquals(NfcResult.DispelSession(R.string.toast_session_dispelled), result)
+    }
+
+    @Test
+    fun `under talisman lock mode, any bound talisman ends a keyless ritual`() {
+        val result = tap(
+            "tag-1",
+            activeScheduleId = "sched-1",
+            sessionActive = true,
+            schedules = listOf(ritual(null)),
+            nfcLockMode = true
+        )
+        assertEquals(NfcResult.DispelSchedule(R.string.toast_ritual_dispelled), result)
+    }
+
+    @Test
+    fun `under talisman lock mode, a different talisman cannot unlock a keyed ritual or locking talisman`() {
+        val other = Talisman("tag-2", "Desk", blockerNames = listOf("Social"))
+        assertEquals(
+            NfcResult.Toast(R.string.toast_wrong_talisman),
+            tap(
+                "tag-2",
+                activeScheduleId = "sched-1",
+                sessionActive = true,
+                schedules = listOf(ritual("tag-1")),
+                talismans = listOf(shield, other),
+                nfcLockMode = true
+            )
+        )
+        assertEquals(
+            NfcResult.Toast(R.string.toast_wrong_talisman),
+            tap(
+                "tag-2",
+                activeTalismanId = "tag-1",
+                sessionActive = true,
+                talismans = listOf(shield, other),
+                nfcLockMode = true
+            )
+        )
     }
 
     @Test

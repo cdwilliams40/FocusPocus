@@ -74,7 +74,8 @@ drawn from it.
 |---|---|
 | Timed session | 1 per minute, up to 240 a day |
 | Open-ended session (ritual, or a talisman with no length) | 30 once a day, after 60 minutes |
-| Productive apps | 1 per 2 minutes, up to 60 a day |
+| Productive apps and Well apps' substitutes | 2 per minute, up to 120 a day |
+| Opening the substitute from a block or pact screen | 10, the first 3 times a day |
 | Daily trials / weekly trial | 40–60 / 150–200 |
 
 | Spend | |
@@ -88,6 +89,11 @@ Why these shapes:
   mint hundreds of mana with no effort, which made mana meaningless.
 - **The pour price doubles but has no cap.** Saved-up mana can still buy a
   hard day's extra time; it just gets expensive fast.
+- **Substitutes pay for time, not taps.** Time in a Well app's substitute
+  counts as productive time and pays double a timed session's rate, so the
+  swap is worth making. The tap on "Open X instead" pays only the day's first
+  3 times: an uncapped tap reward could be farmed by bouncing between the
+  two apps. Every tap still counts towards substitute trials.
 - **Trials count timed sessions only**, for the same reason as the flat
   ritual payment. Retired trial types stay in the enum so old records load.
 
@@ -99,7 +105,7 @@ also writes the per-day `ManaHistory`.
 - `DailyHistory` keeps 60 days of `WellDay` (net minutes drawn, refunds,
   draws, pours, dry opens, minutes per app) and `ManaDay` (earned by source,
   spent by use).
-- `OpenReflexTracker` keeps 30 days of opens and reflex opens.
+- `OpenReflexTracker` keeps 30 days of app opens.
 - `InsightsReport.build` turns those, the session list and block events into
   every figure on the Insights screen, for today, 7 days or 30 days. It has
   no Android dependencies and is unit-tested.
@@ -120,6 +126,9 @@ twice:
    recorded talisman session.
 4. Conditional-unlock rules became productive apps; unfinished trials
    dropped so the new list is drawn.
+5. Reflex opens removed; unfinished `NO_REFLEX_OPENS` trials dropped.
+6. The Focus tab's remembered setup (duration, breaks, enchantments) copied
+   from the running-session keys into its own `LAST_MANUAL_*` keys.
 
 Removed keys are named only in `Migrations.LegacyKeys`.
 

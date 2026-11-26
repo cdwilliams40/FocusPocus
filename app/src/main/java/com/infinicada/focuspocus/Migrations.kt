@@ -3,12 +3,17 @@ package com.infinicada.focuspocus
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.infinicada.focuspocus.limit.WellApp
 import com.infinicada.focuspocus.limit.WellApps
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Brings stored data up to the schema this build expects. Every step is keyed
@@ -31,8 +36,6 @@ object Migrations {
         const val LAST_WRAPUP_DATE = "lastWrapupDate"
         const val WRAPUP_ENABLED = "wrapupEnabled"
 
-        // Wards, pacts with their own terms, pact circles, Group Seal and
-        // seal-lifted alerts (all replaced by the Well's app list in 2.0)
         const val APP_TIME_LIMITS = "appTimeLimits"
         const val APP_TIME_LIMIT_CONFIGS = "appTimeLimitConfigs"
         const val APP_COOLDOWN_STATES = "appCooldownStates"
@@ -44,20 +47,16 @@ object Migrations {
         const val GROUP_SEAL_OPEN_WINDOW_MINUTES = "groupSealOpenWindowMinutes"
         const val GROUP_SEAL_DURATION_MINUTES = "groupSealDurationMinutes"
 
-        // Quick Spells, tag-only sessions and the single-enchantment session
-        // key (replaced by talisman setups and ACTIVE_BLOCKERS in 2.0)
         const val FOCUS_PRESETS = "focusPresets"
         const val FOCUS_TAG_ID = "focusTagId"
         const val ACTIVE_BLOCKER = "activeBlocker"
 
-        // Conditional unlocks (replaced by productive apps in 2.0)
         const val CONDITIONAL_UNLOCKS = "conditionalUnlocks"
         const val WELL_UNLOCK_CREDIT_DATE = "wellUnlockCreditDate"
         const val WELL_UNLOCK_CREDITED_RULES = "wellUnlockCreditedRules"
     }
 
     private val steps: List<(SharedPreferences) -> Unit> = listOf(
-        // 1: boons, sigils, streak milestones and the daily wrap-up are gone.
         { prefs ->
             prefs.edit {
                 remove(LegacyKeys.BOONS)
@@ -68,56 +67,39 @@ object Migrations {
                 remove(LegacyKeys.WRAPUP_ENABLED)
             }
         },
-        // 2: the Well is the only always-on limit. Every pact app and every
-        // pact-circle member becomes a Well app (keeping its substitute), a
-        // pending removal of a pact keeps its original time, and the Well is
-        // switched on. Wards and every seal/circle/Group Seal store go.
         { prefs -> migrateToWellApps(prefs) },
-        // 3: Quick Spells are gone and talismans carry their own setup. A
-        // talisman bound to a spell takes its enchantments, breaks and
-        // duration; one without takes the enchantments selected on the Focus
-        // tab. A tag-only session running now becomes an ordinary recorded
-        // session started by that talisman.
         { prefs ->
             migrateTalismans(prefs)
             convertRunningTagSession(prefs)
             migrateActiveBlocker(prefs)
         },
-        // 4: conditional unlocks are gone. The app each rule asked you to
-        // use becomes a productive app, which now earns mana directly. The
-        // trial list changed too: unfinished trials are dropped so today's
-        // slate is drawn from the new list (finished, unclaimed ones stay).
         { prefs ->
             migrateConditionalUnlocks(prefs)
             dropUnfinishedTrials(prefs)
-        }
+        },
+        { prefs ->
+            dropReflexTrials(prefs)
+        },
+        { prefs -> seedLastManualSetup(prefs) }
     )
 
     val CURRENT_VERSION: Int get() = steps.size
 
-    /**
-     * Step 2. The old stores are read as JSON trees rather than through the
-     * deleted model classes; only three fields matter.
-     */
     internal fun migrateToWellApps(prefs: SharedPreferences) {
-        val gson = Gson()
         val apps = LinkedHashMap<String, WellApp>()
-        WellApps.load(prefs, gson).forEach { apps[it.packageName] = it }
+        WellApps.load(prefs).forEach { apps[it.packageName] = it }
 
-        // Per-app pacts. A ward (no pact mode) is dropped.
-        parse(prefs, LegacyKeys.APP_TIME_LIMIT_CONFIGS)?.takeIf { it.isJsonObject }
-            ?.asJsonObject?.entrySet()?.forEach { (pkg, value) ->
-                val config = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
-                if (config.bool("pactModeEnabled") && pkg !in apps) {
-                    apps[pkg] = WellApp(pkg, config.str("pactAlternativePackage"))
-                }
+        (parse(prefs, LegacyKeys.APP_TIME_LIMIT_CONFIGS) as? JsonObject)?.forEach { (pkg, value) ->
+            val config = value as? JsonObject ?: return@forEach
+            if (config.bool("pactModeEnabled") && pkg !in apps) {
+                apps[pkg] = WellApp(pkg, config.str("pactAlternativePackage"))
             }
+        }
 
-        // Pact circles: their enchantment's current apps.
         val blockers = BlockerRepository.getBlockers(prefs)
         val circleMembers = HashMap<String, Set<String>>()
-        parse(prefs, LegacyKeys.PACT_GROUPS)?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { value ->
-            val group = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+        (parse(prefs, LegacyKeys.PACT_GROUPS) as? JsonArray)?.forEach { value ->
+            val group = value as? JsonObject ?: return@forEach
             val blockerName = group.str("blockerName") ?: return@forEach
             val members = blockers.firstOrNull { it.name == blockerName }?.effectiveApps.orEmpty().toSet()
             circleMembers[blockerName] = members
@@ -125,14 +107,12 @@ object Migrations {
             members.forEach { pkg -> if (pkg !in apps) apps[pkg] = WellApp(pkg, substitute) }
         }
 
-        // A pact on its way out (removed, or turned into a ward) keeps its
-        // date. Edits that kept a pact a pact have nothing left to change.
-        val removals = HashMap(WellApps.pendingRemovals(prefs, gson))
-        parse(prefs, LegacyKeys.PACT_PENDING_REVISIONS)?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { value ->
-            val revision = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+        val removals = HashMap(WellApps.pendingRemovals(prefs))
+        (parse(prefs, LegacyKeys.PACT_PENDING_REVISIONS) as? JsonArray)?.forEach { value ->
+            val revision = value as? JsonObject ?: return@forEach
             val appliesAt = revision.long("appliesAtMillis").takeIf { it > 0L } ?: return@forEach
-            val newConfig = revision.get("newConfig")?.takeIf { it.isJsonObject }?.asJsonObject
-            val newGroup = revision.get("newGroup")?.takeIf { it.isJsonObject }
+            val newConfig = revision["newConfig"] as? JsonObject
+            val newGroup = revision["newGroup"] as? JsonObject
             val pkg = revision.str("packageName")
             val blockerName = revision.str("blockerName")
             val targets = when {
@@ -143,12 +123,11 @@ object Migrations {
             targets.filter { it in apps }.forEach { removals.merge(it, appliesAt, ::minOf) }
         }
 
-        WellApps.save(prefs, gson, apps.values.toList())
+        WellApps.save(prefs, apps.values.toList())
         prefs.edit {
             if (removals.isEmpty()) remove(Constants.PrefsKeys.WELL_APP_REMOVALS)
-            else putString(Constants.PrefsKeys.WELL_APP_REMOVALS, gson.toJson(removals))
+            else putString(Constants.PrefsKeys.WELL_APP_REMOVALS, AppJson.json.encodeToString(removals))
             putBoolean(Constants.PrefsKeys.WELL_ENABLED, true)
-            // A queued "switch the Well off" can no longer apply.
             if (prefs.contains(Constants.PrefsKeys.WELL_PENDING_ENABLED)) {
                 putBoolean(Constants.PrefsKeys.WELL_PENDING_ENABLED, true)
             }
@@ -162,30 +141,21 @@ object Migrations {
         }
     }
 
-    /**
-     * Step 3, first half. Also run by backup import over a file from before
-     * talismans had setups. Leaves talismans that already have one alone.
-     */
     internal fun migrateTalismans(prefs: SharedPreferences) {
-        val gson = Gson()
-        val talismans = PrefsHelper.load<List<Talisman>>(
-            prefs, gson, Constants.PrefsKeys.NAMED_TAGS,
-            object : com.google.gson.reflect.TypeToken<List<Talisman>>() {}.type
-        ).orEmpty().filterNotNull()
-        val presets = parse(prefs, LegacyKeys.FOCUS_PRESETS)?.takeIf { it.isJsonArray }?.asJsonArray
-            ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject }.orEmpty()
+        val talismans = PrefsHelper.loadListLenient<Talisman>(prefs, Constants.PrefsKeys.NAMED_TAGS).orEmpty()
+        val presets = (parse(prefs, LegacyKeys.FOCUS_PRESETS) as? JsonArray)
+            ?.mapNotNull { it as? JsonObject }.orEmpty()
         val focusTabSelection = activeBlockerNames(prefs)
 
         val updated = talismans.map { talisman ->
             if (talisman.blockerNames != null) return@map talisman
-            // handleNfcTag used to take the first spell bound to a tag.
             val preset = presets.firstOrNull { it.str("talismanId") == talisman.id }
             val action = preset?.str("action") ?: "TOGGLE"
             if (preset == null || action == "TEMP_DISABLE") {
                 talisman.copy(blockerNames = focusTabSelection)
             } else {
-                val names = preset.get("blockerNames")?.takeIf { it.isJsonArray }?.asJsonArray
-                    ?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString }
+                val names = (preset["blockerNames"] as? JsonArray)
+                    ?.mapNotNull { e -> (e as? JsonPrimitive)?.contentOrNull }
                     .orEmpty()
                     .ifEmpty { listOfNotNull(preset.str("blockerName")) }
                 val minutes = if (action == "TEMP_ENABLE") {
@@ -202,19 +172,19 @@ object Migrations {
             }
         }
         prefs.edit {
-            if (updated.isNotEmpty()) putString(Constants.PrefsKeys.NAMED_TAGS, gson.toJson(updated))
+            if (updated.isNotEmpty()) {
+                putString(Constants.PrefsKeys.NAMED_TAGS, AppJson.json.encodeToString(updated))
+            }
             remove(LegacyKeys.FOCUS_PRESETS)
         }
     }
 
-    /** Step 4. Also run by backup import over a file from before version 4. */
     internal fun migrateConditionalUnlocks(prefs: SharedPreferences) {
-        val gson = Gson()
-        val required = parse(prefs, LegacyKeys.CONDITIONAL_UNLOCKS)?.takeIf { it.isJsonArray }?.asJsonArray
-            ?.mapNotNull { it.takeIf { e -> e.isJsonObject }?.asJsonObject?.str("requiredAppPackage") }
+        val required = (parse(prefs, LegacyKeys.CONDITIONAL_UNLOCKS) as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.str("requiredAppPackage") }
             .orEmpty()
         if (required.isNotEmpty()) {
-            ProductiveApps.save(prefs, gson, ProductiveApps.load(prefs, gson) + required)
+            ProductiveApps.save(prefs, ProductiveApps.load(prefs) + required)
         }
         prefs.edit {
             remove(LegacyKeys.CONDITIONAL_UNLOCKS)
@@ -223,17 +193,28 @@ object Migrations {
         }
     }
 
-    private fun dropUnfinishedTrials(prefs: SharedPreferences) {
-        val trials = parse(prefs, Constants.PrefsKeys.TRIALS)?.takeIf { it.isJsonArray }?.asJsonArray ?: return
-        val kept = com.google.gson.JsonArray()
-        trials.forEach { e ->
-            val trial = e.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
-            if (trial.bool("claimed") || trial.int("progress") >= trial.int("target").coerceAtLeast(1)) kept.add(trial)
+    internal fun dropUnfinishedTrials(prefs: SharedPreferences) {
+        val trials = parse(prefs, Constants.PrefsKeys.TRIALS) as? JsonArray ?: return
+        val kept = trials.mapNotNull { e ->
+            val trial = e as? JsonObject ?: return@mapNotNull null
+            if (trial.bool("claimed") || trial.int("progress") >= trial.int("target").coerceAtLeast(1)) trial
+            else null
         }
-        prefs.edit { putString(Constants.PrefsKeys.TRIALS, kept.toString()) }
+        prefs.edit { putString(Constants.PrefsKeys.TRIALS, JsonArray(kept).toString()) }
     }
 
-    /** Step 3, second half: a running tag-only session becomes a real one. */
+    internal fun dropReflexTrials(prefs: SharedPreferences) {
+        val trials = parse(prefs, Constants.PrefsKeys.TRIALS) as? JsonArray ?: return
+        val kept = trials.mapNotNull { e ->
+            val trial = e as? JsonObject ?: return@mapNotNull null
+            val isReflex = trial.str("type") == "NO_REFLEX_OPENS"
+            if (!isReflex || trial.bool("claimed") || trial.int("progress") >= trial.int("target").coerceAtLeast(1)) {
+                trial
+            } else null
+        }
+        prefs.edit { putString(Constants.PrefsKeys.TRIALS, JsonArray(kept).toString()) }
+    }
+
     private fun convertRunningTagSession(prefs: SharedPreferences) {
         val tagId = prefs.getString(LegacyKeys.FOCUS_TAG_ID, null)
         prefs.edit { remove(LegacyKeys.FOCUS_TAG_ID) }
@@ -243,41 +224,75 @@ object Migrations {
         SessionManager.startSession(prefs, blockers, talismanId = tagId)
     }
 
-    /** Step 3: the single-enchantment key folds into ACTIVE_BLOCKERS. */
+    /**
+     * The Focus tab used to remember its setup in the running session's keys
+     * (duration, breaks, selected enchantments); it now has keys of its own.
+     * Copies the old values across so an upgrade keeps the user's usual
+     * session. A ritual or talisman session writes those same keys with its
+     * own setup, so while one runs only the duration (a manual choice) is
+     * copied. Keys already set are left alone, so a second run changes nothing.
+     */
+    internal fun seedLastManualSetup(prefs: SharedPreferences) {
+        val runningNotManual =
+            prefs.getString(Constants.PrefsKeys.ACTIVE_SCHEDULE_ID, null) != null ||
+                prefs.getString(Constants.PrefsKeys.ACTIVE_TALISMAN_ID, null) != null
+        prefs.edit {
+            if (!prefs.contains(Constants.PrefsKeys.LAST_MANUAL_DURATION_MINUTES)) {
+                val duration = prefs.getInt(Constants.PrefsKeys.FOCUS_DURATION_MINUTES, 0)
+                if (duration > 0) putInt(Constants.PrefsKeys.LAST_MANUAL_DURATION_MINUTES, duration)
+            }
+            if (runningNotManual) return@edit
+            if (!prefs.contains(Constants.PrefsKeys.LAST_MANUAL_BREAKS_ENABLED) &&
+                prefs.contains(Constants.PrefsKeys.SESSION_BREAKS_ENABLED)
+            ) {
+                putBoolean(
+                    Constants.PrefsKeys.LAST_MANUAL_BREAKS_ENABLED,
+                    prefs.getBoolean(Constants.PrefsKeys.SESSION_BREAKS_ENABLED, true)
+                )
+            }
+            if (!prefs.contains(Constants.PrefsKeys.LAST_MANUAL_BLOCKERS)) {
+                val blockers = activeBlockerNames(prefs)
+                if (blockers.isNotEmpty()) {
+                    putString(Constants.PrefsKeys.LAST_MANUAL_BLOCKERS, AppJson.json.encodeToString(blockers))
+                }
+            }
+        }
+    }
+
     private fun migrateActiveBlocker(prefs: SharedPreferences) {
         val single = prefs.getString(LegacyKeys.ACTIVE_BLOCKER, null)
         prefs.edit {
             if (single != null && !prefs.contains(Constants.PrefsKeys.ACTIVE_BLOCKERS)) {
-                putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, Gson().toJson(listOf(single)))
+                putString(Constants.PrefsKeys.ACTIVE_BLOCKERS, AppJson.json.encodeToString(listOf(single)))
             }
             remove(LegacyKeys.ACTIVE_BLOCKER)
         }
     }
 
     private fun activeBlockerNames(prefs: SharedPreferences): List<String> =
-        parse(prefs, Constants.PrefsKeys.ACTIVE_BLOCKERS)?.takeIf { it.isJsonArray }?.asJsonArray
-            ?.mapNotNull { e -> e.takeIf { it.isJsonPrimitive }?.asString }
+        (parse(prefs, Constants.PrefsKeys.ACTIVE_BLOCKERS) as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
             ?.ifEmpty { null }
             ?: listOfNotNull(prefs.getString(LegacyKeys.ACTIVE_BLOCKER, null))
 
     private fun parse(prefs: SharedPreferences, key: String): JsonElement? = try {
-        prefs.getString(key, null)?.let { JsonParser.parseString(it) }
+        prefs.getString(key, null)?.let { AppJson.json.parseToJsonElement(it) }
     } catch (e: Exception) {
         Log.w(TAG, "Unreadable $key, skipped", e)
         null
     }
 
     private fun JsonObject.str(name: String): String? =
-        get(name)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
+        (get(name) as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull?.takeIf { it.isNotBlank() }
 
     private fun JsonObject.bool(name: String): Boolean =
-        get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asBoolean }.getOrNull() } == true
+        (get(name) as? JsonPrimitive)?.booleanOrNull == true
 
     private fun JsonObject.int(name: String): Int =
-        get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asInt }.getOrNull() } ?: 0
+        (get(name) as? JsonPrimitive)?.intOrNull ?: 0
 
     private fun JsonObject.long(name: String): Long =
-        get(name)?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asLong }.getOrNull() } ?: 0L
+        (get(name) as? JsonPrimitive)?.longOrNull ?: 0L
 
     @Synchronized
     fun run(prefs: SharedPreferences) {
@@ -285,8 +300,6 @@ object Migrations {
         if (from >= steps.size) return
         for (version in from until steps.size) {
             steps[version](prefs)
-            // commit, not apply: a later step must never run over data whose
-            // earlier step isn't on disk yet.
             prefs.edit(commit = true) { putInt(Constants.PrefsKeys.SCHEMA_VERSION, version + 1) }
             Log.i(TAG, "Migrated prefs to schema ${version + 1}")
         }

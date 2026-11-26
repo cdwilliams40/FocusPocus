@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.google.gson.Gson
 import com.infinicada.focuspocus.limit.PactManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,7 +18,7 @@ class PactManagerTest {
     @Before
     fun setUp() {
         prefs = FakeSharedPreferences()
-        manager = PactManager(prefs, Gson())
+        manager = PactManager(prefs)
     }
 
     @Test
@@ -101,7 +100,7 @@ class PactManagerTest {
     fun `allowances survive a manager restart via prefs`() {
         manager.grantAllowance(pkg, minutes = 10, now = t0)
 
-        val restarted = PactManager(prefs, Gson())
+        val restarted = PactManager(prefs)
         assertEquals(t0 + 10 * 60 * 1000L, restarted.getAllowanceExpiry(pkg, t0))
     }
 

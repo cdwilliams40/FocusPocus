@@ -49,11 +49,12 @@ fun trialTitle(trial: Trial): String = when (trial.type) {
     TrialType.PRODUCTIVE_MINUTES ->
         if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_productive_daily, trial.target)
         else stringResource(R.string.trial_productive_weekly, trial.target)
+    TrialType.SUBSTITUTE_WINS ->
+        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_substitute_wins_daily, trial.target)
+        else stringResource(R.string.trial_substitute_wins_weekly, trial.target)
     TrialType.COMPLETE_RITUAL -> stringResource(R.string.trial_ritual_daily)
     TrialType.STAY_UNDER_LIMITS -> stringResource(R.string.trial_under_limits_daily)
-    TrialType.NO_REFLEX_OPENS ->
-        if (trial.period == TrialPeriod.DAILY) stringResource(R.string.trial_reflex_daily, trial.param)
-        else stringResource(R.string.trial_reflex_weekly, trial.param)
+    TrialType.NO_REFLEX_OPENS -> stringResource(R.string.trial_legacy_retired)
 }
 
 /** Localized one-line reason for a ledger entry. */
@@ -62,6 +63,7 @@ fun ledgerReason(entry: ManaLedgerEntry): String = when (entry.kind) {
     LedgerKind.SESSION -> stringResource(R.string.ledger_session_reason, entry.minutes)
     LedgerKind.OPEN_ENDED -> stringResource(R.string.ledger_open_ended_reason, entry.minutes)
     LedgerKind.PRODUCTIVE -> stringResource(R.string.ledger_productive_reason, entry.minutes)
+    LedgerKind.SUBSTITUTE_WIN -> stringResource(R.string.ledger_substitute_win_reason)
     LedgerKind.TRIAL -> stringResource(R.string.ledger_trial_reason)
     LedgerKind.BOON -> stringResource(R.string.ledger_boon_reason, entry.title)
     LedgerKind.PERK -> when (entry.refId) {

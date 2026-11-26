@@ -1,6 +1,5 @@
 package com.infinicada.focuspocus
 
-import com.infinicada.focuspocus.limit.AppOpenStats
 import com.infinicada.focuspocus.model.Trial
 import com.infinicada.focuspocus.model.TrialPeriod
 import com.infinicada.focuspocus.model.TrialType
@@ -31,14 +30,14 @@ object TrialEngine {
         Template("daily_timed_minutes", TrialType.FOCUS_MINUTES, TrialPeriod.DAILY, listOf(30, 45, 60), 50L),
         Template("daily_start_timed", TrialType.START_TIMED_SESSION, TrialPeriod.DAILY, listOf(1), 40L),
         Template("daily_well_under", TrialType.WELL_UNDER, TrialPeriod.DAILY, listOf(1), 60L, listOf(10, 15, 20)),
-        Template("daily_reflex", TrialType.NO_REFLEX_OPENS, TrialPeriod.DAILY, listOf(1), 40L, listOf(2, 3, 5)),
-        Template("daily_productive", TrialType.PRODUCTIVE_MINUTES, TrialPeriod.DAILY, listOf(30, 60), 40L)
+        Template("daily_productive", TrialType.PRODUCTIVE_MINUTES, TrialPeriod.DAILY, listOf(30, 60), 40L),
+        Template("daily_substitute_wins", TrialType.SUBSTITUTE_WINS, TrialPeriod.DAILY, listOf(2, 3), 50L)
     )
 
     val WEEKLY_TEMPLATES = listOf(
         Template("weekly_timed_minutes", TrialType.FOCUS_MINUTES, TrialPeriod.WEEKLY, listOf(150, 240, 360), 200L),
         Template("weekly_well_under", TrialType.WELL_UNDER, TrialPeriod.WEEKLY, listOf(1), 200L, listOf(60, 90, 120)),
-        Template("weekly_reflex", TrialType.NO_REFLEX_OPENS, TrialPeriod.WEEKLY, listOf(1), 150L, listOf(10, 15, 20))
+        Template("weekly_substitute_wins", TrialType.SUBSTITUTE_WINS, TrialPeriod.WEEKLY, listOf(5, 8), 160L)
     )
 
     const val DAILY_SLOTS = 2
@@ -47,19 +46,22 @@ object TrialEngine {
     /**
      * Which templates may be drawn right now. Templates that can't be
      * measured, or would be won without trying (no Well apps, no productive
-     * apps), are left out rather than shown as free mana.
+     * apps, no configured substitutes), are left out rather than shown as free mana.
      */
     data class Eligibility(
         val hasWellApps: Boolean,
         val canMeasureProductive: Boolean,
-        val hasReflexHistory: Boolean
+        val hasSubstitutes: Boolean = false
     ) {
         fun allows(template: Template): Boolean = when (template.type) {
             TrialType.FOCUS_MINUTES, TrialType.START_TIMED_SESSION -> true
             TrialType.WELL_UNDER -> hasWellApps
             TrialType.PRODUCTIVE_MINUTES -> canMeasureProductive
-            TrialType.NO_REFLEX_OPENS -> hasReflexHistory
-            TrialType.COMPLETE_SESSIONS, TrialType.COMPLETE_RITUAL, TrialType.STAY_UNDER_LIMITS -> false
+            TrialType.SUBSTITUTE_WINS -> hasSubstitutes
+            TrialType.COMPLETE_SESSIONS,
+            TrialType.COMPLETE_RITUAL,
+            TrialType.STAY_UNDER_LIMITS,
+            TrialType.NO_REFLEX_OPENS -> false
         }
     }
 
@@ -159,6 +161,13 @@ object TrialEngine {
         }
     }
 
+    /** Advances substitute-win trials by one win. */
+    fun advanceForSubstituteWin(
+        trials: List<Trial>
+    ): Pair<List<Trial>, List<Trial>> = advance(trials) { trial ->
+        if (trial.type == TrialType.SUBSTITUTE_WINS) trial.copy(progress = trial.progress + 1) else trial
+    }
+
     private fun advance(trials: List<Trial>, step: (Trial) -> Trial): Pair<List<Trial>, List<Trial>> {
         val newlyCompleted = mutableListOf<Trial>()
         val updated = trials.map { trial ->
@@ -174,12 +183,11 @@ object TrialEngine {
     /**
      * Judges an ended "at most" trial from recorded history: WELL_UNDER
      * succeeds when the period's net Well draws stayed at or under
-     * [Trial.param] minutes; NO_REFLEX_OPENS when its reflex opens did.
+     * [Trial.param] minutes.
      */
     fun judgeEndedTrial(
         trial: Trial,
-        wellDrawnMinutesByDay: Map<String, Int>,
-        reflexDays: Map<String, Map<String, AppOpenStats>>
+        wellDrawnMinutesByDay: Map<String, Int>
     ): Trial {
         fun inPeriod(day: String) = when (trial.period) {
             TrialPeriod.DAILY -> day == trial.periodKey
@@ -189,10 +197,6 @@ object TrialEngine {
             TrialType.WELL_UNDER -> {
                 val drawn = wellDrawnMinutesByDay.filterKeys(::inPeriod).values.sum()
                 if (drawn <= trial.param) trial.copy(progress = trial.target) else trial
-            }
-            TrialType.NO_REFLEX_OPENS -> {
-                val reflexes = reflexDays.filterKeys(::inPeriod).values.sumOf { day -> day.values.sumOf { it.reflexOpens } }
-                if (reflexes <= trial.param) trial.copy(progress = trial.target) else trial
             }
             else -> trial
         }

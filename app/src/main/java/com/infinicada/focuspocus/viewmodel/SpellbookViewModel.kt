@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
 import com.infinicada.focuspocus.AppUtils
 import com.infinicada.focuspocus.Blocker
 import com.infinicada.focuspocus.BlockerRepository
@@ -28,8 +27,8 @@ import com.infinicada.focuspocus.data.ScheduleRepository
 import com.infinicada.focuspocus.data.TalismanRepository
 import com.infinicada.focuspocus.model.AppInfo
 import com.infinicada.focuspocus.model.Schedule
-import com.infinicada.focuspocus.navigation.PactsRoute
 import com.infinicada.focuspocus.navigation.SpellbookRoute
+import com.infinicada.focuspocus.navigation.WellRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,109 +42,83 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val appPrefs =
         application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
 
-    private val gson = Gson()
-    private val openReflexTracker = OpenReflexTracker(appPrefs, gson)
-    private val pactManager = PactManager(appPrefs, gson)
+    private val openReflexTracker = OpenReflexTracker(appPrefs)
+    private val pactManager = PactManager(appPrefs)
 
     init {
-        // Take off any Well app whose 24 h removal came due while the app was
-        // closed, before the flows below snapshot the stores. (Init blocks and
-        // property initializers run in declaration order.)
-        if (WellApps.applyDueRemovals(appPrefs, gson)) {
+        if (WellApps.applyDueRemovals(appPrefs)) {
             syncWardenGreying()
         }
     }
 
-    /** Today's open/reflex counters per package, for the dashboard. */
+    /** Today's open counters per package, for the dashboard. */
     fun getTodayOpenStats(): Map<String, AppOpenStats> = openReflexTracker.getAllStats()
 
     /** Running pacts: package → epoch millis the pact ends. */
     fun getActivePacts(): Map<String, Long> = pactManager.getActiveAllowances()
 
-    /**
-     * The Mana Well as of now — terms, level and today's draws. A handful of
-     * primitive prefs; the dashboard lets the level keep refilling on its
-     * own clock in between.
-     */
     fun getWellSnapshot(): WellSnapshot = ManaWell.snapshot(appPrefs)
 
-    /**
-     * Pays for today's time in productive apps (the dashboard's twin of the
-     * service's periodic credit). Returns the mana added. Walks the day's
-     * usage events, so call it off the main thread.
-     */
     fun creditProductive(): Long =
-        com.infinicada.focuspocus.ProductiveApps.creditToday(getApplication(), appPrefs, gson).manaEarned
+        com.infinicada.focuspocus.ProductiveApps.creditToday(getApplication(), appPrefs).manaEarned
 
-    private val _productiveApps = MutableStateFlow(com.infinicada.focuspocus.ProductiveApps.load(appPrefs, gson))
+    private val _productiveApps = MutableStateFlow(com.infinicada.focuspocus.ProductiveApps.load(appPrefs))
     val productiveApps: StateFlow<List<String>> = _productiveApps.asStateFlow()
 
     fun setProductiveApps(packages: List<String>) {
-        com.infinicada.focuspocus.ProductiveApps.save(appPrefs, gson, packages)
-        _productiveApps.value = com.infinicada.focuspocus.ProductiveApps.load(appPrefs, gson)
+        com.infinicada.focuspocus.ProductiveApps.save(appPrefs, packages)
+        _productiveApps.value = com.infinicada.focuspocus.ProductiveApps.load(appPrefs)
         _dataVersion.value++
     }
 
-    private val _wellApps = MutableStateFlow(WellApps.load(appPrefs, gson))
+    private val _wellApps = MutableStateFlow(WellApps.load(appPrefs))
     val wellApps: StateFlow<List<WellApp>> = _wellApps.asStateFlow()
 
-    /** Queued removals: package → epoch millis it comes off the Well. */
-    private val _pendingRemovals = MutableStateFlow(WellApps.pendingRemovals(appPrefs, gson))
+    private val _pendingRemovals = MutableStateFlow(WellApps.pendingRemovals(appPrefs))
     val pendingRemovals: StateFlow<Map<String, Long>> = _pendingRemovals.asStateFlow()
 
-    /** True when the running focus session blocks [packageName] right now. */
     private fun isBlockedBySession(packageName: String): Boolean =
         BlockerRepository.sessionBlockerFor(appPrefs, packageName) {
             AppUtils.isWhitelistBlockable(getApplication(), it)
         } != null
 
-    /**
-     * Well apps the running focus session blocks. A pact for one of them
-     * would be paid for and then blocked anyway, so the dashboard doesn't
-     * offer it. Asks the package manager per app: off the main thread.
-     */
     fun getSessionBlockedWellApps(): Set<String> =
-        WellApps.packages(appPrefs, gson).filterTo(mutableSetOf()) { isBlockedBySession(it) }
+        WellApps.packages(appPrefs).filterTo(mutableSetOf()) { isBlockedBySession(it) }
 
     private fun reloadWellApps() {
-        _wellApps.value = WellApps.load(appPrefs, gson)
-        _pendingRemovals.value = WellApps.pendingRemovals(appPrefs, gson)
+        _wellApps.value = WellApps.load(appPrefs)
+        _pendingRemovals.value = WellApps.pendingRemovals(appPrefs)
         _dataVersion.value++
     }
 
-    /** Puts [packages] behind the Well right away (stricter, so no delay). */
     fun addWellApps(packages: Collection<String>) {
-        packages.forEach { WellApps.add(appPrefs, gson, it) }
+        packages.forEach { WellApps.add(appPrefs, it) }
         reloadWellApps()
         syncWardenGreying()
     }
 
     fun setWellAppSubstitute(packageName: String, substitute: String?) {
-        WellApps.setSubstitute(appPrefs, gson, packageName, substitute)
+        WellApps.setSubstitute(appPrefs, packageName, substitute)
         reloadWellApps()
     }
 
-    /** Taking an app off the Well waits 24 h. */
     fun requestWellAppRemoval(packageName: String) {
-        WellApps.requestRemoval(appPrefs, gson, packageName)
+        WellApps.requestRemoval(appPrefs, packageName)
         reloadWellApps()
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
         Toast.makeText(
             getApplication(), R.string.pact_revision_queued_removal_toast, Toast.LENGTH_LONG
         ).show()
     }
 
     fun cancelWellAppRemoval(packageName: String) {
-        WellApps.cancelRemoval(appPrefs, gson, packageName)
+        WellApps.cancelRemoval(appPrefs, packageName)
         reloadWellApps()
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
-    /**
-     * Takes off any app whose removal delay has passed. Called from the
-     * dashboard's minute tick so a due change lands without a restart; the
-     * accessibility service runs the same reconciliation for enforcement.
-     */
     fun applyDueWellRemovals() {
-        if (!WellApps.applyDueRemovals(appPrefs, gson)) return
+        if (!WellApps.applyDueRemovals(appPrefs)) return
         reloadWellApps()
         syncWardenGreying()
     }
@@ -194,6 +167,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
             return false
         }
         pactManager.grantAllowance(packageName, minutes, now)
+        com.infinicada.focuspocus.PactNotifier.update(getApplication())
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
         _dataVersion.value++
         // Under Warden greying the OS refuses to open a still-suspended app,
         // so the launch must chain after the sync completes — not go through
@@ -223,6 +198,8 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         )
         pactManager.revokeAllowance(packageName)
         ManaWell.refund(appPrefs, refundMillis, now)
+        com.infinicada.focuspocus.PactNotifier.update(getApplication())
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
         syncWardenGreying()
         _dataVersion.value++
         return (refundMillis / WellMath.MINUTE_MS).toInt()
@@ -249,8 +226,11 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _schedules = MutableStateFlow(scheduleRepo.getSchedules())
     val schedules: StateFlow<List<Schedule>> = _schedules.asStateFlow()
 
-    private val _namedTags = MutableStateFlow(talismanRepo.getNamedTags())
-    val namedTags: StateFlow<List<Talisman>> = _namedTags.asStateFlow()
+    private val _ritualExceptions = MutableStateFlow(com.infinicada.focuspocus.RitualExceptions.loadAll(appPrefs))
+    val ritualExceptions: StateFlow<Map<String, Set<String>>> = _ritualExceptions.asStateFlow()
+
+    private val _talismans = MutableStateFlow(talismanRepo.getTalismans())
+    val talismans: StateFlow<List<Talisman>> = _talismans.asStateFlow()
 
     private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
     val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
@@ -259,9 +239,9 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
     private val _spellbookRoute = MutableStateFlow<SpellbookRoute>(SpellbookRoute.Overview)
     val spellbookRoute: StateFlow<SpellbookRoute> = _spellbookRoute.asStateFlow()
 
-    // Home tab navigation: dashboard overview vs. the Well apps editor
-    private val _pactsRoute = MutableStateFlow<PactsRoute>(PactsRoute.Overview)
-    val pactsRoute: StateFlow<PactsRoute> = _pactsRoute.asStateFlow()
+    // Well tab navigation: dashboard overview vs. the Well apps editor
+    private val _wellRoute = MutableStateFlow<WellRoute>(WellRoute.Overview)
+    val wellRoute: StateFlow<WellRoute> = _wellRoute.asStateFlow()
 
     private val _selectedBlocker = MutableStateFlow<Blocker?>(null)
     val selectedBlocker: StateFlow<Blocker?> = _selectedBlocker.asStateFlow()
@@ -277,7 +257,7 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun cleanupOrphanedData() {
         val blockerNames = _blockerLists.value.map { it.name }.toSet()
-        val talismanIds = _namedTags.value.map { it.id }.toSet()
+        val talismanIds = _talismans.value.map { it.id }.toSet()
         _schedules.value = scheduleRepo.cleanupOrphanedSchedules(_schedules.value, blockerNames, talismanIds)
     }
 
@@ -324,13 +304,13 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         _spellbookRoute.value = route
     }
 
-    fun navigateToPacts(route: PactsRoute) {
-        _pactsRoute.value = route
+    fun navigateToWell(route: WellRoute) {
+        _wellRoute.value = route
     }
 
-    fun handlePactsBack(): Boolean {
-        if (_pactsRoute.value is PactsRoute.Overview) return false
-        _pactsRoute.value = PactsRoute.Overview
+    fun handleWellBack(): Boolean {
+        if (_wellRoute.value is WellRoute.Overview) return false
+        _wellRoute.value = WellRoute.Overview
         return true
     }
 
@@ -396,28 +376,47 @@ class SpellbookViewModel(application: Application) : AndroidViewModel(applicatio
         com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
     }
 
+    /** Schedules a one-day skip for [schedule] on [dayKey] (enforces >=24h advance notice). */
+    fun requestRitualSkip(schedule: Schedule, dayKey: String): Boolean {
+        val ok = com.infinicada.focuspocus.RitualExceptions.requestSkip(appPrefs, schedule, dayKey)
+        if (ok) {
+            _ritualExceptions.value = com.infinicada.focuspocus.RitualExceptions.loadAll(appPrefs)
+            _dataVersion.value++
+            com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
+        }
+        return ok
+    }
+
+    /** Cancels a planned skip for [scheduleId] on [dayKey]. */
+    fun cancelRitualSkip(scheduleId: String, dayKey: String) {
+        com.infinicada.focuspocus.RitualExceptions.cancelSkip(appPrefs, scheduleId, dayKey)
+        _ritualExceptions.value = com.infinicada.focuspocus.RitualExceptions.loadAll(appPrefs)
+        _dataVersion.value++
+        com.infinicada.focuspocus.RitualAlarmScheduler.scheduleNext(getApplication())
+    }
+
     /** Binds a newly scanned tag. A re-scan of a known tag renames it and keeps its setup. */
-    fun saveNamedTag(tagId: String, name: String) {
-        val tag = _namedTags.value.find { it.id == tagId }?.copy(name = name) ?: Talisman(tagId, name)
-        if (!talismanRepo.saveNamedTag(tag, _namedTags.value)) {
+    fun saveTalisman(tagId: String, name: String) {
+        val tag = _talismans.value.find { it.id == tagId }?.copy(name = name) ?: Talisman(tagId, name)
+        if (!talismanRepo.saveTalisman(tag, _talismans.value)) {
             Toast.makeText(getApplication(), getApplication<Application>().getString(
                 R.string.toast_max_talismans, com.infinicada.focuspocus.Constants.MAX_NAMED_TAGS
             ), Toast.LENGTH_SHORT).show()
             return
         }
-        _namedTags.value = talismanRepo.getNamedTags()
+        _talismans.value = talismanRepo.getTalismans()
         _dataVersion.value++
     }
 
     /** Saves a talisman's session setup (enchantments, duration, breaks, lock). */
     fun saveTalismanSetup(talisman: Talisman) {
-        talismanRepo.saveNamedTag(talisman, _namedTags.value)
-        _namedTags.value = talismanRepo.getNamedTags()
+        talismanRepo.saveTalisman(talisman, _talismans.value)
+        _talismans.value = talismanRepo.getTalismans()
         _dataVersion.value++
     }
 
-    fun deleteNamedTag(tag: Talisman) {
-        _namedTags.value = talismanRepo.deleteNamedTag(tag, _namedTags.value)
+    fun deleteTalisman(tag: Talisman) {
+        _talismans.value = talismanRepo.deleteTalisman(tag, _talismans.value)
         _dataVersion.value++
     }
 

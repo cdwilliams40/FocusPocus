@@ -121,6 +121,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".PactActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".BootCompletedReceiver"
             android:exported="false">
             <intent-filter>

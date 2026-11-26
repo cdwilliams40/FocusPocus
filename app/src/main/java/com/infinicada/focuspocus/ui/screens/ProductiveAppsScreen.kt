@@ -86,7 +86,7 @@ fun ProductiveAppsScreen(
                 Text(
                     stringResource(
                         R.string.productive_intro,
-                        ManaRules.PRODUCTIVE_MINUTES_PER_MANA,
+                        ManaRules.PRODUCTIVE_MANA_PER_MINUTE,
                         ManaRules.PRODUCTIVE_DAILY_CAP
                     ),
                     style = MaterialTheme.typography.bodyMedium,

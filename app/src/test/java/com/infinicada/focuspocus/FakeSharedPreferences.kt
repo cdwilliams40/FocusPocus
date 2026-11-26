@@ -100,10 +100,25 @@ class FakeSharedPreferences : SharedPreferences {
         }
 
         override fun apply() {
-            if (clear) prefs.map.clear()
-            removals.forEach { prefs.map.remove(it) }
+            val changedKeys = LinkedHashSet<String>()
+            if (clear) {
+                changedKeys.addAll(prefs.map.keys)
+                prefs.map.clear()
+            }
+            removals.forEach {
+                prefs.map.remove(it)
+                changedKeys.add(it)
+            }
             changes.forEach { (k, v) ->
                 if (v == null) prefs.map.remove(k) else prefs.map[k] = v
+                changedKeys.add(k)
+            }
+            val snapshot = prefs.listeners.toList()
+            if (clear) {
+                snapshot.forEach { it.onSharedPreferenceChanged(prefs, null) }
+            }
+            changedKeys.forEach { key ->
+                snapshot.forEach { it.onSharedPreferenceChanged(prefs, key) }
             }
         }
     }

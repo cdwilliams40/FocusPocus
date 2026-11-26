@@ -29,11 +29,12 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -164,11 +165,12 @@ fun CreateBlockerScreen(
     installedApps: List<AppInfo>,
     modifier: Modifier = Modifier
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedMode by remember { mutableStateOf(BlockerMode.BLACKLIST) }
-    var apps by remember { mutableStateOf(emptyList<String>()) }
-    var autoAddNewApps by remember { mutableStateOf(false) }
-    var showDialog by remember { mutableStateOf(false) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var selectedModeName by rememberSaveable { mutableStateOf(BlockerMode.BLACKLIST.name) }
+    val selectedMode = runCatching { BlockerMode.valueOf(selectedModeName) }.getOrDefault(BlockerMode.BLACKLIST)
+    var apps by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var autoAddNewApps by rememberSaveable { mutableStateOf(false) }
+    var showDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showDialog) {
         AppPickerDialog(
@@ -203,12 +205,12 @@ fun CreateBlockerScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,
-                onClick = { selectedMode = BlockerMode.BLACKLIST }
+                onClick = { selectedModeName = BlockerMode.BLACKLIST.name }
             )
             Text(stringResource(R.string.label_banish_blacklist))
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
-                onClick = { selectedMode = BlockerMode.WHITELIST }
+                onClick = { selectedModeName = BlockerMode.WHITELIST.name }
             )
             Text(stringResource(R.string.label_shield_whitelist))
         }
@@ -262,10 +264,12 @@ fun EditBlockerScreen(
     installedApps: List<AppInfo>,
     modifier: Modifier = Modifier
 ) {
-    var selectedMode by remember { mutableStateOf(blocker.mode) }
-    var apps by remember { mutableStateOf(blocker.effectiveApps.toList()) }
-    var autoAddNewApps by remember { mutableStateOf(blocker.autoAddNewApps) }
-    var showDialog by remember { mutableStateOf(false) }
+    var selectedModeName by rememberSaveable(blocker.name) { mutableStateOf(blocker.mode.name) }
+    val selectedMode = runCatching { BlockerMode.valueOf(selectedModeName) }.getOrDefault(blocker.mode)
+    var apps by rememberSaveable(blocker.name) { mutableStateOf(blocker.effectiveApps.toList()) }
+    var autoAddNewApps by rememberSaveable(blocker.name) { mutableStateOf(blocker.autoAddNewApps) }
+    var showDialog by rememberSaveable(blocker.name) { mutableStateOf(false) }
+    var showDeleteConfirm by rememberSaveable(blocker.name) { mutableStateOf(false) }
 
     if (showDialog) {
         AppPickerDialog(
@@ -280,17 +284,41 @@ fun EditBlockerScreen(
         )
     }
 
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.spells_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.spells_delete_confirm_message, blocker.name)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDeleteBlocker(blocker)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(stringResource(R.string.spells_edit_title, blocker.name), style = MaterialTheme.typography.headlineSmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = selectedMode == BlockerMode.BLACKLIST,
-                onClick = { selectedMode = BlockerMode.BLACKLIST }
+                onClick = { selectedModeName = BlockerMode.BLACKLIST.name }
             )
             Text(stringResource(R.string.label_banish_blacklist))
             RadioButton(
                 selected = selectedMode == BlockerMode.WHITELIST,
-                onClick = { selectedMode = BlockerMode.WHITELIST }
+                onClick = { selectedModeName = BlockerMode.WHITELIST.name }
             )
             Text(stringResource(R.string.label_shield_whitelist))
         }
@@ -337,7 +365,7 @@ fun EditBlockerScreen(
                 Text(stringResource(R.string.action_save))
             }
             Button(
-                onClick = { onDeleteBlocker(blocker) },
+                onClick = { showDeleteConfirm = true },
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 8.dp),

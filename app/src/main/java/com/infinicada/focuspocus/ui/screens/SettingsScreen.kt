@@ -79,6 +79,10 @@ fun SettingsScreen(
     onFixUsageAccess: () -> Unit,
     onFixNotifications: () -> Unit,
     onFixBattery: () -> Unit,
+    modifier: Modifier = Modifier,
+    onFixExactAlarms: () -> Unit = {},
+    enforcementLog: List<com.infinicada.focuspocus.EnforcementLogEntry> = emptyList(),
+    onClearEnforcementLog: () -> Unit = {},
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
     breakDurationMinutes: Int,
@@ -100,6 +104,13 @@ fun SettingsScreen(
     wellSettingsState: WellSettingsState,
     onWellSettingsRequested: (WellSettings) -> Unit,
     onCancelWellRevision: () -> Unit,
+    wellRefillGate: com.infinicada.focuspocus.limit.WellGateState = com.infinicada.focuspocus.limit.WellGateState(),
+    onWellRefillGateChanged: (Boolean, Int, Int, Boolean, Int) -> Unit = { _, _, _, _, _ -> },
+    onCancelWellGateRevision: () -> Unit = {},
+    autoBackupState: com.infinicada.focuspocus.AutoBackupState = com.infinicada.focuspocus.AutoBackupState(),
+    onPickAutoBackupFolder: (android.net.Uri) -> Unit = {},
+    onAutoBackupCadenceChanged: (com.infinicada.focuspocus.AutoBackupCadence) -> Unit = {},
+    onRunAutoBackupNow: () -> Unit = {},
     muteNotifications: Boolean,
     isNotificationListenerEnabled: Boolean,
     onMuteNotificationsChanged: (Boolean) -> Unit,
@@ -120,10 +131,9 @@ fun SettingsScreen(
     onAnalyticsConsentChanged: (Boolean) -> Unit,
     onExportBackup: (android.net.Uri) -> Unit,
     onImportBackup: (android.net.Uri) -> Unit,
-    namedTags: List<Talisman>,
+    talismans: List<Talisman>,
     focusMode: Boolean,
-    onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateBack: () -> Unit
 ) {
     ArcaneBackground(modifier = modifier) {
     Scaffold(
@@ -187,6 +197,61 @@ fun SettingsScreen(
                         problem = stringResource(R.string.settings_protection_battery_off),
                         onFix = onFixBattery
                     )
+                    ProtectionHealthRow(
+                        healthy = protectionStatus.exactAlarmsAllowed,
+                        title = stringResource(R.string.settings_protection_exact_alarms),
+                        problem = stringResource(R.string.settings_protection_exact_alarms_off),
+                        onFix = onFixExactAlarms
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    var showEnforcementLog by remember { mutableStateOf(false) }
+                    TextButton(onClick = { showEnforcementLog = true }) {
+                        Text(stringResource(R.string.settings_enforcement_log_button))
+                    }
+                    if (showEnforcementLog) {
+                        val timeFormat = remember {
+                            java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US)
+                        }
+                        AlertDialog(
+                            onDismissRequest = { showEnforcementLog = false },
+                            title = { Text(stringResource(R.string.settings_enforcement_log_title)) },
+                            text = {
+                                if (enforcementLog.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.settings_enforcement_log_empty),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .verticalScroll(rememberScrollState()),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        enforcementLog.forEach { entry ->
+                                            Text(
+                                                text = "${timeFormat.format(java.util.Date(entry.timestampMillis))} [${entry.category}] ${entry.message}",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showEnforcementLog = false }) {
+                                    Text(stringResource(R.string.action_done))
+                                }
+                            },
+                            dismissButton = if (enforcementLog.isNotEmpty()) {
+                                {
+                                    TextButton(onClick = { onClearEnforcementLog() }) {
+                                        Text(stringResource(R.string.settings_enforcement_log_clear))
+                                    }
+                                }
+                            } else null
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -466,11 +531,11 @@ fun SettingsScreen(
                         Switch(
                             checked = nfcLockMode,
                             onCheckedChange = onNfcLockModeChanged,
-                            enabled = !focusMode && namedTags.isNotEmpty()
+                            enabled = !focusMode && talismans.isNotEmpty()
                         )
                     }
 
-                    if (namedTags.isEmpty()) {
+                    if (talismans.isEmpty()) {
                         Text(
                             stringResource(R.string.settings_add_talisman_first),
                             style = MaterialTheme.typography.bodySmall,
@@ -484,8 +549,11 @@ fun SettingsScreen(
             // Mana Well Card — one slowly refilling pool of time for the Well apps
             WellSettingsCard(
                 state = wellSettingsState,
+                gateState = wellRefillGate,
                 onRequest = onWellSettingsRequested,
-                onCancelRevision = onCancelWellRevision
+                onCancelRevision = onCancelWellRevision,
+                onRefillGateChanged = onWellRefillGateChanged,
+                onCancelGateRevision = onCancelWellGateRevision
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -702,6 +770,9 @@ fun SettingsScreen(
             val importLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenDocument()
             ) { uri -> uri?.let(onImportBackup) }
+            val folderPickerLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocumentTree()
+            ) { uri -> uri?.let(onPickAutoBackupFolder) }
             var showImportConfirm by remember { mutableStateOf(false) }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -725,6 +796,66 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.settings_backup_import))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(stringResource(R.string.settings_auto_backup_title), style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.settings_auto_backup_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { folderPickerLauncher.launch(null) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (autoBackupState.treeUri != null) stringResource(R.string.settings_auto_backup_change_folder)
+                            else stringResource(R.string.settings_auto_backup_pick_folder)
+                        )
+                    }
+                    if (autoBackupState.treeUri != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            com.infinicada.focuspocus.AutoBackupCadence.entries.forEach { cadence ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = autoBackupState.cadence == cadence,
+                                    onClick = { onAutoBackupCadenceChanged(cadence) },
+                                    label = {
+                                        Text(
+                                            when (cadence) {
+                                                com.infinicada.focuspocus.AutoBackupCadence.OFF -> stringResource(R.string.auto_backup_off)
+                                                com.infinicada.focuspocus.AutoBackupCadence.DAILY -> stringResource(R.string.auto_backup_daily)
+                                                com.infinicada.focuspocus.AutoBackupCadence.WEEKLY -> stringResource(R.string.auto_backup_weekly)
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        if (autoBackupState.lastBackupMillis > 0L) {
+                            val locale = androidx.compose.ui.platform.LocalLocale.current.platformLocale
+                            val fmt = remember(locale) {
+                                java.text.SimpleDateFormat("MMM d, HH:mm", locale)
+                            }
+                            Text(
+                                stringResource(
+                                    R.string.settings_auto_backup_last,
+                                    fmt.format(java.util.Date(autoBackupState.lastBackupMillis))
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        TextButton(onClick = onRunAutoBackupNow) {
+                            Text(stringResource(R.string.settings_auto_backup_now))
+                        }
                     }
                 }
             }
@@ -901,10 +1032,15 @@ private fun SetupStep(number: Int, text: String) {
 @Composable
 private fun WellSettingsCard(
     state: WellSettingsState,
+    gateState: com.infinicada.focuspocus.limit.WellGateState,
     onRequest: (WellSettings) -> Unit,
-    onCancelRevision: () -> Unit
+    onCancelRevision: () -> Unit,
+    onRefillGateChanged: (Boolean, Int, Int, Boolean, Int) -> Unit,
+    onCancelGateRevision: () -> Unit
 ) {
     val target = state.target
+    // The controls show where the user is steering; a loosening may still be queued.
+    val refillGate = gateState.target
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.settings_well_title), style = MaterialTheme.typography.titleMedium)
@@ -991,6 +1127,165 @@ private fun WellSettingsCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // Quiet Well hours ("No Morning Windfall")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_well_quiet_hours))
+                            Text(
+                                stringResource(
+                                    R.string.settings_well_quiet_hours_desc,
+                                    formatHourMinute(refillGate.quietStartMinute),
+                                    formatHourMinute(refillGate.quietEndMinute)
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = refillGate.quietHoursEnabled,
+                            onCheckedChange = { on ->
+                                onRefillGateChanged(
+                                    on,
+                                    refillGate.quietStartMinute,
+                                    refillGate.quietEndMinute,
+                                    refillGate.morningFocusRequired,
+                                    refillGate.morningFocusMinutes
+                                )
+                            }
+                        )
+                    }
+                    if (refillGate.quietHoursEnabled) {
+                        var startHour by remember(refillGate.quietStartMinute) {
+                            mutableFloatStateOf((refillGate.quietStartMinute / 60).toFloat())
+                        }
+                        var endHour by remember(refillGate.quietEndMinute) {
+                            mutableFloatStateOf((refillGate.quietEndMinute / 60).toFloat())
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_well_quiet_start, formatHourMinute(startHour.roundToInt() * 60)),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = startHour,
+                            onValueChange = { startHour = it.roundToInt().toFloat() },
+                            onValueChangeFinished = {
+                                onRefillGateChanged(
+                                    true,
+                                    startHour.roundToInt() * 60,
+                                    refillGate.quietEndMinute,
+                                    refillGate.morningFocusRequired,
+                                    refillGate.morningFocusMinutes
+                                )
+                            },
+                            valueRange = 18f..23f,
+                            steps = 4,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            stringResource(R.string.settings_well_quiet_end, formatHourMinute(endHour.roundToInt() * 60)),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = endHour,
+                            onValueChange = { endHour = it.roundToInt().toFloat() },
+                            onValueChangeFinished = {
+                                onRefillGateChanged(
+                                    true,
+                                    refillGate.quietStartMinute,
+                                    endHour.roundToInt() * 60,
+                                    refillGate.morningFocusRequired,
+                                    refillGate.morningFocusMinutes
+                                )
+                            },
+                            valueRange = 5f..11f,
+                            steps = 5,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Morning focus unlock toggle
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_well_morning_focus))
+                            Text(
+                                stringResource(R.string.settings_well_morning_focus_desc, refillGate.morningFocusMinutes),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = refillGate.morningFocusRequired,
+                            onCheckedChange = { on ->
+                                onRefillGateChanged(
+                                    refillGate.quietHoursEnabled,
+                                    refillGate.quietStartMinute,
+                                    refillGate.quietEndMinute,
+                                    on,
+                                    refillGate.morningFocusMinutes
+                                )
+                            }
+                        )
+                    }
+                    if (refillGate.morningFocusRequired) {
+                        var reqMin by remember(refillGate.morningFocusMinutes) {
+                            mutableFloatStateOf(refillGate.morningFocusMinutes.toFloat())
+                        }
+                        Text(
+                            stringResource(R.string.settings_well_morning_focus_minutes, reqMin.roundToInt()),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = reqMin,
+                            onValueChange = { reqMin = (it / 5).roundToInt() * 5f },
+                            onValueChangeFinished = {
+                                onRefillGateChanged(
+                                    refillGate.quietHoursEnabled,
+                                    refillGate.quietStartMinute,
+                                    refillGate.quietEndMinute,
+                                    true,
+                                    reqMin.roundToInt()
+                                )
+                            },
+                            valueRange = 5f..30f,
+                            steps = 4,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                val gatePending = gateState.pending
+                if (gatePending != null) {
+                    var gateNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    LaunchedEffect(gatePending.appliesAtMillis) {
+                        while (true) {
+                            gateNow = System.currentTimeMillis()
+                            delay(30_000L)
+                        }
+                    }
+                    val gateWait = formatDuration(
+                        GuardStatus.minutesUntil(gatePending.appliesAtMillis, gateNow).coerceAtLeast(1)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.settings_well_gate_pending_change, gateWait),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    TextButton(onClick = onCancelGateRevision) {
+                        Text(stringResource(R.string.settings_well_gate_keep))
+                    }
                 }
 
                 val pending = state.pending
@@ -1036,6 +1331,9 @@ private fun WellSettingsCard(
         }
     }
 }
+
+private fun formatHourMinute(minuteOfDay: Int): String =
+    String.format(java.util.Locale.ROOT, "%02d:%02d", (minuteOfDay / 60).coerceIn(0, 23), (minuteOfDay % 60).coerceIn(0, 59))
 
 @Composable
 private fun AdbCommandRow(command: String) {
